@@ -1,0 +1,154 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\nivbu\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.8.3
+2 info using node@v20.12.2
+3 silly config load:file:C:\Users\nivbu\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\.npmrc
+5 silly config load:file:C:\Users\nivbu\.npmrc
+6 silly config load:file:C:\Users\nivbu\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install lucide-react
+8 verbose argv "install" "lucide-react"
+9 verbose logfile logs-max:10 dir:C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\UsersnivbuAppDataLocalnpm-cache\_logs\2024-11-24T09_48_55_130Z-
+10 verbose logfile C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\UsersnivbuAppDataLocalnpm-cache\_logs\2024-11-24T09_48_55_130Z-debug-0.log
+11 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+12 silly logfile start cleaning logs, removing 2 files
+13 silly idealTree buildDeps
+14 silly fetch manifest lucide-react@^0.460.0
+15 silly packumentCache full:https://registry.npmjs.org/lucide-react cache-miss
+16 silly logfile done cleaning log files
+17 http fetch GET 200 https://registry.npmjs.org/lucide-react 7417ms (cache revalidated)
+18 silly packumentCache full:https://registry.npmjs.org/lucide-react set size:1800843 disposed:false
+19 silly fetch manifest react@^18.3.1
+20 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+21 http fetch GET 200 https://registry.npmjs.org/react 58ms (cache revalidated)
+22 silly packumentCache full:https://registry.npmjs.org/react set size:5183680 disposed:false
+23 silly placeDep ROOT lucide-react@0.460.0 REPLACE for: learn-javascript@1.0.0 want: ^0.460.0
+24 silly reify moves {}
+25 silly audit bulk request {
+25 silly audit   '@alloc/quick-lru': [ '5.2.0' ],
+25 silly audit   '@isaacs/cliui': [ '8.0.2' ],
+25 silly audit   '@jridgewell/gen-mapping': [ '0.3.5' ],
+25 silly audit   '@jridgewell/resolve-uri': [ '3.1.2' ],
+25 silly audit   '@jridgewell/set-array': [ '1.2.1' ],
+25 silly audit   '@jridgewell/sourcemap-codec': [ '1.5.0' ],
+25 silly audit   '@jridgewell/trace-mapping': [ '0.3.25' ],
+25 silly audit   '@nodelib/fs.scandir': [ '2.1.5' ],
+25 silly audit   '@nodelib/fs.stat': [ '2.0.5' ],
+25 silly audit   '@nodelib/fs.walk': [ '1.2.8' ],
+25 silly audit   '@pkgjs/parseargs': [ '0.11.0' ],
+25 silly audit   'ansi-regex': [ '6.1.0', '5.0.1' ],
+25 silly audit   'ansi-styles': [ '6.2.1', '4.3.0' ],
+25 silly audit   'any-promise': [ '1.3.0' ],
+25 silly audit   anymatch: [ '3.1.3' ],
+25 silly audit   arg: [ '5.0.2' ],
+25 silly audit   autoprefixer: [ '10.4.20' ],
+25 silly audit   'balanced-match': [ '1.0.2' ],
+25 silly audit   'binary-extensions': [ '2.3.0' ],
+25 silly audit   'brace-expansion': [ '2.0.1' ],
+25 silly audit   braces: [ '3.0.3' ],
+25 silly audit   browserslist: [ '4.24.2' ],
+25 silly audit   'camelcase-css': [ '2.0.1' ],
+25 silly audit   'caniuse-lite': [ '1.0.30001684' ],
+25 silly audit   chokidar: [ '3.6.0' ],
+25 silly audit   'glob-parent': [ '5.1.2', '6.0.2' ],
+25 silly audit   'color-convert': [ '2.0.1' ],
+25 silly audit   'color-name': [ '1.1.4' ],
+25 silly audit   commander: [ '4.1.1' ],
+25 silly audit   'cross-spawn': [ '7.0.6' ],
+25 silly audit   cssesc: [ '3.0.0' ],
+25 silly audit   didyoumean: [ '1.2.2' ],
+25 silly audit   dlv: [ '1.1.3' ],
+25 silly audit   eastasianwidth: [ '0.2.0' ],
+25 silly audit   'electron-to-chromium': [ '1.5.64' ],
+25 silly audit   'emoji-regex': [ '9.2.2', '8.0.0' ],
+25 silly audit   escalade: [ '3.2.0' ],
+25 silly audit   'fast-glob': [ '3.3.2' ],
+25 silly audit   fastq: [ '1.17.1' ],
+25 silly audit   'fill-range': [ '7.1.1' ],
+25 silly audit   'foreground-child': [ '3.3.0' ],
+25 silly audit   'fraction.js': [ '4.3.7' ],
+25 silly audit   fsevents: [ '2.3.3' ],
+25 silly audit   'function-bind': [ '1.1.2' ],
+25 silly audit   glob: [ '10.4.5' ],
+25 silly audit   hasown: [ '2.0.2' ],
+25 silly audit   'is-binary-path': [ '2.1.0' ],
+25 silly audit   'is-core-module': [ '2.15.1' ],
+25 silly audit   'is-extglob': [ '2.1.1' ],
+25 silly audit   'is-fullwidth-code-point': [ '3.0.0' ],
+25 silly audit   'is-glob': [ '4.0.3' ],
+25 silly audit   'is-number': [ '7.0.0' ],
+25 silly audit   isexe: [ '2.0.0' ],
+25 silly audit   jackspeak: [ '3.4.3' ],
+25 silly audit   jiti: [ '1.21.6' ],
+25 silly audit   'js-tokens': [ '4.0.0' ],
+25 silly audit   lilconfig: [ '2.1.0', '3.1.2' ],
+25 silly audit   'lines-and-columns': [ '1.2.4' ],
+25 silly audit   'loose-envify': [ '1.4.0' ],
+25 silly audit   'lru-cache': [ '10.4.3' ],
+25 silly audit   merge2: [ '1.4.1' ],
+25 silly audit   micromatch: [ '4.0.8' ],
+25 silly audit   minimatch: [ '9.0.5' ],
+25 silly audit   minipass: [ '7.1.2' ],
+25 silly audit   mz: [ '2.7.0' ],
+25 silly audit   nanoid: [ '3.3.7' ],
+25 silly audit   'node-releases': [ '2.0.18' ],
+25 silly audit   'normalize-path': [ '3.0.0' ],
+25 silly audit   'normalize-range': [ '0.1.2' ],
+25 silly audit   'object-assign': [ '4.1.1' ],
+25 silly audit   'object-hash': [ '3.0.0' ],
+25 silly audit   'package-json-from-dist': [ '1.0.1' ],
+25 silly audit   'path-key': [ '3.1.1' ],
+25 silly audit   'path-parse': [ '1.0.7' ],
+25 silly audit   'path-scurry': [ '1.11.1' ],
+25 silly audit   picocolors: [ '1.1.1' ],
+25 silly audit   picomatch: [ '2.3.1' ],
+25 silly audit   pify: [ '2.3.0' ],
+25 silly audit   pirates: [ '4.0.6' ],
+25 silly audit   postcss: [ '8.4.49' ],
+25 silly audit   'postcss-import': [ '15.1.0' ],
+25 silly audit   'postcss-js': [ '4.0.1' ],
+25 silly audit   'postcss-load-config': [ '4.0.2' ],
+25 silly audit   'postcss-nested': [ '6.2.0' ],
+25 silly audit   'postcss-selector-parser': [ '6.1.2' ],
+25 silly audit   'postcss-value-parser': [ '4.2.0' ],
+25 silly audit   'queue-microtask': [ '1.2.3' ],
+25 silly audit   react: [ '18.3.1' ],
+25 silly audit   'react-dom': [ '18.3.1' ],
+25 silly audit   'read-cache': [ '1.0.0' ],
+25 silly audit   readdirp: [ '3.6.0' ],
+25 silly audit   resolve: [ '1.22.8' ],
+25 silly audit   reusify: [ '1.0.4' ],
+25 silly audit   'run-parallel': [ '1.2.0' ],
+25 silly audit   scheduler: [ '0.23.2' ],
+25 silly audit   'shebang-command': [ '2.0.0' ],
+25 silly audit   'shebang-regex': [ '3.0.0' ],
+25 silly audit   'signal-exit': [ '4.1.0' ],
+25 silly audit   'source-map-js': [ '1.2.1' ],
+25 silly audit   'string-width': [ '5.1.2', '4.2.3' ],
+25 silly audit   'strip-ansi': [ '6.0.1', '7.1.0' ],
+25 silly audit   sucrase: [ '3.35.0' ],
+25 silly audit   'supports-preserve-symlinks-flag': [ '1.0.0' ],
+25 silly audit   tailwindcss: [ '3.4.15' ],
+25 silly audit   thenify: [ '3.3.1' ],
+25 silly audit   'thenify-all': [ '1.6.0' ],
+25 silly audit   'to-regex-range': [ '5.0.1' ],
+25 silly audit   'ts-interface-checker': [ '0.1.13' ],
+25 silly audit   'update-browserslist-db': [ '1.1.1' ],
+25 silly audit   'util-deprecate': [ '1.0.2' ],
+25 silly audit   which: [ '2.0.2' ],
+25 silly audit   'wrap-ansi': [ '8.1.0', '7.0.0' ],
+25 silly audit   yaml: [ '2.6.1' ],
+25 silly audit   'lucide-react': [ '0.460.0' ]
+25 silly audit }
+26 verbose reify failed optional dependency C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\node_modules\fsevents
+27 silly reify mark deleted [
+27 silly reify   'C:\\Users\\nivbu\\OneDrive\\Desktop\\APEX-Interface\\node_modules\\fsevents'
+27 silly reify ]
+28 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 278ms
+29 silly audit report {}
+30 silly ADD
+31 verbose cwd C:\Users\nivbu\OneDrive\Desktop\APEX-Interface
+32 verbose os Windows_NT 10.0.26100
+33 verbose node v20.12.2
+34 verbose npm  v10.8.3
+35 verbose exit 0
+36 info ok

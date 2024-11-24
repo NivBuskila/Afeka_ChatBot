@@ -1,0 +1,222 @@
+/* styles.css */
+
+/* Custom Scrollbar Styling */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(74, 222, 128, 0.2) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(74, 222, 128, 0.2);
+  border-radius: 1.5px;
+}
+
+/* Matrix Animation */
+@keyframes matrix {
+  0% { 
+    transform: translateY(-100%);
+    opacity: 1; 
+  }
+  100% { 
+    transform: translateY(1000%);
+    opacity: 0; 
+  }
+}
+
+/* Spinning Animations */
+@keyframes spin-slow {
+  from { 
+    transform: rotate(0deg); 
+  }
+  to { 
+    transform: rotate(360deg); 
+  }
+}
+
+@keyframes spin-reverse {
+  from { 
+    transform: rotate(360deg); 
+  }
+  to { 
+    transform: rotate(0deg); 
+  }
+}
+
+/* Blob Animation */
+@keyframes blob {
+  0%, 100% { 
+    transform: translate(0, 0) scale(1); 
+  }
+  25% { 
+    transform: translate(20px, -20px) scale(1.1); 
+  }
+  50% { 
+    transform: translate(-20px, 20px) scale(0.9); 
+  }
+  75% { 
+    transform: translate(20px, 20px) scale(1.1); 
+  }
+}
+
+/* Animation Classes */
+.animate-matrix {
+  animation: matrix 20s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 15s linear infinite;
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+/* Backdrop Blur */
+.backdrop-blur-xl {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .w-64 {
+    width: 12rem;
+  }
+  
+  .text-5xl {
+    font-size: 2.5rem;
+  }
+
+  .w-48 {
+    width: 8rem;
+  }
+
+  .h-48 {
+    height: 8rem;
+  }
+
+  .text-6xl {
+    font-size: 3rem;
+  }
+}
+
+/* Additional Utilities */
+.filter {
+  filter: blur(1px);
+}
+
+.blur-xl {
+  filter: blur(24px);
+}
+
+/* Focus Styles */
+.focus\:outline-none:focus {
+  outline: none;
+}
+
+.focus\:ring-1:focus {
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.3);
+}
+
+/* Transition Utilities */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.transition-colors {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Animation Durations */
+.duration-300 {
+  transition-duration: 300ms;
+}
+
+.duration-500 {
+  transition-duration: 500ms;
+}
+
+/* Hover Effects */
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+.hover\:bg-green-500:hover {
+  background-color: rgba(74, 222, 128, var(--tw-bg-opacity));
+}
+
+/* Custom Shadow Effects */
+.shadow-green {
+  box-shadow: 0 0 15px rgba(74, 222, 128, 0.2);
+}
+
+/* Z-index Utilities */
+.z-10 {
+  z-index: 10;
+}
+
+/* Message transitions */
+.message-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.message-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Loading Animation */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

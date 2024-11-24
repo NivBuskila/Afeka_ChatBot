@@ -1,0 +1,13 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\nivbu\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.8.3
+2 info using node@v20.12.2
+3 silly config load:file:C:\Users\nivbu\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\.npmrc
+5 silly config load:file:C:\Users\nivbu\.npmrc
+6 silly config load:file:C:\Users\nivbu\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm exec serve
+8 verbose argv "exec" "--" "serve"
+9 verbose logfile logs-max:10 dir:C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\UsersnivbuAppDataLocalnpm-cache\_logs\2024-11-24T11_34_03_922Z-
+10 verbose logfile C:\Users\nivbu\OneDrive\Desktop\APEX-Interface\UsersnivbuAppDataLocalnpm-cache\_logs\2024-11-24T11_34_03_922Z-debug-0.log
+11 silly logfile start cleaning logs, removing 2 files
+12 silly logfile done cleaning log files
