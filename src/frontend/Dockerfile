@@ -1,29 +1,30 @@
-# שלב הבנייה
-FROM node:20-alpine as builder
+# Build stage
+FROM node:20-alpine AS builder
 
-# הגדרת תיקיית העבודה
+# Set working directory
 WORKDIR /app
 
-# העתקת קבצי package.json ו-package-lock.json
+# Copy package files
 COPY package*.json ./
 
-# התקנת תלויות
+# Install dependencies
 RUN npm ci
 
-# העתקת כל הקבצים מהתיקייה הנוכחית
+# Copy all files
 COPY . .
 
-# בניית האפליקציה
+# Build the app
 RUN npm run build
 
-# שלב הייצור
+# Production stage
 FROM nginx:alpine
 
-# העתקת קבצי הבנייה לתיקיית nginx
+# Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# חשיפת פורט 80
+# Add nginx config if you have any
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
 
-# הפקודה להרצת nginx
 CMD ["nginx", "-g", "daemon off;"]

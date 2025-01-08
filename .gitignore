@@ -70,6 +70,8 @@ wheels/
 /src/frontend/.env
 /src/frontend/build
 /src/frontend/.cache
+/src/frontend/.npm-cache/
+/src/frontend/npm-cache/
 
 # FastAPI specific
 __pycache__/
