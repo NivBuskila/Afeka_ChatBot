@@ -72,6 +72,7 @@ wheels/
 /src/frontend/.cache
 /src/frontend/.npm-cache/
 /src/frontend/npm-cache/
+/UsersnivbuAppDataLocalnpm-cache
 
 # FastAPI specific
 __pycache__/
