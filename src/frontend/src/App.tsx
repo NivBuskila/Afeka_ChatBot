@@ -1,31 +1,28 @@
-// App.tsx
-import { useState } from 'react'
+import React, { useState } from 'react';
+import APEXSplashScreen from './components/SplashScreen/components/APEXSplashScreen';
+import './styles/animations.css';
+import './styles/index.css';
 
-function App() {
-  const [isLanding, setIsLanding] = useState(true)
-  
-  const handleContinue = () => {
-    setIsLanding(false)
-  }
-  
+const App: React.FC = () => {
+  const [isLanding, setIsLanding] = useState(true);
+
+  const handleSplashComplete = (): void => {
+    setIsLanding(false);
+  };
+
   return (
-    <div className="h-screen bg-black">
+    <div className="min-h-screen w-full bg-black text-white overflow-hidden font-sans">
       {isLanding ? (
-        // landing page
-        <div 
-          className="flex items-center justify-center h-full text-green-400 cursor-pointer"
-          onClick={handleContinue}
-        >
-         Click here to continue
-        </div>
+        // מסך הנחיתה
+        <APEXSplashScreen onSplashComplete={handleSplashComplete} />
       ) : (
-        //chat
-        <div className="flex items-center justify-center h-full text-green-400">
-         chat
+        // המסך הבא
+        <div className="flex items-center justify-center min-h-screen text-green-400">
+          <div className="text-xl">Chat Interface Coming Soon</div>
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;

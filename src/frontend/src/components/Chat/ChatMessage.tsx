@@ -1,4 +1,3 @@
-import React from 'react';
 import { MessageProps } from '../../types/chat';
 import { formatTime } from '../../utils';
 

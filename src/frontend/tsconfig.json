@@ -13,7 +13,16 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,    // הוספתי את זה
+    "baseUrl": ".",                         // הוספתי את זה
+    "paths": {                              // הוספתי את זה
+      "@/*": ["src/*"]
+    },
+    "allowJs": true,                        // הוספתי את זה
+    "esModuleInterop": true,                // הוספתי את זה
+    "forceConsistentCasingInFileNames": true // הוספתי את זה
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],  // עדכנתי את זה
+  "references": [{ "path": "./tsconfig.node.json" }]  // הוספתי את זה
 }

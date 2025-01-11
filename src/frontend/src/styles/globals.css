@@ -2,7 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar */
+:root {
+  background-color: black;
+  color: white;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -12,16 +21,6 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(74, 222, 128, 0.2);
+  background: rgba(34, 197, 94, 0.2);
   border-radius: 3px;
-}
-
-@font-face {
-  font-family: 'Heebo';
-  src: url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap');
-}
-
-body {
-  font-family: 'Heebo', sans-serif;
-  direction: ltr;
 }
