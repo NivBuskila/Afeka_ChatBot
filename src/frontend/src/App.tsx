@@ -28,6 +28,12 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = (): void => {
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    navigate('/');
+  };
+
   return (
     <div className="h-screen w-screen bg-black text-white font-sans overflow-hidden">
       <Routes>
@@ -38,8 +44,8 @@ const App: React.FC = () => {
             <APEXStaticLogin onLoginSuccess={handleLoginSuccess} />
           ) : null
         } />
-        <Route path="/dashboard" element={<AdminDashboard />} />
-        <Route path="/chat" element={<ChatWindow />} />
+        <Route path="/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
+        <Route path="/chat" element={<ChatWindow onLogout={handleLogout} />} />
       </Routes>
     </div>
   );

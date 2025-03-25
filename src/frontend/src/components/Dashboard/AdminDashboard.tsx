@@ -56,7 +56,11 @@ interface Document {
   status: 'active' | 'archived';
 }
 
-const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+  onLogout: () => void;
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState<string>('chatbot');
   const [activeSubItem, setActiveSubItem] = useState<string | null>(null);
@@ -125,7 +129,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    navigate('/');
+    onLogout();
   };
 
   const renderContent = () => {
@@ -135,7 +139,7 @@ const AdminDashboard: React.FC = () => {
           <div className="p-6">
             <h2 className="text-2xl font-bold text-green-400 mb-4">{t('chatbot.preview')}</h2>
             <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-4 h-[calc(100vh-200px)]">
-              <ChatWindow />
+              <ChatWindow onLogout={onLogout} />
             </div>
           </div>
         );

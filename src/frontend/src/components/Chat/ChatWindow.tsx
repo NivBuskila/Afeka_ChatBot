@@ -12,7 +12,11 @@ interface Message {
   timestamp: string;
 }
 
-const ChatWindow: React.FC = () => {
+interface ChatWindowProps {
+  onLogout: () => void;
+}
+
+const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -71,7 +75,7 @@ const ChatWindow: React.FC = () => {
   };
 
   const handleLogout = () => {
-    navigate('/');
+    onLogout();
   };
 
   return (
