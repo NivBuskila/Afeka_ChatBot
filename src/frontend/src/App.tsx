@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import APEXSplashScreen from './components/SplashScreen/components/APEXSplashScreen';
+
+
+import './styles/globals.css';
 import './styles/animations.css';
-import './styles/index.css';
+
+import ChatWindow from './components/Chat/ChatWindow';
 
 const App: React.FC = () => {
   const [isLanding, setIsLanding] = useState(true);
@@ -11,15 +15,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-black text-white overflow-hidden font-sans">
+
+    <div className="h-screen w-screen bg-black text-white font-sans overflow-hidden">
       {isLanding ? (
-        // מסך הנחיתה
         <APEXSplashScreen onSplashComplete={handleSplashComplete} />
       ) : (
-        // המסך הבא
-        <div className="flex items-center justify-center min-h-screen text-green-400">
-          <div className="text-xl">Chat Interface Coming Soon</div>
-        </div>
+        <ChatWindow />
       )}
     </div>
   );

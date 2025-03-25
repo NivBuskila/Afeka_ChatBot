@@ -46,7 +46,7 @@ cd src/frontend
 npm install
 
 # Start development server
-npm start
+npm run dev
 ```
 If successful, your browser should open to http://localhost:3000
 
