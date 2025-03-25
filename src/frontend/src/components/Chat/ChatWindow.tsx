@@ -93,9 +93,9 @@ const ChatWindow: React.FC = () => {
 
           <div className={`space-y-6 ${isExpanded ? 'px-4' : 'px-0'}`}>
             {[
-              { icon: Terminal, label: 'Console' },
+              { icon: Terminal, label: 'Chat' },
               { icon: History, label: 'History' },
-              {
+              {   
                 icon: Settings,
                 label: 'Settings',
                 onClick: () => setShowSettings(true), 
