@@ -1,0 +1,296 @@
+/* Add any custom styles here */
+
+/* General Styles */
+:root {
+  --primary-color: #22c55e;
+  --primary-hover: #16a34a;
+  --bg-dark: rgba(0, 0, 0, 0.5);
+  --border-color: rgba(34, 197, 94, 0.2);
+  --text-primary: #22c55e;
+  --text-secondary: rgba(34, 197, 94, 0.7);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Component Styles */
+.sidebar {
+  animation: slideIn 0.3s ease-out;
+}
+
+.content-area {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Sidebar Styles */
+.sidebar-item {
+  transition: all 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.sidebar-item.active {
+  background-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Content Styles */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);
+}
+
+/* Table Styles */
+.table-row {
+  transition: background-color 0.2s ease;
+}
+
+.table-row:hover {
+  background-color: rgba(34, 197, 94, 0.05);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Button Styles */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* Input Styles */
+.input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+/* Badge Styles */
+.badge {
+  animation: pulse 2s infinite;
+}
+
+/* Card Styles */
+.stat-card {
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(34, 197, 94, 0.15);
+}
+
+/* Menu Item Styles */
+.menu-item {
+  transition: all 0.2s ease;
+}
+
+.menu-item:hover {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.menu-item.active {
+  background-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Loading Styles */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Notification Styles */
+.notification {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Chatbot Preview Styles */
+.chatbot-preview {
+  transition: all 0.3s ease;
+}
+
+.chatbot-preview:hover {
+  transform: scale(1.02);
+}
+
+/* Chart Styles */
+.chart-container {
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  transform: translateY(-5px);
+}
+
+/* Dropdown Styles */
+.dropdown {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Document Grid Styles */
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+/* User List Styles */
+.user-list-item {
+  transition: all 0.2s ease;
+}
+
+.user-list-item:hover {
+  background-color: rgba(34, 197, 94, 0.05);
+}
+
+/* Settings Section Styles */
+.settings-section {
+  transition: all 0.3s ease;
+}
+
+.settings-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);
+}
+
+/* Stats Grid Styles */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+/* Notifications Panel Styles */
+.notifications-panel {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Search Results Styles */
+.search-results {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Loading Spinner Styles */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Error Message Styles */
+.error-message {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Success Message Styles */
+.success-message {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Confirmation Dialog Styles */
+.confirmation-dialog {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* User Menu Styles */
+.user-menu {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    z-index: 50;
+    height: 100vh;
+  }
+  
+  .content-area {
+    margin-left: 0;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .document-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark Mode Enhancements */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  .input {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+  
+  .dropdown {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-hover);
+} 
