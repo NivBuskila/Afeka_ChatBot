@@ -23,6 +23,7 @@ import {
 import './AdminDashboard.css';
 import { translations } from './translations';
 import ChatWindow from '../Chat/ChatWindow';
+import { useNavigate } from 'react-router-dom';
 
 type Language = 'he' | 'en';
 
@@ -65,6 +66,7 @@ const AdminDashboard: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedItem, setSelectedItem] = useState<number | null>(null);
   const [language, setLanguage] = useState<Language>('he');
+  const navigate = useNavigate();
 
   const t = (key: string) => translations[key]?.[language] || key;
 
@@ -123,8 +125,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // כאן תהיה לוגיקת התנתקות
-    window.location.reload();
+    navigate('/');
   };
 
   const renderContent = () => {
@@ -230,22 +231,22 @@ const AdminDashboard: React.FC = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-green-500/10">
-                        <th className="text-right py-3 px-4 text-green-400/70">{t('table.document.name')}</th>
-                        <th className="text-right py-3 px-4 text-green-400/70">{t('table.category')}</th>
-                        <th className="text-right py-3 px-4 text-green-400/70">{t('table.upload.date')}</th>
-                        <th className="text-right py-3 px-4 text-green-400/70">{t('table.size')}</th>
-                        <th className="text-right py-3 px-4 text-green-400/70">{t('table.status')}</th>
-                        <th className="text-right py-3 px-4 text-green-400/70">{t('table.actions')}</th>
+                        <th className="text-center py-3 px-4 text-green-400/70">{t('table.document.name')}</th>
+                        <th className="text-center py-3 px-4 text-green-400/70">{t('table.category')}</th>
+                        <th className="text-center py-3 px-4 text-green-400/70">{t('table.upload.date')}</th>
+                        <th className="text-center py-3 px-4 text-green-400/70">{t('table.size')}</th>
+                        <th className="text-center py-3 px-4 text-green-400/70">{t('table.status')}</th>
+                        <th className="text-center py-3 px-4 text-green-400/70">{t('table.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {mockDocuments.map((doc) => (
                         <tr key={doc.id} className="border-b border-green-500/10">
-                          <td className="py-3 px-4">{doc.title}</td>
-                          <td className="py-3 px-4">{doc.category}</td>
-                          <td className="py-3 px-4">{doc.uploadDate}</td>
-                          <td className="py-3 px-4">{doc.size}</td>
-                          <td className="py-3 px-4">
+                          <td className="text-center py-3 px-4">{doc.title}</td>
+                          <td className="text-center py-3 px-4">{doc.category}</td>
+                          <td className="text-center py-3 px-4">{doc.uploadDate}</td>
+                          <td className="text-center py-3 px-4">{doc.size}</td>
+                          <td className="text-center py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               doc.status === 'active' 
                                 ? 'bg-green-500/20 text-green-400' 
@@ -254,8 +255,8 @@ const AdminDashboard: React.FC = () => {
                               {doc.status === 'active' ? t('documents.status.active') : t('documents.status.archived')}
                             </span>
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2 justify-end">
+                          <td className="text-center py-3 px-4">
+                            <div className="flex items-center justify-center gap-2">
                               <button className="p-1 hover:bg-green-500/10 rounded">
                                 <Edit className="w-4 h-4 text-green-400" />
                               </button>

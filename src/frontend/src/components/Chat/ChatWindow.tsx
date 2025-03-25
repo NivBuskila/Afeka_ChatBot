@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
-import { Terminal, History, Settings } from 'lucide-react';
+import { Terminal, History, Settings, LogOut } from 'lucide-react';
 import SettingsPanel from './SettingsPanel';
+import { useNavigate } from 'react-router-dom';
 
 interface Message {
   id: number;
@@ -12,6 +13,7 @@ interface Message {
 }
 
 const ChatWindow: React.FC = () => {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +21,7 @@ const ChatWindow: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [hasStarted, setHasStarted] = useState(false);
+  const [fontSize, setFontSize] = useState(14);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -67,6 +70,10 @@ const ChatWindow: React.FC = () => {
     }, 1500);
   };
 
+  const handleLogout = () => {
+    navigate('/');
+  };
+
   return (
     <div className="relative h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-white overflow-hidden">
       <div className="relative h-full flex z-10">
@@ -91,7 +98,7 @@ const ChatWindow: React.FC = () => {
             )}
           </div>
 
-          <div className={`space-y-6 ${isExpanded ? 'px-4' : 'px-0'}`}>
+          <div className={`space-y-6 ${isExpanded ? 'px-4' : 'px-0'} flex-1`}>
             {[
               { icon: Terminal, label: 'Chat' },
               { icon: History, label: 'History' },
@@ -119,6 +126,25 @@ const ChatWindow: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Logout Button */}
+          <div className={`mt-auto ${isExpanded ? 'px-4' : 'px-0'}`}>
+            <button
+              onClick={handleLogout}
+              className={`w-full flex items-center transition-all ${
+                isExpanded 
+                  ? 'p-2 gap-3 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' 
+                  : 'justify-center py-1 text-red-600 dark:text-red-400'
+              }`}
+            >
+              <LogOut className="w-5 h-5" />
+              {isExpanded && (
+                <span className="text-sm">
+                  Log out
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col bg-gray-50 dark:bg-black">
@@ -140,7 +166,7 @@ const ChatWindow: React.FC = () => {
               </div>
             ) : (
               <>
-                <MessageList messages={messages} />
+                <MessageList messages={messages} fontSize={fontSize} />
                 {isLoading && (
                   <div className="p-4 flex items-center gap-2">
                     <div className="flex space-x-1">
