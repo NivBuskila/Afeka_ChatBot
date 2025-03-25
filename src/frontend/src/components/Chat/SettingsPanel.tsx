@@ -1,28 +1,16 @@
 import React from 'react';
-import { Settings, Monitor, Moon, Sun } from 'lucide-react';
+import { Settings, Moon, Sun } from 'lucide-react';
 
 interface SettingsPanelProps {
   onClose: () => void;
   theme: 'dark' | 'light';
   setTheme: React.Dispatch<React.SetStateAction<'dark' | 'light'>>;
-  fontSize: number;
-  setFontSize: React.Dispatch<React.SetStateAction<number>>;
-  animations: string;
-  setAnimations: React.Dispatch<React.SetStateAction<string>>;
-  contrast: string;
-  setContrast: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onClose,
   theme,
   setTheme,
-  fontSize,
-  setFontSize,
-  animations,
-  setAnimations,
-  contrast,
-  setContrast,
 }) => {
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
@@ -30,102 +18,47 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   return (
     <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-gray-800 dark:bg-gray-700 text-white p-6 rounded-md w-96 relative">
+      <div className="bg-white dark:bg-black text-gray-900 dark:text-white p-5 rounded-2xl w-80 relative shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 text-gray-300 hover:text-gray-100"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
         >
-          ✕
+          ×
         </button>
-        <h2 className="text-xl mb-4 flex items-center gap-2">
-          <Settings className="w-5 h-5 text-green-400/80" />
-          <span>Settings</span>
-        </h2>
+        <div className="flex items-center gap-2 mb-6">
+          <Settings className="w-5 h-5 text-green-500" />
+          <h2 className="text-xl font-semibold">Settings</h2>
+        </div>
 
         {/* Dark/Light Toggle */}
-        <div className="mb-4 flex items-center justify-between">
-          <span className="flex items-center gap-2">
+        <div className="flex items-center justify-between py-2">
+          <div className="flex items-center gap-2">
             {theme === 'dark' ? (
-              <Moon className="w-4 h-4 text-green-400" />
+              <Moon className="w-5 h-5 text-green-500" />
             ) : (
-              <Sun className="w-4 h-4 text-green-400" />
+              <Sun className="w-5 h-5 text-green-500" />
             )}
-            Dark Mode
-          </span>
-          <label className="inline-flex relative items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={theme === 'dark'}
-              onChange={toggleTheme}
+            <span className="text-base">Dark Mode</span>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+              theme === 'dark' ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+              }`}
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer dark:bg-gray-600 peer-checked:bg-green-500 relative transition-colors">
-              <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transform transition-transform peer-checked:translate-x-5" />
-            </div>
-          </label>
-        </div>
-
-        {/* Font Size */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm">Font Size</span>
-            <span className="text-xs bg-black/30 dark:bg-gray-600 py-1 px-2 rounded border border-green-500/20">
-              {fontSize}px
-            </span>
-          </div>
-          <input
-            type="range"
-            min={10}
-            max={20}
-            value={fontSize}
-            onChange={(e) => setFontSize(parseInt(e.target.value))}
-            className="w-full h-2 bg-black/50 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-          />
-        </div>
-
-        {/* Animations */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm flex items-center gap-2">
-              <Monitor className="w-4 h-4 text-green-400" />
-              Interface Animations
-            </span>
-            <select
-              className="bg-black/30 dark:bg-gray-600 border border-green-500/30 text-green-400 rounded p-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500/50"
-              value={animations}
-              onChange={(e) => setAnimations(e.target.value)}
-            >
-              <option>Enabled</option>
-              <option>Reduced</option>
-              <option>Disabled</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Contrast */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm flex items-center gap-2">
-              <Settings className="w-4 h-4 text-green-400" />
-              Color Contrast
-            </span>
-            <select
-              className="bg-black/30 dark:bg-gray-600 border border-green-500/30 text-green-400 rounded p-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500/50"
-              value={contrast}
-              onChange={(e) => setContrast(e.target.value)}
-            >
-              <option>Normal</option>
-              <option>High</option>
-              <option>Maximum</option>
-            </select>
-          </div>
+          </button>
         </div>
 
         {/* Save Button */}
-        <div className="flex justify-end">
+        <div className="mt-6">
           <button
             onClick={onClose}
-            className="bg-green-500/30 hover:bg-green-500/40 border border-green-500/30 px-4 py-2 rounded text-green-400 font-medium"
+            className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium transition-colors"
           >
             Save
           </button>

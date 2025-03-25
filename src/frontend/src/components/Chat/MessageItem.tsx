@@ -13,28 +13,34 @@ interface MessageItemProps {
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+  const isUser = message.type === 'user';
+  
   return (
     <div
       className={`flex items-start gap-3 ${
-        message.type === 'user' ? 'flex-row-reverse' : ''
+        isUser ? 'flex-row-reverse' : ''
       }`}
     >
       <div
         className={`relative p-3 rounded-lg ${
-          message.type === 'user'
-            ? 'bg-green-500/10 border border-green-500/20'
-            : 'bg-black/20 dark:bg-gray-700 border border-green-500/10'
+          isUser
+            ? 'bg-green-100 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20'
+            : 'bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700'
         } max-w-2xl`}
       >
         <div className="flex items-center gap-2 mb-1">
-          {message.type === 'user' ? (
-            <User className="w-3 h-3 text-green-400/80" />
+          {isUser ? (
+            <User className="w-3 h-3 text-green-600 dark:text-green-400" />
           ) : (
-            <Bot className="w-3 h-3 text-green-400/80" />
+            <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
           )}
-          <span className="text-xs text-green-400/60">{message.timestamp}</span>
+          <span className="text-xs text-green-700/70 dark:text-green-400/60">
+            {message.timestamp}
+          </span>
         </div>
-        <p className="text-sm text-white/90">{message.content}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-100">
+          {message.content}
+        </p>
       </div>
     </div>
   );
