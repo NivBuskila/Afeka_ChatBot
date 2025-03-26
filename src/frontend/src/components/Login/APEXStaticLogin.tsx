@@ -1,54 +1,94 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff } from 'lucide-react';
 import './APEXStaticLogin.css';
+import { supabase } from '../../config/supabase';
+import { useTranslation } from 'react-i18next';
 
 interface APEXStaticLoginProps {
   onLoginSuccess: (isAdmin: boolean) => void;
+  onRegisterClick: () => void;
 }
 
-const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => {
+const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onRegisterClick }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const { t, i18n } = useTranslation();
   
   // Minimal Matrix effect
   const MatrixRain = () => {
     const canvas = useRef<HTMLCanvasElement>(null);
     
     useEffect(() => {
-      if (!canvas.current) return;
+      let canvasElement = canvas.current;
       
-      const ctx = canvas.current.getContext('2d');
-      if (!ctx) return;
-      
-      canvas.current.width = window.innerWidth;
-      canvas.current.height = window.innerHeight;
-      
-      const binary = '01';
-      const fontSize = 14;
-      const columns = canvas.current.width / fontSize;
-      const drops = new Array(Math.floor(columns)).fill(1);
-      
-      const draw = () => {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-        ctx.fillRect(0, 0, canvas.current!.width, canvas.current!.height);
-        ctx.fillStyle = '#0f0';
-        ctx.font = `${fontSize}px monospace`;
-        
-        for (let i = 0; i < drops.length; i++) {
-          const text = binary.charAt(Math.floor(Math.random() * binary.length));
-          ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-          drops[i]++;
-          if (drops[i] * fontSize > canvas.current!.height && Math.random() > 0.975) {
-            drops[i] = 0;
-          }
+      // נחכה טיפה אחרי הרנדור כדי לוודא שה-canvas קיים
+      const initTimer = setTimeout(() => {
+        canvasElement = canvas.current;
+        if (!canvasElement) {
+          console.warn('Canvas element not available');
+          return;
         }
-      };
+        
+        const ctx = canvasElement.getContext('2d');
+        if (!ctx) {
+          console.warn('Canvas context not available');
+          return;
+        }
+        
+        const updateCanvasSize = () => {
+          if (!canvasElement) return;
+          canvasElement.width = window.innerWidth;
+          canvasElement.height = window.innerHeight;
+        };
+        
+        updateCanvasSize();
+        window.addEventListener('resize', updateCanvasSize);
+        
+        const binary = '01';
+        const fontSize = 14;
+        
+        let columns: number[] = [];
+        
+        const initColumns = () => {
+          if (!canvasElement) return;
+          const columnsCount = Math.floor(canvasElement.width / fontSize);
+          columns = Array(columnsCount).fill(1);
+        };
+        
+        initColumns();
+        
+        const draw = () => {
+          if (!canvasElement || !ctx || columns.length === 0) return;
+          
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+          ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+          ctx.fillStyle = '#0f0';
+          ctx.font = `${fontSize}px monospace`;
+          
+          for (let i = 0; i < columns.length; i++) {
+            const text = binary.charAt(Math.floor(Math.random() * binary.length));
+            ctx.fillText(text, i * fontSize, columns[i] * fontSize);
+            columns[i]++;
+            if (columns[i] * fontSize > canvasElement.height && Math.random() > 0.975) {
+              columns[i] = 0;
+            }
+          }
+        };
+        
+        const interval = setInterval(draw, 33);
+        
+        return () => {
+          clearInterval(interval);
+          window.removeEventListener('resize', updateCanvasSize);
+        };
+      }, 100); // קצת השהייה לאפשר לרנדר להשלים
       
-      const interval = setInterval(draw, 33);
-      return () => clearInterval(interval);
+      return () => {
+        clearTimeout(initTimer);
+      };
     }, []);
 
     return (
@@ -66,27 +106,69 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
     
     // Validate fields
     if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password');
+      setError(i18n.language === 'he' ? 'נא להזין שם משתמש וסיסמה' : 'Please enter both username and password');
       return;
     }
     
     // Show loading state
     setIsLoading(true);
     
-    // Simulate authentication process
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // Check credentials
-      const isAdminUser = username.trim().toLowerCase() === 'admin' && password === 'apex2025';
-      const isRegularUser = username.trim().toLowerCase() === 'user' && password === 'apex2024';
-      
-      if (isAdminUser || isRegularUser) {
-        onLoginSuccess(isAdminUser);
-      } else {
-        setError('Invalid credentials. Access denied.');
+    // אימות דרך Supabase
+    setTimeout(async () => {
+      try {
+        // התחברות לסופאבייס עם האימייל והסיסמה שהמשתמש הזין
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: username.trim(), // משתמשים בשדה username כדוא"ל
+          password: password,
+        });
+        
+        if (error) {
+          setError(i18n.language === 'he' ? 'התחברות נכשלה: ' + error.message : 'Login failed: ' + error.message);
+          setIsLoading(false);
+          return;
+        }
+        
+        if (!data.user) {
+          setError(i18n.language === 'he' ? 'לא ניתן לאמת את פרטי המשתמש' : 'Could not authenticate user');
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('התחברות הצליחה, מידע משתמש:', data.user);
+        
+        // מאחר ויש בעיות RLS, נבדוק את רולי המשתמש מהמטא-דאטה של המשתמש
+        const userRole = data.user.user_metadata?.role || 'user';
+        const isAdmin = userRole === 'admin';
+        
+        try {
+          // ננסה לקבל מידע מטבלת users, אבל אם יש שגיאה נמשיך עם המטא-דאטה
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (userError) {
+            console.error('Error fetching user role from DB, using metadata instead:', userError);
+          } else if (userData) {
+            console.log('User role from DB:', userData.role);
+            onLoginSuccess(userData.role === 'admin');
+            return;
+          }
+        } catch (dbError) {
+          console.error('Database query error:', dbError);
+        }
+        
+        // אם הגענו לכאן, נשתמש במטא-דאטה
+        console.log('Using role from user metadata:', userRole);
+        onLoginSuccess(isAdmin);
+        
+      } catch (err) {
+        console.error('Authentication error:', err);
+        setError('אירעה שגיאה בהתחברות לשרת');
+        setIsLoading(false);
       }
-    }, 1500);
+    }, 500);
   };
 
   return (
@@ -120,7 +202,7 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
             <Brain className="w-16 h-16 text-green-400 relative z-10" />
           </div>
           <div className="mt-4 text-3xl font-bold text-green-400">APEX</div>
-          <div className="text-sm text-green-400/70 mt-1">Authentication Portal</div>
+          <div className="text-sm text-green-400/70 mt-1">{i18n.language === 'he' ? 'פורטל כניסה' : 'Authentication Portal'}</div>
         </div>
         
         {/* Login card */}
@@ -128,7 +210,7 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
           {/* Header */}
           <div className="bg-green-500/5 border-b border-green-500/10 px-6 py-4 flex items-center">
             <Shield className="w-5 h-5 text-green-400/80 mr-2" />
-            <span className="text-green-400/90 font-semibold">Secure Login</span>
+            <span className="text-green-400/90 font-semibold">{i18n.language === 'he' ? 'כניסה מאובטחת' : 'Secure Login'}</span>
           </div>
           
           {/* Form */}
@@ -141,7 +223,7 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
             
             {/* Username field */}
             <div className="space-y-2">
-              <label className="block text-sm text-green-400/80 mb-1">Username</label>
+              <label className="block text-sm text-green-400/80 mb-1">{i18n.language === 'he' ? 'שם משתמש' : 'Username'}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-green-500/50" />
@@ -151,14 +233,14 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50"
-                  placeholder="Enter your username"
+                  placeholder={i18n.language === 'he' ? 'הכנס שם משתמש' : 'Enter your username'}
                 />
               </div>
             </div>
             
             {/* Password field */}
             <div className="space-y-2">
-              <label className="block text-sm text-green-400/80 mb-1">Password</label>
+              <label className="block text-sm text-green-400/80 mb-1">{i18n.language === 'he' ? 'סיסמה' : 'Password'}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-green-500/50" />
@@ -168,7 +250,7 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-10 py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50"
-                  placeholder="Enter your password"
+                  placeholder={i18n.language === 'he' ? 'הכנס סיסמה' : 'Enter your password'}
                 />
                 <button
                   type="button"
@@ -203,16 +285,25 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess }) => 
               ) : (
                 <>
                   <LogIn className="w-5 h-5" />
-                  <span>Login to APEX</span>
+                  <span>{i18n.language === 'he' ? 'כניסה למערכת' : 'Login to APEX'}</span>
                 </>
               )}
             </button>
             
             {/* Recovery link */}
             <div className="text-center mt-4">
-              <a href="#" className="text-green-400/60 hover:text-green-400/80 text-sm transition-colors">
-                Forgot credentials? Contact system administrator
-              </a>
+              <div className="flex flex-col space-y-2">
+                <a href="#" className="text-green-400/60 hover:text-green-400/80 text-sm transition-colors">
+                  {i18n.language === 'he' ? 'שכחת פרטי התחברות? פנה למנהל המערכת' : 'Forgot login details? Contact system admin'}
+                </a>
+                <button 
+                  type="button"
+                  onClick={onRegisterClick}
+                  className="text-green-400/70 hover:text-green-400 text-sm transition-colors font-medium"
+                >
+                  {i18n.language === 'he' ? 'אין לך חשבון? הירשם עכשיו' : "Don't have an account? Register now"}
+                </button>
+              </div>
             </div>
           </form>
           
