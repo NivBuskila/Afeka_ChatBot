@@ -15,12 +15,15 @@ RUN chown -R appuser:appgroup /app
 # Copy package files with proper ownership
 COPY --chown=appuser:appgroup package*.json ./
 
-# Install dependencies with improved security options
+# Install dependencies with optional dependencies
 RUN npm config set ignore-scripts true && \
-    npm install --no-optional --legacy-peer-deps && \
+    npm install --include=optional && \
     npm config set ignore-scripts false && \
     npm cache clean --force && \
     chown -R appuser:appgroup node_modules
+
+# Copy the rest of the application
+COPY --chown=appuser:appgroup . .
 
 # Switch to non-root user for remaining operations
 USER appuser

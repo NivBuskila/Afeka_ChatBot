@@ -179,9 +179,23 @@ async def chat(request: Request):
     Takes user message and returns a placeholder response
     """
     try:
-        # Parse incoming request body
-        body = await request.json()
-        user_message = body.get("message")
+        # Log request headers for debugging
+        logger.info(f"Request headers: {request.headers.get('content-type', 'Not specified')}")
+        
+        # Parse incoming request body with explicit UTF-8 encoding
+        try:
+            body_bytes = await request.body()
+            body_str = body_bytes.decode('utf-8', errors='replace')
+            logger.info(f"Raw request body (first 100 chars): {body_str[:100]}...")
+            
+            import json
+            body = json.loads(body_str)
+        except Exception as json_err:
+            logger.error(f"Error parsing JSON: {json_err}")
+            # Fallback to default JSON parsing
+            body = await request.json()
+            
+        user_message = body.get("message", "")
         
         if not user_message:
             raise HTTPException(status_code=400, detail="Message is required")
@@ -190,40 +204,69 @@ async def chat(request: Request):
         if len(user_message) > 1000:
             raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
             
-        logger.info(f"Received chat request with message: {user_message[:50]}...")
+        logger.info(f"Received chat request with message (length {len(user_message)}): {user_message[:50]}...")
         
         # Forward the request to the AI service if it's available
         try:
             async with httpx.AsyncClient() as client:
+                logger.info(f"Sending to AI service: {user_message[:50]}...")
+                
+                # Prepare request with explicit encoding
+                json_data = json.dumps({"message": user_message}, ensure_ascii=False)
+                headers = {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Accept": "application/json; charset=utf-8"
+                }
+                
                 response = await client.post(
                     f"{AI_SERVICE_URL}/chat",
-                    json={"message": user_message},
-                    timeout=5.0
+                    content=json_data.encode('utf-8'),
+                    headers=headers
                 )
                 
-                if response.status_code == 200:
-                    ai_response = response.json()
-                    logger.info("Successfully received response from AI service")
-                    return ai_response
-        except Exception as e:
-            logger.warning(f"Failed to get response from AI service: {str(e)}")
-            pass
+                logger.info(f"AI service response status: {response.status_code}")
+                
+                # Try to get response in different ways
+                try:
+                    response_json = response.json()
+                except Exception as json_err:
+                    logger.error(f"Error parsing AI service response as JSON: {json_err}")
+                    # Try manual JSON parsing
+                    response_text = response.text
+                    logger.info(f"Raw AI response: {response_text[:100]}...")
+                    
+                    import json
+                    response_json = json.loads(response_text)
+                
+                return JSONResponse(
+                    content=response_json,
+                    headers={"Content-Type": "application/json; charset=utf-8"}
+                )
+        except httpx.RequestError as e:
+            logger.error(f"Error communicating with AI service: {e}")
+            return JSONResponse(
+                content={
+                    "error": "AI service is currently unavailable",
+                    "message": "This is a placeholder response. Future implementation will use RAG to query document knowledge base."
+                },
+                headers={"Content-Type": "application/json; charset=utf-8"}
+            )
             
-        # Fallback response if AI service is not available
-        fallback_response = {
-            "result": "This is a placeholder response. The AI service will be enhanced with RAG capabilities in the future.",
-            "keywords": [],
-            "sentiment": "neutral"
-        }
-        
-        return fallback_response
-            
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in request: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid JSON in request body"},
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
     except Exception as e:
-        # Handle any other errors
-        logger.error(f"Unexpected error in chat endpoint: {str(e)}")
+        import traceback
+        logger.error(f"Unexpected error in chat endpoint: {e}")
+        logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=500,
-            content={"error": f"Internal server error"}
+            content={"error": "Internal server error", "message": str(e)},
+            headers={"Content-Type": "application/json; charset=utf-8"}
         )
 
 @app.get("/api/documents")

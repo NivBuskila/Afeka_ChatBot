@@ -45,44 +45,75 @@ def chat():
     request_start_time = time.time()
     
     try:
-        # Extract the message from the request
-        data = request.get_json()
+        # Log raw request for debugging
+        logger.info(f"Request content type: {request.content_type}")
+        
+        # Get raw data and decode manually if needed
+        try:
+            # Try parsing as JSON first
+            data = request.get_json(force=True, silent=True)
+            if not data and request.data:
+                # If JSON parsing failed, try manual decoding
+                raw_data = request.data.decode('utf-8', errors='replace')
+                logger.info(f"Raw data (length {len(raw_data)}): {raw_data[:100]}...")
+                import json
+                data = json.loads(raw_data)
+        except Exception as json_err:
+            logger.error(f"JSON parsing error: {str(json_err)}")
+            # If JSON parsing failed completely, check raw data
+            data = {}
+            if request.data:
+                logger.info(f"Raw request data (bytes): {request.data[:100]}")
+        
         if not data or 'message' not in data:
             logger.warning("Invalid request: missing message field")
-            return jsonify({
+            response = jsonify({
                 "error": "Message field is required"
-            }), 400
+            })
+            response.headers['Content-Type'] = 'application/json; charset=utf-8'
+            return response, 400
             
         user_message = data['message']
+        logger.info(f"User message type: {type(user_message)}")
+        
+        # Ensure message is properly decoded if it's bytes
+        if isinstance(user_message, bytes):
+            user_message = user_message.decode('utf-8', errors='replace')
         
         # Validate message length
         if not user_message or len(user_message) > MAX_MESSAGE_LENGTH:
             logger.warning(f"Message too long: {len(user_message)} chars (max: {MAX_MESSAGE_LENGTH})")
-            return jsonify({
+            response = jsonify({
                 "error": f"Message too long (max {MAX_MESSAGE_LENGTH} characters)"
-            }), 400
+            })
+            response.headers['Content-Type'] = 'application/json; charset=utf-8'
+            return response, 400
                 
-        logger.info(f"Received message: {user_message[:30]}...")
+        logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
         
         # Simple placeholder response
         result = {
             "keywords": [],  # Future: Will contain extracted keywords from query
             "result": "This is a placeholder response. Future implementation will use RAG to query document knowledge base.",
-            "sentiment": "neutral"  # Future: Will analyze sentiment
+            "sentiment": "neutral",  # Future: Will analyze sentiment
+            "processing_time": round(time.time() - request_start_time, 3)
         }
         
-        # Add processing time for monitoring
-        processing_time = time.time() - request_start_time
-        result['processing_time'] = round(processing_time, 3)
-        
-        logger.info(f"Message processed successfully in {processing_time:.3f}s")
-        return jsonify(result)
+        logger.info(f"Message processed successfully in {result['processing_time']}s")
+        response = jsonify(result)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
         
     except Exception as e:
+        import traceback
         logger.error(f"Unexpected error in chat endpoint: {str(e)}")
-        return jsonify({
-            "error": "Internal server error"
-        }), 500
+        logger.error(traceback.format_exc())
+        response = jsonify({
+            "error": "Internal server error",
+            "message": str(e)
+        })
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response, 500
 
 if __name__ == '__main__':
     # Set up server start time for uptime tracking
