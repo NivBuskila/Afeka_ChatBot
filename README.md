@@ -2,210 +2,167 @@
 
 An AI-powered chatbot designed to help Afeka College students easily access and understand academic regulations and information.
 
+## 🐳 Docker Quickstart
+
+The easiest way to run the entire application is using Docker Compose:
+
+```bash
+# Set Supabase key environment variable (required)
+export SUPABASE_KEY=your_key_here  # Linux/Mac
+# OR
+$env:SUPABASE_KEY="your_key_here"  # Windows PowerShell
+
+# Start all services
+docker-compose up -d
+
+# For development environment with hot reloading
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+Access the application:
+- Frontend: http://localhost:80 (production) or http://localhost:5173 (development)
+- Backend API: http://localhost:8000
+- AI Service: http://localhost:5000
+
+### Docker Commands
+
+```bash
+# View running containers
+docker-compose ps
+
+# View logs
+docker-compose logs frontend
+docker-compose logs backend
+docker-compose logs ai-service
+
+# Rebuild specific service
+docker-compose build frontend
+
+# Stop all services
+docker-compose down
+
+# Cleanup everything
+docker-compose down --rmi all --volumes
+```
+
 ## 👋 New Team Members - Start Here!
 
 ### One-Time Setup Requirements
-1. **Install Git**
-   - Download and install from [git-scm.com](https://git-scm.com/downloads)
-   - If you don't have a GitHub account, create one at [github.com](https://github.com)
 
-2. **Install Node.js**
-   - Download and install from [nodejs.org](https://nodejs.org/)
-   - Choose LTS version (currently 18.x)
+1. **Install Docker and Docker Compose**
+   - Download from [docker.com](https://www.docker.com/products/docker-desktop/)
+   - Verify installation: `docker --version` and `docker-compose --version`
 
-3. **Install Python**
-   - Download and install from [python.org](https://python.org)
-   - Choose version 3.10 or later
-   - Ensure "Add Python to PATH" is checked during installation
+2. **Install Git**
+   - Download from [git-scm.com](https://git-scm.com/downloads)
 
-4. **Install MongoDB**
-   - Download and install from [mongodb.com](https://www.mongodb.com/try/download/community)
+3. **Get Supabase Access**
+   - Request access key from team lead
+   - Set as environment variable before running Docker
 
-### Initial Project Setup (Step by Step)
+### Manual Setup (Alternative to Docker)
 
-#### Step 1: Clone the Repository
+#### Frontend Setup
 ```bash
-# Open terminal/command prompt
-# Navigate to your preferred directory
-# For example:
-cd Desktop
-
-# Clone the repository
-git clone https://github.com/NivBuskila/Afeka_ChatBot.git
-
-# Enter project directory
-cd Afeka_ChatBot
-```
-
-#### Step 2: Frontend Setup
-```bash
-# Navigate to frontend directory
 cd src/frontend
-
-# Install required dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
-If successful, your browser should open to http://localhost:3000
 
-#### Step 3: Backend Setup
+#### Backend Setup
 ```bash
-# Return to root directory (if still in frontend)
-cd ../..
-
-# Navigate to backend directory
 cd src/backend
-
-# Create virtual environment
-# Windows:
 python -m venv venv
-venv\Scripts\activate
-
-# Mac/Linux:
-python3 -m venv venv
-source venv/bin/activate
-
-# Install required packages
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
 pip install -r requirements.txt
-
-# Start the server
 uvicorn main:app --reload
 ```
-Server should run at http://localhost:8000
 
-### Essential Git Commands
-
+#### AI Service Setup
 ```bash
-# Check status of changes
-git status
-
-# Add changes
-git add .
-
-# Save changes
-git commit -m "Description of your changes"
-
-# Get latest changes from server
-git pull
-
-# Upload your changes to server
-git push
-
-# Create new feature branch
-git checkout -b feature/your-feature-name
+cd src/ai
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+pip install -r requirements.txt
+python app.py
 ```
 
-### 🚫 Common Pitfalls to Avoid
-1. **Never Work Directly on Main Branch**
-   - Always create a new branch for your changes
-   
-2. **Don't Upload Sensitive Files**
-   - No .env files
-   - No passwords or API keys
-   
-3. **Don't Upload Generated Directories**
-   - node_modules/
-   - venv/
-   - __pycache__/
-
-### 📁 Project Structure
+## 📁 Project Structure
 ```
 afeka-chatbot/
-├── docs/                      # Documentation
-│   └── learning/             # Learning materials
-├── src/                      # Source code
-│   ├── frontend/            # React (client-side)
-│   ├── backend/             # FastAPI (server-side)
-│   └── ai/                  # AI components
-└── tests/                   # Test files
+├── docker-compose.yml       # Production Docker configuration
+├── docker-compose.dev.yml   # Development Docker configuration
+├── nginx.conf              # Nginx reverse proxy configuration
+├── docs/                   # Documentation
+├── src/                    # Source code
+│   ├── frontend/          # React frontend (TypeScript)
+│   │   ├── src/           # Application source
+│   │   └── Dockerfile     # Frontend Docker config
+│   ├── backend/           # FastAPI backend
+│   │   ├── main.py        # Main application entry
+│   │   └── Dockerfile     # Backend Docker config
+│   ├── ai/                # AI service
+│   │   ├── app.py         # Flask application
+│   │   └── Dockerfile     # AI service Docker config
+│   └── supabase/          # Supabase configuration
+└── tests/                 # Test files
 ```
-
-### 👥 Team
-- Niv Buskila 
-- Omri Roter
-- Amitay Manor
-
-### 🆘 Troubleshooting Guide
-
-#### Common Issues and Solutions
-
-1. **"command not found: git/node/python"**
-   - Verify tool installation
-   - Check system PATH settings
-
-2. **"npm ERR!"**
-   - Try deleting node_modules directory
-   - Run `npm install` again
-
-3. **Git Issues**
-   ```bash
-   # If something goes wrong, try:
-   git fetch --all
-   git reset --hard origin/main
-   ```
-
-4. **"ModuleNotFoundError" in Python**
-   - Ensure virtual environment is active
-   - Reinstall requirements: `pip install -r requirements.txt`
-
-#### Getting Help
-1. Check existing Issues
-2. Ask in team group
-3. Create new Issue with:
-   - Problem description
-   - Steps to reproduce
-   - Complete error message
 
 ## 🛠️ Technology Stack
 
 ### Frontend
-- React
-- TypeScript
-- Tailwind CSS
+- React with TypeScript
+- Vite for development
+- Tailwind CSS for styling
+- i18n for internationalization (Hebrew/English)
 
 ### Backend
-- Python
-- FastAPI
-- MongoDB
+- Python with FastAPI
+- Async HTTP with httpx
+- Supabase for data storage
 
-### AI/ML
-- LangChain
-- Hugging Face
+### AI Service
+- Python with Flask
+- NLP capabilities
 
-## 🧪 Development Guidelines
+### Infrastructure
+- Docker for containerization
+- Nginx as reverse proxy
+- Supabase for database and storage
 
-### Code Style
-1. **Frontend (React/TypeScript)**
-   ```typescript
-   // Use functional components
-   const ChatMessage: React.FC<MessageProps> = ({ content }) => {
-     return <div className="p-4">{content}</div>;
-   };
-
-   // Type everything
-   interface MessageProps {
-     content: string;
-     timestamp: Date;
-   }
-   ```
-
-2. **Backend (Python/FastAPI)**
-   ```python
-   # Use type hints
-   from typing import Optional
-
-   async def process_message(content: str) -> dict:
-       return {"response": content}
-   ```
-
-### Git Workflow
+## Git Workflow
 1. Create feature branch
 2. Make changes
-3. Test locally
+3. Test locally with Docker
 4. Create pull request
 5. Wait for review
+
+## 👥 Team
+- Niv Buskila 
+- Omri Roter
+- Amitay Manor
+
+## 🆘 Common Issues and Solutions
+
+1. **Supabase Key Error**
+   - Ensure SUPABASE_KEY environment variable is set
+
+2. **Services Can't Communicate**
+   - Check if all containers are running: `docker-compose ps`
+   - Verify network configuration in docker-compose.yml
+
+3. **Frontend Build Issues**
+   - TypeScript errors can be bypassed with VITE_SKIP_TS_CHECK=true
+
+4. **"Address Already In Use" Error**
+   - Check if port is already in use: `netstat -ano | findstr 8000` (Windows) or `lsof -i :8000` (Mac/Linux)
+   - Stop the service using that port
+
+5. **Changes Not Reflecting**
+   - In production mode, rebuild container: `docker-compose build frontend`
+   - In development mode, changes should apply automatically
 
 ## 📱 Contact
 - Technical questions: Create an Issue
@@ -241,3 +198,157 @@ afeka-chatbot/
 
 ---
 💡 Remember: Everyone was a beginner once. Don't hesitate to ask questions!
+
+## Docker Setup and Usage
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Git (to clone the repository)
+
+### Setup Instructions
+
+1. Clone the repository
+```bash
+git clone [repository-url]
+cd Afeka_ChatBot
+```
+
+2. Configure environment variables
+```bash
+# The .env file is already configured with Supabase URL 
+# You only need to add your Supabase anon key
+```
+Edit the `.env` file and replace `your_supabase_anon_key_here` with your actual Supabase anon key.
+
+3. Build and start the Docker containers
+```bash
+docker-compose up --build
+```
+
+4. Access the application
+- Frontend: http://localhost:80
+- Backend API (Python): http://localhost:8000
+- AI Service: http://localhost:5000
+
+### Development Mode
+
+For development with hot-reloading and volume mounts:
+
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+This configuration mounts local directories to containers, allowing real-time code changes without rebuilding containers.
+
+In development mode the frontend will be available on http://localhost:3000 instead of port 80.
+
+### Troubleshooting Common Issues
+
+#### Frontend Build Errors
+The system is configured to continue working even if there are TypeScript errors. If you need to fix the TypeScript issues:
+
+1. Enter the frontend container:
+```bash
+docker-compose exec frontend sh
+```
+
+2. Run TypeScript checks:
+```bash
+npm run tsc
+```
+
+#### AI Service Issues
+If you experience issues with the AI service, try these steps:
+
+1. Check service logs:
+```bash 
+docker-compose logs ai-service
+```
+
+2. Restart just the AI service:
+```bash
+docker-compose restart ai-service
+```
+
+#### Communication Between Services
+If services can't communicate with each other:
+- Backend->AI: Check that AI_SERVICE_URL is set to "http://ai-service:5000"
+- Frontend->Backend: Verify that VITE_BACKEND_URL is set correctly
+
+### Additional Commands
+
+#### Run in detached mode
+```bash
+docker-compose up -d
+```
+
+#### View logs
+```bash
+docker-compose logs -f
+```
+
+#### Stop containers
+```bash
+docker-compose down
+```
+
+#### Access container shell
+```bash
+# For Python containers (backend, ai-service)
+docker-compose exec backend sh
+docker-compose exec ai-service sh
+
+# For Node.js container (frontend)
+docker-compose exec frontend sh
+```
+
+#### Remove volumes (will delete persistent data)
+```bash
+docker-compose down -v
+```
+
+## Project Structure
+- `frontend/`: Web interface (React/TypeScript)
+- `backend/`: API and business logic (Python/FastAPI)
+- `ai/`: AI models and processing (Python/Flask)
+- `supabase/`: Database schema and migrations
+
+## Technology Stack in Docker Environment
+- Frontend: React with TypeScript, Vite, Tailwind CSS
+- Backend: Python with FastAPI
+- AI Service: Python with Flask
+- Database: Supabase
+
+## Supabase Configuration
+
+The application is configured to connect to Supabase at:
+```
+https://cqvicgimmzrffvarlokq.supabase.co
+```
+
+### Existing Tables
+The following tables exist in the Supabase database:
+- `document_analytics`: Analytics data for document interactions
+- `documents`: Main document storage
+- `documents_with_logging`: Documents with additional logging information
+- `security_events`: Security-related events
+- `users`: User information and permissions
+
+If you need to access conversation history, ensure you add a `conversations` table with the following schema:
+- `id`: UUID (primary key)
+- `user_id`: String
+- `message`: Text
+- `response`: JSON
+- `created_at`: Timestamp with time zone
+
+## API Endpoints
+
+### Backend (FastAPI)
+- `GET /health`: Health check
+- `POST /api/chat`: Process chat messages
+- `GET /api/documents`: Get documents
+- `POST /api/documents`: Create a new document
+
+### AI Service (Flask)
+- `GET /health`: Health check
+- `POST /analyze`: Analyze text input

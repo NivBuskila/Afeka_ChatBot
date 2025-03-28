@@ -19,7 +19,7 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
-      // עבודה עם הנתונים הקיימים עד שהפונקציות הSQL יהיו זמינות
+      // Using existing data until SQL functions are available
       const [
         { count: totalDocuments },
         { count: totalUsers },
@@ -40,7 +40,7 @@ export const analyticsService = {
       };
     } catch (error) {
       console.error('Error in getDashboardAnalytics:', error);
-      // החזרת נתונים ריקים במקרה של שגיאה
+      // Return empty data in case of error
       return {
         totalDocuments: 0,
         totalUsers: 0,

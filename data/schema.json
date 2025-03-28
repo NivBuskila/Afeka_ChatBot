@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Afeka ChatBot Data Schemas",
+  "description": "JSON Schema definitions for Afeka ChatBot data structures",
+  
+  "definitions": {
+    "document": {
+      "type": "object",
+      "required": ["id", "title", "content"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique identifier for the document"
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title"
+        },
+        "content": {
+          "type": "string",
+          "description": "Document content text"
+        },
+        "category": {
+          "type": "string",
+          "description": "Document category"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags associated with the document"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp (ISO 8601 format)"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp (ISO 8601 format)"
+        }
+      }
+    },
+    
+    "conversation": {
+      "type": "object",
+      "required": ["id", "message", "response"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the conversation"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "User identifier"
+        },
+        "message": {
+          "type": "string",
+          "description": "User's message text"
+        },
+        "response": {
+          "type": "object",
+          "required": ["result"],
+          "properties": {
+            "keywords": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keywords extracted from the message"
+            },
+            "result": {
+              "type": "string",
+              "description": "Response text provided to the user"
+            },
+            "sentiment": {
+              "type": "string",
+              "enum": ["positive", "negative", "neutral"],
+              "description": "Sentiment analysis result"
+            }
+          }
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Conversation timestamp (ISO 8601 format)"
+        }
+      }
+    },
+    
+    "keywords_mapping": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Response text for the keyword"
+      },
+      "description": "Mapping of keywords to response text"
+    }
+  },
+  
+  "type": "object",
+  "properties": {
+    "document": {
+      "$ref": "#/definitions/document"
+    },
+    "conversation": {
+      "$ref": "#/definitions/conversation"
+    }
+  }
+} 

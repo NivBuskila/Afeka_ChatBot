@@ -1,0 +1,42 @@
+FROM node:20.10-alpine
+
+# Add labels
+LABEL maintainer="Afeka ChatBot Team"
+LABEL version="1.0"
+LABEL description="Frontend development service for Afeka College Regulations ChatBot"
+
+# Set working directory
+WORKDIR /app
+
+# Use non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+
+# Copy package files with proper ownership
+COPY --chown=appuser:appgroup package*.json ./
+
+# Install dependencies with improved security options
+RUN npm config set ignore-scripts true && \
+    npm install --no-optional --legacy-peer-deps && \
+    npm config set ignore-scripts false && \
+    npm cache clean --force && \
+    chown -R appuser:appgroup node_modules
+
+# Switch to non-root user for remaining operations
+USER appuser
+
+# Set development-specific env vars
+ENV VITE_SKIP_TS_CHECK=true
+ENV NODE_ENV=development
+ENV HOST=0.0.0.0
+ENV PORT=5173
+
+# Expose Vite's default port
+EXPOSE 5173
+
+# Define healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5173/ || exit 1
+
+# Run in dev mode with host set to allow external connections
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"] 
