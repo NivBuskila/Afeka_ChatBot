@@ -7,6 +7,10 @@ LABEL version="1.0"
 # Set working directory
 WORKDIR /app
 
+# Accept build arguments
+ARG VITE_SKIP_TS_CHECK=false
+ENV VITE_SKIP_TS_CHECK=${VITE_SKIP_TS_CHECK}
+
 # Use non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app

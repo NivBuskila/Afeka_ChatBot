@@ -4,6 +4,7 @@ import ChatInput from './ChatInput';
 import { Terminal, History, Settings, LogOut } from 'lucide-react';
 import SettingsPanel from './SettingsPanel';
 import { useNavigate } from 'react-router-dom';
+import { API_CONFIG } from '../../config/constants';
 
 interface Message {
   id: number;
@@ -35,7 +36,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
     }
   }, [theme]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     if (!hasStarted) {
@@ -50,28 +51,62 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       ]);
     }
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       type: 'user',
       content: input,
       id: Date.now(),
       timestamp: new Date().toLocaleTimeString(),
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      // Call backend API
+      const response = await fetch(API_CONFIG.CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage.content }),
+        // Add timeout using AbortController
+        signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        const botReply: Message = {
+          type: 'bot',
+          content: data.result || "Sorry, I couldn't process your request.",
+          id: Date.now(),
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        
+        setMessages((prev) => [...prev, botReply]);
+      } else {
+        // Handle error response
+        const botReply: Message = {
+          type: 'bot',
+          content: 'Sorry, I encountered an error while processing your request.',
+          id: Date.now(),
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        setMessages((prev) => [...prev, botReply]);
+      }
+    } catch (error) {
+      // Handle network errors
       const botReply: Message = {
         type: 'bot',
-        content:
-          'Processing your request through AFEKAs advanced engineering knowledge base.',
+        content: 'Sorry, I was unable to connect to the server. Please try again later.',
         id: Date.now(),
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages((prev) => [...prev, botReply]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleLogout = () => {

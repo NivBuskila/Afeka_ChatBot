@@ -352,3 +352,21 @@ If you need to access conversation history, ensure you add a `conversations` tab
 ### AI Service (Flask)
 - `GET /health`: Health check
 - `POST /analyze`: Analyze text input
+
+## Future Enhancements
+
+### RAG (Retrieval Augmented Generation) Implementation
+
+The system is designed with placeholders for a future RAG implementation that will provide accurate responses based on institutional documents:
+
+1. **Document Storage**: Already implemented through Supabase, allowing admin users to upload regulatory documents
+2. **AI Service**: Currently provides basic placeholder responses, but designed to be extended with RAG capabilities
+3. **Frontend Integration**: UI already set up for chat interactions with backend API
+
+When implemented, the RAG system will:
+- Extract knowledge from uploaded documents 
+- Build semantic vector representations of document content
+- Match user queries to the most relevant document sections
+- Generate accurate, context-aware responses based on the institution's own documentation
+
+This approach will ensure that responses are factually accurate, up-to-date, and specific to the institution's regulations without requiring constant manual updates to response templates.

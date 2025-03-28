@@ -174,9 +174,9 @@ async def health_check():
 @app.post("/api/chat")
 async def chat(request: Request):
     """
-    Process chat messages by forwarding to AI service
+    Process chat messages - currently a placeholder for future RAG implementation
     
-    Takes user message, sends to AI service, and returns the response
+    Takes user message and returns a placeholder response
     """
     try:
         # Parse incoming request body
@@ -192,40 +192,32 @@ async def chat(request: Request):
             
         logger.info(f"Received chat request with message: {user_message[:50]}...")
         
-        # Forward the request to the AI service
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{AI_SERVICE_URL}/chat",
-                json={"message": user_message},
-                timeout=30.0  # Extended timeout for potentially long AI processing
-            )
-            
-            # Check if the AI service returned a valid response
-            if response.status_code != 200:
-                logger.error(f"AI service returned error: {response.status_code} - {response.text}")
-                return JSONResponse(
-                    status_code=502,
-                    content={"error": "Failed to get response from AI service"}
+        # Forward the request to the AI service if it's available
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{AI_SERVICE_URL}/chat",
+                    json={"message": user_message},
+                    timeout=5.0
                 )
                 
-            ai_response = response.json()
-            logger.info("Successfully received response from AI service")
-            return ai_response
+                if response.status_code == 200:
+                    ai_response = response.json()
+                    logger.info("Successfully received response from AI service")
+                    return ai_response
+        except Exception as e:
+            logger.warning(f"Failed to get response from AI service: {str(e)}")
+            pass
             
-    except httpx.RequestError as e:
-        # Handle network errors when connecting to AI service
-        logger.error(f"Error connecting to AI service: {str(e)}")
-        return JSONResponse(
-            status_code=503,
-            content={"error": "AI service unavailable"}
-        )
-    except json.JSONDecodeError:
-        # Handle invalid JSON from AI service
-        logger.error("Failed to parse AI service response as JSON")
-        return JSONResponse(
-            status_code=502,
-            content={"error": "Invalid response from AI service"}
-        )
+        # Fallback response if AI service is not available
+        fallback_response = {
+            "result": "This is a placeholder response. The AI service will be enhanced with RAG capabilities in the future.",
+            "keywords": [],
+            "sentiment": "neutral"
+        }
+        
+        return fallback_response
+            
     except Exception as e:
         # Handle any other errors
         logger.error(f"Unexpected error in chat endpoint: {str(e)}")

@@ -26,8 +26,7 @@ RUN pip install --no-cache-dir -U pip && \
 # Production stage - smaller image
 FROM python:3.9-slim
 
-# Copy labels from build stage
-COPY --from=build /app/Dockerfile /app/Dockerfile
+# Add labels directly to this stage
 LABEL maintainer="Afeka ChatBot Team"
 LABEL version="1.0"
 LABEL description="Backend API service for Afeka College Regulations ChatBot"

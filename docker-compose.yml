@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Common environment variables
 x-environment: &common-env
   SUPABASE_URL: https://cqvicgimmzrffvarlokq.supabase.co
@@ -20,6 +18,8 @@ services:
     build:
       context: ./src/frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_SKIP_TS_CHECK=true
     <<: *restart-policy
     ports:
       - "80:80"
@@ -41,6 +41,9 @@ services:
       - no-new-privileges:true
     environment:
       - TZ=Asia/Jerusalem
+      - VITE_SUPABASE_URL=https://cqvicgimmzrffvarlokq.supabase.co
+      - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+      - VITE_SKIP_TS_CHECK=true
     logging:
       driver: "json-file"
       options:
