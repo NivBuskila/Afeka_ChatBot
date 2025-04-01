@@ -34,6 +34,11 @@ LABEL description="AI service for Afeka College Regulations ChatBot"
 # Set working directory
 WORKDIR /app/ai
 
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
@@ -60,7 +65,7 @@ EXPOSE 5000
 
 # Define health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:5000/')" || exit 1
+  CMD curl -f http://localhost:5000/ || exit 1
 
 # Start application
 CMD ["python", "app.py"] 

@@ -8,6 +8,9 @@ LABEL description="Frontend development service for Afeka College Regulations Ch
 # Set working directory
 WORKDIR /app
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 # Use non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app
