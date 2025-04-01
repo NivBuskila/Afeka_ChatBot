@@ -55,7 +55,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'standard' | 'administrator';
   lastLogin: string;
   status: 'active' | 'inactive';
 }
@@ -350,7 +350,95 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         );
       case 'analytics':
-        return <AnalyticsOverview analytics={analytics} />;
+        // הוספת הדפסת מידע לדיבאג על ה-activeSubItem
+        console.log('Active Sub Item:', activeSubItem);
+        console.log('Analytics Users:', analytics.recentUsers);
+        
+        if (activeSubItem === 'users') {
+          // רק משתמשים רגילים
+          const filteredUsers = analytics.recentUsers.filter(user => 
+            user.role === 'user' || user.role === 'standard' || user.role?.toLowerCase() === 'user');
+          
+          console.log('Filtered Users:', filteredUsers);
+          
+          return (
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-green-400 mb-6">
+                {t('admin.sidebar.users')} 
+              </h2>
+              <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
+                <div className="border-b border-green-500/20 py-3 px-6">
+                  <h3 className="text-lg font-semibold text-green-400">{t('analytics.users')}</h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-green-400">{user.email}</p>
+                          <p className="text-sm text-green-400/50">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="text-sm text-green-400/70">
+                          {user.role || 'user'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-green-400/70">{t('analytics.noUsers')}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        } else if (activeSubItem === 'admins') {
+          // רק מנהלים
+          const filteredAdmins = analytics.recentUsers.filter(user => 
+            user.role === 'admin' || user.role === 'administrator' || user.role?.toLowerCase() === 'admin');
+          
+          console.log('Filtered Admins:', filteredAdmins);
+          
+          return (
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-green-400 mb-6">
+                {t('admin.sidebar.administrators')}
+              </h2>
+              <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
+                <div className="border-b border-green-500/20 py-3 px-6">
+                  <h3 className="text-lg font-semibold text-green-400">{t('admin.sidebar.administrators')}</h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  {filteredAdmins.length > 0 ? (
+                    filteredAdmins.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-green-400">{user.email}</p>
+                          <p className="text-sm text-green-400/50">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="text-sm text-green-400/70">
+                          {user.role || 'admin'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-green-400/70">{t('analytics.noAdmins')}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        } else {
+          // תצוגת Overview
+          return (
+            <div>
+              <h3 className="text-lg font-semibold text-green-400 mb-4">Active Tab: {activeSubItem || 'overview'}</h3>
+              <AnalyticsOverview analytics={analytics} />
+            </div>
+          );
+        }
       case 'documents':
         return (
           <div className="p-6">
