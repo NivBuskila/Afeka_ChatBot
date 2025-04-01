@@ -136,26 +136,8 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
         
         console.log('התחברות הצליחה, מידע משתמש:', data.user);
         
-        // מאחר ויש בעיות RLS, נבדוק את רולי המשתמש מהמטא-דאטה של המשתמש
-        const userRole = data.user.user_metadata?.role || 'user';
-        const isAdmin = userRole === 'admin';
-        
+        // מאחר ויש בעיות RLS, נבדוק אם המשתמש הוא מנהל
         try {
-<<<<<<< Updated upstream
-          // ננסה לקבל מידע מטבלת users, אבל אם יש שגיאה נמשיך עם המטא-דאטה
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', data.user.id)
-            .single();
-          
-          if (userError) {
-            console.error('Error fetching user role from DB, using metadata instead:', userError);
-          } else if (userData) {
-            console.log('User role from DB:', userData.role);
-            onLoginSuccess(userData.role === 'admin');
-            return;
-=======
           console.log('בודק אם המשתמש הוא מנהל...');
           
           // ננסה תחילה גישה ישירה לטבלת המנהלים
@@ -175,7 +157,6 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
             }
           } catch (dbError) {
             console.error('שגיאת גישה לטבלת מנהלים:', dbError);
->>>>>>> Stashed changes
           }
           
           // אם לא הצלחנו בגישה ישירה, ננסה שימוש ב-RPC
@@ -208,13 +189,6 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
           onLoginSuccess(false);
         }
         
-<<<<<<< Updated upstream
-        // אם הגענו לכאן, נשתמש במטא-דאטה
-        console.log('Using role from user metadata:', userRole);
-        onLoginSuccess(isAdmin);
-        
-=======
->>>>>>> Stashed changes
       } catch (err) {
         console.error('Authentication error:', err);
         setError('אירעה שגיאה בהתחברות לשרת');

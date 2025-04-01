@@ -17,9 +17,7 @@ export const TopBar: React.FC<TopBarProps> = ({ language }) => {
   return (
     <div className="bg-black/50 backdrop-blur-sm border-b border-green-500/20 py-3 px-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-xl font-bold text-green-400">
-          {t('admin.topbar.activeDocuments')}
-        </h1>
+        <div></div>
         
         <div className="flex items-center space-x-4 space-x-reverse">
           <div className="relative">

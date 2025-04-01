@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff, Mail, ChevronLeft, UserPlus } from 'lucide-react';
 import { supabase } from '../../config/supabase';
+import { userService } from '../../services/userService';
+import { useTranslation } from 'react-i18next';
 
 interface APEXRegistrationProps {
-  onRegistrationSuccess: () => void;
+  onRegistrationSuccess: (isAdmin: boolean) => void;
   onBackToLogin: () => void;
 }
 
@@ -15,6 +17,8 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [step, setStep] = useState(1);
+  const { i18n } = useTranslation();
   
   // Matrix Rain effect (זהה לזה שבלוגין)
   const MatrixRain = () => {
@@ -120,103 +124,24 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
     }
     
     setIsLoading(true);
-    console.log("תהליך רישום: התחלת תהליך");
     
-    try {
-      // רישום המשתמש במערכת האימות של סופאבייס
-      console.log("תהליך רישום: רושם משתמש במערכת האימות");
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            role: role // שומרים את התפקיד גם במטא-דאטה של המשתמש
-          }
-        }
-      });
-      
-      if (authError) {
-        console.error('Authentication error:', authError);
-        setError('שגיאה ברישום: ' + authError.message);
-        setIsLoading(false);
-        return;
-      }
-      
-      if (!authData.user) {
-        setError('שגיאה ברישום המשתמש');
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('תהליך רישום: רישום במערכת האימות הצליח', authData.user);
-      
-      // רישום מכאן הצליח, עכשיו אנחנו מתחברים כדי להוסיף/לעדכן את הרשומה בטבלת המשתמשים
-      console.log("תהליך רישום: מתחבר כמשתמש החדש");
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (signInError) {
-        console.error('Error signing in as new user:', signInError);
-        setError('נרשמת בהצלחה, אך אירעה שגיאה בכניסה למערכת. נסה להתחבר ידנית.');
-        setIsLoading(false);
-        onRegistrationSuccess();
-        return;
-      }
-      
-      console.log("תהליך רישום: התחברות הצליחה", signInData);
-      
-      // כעת נבדוק את הסשן הנוכחי כדי לוודא שהמשתמש אכן מחובר
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log("תהליך רישום: מידע על הסשן הנוכחי", sessionData);
-      
-      // כעת שהמשתמש מחובר, ננסה להוסיף או לעדכן את הרשומה בטבלת המשתמשים
-      console.log("תהליך רישום: מעדכן את טבלת המשתמשים");
-      const { data: upsertData, error: upsertError } = await supabase
-        .from('users')
-        .upsert({
-          id: authData.user.id,
-          email: email,
-          role: role
-        }, { onConflict: 'id' });
-      
-      if (upsertError) {
-        console.error('Error upserting user record:', upsertError);
-        console.log("תהליך רישום: שגיאה בעדכון טבלת המשתמשים:", upsertError.message);
-        // לא נציג שגיאה למשתמש, כי המשתמש נוצר בהצלחה במערכת האימות
-      } else {
-        console.log('תהליך רישום: עדכון טבלת המשתמשים הצליח:', upsertData);
-      }
-      
-      // בדיקה אם הרשומה נוצרה בהצלחה
-      console.log("תהליך רישום: בודק אם הרשומה נוצרה בהצלחה");
-      const { data: checkData, error: checkError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
+    setTimeout(async () => {
+      try {
+        // שימוש בפונקציה המורחבת עם הפרדה בין משתמשים ומנהלים
+        const result = await userService.signUp(
+          email.trim(),
+          password,
+          role === 'admin'
+        );
         
-      if (checkError) {
-        console.error("תהליך רישום: שגיאה בבדיקת הרשומה:", checkError);
-      } else {
-        console.log("תהליך רישום: הרשומה נוצרה בהצלחה:", checkData);
+        console.log('Registration successful:', result);
+        onRegistrationSuccess(role === 'admin');
+      } catch (error) {
+        console.error('Registration error:', error);
+        setError(i18n.language === 'he' ? 'ההרשמה נכשלה: ' + (error as Error).message : 'Registration failed: ' + (error as Error).message);
+        setIsLoading(false);
       }
-      
-      // מתנתקים מהמשתמש החדש כדי שהוא יוכל להתחבר מחדש דרך מסך הלוגין
-      console.log("תהליך רישום: מתנתק מהמשתמש");
-      await supabase.auth.signOut();
-      
-      // הרישום הצליח
-      setIsLoading(false);
-      console.log("תהליך רישום: הרישום הסתיים בהצלחה");
-      onRegistrationSuccess();
-      
-    } catch (error) {
-      console.error('Registration error:', error);
-      setError('אירעה שגיאה בתהליך הרישום');
-      setIsLoading(false);
-    }
+    }, 500);
   };
 
   return (

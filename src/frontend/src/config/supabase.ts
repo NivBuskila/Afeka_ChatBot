@@ -35,12 +35,26 @@ export type Database = {
         Row: {
           id: string;
           email: string;
-          role: string;
+          name?: string;
           created_at: string;
           updated_at: string;
+          last_sign_in?: string;
+          status?: string;
         };
         Insert: Omit<Database['public']['Tables']['users']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['users']['Insert']>;
+      };
+      admins: {
+        Row: {
+          id: number;
+          user_id: string;
+          permissions: string[];
+          department?: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['admins']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['admins']['Insert']>;
       };
       document_analytics: {
         Row: {
@@ -52,6 +66,22 @@ export type Database = {
         };
         Insert: Omit<Database['public']['Tables']['document_analytics']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['document_analytics']['Insert']>;
+      };
+    };
+    Views: {
+      admin_users: {
+        Row: {
+          id: string;
+          email: string;
+          name?: string;
+          created_at: string;
+          updated_at: string;
+          last_sign_in?: string;
+          status?: string;
+          admin_id: number;
+          permissions: string[];
+          department?: string;
+        };
       };
     };
   };

@@ -4,6 +4,12 @@ type User = Database['public']['Tables']['users']['Row'];
 type UserInsert = Database['public']['Tables']['users']['Insert'];
 type UserUpdate = Database['public']['Tables']['users']['Update'];
 
+type Admin = Database['public']['Tables']['admins']['Row'];
+type AdminInsert = Database['public']['Tables']['admins']['Insert'];
+type AdminUpdate = Database['public']['Tables']['admins']['Update'];
+
+type AdminUser = Database['public']['Views']['admin_users']['Row'];
+
 export const userService = {
   async getCurrentUser() {
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -11,9 +17,43 @@ export const userService = {
     return user;
   },
 
+  async getCurrentUserRole() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) throw error || new Error('No authenticated user');
+    
+    // בדיקה אם המשתמש הוא מנהל
+    const { data: adminData } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+      
+    return adminData ? 'admin' : 'user';
+  },
+
+  async isCurrentUserAdmin() {
+    try {
+      const role = await this.getCurrentUserRole();
+      return role === 'admin';
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  },
+
   async getAllUsers() {
     const { data, error } = await supabase
       .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getAllAdmins() {
+    const { data, error } = await supabase
+      .from('admin_users')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -32,10 +72,32 @@ export const userService = {
     return data;
   },
 
+  async getAdminByUserId(userId: string) {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+
   async createUser(user: UserInsert) {
     const { data, error } = await supabase
       .from('users')
       .insert(user)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async createAdmin(admin: AdminInsert) {
+    const { data, error } = await supabase
+      .from('admins')
+      .insert(admin)
       .select()
       .single();
 
@@ -55,11 +117,44 @@ export const userService = {
     return data;
   },
 
+  async updateAdmin(id: number, updates: AdminUpdate) {
+    const { data, error } = await supabase
+      .from('admins')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   async deleteUser(id: string) {
+    // בדיקה אם המשתמש הוא מנהל, אם כן - למחוק גם את רשומת המנהל
+    await this.deleteAdminByUserId(id);
+    
     const { error } = await supabase
       .from('users')
       .delete()
       .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async deleteAdmin(id: number) {
+    const { error } = await supabase
+      .from('admins')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async deleteAdminByUserId(userId: string) {
+    const { error } = await supabase
+      .from('admins')
+      .delete()
+      .eq('user_id', userId);
 
     if (error) throw error;
   },
@@ -78,8 +173,6 @@ export const userService = {
     if (error) throw error;
   },
 
-<<<<<<< Updated upstream
-=======
   async signUp(email: string, password: string, isAdmin: boolean = false) {
     // 1. רישום המשתמש בשירות האימות
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -168,7 +261,6 @@ export const userService = {
     return authData;
   },
 
->>>>>>> Stashed changes
   async getUserProfile(id: string) {
     const { data, error } = await supabase.rpc('get_user_profile', {
       user_id: id

@@ -69,7 +69,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   </div>
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <div className="text-sm text-green-400/80">{doc.type}</div>
+                  <div className="text-sm text-green-400/80">
+                    {doc.type.includes('/') ? doc.type.split('/')[1] : doc.type}
+                  </div>
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
                   <div className="text-sm text-green-400/80">

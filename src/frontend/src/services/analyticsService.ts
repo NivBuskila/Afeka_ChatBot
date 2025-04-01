@@ -3,8 +3,10 @@ import { supabase, Database } from '../config/supabase';
 export interface DashboardAnalytics {
   totalDocuments: number;
   totalUsers: number;
+  totalAdmins: number;
   recentDocuments: Database['public']['Tables']['documents']['Row'][];
   recentUsers: Database['public']['Tables']['users']['Row'][];
+  recentAdmins: any[];
 }
 
 export const analyticsService = {
@@ -19,67 +21,84 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
-<<<<<<< Updated upstream
-      // Using existing data until SQL functions are available
-=======
-      const { data: adminUserIds, error: adminIdsError } = await supabase
+      const { data: allUsers, error: allUsersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (allUsersError) {
+        console.error('Error fetching users:', allUsersError);
+        return {
+          totalDocuments: 0,
+          totalUsers: 0,
+          totalAdmins: 0,
+          recentDocuments: [],
+          recentUsers: [],
+          recentAdmins: []
+        };
+      }
+      
+      const { data: admins, error: adminsError } = await supabase
         .from('admins')
-        .select('user_id');
+        .select('*, users!inner(*)')
+        .order('created_at', { ascending: false });
+
+      if (adminsError) {
+        console.error('Error fetching admins:', adminsError);
+      }
+      
+      const { data: recentDocuments, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
         
-      if (adminIdsError) {
-        console.error('Error fetching admin IDs:', adminIdsError);
+      if (docsError) {
+        console.error('Error fetching documents:', docsError);
       }
       
-      const adminIds = adminUserIds ? adminUserIds.map(a => a.user_id) : [];
+      const adminIds = admins ? admins.map(admin => admin.user_id) : [];
+      console.log('Admin IDs:', adminIds);
       
-      let recentUsersQuery;
-      if (adminIds.length > 0) {
-        recentUsersQuery = supabase
-          .from('users')
-          .select('*')
-          .filter('id', 'not.in', `(${adminIds.join(',')})`)
-          .order('created_at', { ascending: false })
-          .limit(5);
-      } else {
-        recentUsersQuery = supabase
-          .from('users')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
-      }
+      const regularUsers = allUsers ? allUsers.filter(user => 
+        !adminIds.includes(user.id)
+      ).slice(0, 5) : [];
       
->>>>>>> Stashed changes
-      const [
-        { count: totalDocuments },
-        { count: totalUsers },
-        { data: recentDocuments },
-        { data: recentUsers }
-      ] = await Promise.all([
-        supabase.from('documents').select('*', { count: 'exact', head: true }),
-        supabase.from('users').select('*', { count: 'exact', head: true }),
-        supabase.from('documents').select('*').order('created_at', { ascending: false }).limit(5),
-<<<<<<< Updated upstream
-        supabase.from('users').select('*').order('created_at', { ascending: false }).limit(5)
-=======
-        recentUsersQuery,
-        supabase.from('admin_users').select('*').order('created_at', { ascending: false }).limit(5)
->>>>>>> Stashed changes
-      ]);
+      console.log('Regular users count:', regularUsers.length);
+      console.log('Admins count:', admins ? admins.length : 0);
+      
+      const recentAdmins = admins ? admins.map(admin => {
+        const userInfo = admin.users;
+        return {
+          id: admin.id,
+          user_id: admin.user_id,
+          email: userInfo ? userInfo.email : 'unknown',
+          department: admin.department || '',
+          created_at: admin.created_at
+        };
+      }).slice(0, 5) : [];
+
+      const totalDocuments = await getTableCount('documents');
+      const totalUsers = await getTableCount('users');
+      const totalAdmins = await getTableCount('admins');
 
       return {
-        totalDocuments: totalDocuments || 0,
-        totalUsers: totalUsers || 0,
+        totalDocuments,
+        totalUsers,
+        totalAdmins,
         recentDocuments: recentDocuments || [],
-        recentUsers: recentUsers || []
+        recentUsers: regularUsers,
+        recentAdmins: recentAdmins
       };
     } catch (error) {
       console.error('Error in getDashboardAnalytics:', error);
-      // Return empty data in case of error
       return {
         totalDocuments: 0,
         totalUsers: 0,
+        totalAdmins: 0,
         recentDocuments: [],
-        recentUsers: []
+        recentUsers: [],
+        recentAdmins: []
       };
     }
   },
@@ -103,54 +122,71 @@ export const analyticsService = {
     return data;
   },
 
-<<<<<<< Updated upstream
-  async getActiveUsers(days: number = 30, limit: number = 10) {
-    const { data, error } = await supabase.rpc('get_active_users', {
-      days,
-      limit_count: limit
-    });
-=======
   async getActiveUsers(days: number = 30, limit: number = 10, includeAdmins: boolean = false) {
     try {
-      let adminIds: string[] = [];
+      const { data: allUsers, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (usersError) {
+        console.error('Error fetching users in getActiveUsers:', usersError);
+        return [];
+      }
       
       if (!includeAdmins) {
-        const { data: adminUserIds, error: adminIdsError } = await supabase
+        const { data: admins, error: adminsError } = await supabase
           .from('admins')
           .select('user_id');
           
-        if (adminIdsError) {
-          console.error('Error fetching admin IDs in getActiveUsers:', adminIdsError);
-        } else {
-          adminIds = adminUserIds ? adminUserIds.map(a => a.user_id) : [];
+        if (adminsError) {
+          console.error('Error fetching admin IDs in getActiveUsers:', adminsError);
+          return allUsers ? allUsers.slice(0, limit) : [];
         }
+        
+        const adminIds = admins ? admins.map(a => a.user_id) : [];
+        
+        const filteredUsers = allUsers ? allUsers.filter(user => 
+          !adminIds.includes(user.id)
+        ) : [];
+        
+        return filteredUsers.slice(0, limit);
       }
       
-      let query = supabase.from('users').select('*');
-      
-      if (!includeAdmins && adminIds.length > 0) {
-        query = query.filter('id', 'not.in', `(${adminIds.join(',')})`);
-      }
-      
-      query = query.order('created_at', { ascending: false }).limit(limit);
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Error in getActiveUsers query:', error);
-        throw error;
-      }
-      
-      return data || [];
+      return allUsers ? allUsers.slice(0, limit) : [];
     } catch (error) {
       console.error('Error in getActiveUsers:', error);
       return [];
     }
   },
->>>>>>> Stashed changes
 
-    if (error) throw error;
-    return data;
+  async getActiveAdmins(days: number = 30, limit: number = 10) {
+    try {
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*, users!inner(*)')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) {
+        console.error('Error fetching admins in getActiveAdmins:', error);
+        return [];
+      }
+      
+      return data ? data.map(admin => {
+        const userInfo = admin.users;
+        return {
+          id: admin.id,
+          user_id: admin.user_id,
+          email: userInfo ? userInfo.email : 'unknown',
+          department: admin.department || '',
+          created_at: admin.created_at
+        };
+      }) : [];
+    } catch (error) {
+      console.error('Error in getActiveAdmins:', error);
+      return [];
+    }
   },
 
   async getDocumentTypeDistribution() {
@@ -245,4 +281,17 @@ export const analyticsService = {
     if (error) throw error;
     return data;
   }
-}; 
+};
+
+async function getTableCount(tableName: string): Promise<number> {
+  const { count, error } = await supabase
+    .from(tableName)
+    .select('*', { count: 'exact', head: true });
+    
+  if (error) {
+    console.error(`Error counting ${tableName}:`, error);
+    return 0;
+  }
+  
+  return count || 0;
+} 
