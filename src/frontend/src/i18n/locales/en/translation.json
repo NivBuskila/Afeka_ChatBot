@@ -1,0 +1,56 @@
+{
+  "settings": {
+    "userSettings": "User Settings",
+    "changeEmail": "Change Email Address",
+    "newEmailPlaceholder": "Enter new email address",
+    "update": "Update",
+    "resetPassword": "Reset Password",
+    "sendResetLink": "Send Reset Link",
+    "connectGoogle": "Connect with Google",
+    "signInWithGoogle": "Sign in with Google",
+    "emailUpdateSuccess": "Email address updated successfully",
+    "emailUpdateError": "Error updating email address",
+    "passwordResetEmailSent": "Password reset link has been sent to your email",
+    "passwordResetError": "Error sending password reset link",
+    "googleSignInError": "Error signing in with Google"
+  },
+  "resetPassword": {
+    "title": "Reset Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "update": "Update Password",
+    "updating": "Updating...",
+    "success": "Password updated successfully!",
+    "redirecting": "Redirecting to login page...",
+    "passwordsMismatch": "Passwords do not match",
+    "updateError": "Error updating password"
+  },
+  "analytics": {
+    "overview": "Overview",
+    "users": "Users",
+    "documents": "Documents",
+    "totalUsers": "Total Users",
+    "totalAdmins": "Total Admins",
+    "totalDocuments": "Total Documents",
+    "activeDocuments": "Active Documents",
+    "activeUsers": "Recent Users",
+    "activeAdmins": "Recent Admins",
+    "noUsers": "No users found",
+    "noAdmins": "No admins found"
+  },
+  "dashboard": {
+    "totalUsers": "Total Users",
+    "totalAdmins": "Total Admins",
+    "totalDocuments": "Total Documents",
+    "recentUsers": "Recent Users",
+    "recentAdmins": "Recent Admins",
+    "recentDocuments": "Recent Documents",
+    "noUsers": "No users found",
+    "noAdmins": "No admins found",
+    "noDocuments": "No documents found"
+  },
+  "general": {
+    "noName": "No name",
+    "untitled": "Untitled"
+  }
+} 

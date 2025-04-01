@@ -5,6 +5,7 @@ import { Terminal, History, Settings, LogOut } from 'lucide-react';
 import SettingsPanel from './SettingsPanel';
 import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../config/constants';
+import UserSettings from '../Settings/UserSettings';
 
 interface Message {
   id: number;
@@ -27,6 +28,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [hasStarted, setHasStarted] = useState(false);
   const [fontSize, setFontSize] = useState(14);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -241,6 +243,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           theme={theme}
           setTheme={setTheme}
         />
+      )}
+
+      {isSettingsOpen && (
+        <UserSettings onClose={() => setIsSettingsOpen(false)} />
       )}
     </div>
   );

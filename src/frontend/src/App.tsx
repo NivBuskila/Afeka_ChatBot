@@ -11,6 +11,7 @@ import APEXRegistration from './components/Login/APEXRegistration';
 import { AdminDashboard } from './components/Dashboard/AdminDashboard';
 import ChatWindow from './components/Chat/ChatWindow';
 import TermsAndConditions from './components/Terms/TermsAndConditions';
+import ResetPassword from './components/ResetPassword/ResetPassword';
 
 import './styles/globals.css';
 
@@ -92,6 +93,7 @@ const App: React.FC = () => {
           <Route path="/chat" element={<ChatWindow onLogout={handleLogout} />} />
           <Route path="/register" element={<APEXRegistration onRegistrationSuccess={handleRegistrationSuccess} onBackToLogin={() => navigate('/')} />} />
           <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </div>
     </SessionContextProvider>

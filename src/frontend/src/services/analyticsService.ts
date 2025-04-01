@@ -1,4 +1,5 @@
 import { supabase, Database } from '../config/supabase';
+import { userService } from './userService';
 
 export interface DashboardAnalytics {
   totalDocuments: number;
@@ -7,6 +8,44 @@ export interface DashboardAnalytics {
   recentDocuments: Database['public']['Tables']['documents']['Row'][];
   recentUsers: Database['public']['Tables']['users']['Row'][];
   recentAdmins: any[];
+}
+
+// פונקציה עזר לספירת שורות בטבלה
+async function getTableCount(tableName: string): Promise<number> {
+  try {
+    // ננסה להשתמש בפונקציית count_rows שעוקפת מגבלות RLS
+    const { data, error } = await supabase.rpc('count_rows', {
+      table_name: tableName
+    });
+    
+    if (error) {
+      console.error(`Error using count_rows for ${tableName}:`, error);
+      // אם נכשלנו, ננסה את השיטה הרגילה
+      return fallbackGetTableCount(tableName);
+    }
+    
+    console.log(`Count for ${tableName} using RPC: ${data}`);
+    return data || 0;
+  } catch (error) {
+    console.error(`Error in getTableCount with RPC for ${tableName}:`, error);
+    // אם נכשלנו, ננסה את השיטה הרגילה
+    return fallbackGetTableCount(tableName);
+  }
+}
+
+// פונקציית גיבוי לספירת שורות בטבלה בשיטה רגילה
+async function fallbackGetTableCount(tableName: string): Promise<number> {
+  const { count, error } = await supabase
+    .from(tableName)
+    .select('*', { count: 'exact', head: true });
+    
+  if (error) {
+    console.error(`Error counting ${tableName} with fallback:`, error);
+    return 0;
+  }
+  
+  console.log(`Count for ${tableName} using fallback: ${count}`);
+  return count || 0;
 }
 
 export const analyticsService = {
@@ -21,32 +60,14 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
-      const { data: allUsers, error: allUsersError } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (allUsersError) {
-        console.error('Error fetching users:', allUsersError);
-        return {
-          totalDocuments: 0,
-          totalUsers: 0,
-          totalAdmins: 0,
-          recentDocuments: [],
-          recentUsers: [],
-          recentAdmins: []
-        };
-      }
+      console.log("Starting getDashboardAnalytics...");
       
-      const { data: admins, error: adminsError } = await supabase
-        .from('admins')
-        .select('*, users!inner(*)')
-        .order('created_at', { ascending: false });
-
-      if (adminsError) {
-        console.error('Error fetching admins:', adminsError);
-      }
+      // שימוש בפונקציה החדשה שיצרנו כדי לקבל משתמשים ומנהלים
+      const { users: regularUsers, admins: recentAdmins } = await userService.getDashboardUsers();
       
+      console.log(`Got users from userService: ${regularUsers?.length || 0} users, ${recentAdmins?.length || 0} admins`);
+      
+      // קבלת המסמכים האחרונים
       const { data: recentDocuments, error: docsError } = await supabase
         .from('documents')
         .select('*')
@@ -57,38 +78,27 @@ export const analyticsService = {
         console.error('Error fetching documents:', docsError);
       }
       
-      const adminIds = admins ? admins.map(admin => admin.user_id) : [];
-      console.log('Admin IDs:', adminIds);
+      console.log(`Got ${recentDocuments?.length || 0} recent documents`);
       
-      const regularUsers = allUsers ? allUsers.filter(user => 
-        !adminIds.includes(user.id)
-      ).slice(0, 5) : [];
+      // ספירת מספר השורות בכל טבלה (חשוב לסנכרן את המספרים שקיבלנו מהשירות)
+      let totalDocuments = await getTableCount('documents');
+      let totalUsers = regularUsers.length + recentAdmins.length; // מספר כולל של משתמשים
+      let totalAdmins = recentAdmins.length; // מספר המנהלים
       
-      console.log('Regular users count:', regularUsers.length);
-      console.log('Admins count:', admins ? admins.length : 0);
+      // אם ספירת המסמכים לא הצליחה, ננסה לספור לפי המערך שקיבלנו
+      if (totalDocuments === 0 && recentDocuments) {
+        totalDocuments = recentDocuments.length;
+      }
       
-      const recentAdmins = admins ? admins.map(admin => {
-        const userInfo = admin.users;
-        return {
-          id: admin.id,
-          user_id: admin.user_id,
-          email: userInfo ? userInfo.email : 'unknown',
-          department: admin.department || '',
-          created_at: admin.created_at
-        };
-      }).slice(0, 5) : [];
-
-      const totalDocuments = await getTableCount('documents');
-      const totalUsers = await getTableCount('users');
-      const totalAdmins = await getTableCount('admins');
+      console.log('Final counts:', { totalDocuments, totalUsers, totalAdmins });
 
       return {
         totalDocuments,
         totalUsers,
         totalAdmins,
         recentDocuments: recentDocuments || [],
-        recentUsers: regularUsers,
-        recentAdmins: recentAdmins
+        recentUsers: regularUsers || [], // מעבירים את כל המשתמשים
+        recentAdmins: recentAdmins || [] // מעבירים את כל המנהלים
       };
     } catch (error) {
       console.error('Error in getDashboardAnalytics:', error);
@@ -281,17 +291,4 @@ export const analyticsService = {
     if (error) throw error;
     return data;
   }
-};
-
-async function getTableCount(tableName: string): Promise<number> {
-  const { count, error } = await supabase
-    .from(tableName)
-    .select('*', { count: 'exact', head: true });
-    
-  if (error) {
-    console.error(`Error counting ${tableName}:`, error);
-    return 0;
-  }
-  
-  return count || 0;
-} 
+}; 
