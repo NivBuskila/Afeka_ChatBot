@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff, Globe } from 'lucide-react';
 import './APEXStaticLogin.css';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../../i18n/config';
 
 interface APEXStaticLoginProps {
   onLoginSuccess: (isAdmin: boolean) => void;
@@ -197,6 +198,11 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
     }, 500);
   };
 
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'he' ? 'en' : 'he';
+    changeLanguage(newLang);
+  };
+
   return (
     <div className="relative h-screen bg-black text-white overflow-hidden">
       <MatrixRain />
@@ -334,8 +340,15 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
           </form>
           
           {/* System info footer */}
-          <div className="bg-black/40 px-6 py-3 text-xs text-green-400/50 flex justify-between">
-            <span>APEX v3.5.2</span>
+          <div className="bg-black/40 px-6 py-3 text-xs text-green-400/50 flex justify-between items-center">
+            <span>APEX v1.0.0</span>
+            <button 
+              onClick={toggleLanguage} 
+              className="flex items-center text-green-400/70 hover:text-green-400 transition-colors"
+            >
+              <Globe className="w-4 h-4 mr-1" />
+              <span>{i18n.language === 'he' ? 'English' : 'עברית'}</span>
+            </button>
           </div>
         </div>
       </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff, Mail, ChevronLeft, UserPlus } from 'lucide-react';
+import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff, Mail, ChevronLeft, UserPlus, Globe } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { userService } from '../../services/userService';
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../../i18n/config';
 
 interface APEXRegistrationProps {
   onRegistrationSuccess: (isAdmin: boolean) => void;
@@ -18,6 +19,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const { i18n } = useTranslation();
   
   // Matrix Rain effect (זהה לזה שבלוגין)
@@ -109,17 +111,22 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
     
     // בדיקת תקינות שדות
     if (!email.trim()) {
-      setError('נא להזין כתובת אימייל');
+      setError(i18n.language === 'he' ? 'נא להזין כתובת אימייל' : 'Please enter an email address');
       return;
     }
     
     if (!password.trim()) {
-      setError('נא להזין סיסמה');
+      setError(i18n.language === 'he' ? 'נא להזין סיסמה' : 'Please enter a password');
       return;
     }
     
     if (password !== confirmPassword) {
-      setError('הסיסמאות אינן תואמות');
+      setError(i18n.language === 'he' ? 'הסיסמאות אינן תואמות' : 'Passwords do not match');
+      return;
+    }
+    
+    if (!acceptTerms) {
+      setError(i18n.language === 'he' ? 'יש לאשר את תנאי השימוש כדי להמשיך' : 'You must accept the terms and conditions to continue');
       return;
     }
     
@@ -144,8 +151,17 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
     }, 500);
   };
 
+  const openTermsModal = () => {
+    window.open('/terms-and-conditions', '_blank');
+  };
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'he' ? 'en' : 'he';
+    changeLanguage(newLang);
+  };
+
   return (
-    <div className="relative h-screen bg-black text-white overflow-hidden">
+    <div className="relative h-screen bg-black text-white overflow-auto">
       <MatrixRain />
       
       {/* Matrix-like background */}
@@ -175,7 +191,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
             <Brain className="w-16 h-16 text-green-400 relative z-10" />
           </div>
           <div className="mt-4 text-3xl font-bold text-green-400">APEX</div>
-          <div className="text-sm text-green-400/70 mt-1">רישום למערכת</div>
+          <div className="text-sm text-green-400/70 mt-1">{i18n.language === 'he' ? 'רישום למערכת' : 'Registration Portal'}</div>
         </div>
         
         {/* Registration card */}
@@ -184,14 +200,14 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
           <div className="bg-green-500/5 border-b border-green-500/10 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center">
               <Shield className="w-5 h-5 text-green-400/80 mr-2" />
-              <span className="text-green-400/90 font-semibold">הרשמה למערכת</span>
+              <span className="text-green-400/90 font-semibold">{i18n.language === 'he' ? 'הרשמה למערכת' : 'System Registration'}</span>
             </div>
             <button 
               onClick={onBackToLogin}
               className="text-green-400/80 hover:text-green-400 transition-colors flex items-center"
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
-              <span>חזרה להתחברות</span>
+              <span>{i18n.language === 'he' ? 'חזרה להתחברות' : 'Back to Login'}</span>
             </button>
           </div>
           
@@ -205,7 +221,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
             
             {/* Email field */}
             <div className="space-y-2">
-              <label className="block text-sm text-green-400/80 mb-1">כתובת מייל</label>
+              <label className="block text-sm text-green-400/80 mb-1">{i18n.language === 'he' ? 'כתובת מייל' : 'Email Address'}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-green-500/50" />
@@ -215,15 +231,15 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50"
-                  placeholder="הזן כתובת אימייל"
-                  dir="rtl"
+                  placeholder={i18n.language === 'he' ? 'הזן כתובת אימייל' : 'Enter email address'}
+                  dir={i18n.language === 'he' ? 'rtl' : 'ltr'}
                 />
               </div>
             </div>
             
             {/* Password field */}
             <div className="space-y-2">
-              <label className="block text-sm text-green-400/80 mb-1">סיסמה</label>
+              <label className="block text-sm text-green-400/80 mb-1">{i18n.language === 'he' ? 'סיסמה' : 'Password'}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-green-500/50" />
@@ -233,8 +249,8 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-10 py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50"
-                  placeholder="הזן סיסמה"
-                  dir="rtl"
+                  placeholder={i18n.language === 'he' ? 'הזן סיסמה' : 'Enter password'}
+                  dir={i18n.language === 'he' ? 'rtl' : 'ltr'}
                 />
                 <button
                   type="button"
@@ -252,7 +268,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
             
             {/* Confirm Password field */}
             <div className="space-y-2">
-              <label className="block text-sm text-green-400/80 mb-1">אימות סיסמה</label>
+              <label className="block text-sm text-green-400/80 mb-1">{i18n.language === 'he' ? 'אימות סיסמה' : 'Confirm Password'}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-green-500/50" />
@@ -262,15 +278,15 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50"
-                  placeholder="הזן שוב את הסיסמה"
-                  dir="rtl"
+                  placeholder={i18n.language === 'he' ? 'הזן שוב את הסיסמה' : 'Confirm your password'}
+                  dir={i18n.language === 'he' ? 'rtl' : 'ltr'}
                 />
               </div>
             </div>
             
             {/* Role selection */}
             <div className="space-y-2">
-              <label className="block text-sm text-green-400/80 mb-1">תפקיד</label>
+              <label className="block text-sm text-green-400/80 mb-1">{i18n.language === 'he' ? 'תפקיד' : 'Role'}</label>
               <div className="flex gap-4">
                 <button
                   type="button"
@@ -282,7 +298,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
                   }`}
                 >
                   <User className="w-4 h-4 mr-2" />
-                  משתמש רגיל
+                  {i18n.language === 'he' ? 'משתמש רגיל' : 'Regular User'}
                 </button>
                 <button
                   type="button"
@@ -294,8 +310,31 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
                   }`}
                 >
                   <Shield className="w-4 h-4 mr-2" />
-                  מנהל מערכת
+                  {i18n.language === 'he' ? 'מנהל מערכת' : 'System Admin'}
                 </button>
+              </div>
+            </div>
+            
+            {/* Terms & Conditions checkbox */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="rounded border-green-500/30 text-green-500 bg-black/50 focus:ring-green-500/30"
+                />
+                <label htmlFor="terms" className="text-sm text-green-400/80">
+                  {i18n.language === 'he' ? 'אני מאשר/ת את ' : 'I accept the '}
+                  <button 
+                    type="button" 
+                    onClick={openTermsModal} 
+                    className="text-green-400 underline hover:text-green-300"
+                  >
+                    {i18n.language === 'he' ? 'תנאי השימוש ומדיניות הפרטיות' : 'terms and conditions'}
+                  </button>
+                </label>
               </div>
             </div>
             
@@ -318,15 +357,22 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
               ) : (
                 <>
                   <UserPlus className="w-5 h-5 ml-2" />
-                  <span>הרשם למערכת</span>
+                  <span>{i18n.language === 'he' ? 'הרשם למערכת' : 'Register'}</span>
                 </>
               )}
             </button>
           </form>
           
           {/* System info footer */}
-          <div className="bg-black/40 px-6 py-3 text-xs text-green-400/50 flex justify-between">
-            <span>APEX v3.5.2</span>
+          <div className="bg-black/40 px-6 py-3 text-xs text-green-400/50 flex justify-between items-center">
+            <span>APEX v1.0.0</span>
+            <button 
+              onClick={toggleLanguage} 
+              className="flex items-center text-green-400/70 hover:text-green-400 transition-colors"
+            >
+              <Globe className="w-4 h-4 mr-1" />
+              <span>{i18n.language === 'he' ? 'English' : 'עברית'}</span>
+            </button>
           </div>
         </div>
       </div>

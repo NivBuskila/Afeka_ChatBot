@@ -64,7 +64,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-400/70">{t('analytics.totalAdmins')}</p>
+                <p className="text-sm text-green-400/70">{t('Total Admins')}</p>
                 <p className="text-2xl font-semibold mt-1 text-green-400">{analytics.totalAdmins}</p>
               </div>
               <div className="text-purple-500 bg-opacity-10 p-3 rounded-full">
