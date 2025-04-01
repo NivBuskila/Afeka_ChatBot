@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff, Globe } from 'lucide-react';
-import './APEXStaticLogin.css';
+import '../../styles/animations.css';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../../i18n/config';
@@ -24,89 +24,6 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   
-  // Minimal Matrix effect
-  const MatrixRain = () => {
-    const canvas = useRef<HTMLCanvasElement>(null);
-    
-    useEffect(() => {
-      let canvasElement = canvas.current;
-      
-      // נחכה טיפה אחרי הרנדור כדי לוודא שה-canvas קיים
-      const initTimer = setTimeout(() => {
-        canvasElement = canvas.current;
-        if (!canvasElement) {
-          console.warn('Canvas element not available');
-          return;
-        }
-        
-        const ctx = canvasElement.getContext('2d');
-        if (!ctx) {
-          console.warn('Canvas context not available');
-          return;
-        }
-        
-        const updateCanvasSize = () => {
-          if (!canvasElement) return;
-          canvasElement.width = window.innerWidth;
-          canvasElement.height = window.innerHeight;
-        };
-        
-        updateCanvasSize();
-        window.addEventListener('resize', updateCanvasSize);
-        
-        const binary = '01';
-        const fontSize = 14;
-        
-        let columns: number[] = [];
-        
-        const initColumns = () => {
-          if (!canvasElement) return;
-          const columnsCount = Math.floor(canvasElement.width / fontSize);
-          columns = Array(columnsCount).fill(1);
-        };
-        
-        initColumns();
-        
-        const draw = () => {
-          if (!canvasElement || !ctx || columns.length === 0) return;
-          
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-          ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-          ctx.fillStyle = '#0f0';
-          ctx.font = `${fontSize}px monospace`;
-          
-          for (let i = 0; i < columns.length; i++) {
-            const text = binary.charAt(Math.floor(Math.random() * binary.length));
-            ctx.fillText(text, i * fontSize, columns[i] * fontSize);
-            columns[i]++;
-            if (columns[i] * fontSize > canvasElement.height && Math.random() > 0.975) {
-              columns[i] = 0;
-            }
-          }
-        };
-        
-        const interval = setInterval(draw, 33);
-        
-        return () => {
-          clearInterval(interval);
-          window.removeEventListener('resize', updateCanvasSize);
-        };
-      }, 100); // קצת השהייה לאפשר לרנדר להשלים
-      
-      return () => {
-        clearTimeout(initTimer);
-      };
-    }, []);
-
-    return (
-      <canvas
-        ref={canvas}
-        className="absolute inset-0 opacity-5"
-        style={{ zIndex: 0 }}
-      />
-    );
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -248,25 +165,9 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
 
   return (
     <div className="relative h-screen bg-black text-white overflow-hidden">
-      <MatrixRain />
+      {/* Removed MatrixRain component */}
       
-      {/* Matrix-like background */}
-      <div className="absolute inset-0 opacity-20">
-        {[...Array(50)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute text-green-500 text-opacity-20 animate-matrix"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              fontSize: `${Math.random() * 10 + 10}px`
-            }}
-          >
-            01
-          </div>
-        ))}
-      </div>
+      {/* Removed Matrix-like background div */}
       
       {/* Login Content */}
       <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10">
