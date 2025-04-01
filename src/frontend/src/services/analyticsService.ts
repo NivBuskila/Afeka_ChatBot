@@ -19,7 +19,36 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
+<<<<<<< Updated upstream
       // Using existing data until SQL functions are available
+=======
+      const { data: adminUserIds, error: adminIdsError } = await supabase
+        .from('admins')
+        .select('user_id');
+        
+      if (adminIdsError) {
+        console.error('Error fetching admin IDs:', adminIdsError);
+      }
+      
+      const adminIds = adminUserIds ? adminUserIds.map(a => a.user_id) : [];
+      
+      let recentUsersQuery;
+      if (adminIds.length > 0) {
+        recentUsersQuery = supabase
+          .from('users')
+          .select('*')
+          .filter('id', 'not.in', `(${adminIds.join(',')})`)
+          .order('created_at', { ascending: false })
+          .limit(5);
+      } else {
+        recentUsersQuery = supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+      }
+      
+>>>>>>> Stashed changes
       const [
         { count: totalDocuments },
         { count: totalUsers },
@@ -29,7 +58,12 @@ export const analyticsService = {
         supabase.from('documents').select('*', { count: 'exact', head: true }),
         supabase.from('users').select('*', { count: 'exact', head: true }),
         supabase.from('documents').select('*').order('created_at', { ascending: false }).limit(5),
+<<<<<<< Updated upstream
         supabase.from('users').select('*').order('created_at', { ascending: false }).limit(5)
+=======
+        recentUsersQuery,
+        supabase.from('admin_users').select('*').order('created_at', { ascending: false }).limit(5)
+>>>>>>> Stashed changes
       ]);
 
       return {
@@ -69,11 +103,51 @@ export const analyticsService = {
     return data;
   },
 
+<<<<<<< Updated upstream
   async getActiveUsers(days: number = 30, limit: number = 10) {
     const { data, error } = await supabase.rpc('get_active_users', {
       days,
       limit_count: limit
     });
+=======
+  async getActiveUsers(days: number = 30, limit: number = 10, includeAdmins: boolean = false) {
+    try {
+      let adminIds: string[] = [];
+      
+      if (!includeAdmins) {
+        const { data: adminUserIds, error: adminIdsError } = await supabase
+          .from('admins')
+          .select('user_id');
+          
+        if (adminIdsError) {
+          console.error('Error fetching admin IDs in getActiveUsers:', adminIdsError);
+        } else {
+          adminIds = adminUserIds ? adminUserIds.map(a => a.user_id) : [];
+        }
+      }
+      
+      let query = supabase.from('users').select('*');
+      
+      if (!includeAdmins && adminIds.length > 0) {
+        query = query.filter('id', 'not.in', `(${adminIds.join(',')})`);
+      }
+      
+      query = query.order('created_at', { ascending: false }).limit(limit);
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error in getActiveUsers query:', error);
+        throw error;
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Error in getActiveUsers:', error);
+      return [];
+    }
+  },
+>>>>>>> Stashed changes
 
     if (error) throw error;
     return data;

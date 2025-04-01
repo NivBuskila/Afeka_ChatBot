@@ -141,6 +141,7 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
         const isAdmin = userRole === 'admin';
         
         try {
+<<<<<<< Updated upstream
           // ננסה לקבל מידע מטבלת users, אבל אם יש שגיאה נמשיך עם המטא-דאטה
           const { data: userData, error: userError } = await supabase
             .from('users')
@@ -154,15 +155,66 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
             console.log('User role from DB:', userData.role);
             onLoginSuccess(userData.role === 'admin');
             return;
+=======
+          console.log('בודק אם המשתמש הוא מנהל...');
+          
+          // ננסה תחילה גישה ישירה לטבלת המנהלים
+          try {
+            const { data: adminData, error: adminError } = await supabase
+              .from('admins')
+              .select('*')
+              .eq('user_id', data.user.id)
+              .maybeSingle();
+            
+            if (!adminError && adminData) {
+              console.log('מצאתי מנהל בטבלת המנהלים:', adminData);
+              onLoginSuccess(true);
+              return;
+            } else if (adminError) {
+              console.error('שגיאה בבדיקת טבלת מנהלים:', adminError);
+            }
+          } catch (dbError) {
+            console.error('שגיאת גישה לטבלת מנהלים:', dbError);
+>>>>>>> Stashed changes
           }
-        } catch (dbError) {
-          console.error('Database query error:', dbError);
+          
+          // אם לא הצלחנו בגישה ישירה, ננסה שימוש ב-RPC
+          try {
+            // נשתמש בפרמטר מפורש אחד בלבד כדי למנוע דו-משמעות
+            const { data: isAdminResult, error: isAdminError } = await supabase
+              .rpc('is_admin', { user_id: data.user.id });
+            
+            if (isAdminError) {
+              console.error('שגיאה בקריאת is_admin RPC:', isAdminError);
+            } else if (isAdminResult === true) {
+              console.log('המשתמש הוא מנהל לפי is_admin RPC');
+              onLoginSuccess(true);
+              return;
+            }
+          } catch (rpcError) {
+            console.error('שגיאה בקריאת RPC:', rpcError);
+          }
+          
+          // אם הגענו לכאן, ננסה לקרוא מהמטא-דאטה של המשתמש
+          const isAdminFromMetadata = data.user.user_metadata?.role === 'admin';
+          console.log('בדיקת מנהל ממטא-דאטה:', isAdminFromMetadata);
+          
+          // החלטה סופית על התפקיד
+          onLoginSuccess(isAdminFromMetadata || false);
+          
+        } catch (err) {
+          console.error('שגיאה בבדיקת מנהל:', err);
+          // במקרה של שגיאה, נתחבר כמשתמש רגיל
+          onLoginSuccess(false);
         }
         
+<<<<<<< Updated upstream
         // אם הגענו לכאן, נשתמש במטא-דאטה
         console.log('Using role from user metadata:', userRole);
         onLoginSuccess(isAdmin);
         
+=======
+>>>>>>> Stashed changes
       } catch (err) {
         console.error('Authentication error:', err);
         setError('אירעה שגיאה בהתחברות לשרת');

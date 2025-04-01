@@ -434,7 +434,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           // תצוגת Overview
           return (
             <div>
-              <h3 className="text-lg font-semibold text-green-400 mb-4">Active Tab: {activeSubItem || 'overview'}</h3>
+              <h3 className="text-lg font-semibold text-green-400 mb-4"></h3>
               <AnalyticsOverview analytics={analytics} />
             </div>
           );

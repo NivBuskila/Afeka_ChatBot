@@ -112,7 +112,11 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
         {/* Recent documents */}
         <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
           <div className="border-b border-green-500/20 py-3 px-6">
+<<<<<<< Updated upstream
             <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeDocuments')}</h3>
+=======
+            <h3 className="text-lg font-semibold text-green-400">{t('Active Admins')}</h3>
+>>>>>>> Stashed changes
           </div>
           <div className="space-y-4">
             {analytics.recentDocuments.map((doc) => (
