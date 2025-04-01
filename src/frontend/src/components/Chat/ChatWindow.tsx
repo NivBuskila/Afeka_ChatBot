@@ -6,6 +6,7 @@ import SettingsPanel from './SettingsPanel';
 import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../config/constants';
 import { useTranslation } from 'react-i18next';
+import UserSettings from '../Settings/UserSettings';
 
 interface Message {
   id: number;
@@ -55,6 +56,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const menuPositionRefs = useRef<Map<string, DOMRect>>(new Map());
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
   const [activeButtonRect, setActiveButtonRect] = useState<DOMRect | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Mock conversation history data (will be replaced with API data later)
   const today = new Date().toLocaleDateString();
@@ -540,6 +542,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           theme={theme}
           setTheme={setTheme}
         />
+      )}
+
+      {isSettingsOpen && (
+        <UserSettings onClose={() => setIsSettingsOpen(false)} />
       )}
     </div>
   );

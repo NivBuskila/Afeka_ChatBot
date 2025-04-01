@@ -10,11 +10,26 @@ type AdminUpdate = Database['public']['Tables']['admins']['Update'];
 
 type AdminUser = Database['public']['Views']['admin_users']['Row'];
 
+export interface UserData {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+}
+
 export const userService = {
-  async getCurrentUser() {
+  async getCurrentUser(): Promise<UserData | null> {
     const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
+    if (error || !user) return null;
+    
+    return {
+      id: user.id,
+      email: user.email || '',
+      firstName: user.user_metadata?.first_name,
+      lastName: user.user_metadata?.last_name,
+      role: user.user_metadata?.role,
+    };
   },
 
   async getCurrentUserRole() {
@@ -297,5 +312,168 @@ export const userService = {
 
     if (error) throw error;
     return data;
-  }
+  },
+
+  async updateEmail(newEmail: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({
+      email: newEmail,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  async resetPassword(email: string): Promise<void> {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  async signInWithGoogle(): Promise<void> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  /**
+   * פונקציה מיוחדת לקבלת נתוני משתמשים למטרות אנליטיקה
+   * מחזירה נתונים גם אם יש מגבלות RLS
+   */
+  async getDashboardUsers() {
+    try {
+      console.log("Fetching dashboard users and admins...");
+      
+      // ננסה להשתמש בפונקציית RPC החדשה שיצרנו - החדשה מחזירה מערך אחד עם role
+      const { data: usersData, error: rpcError } = await supabase.rpc('get_all_users_and_admins');
+      
+      // בדיקות מפורטות יותר לתוצאה שחזרה
+      console.log("RPC result:", { data: usersData, error: rpcError });
+      
+      if (rpcError) {
+        console.error("RPC error:", rpcError);
+        return await this.fallbackGetDashboardUsers();
+      }
+      
+      if (!usersData) {
+        console.error("No data returned from RPC");
+        return await this.fallbackGetDashboardUsers();
+      }
+      
+      if (!Array.isArray(usersData)) {
+        console.error("Data returned is not an array:", typeof usersData, usersData);
+        
+        // אם זה לא מערך אבל כן יש נתונים, ננסה להמיר למערך
+        const dataArray = usersData ? [usersData] : [];
+        
+        if (dataArray.length > 0) {
+          console.log("Converted data to array:", dataArray);
+          
+          // נפריד בין משתמשים רגילים למנהלים לפי השדה role
+          const admins = dataArray.filter((user: any) => user.role === 'admin');
+          const regularUsers = dataArray.filter((user: any) => user.role !== 'admin');
+          
+          console.log(`Converted data has ${regularUsers.length} users and ${admins.length} admins`);
+          
+          return { users: regularUsers, admins };
+        }
+        
+        return await this.fallbackGetDashboardUsers();
+      }
+      
+      // נפריד בין משתמשים רגילים למנהלים לפי השדה role
+      const admins = usersData.filter((user: any) => user.role === 'admin');
+      const regularUsers = usersData.filter((user: any) => user.role !== 'admin');
+      
+      console.log(`RPC returned ${regularUsers.length} users and ${admins.length} admins`);
+      
+      return { users: regularUsers, admins };
+    } catch (error) {
+      console.error("Error in getDashboardUsers:", error);
+      return await this.fallbackGetDashboardUsers();
+    }
+  },
+  
+  async fallbackGetDashboardUsers() {
+    try {
+      console.log("Using fallback method to fetch users and admins...");
+  
+      // ניסיון לקבל את כל המשתמשים
+      const { data: allUsersData, error: allUsersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+  
+      if (allUsersError) {
+        console.error('Error fetching all users:', allUsersError);
+        return { users: [], admins: [] };
+      }
+      
+      // ניסיון לקבל את כל המנהלים כדי לסנן את המשתמשים
+      const { data: adminsData, error: adminsError } = await supabase
+        .from('admins')
+        .select('user_id, department');
+      
+      if (adminsError) {
+        console.error('Error fetching admins:', adminsError);
+        // גם אם יש שגיאה, נמשיך עם המשתמשים שכבר יש לנו
+      }
+      
+      // יצירת מפתח של מזהי משתמשים שהם מנהלים
+      const adminUserIds = new Set(adminsData?.map(admin => admin.user_id) || []);
+      
+      // סינון המשתמשים והוספת שדה role לכל משתמש
+      const regularUsers = [];
+      const admins = [];
+      
+      for (const user of allUsersData || []) {
+        // בדיקה אם המשתמש הוא מנהל
+        if (adminUserIds.has(user.id)) {
+          // מצא את פרטי המנהל המתאימים
+          const adminInfo = adminsData?.find(admin => admin.user_id === user.id);
+          
+          // הוסף את שדה ה-role ושדות נוספים רלוונטיים
+          admins.push({
+            ...user,
+            role: 'admin',
+            department: adminInfo?.department || null
+          });
+        } else {
+          // זהו משתמש רגיל
+          regularUsers.push({
+            ...user,
+            role: 'user'
+          });
+        }
+      }
+      
+      console.log(`Fallback method found ${regularUsers.length} users and ${admins.length} admins`);
+      
+      return { users: regularUsers, admins };
+    } catch (error) {
+      console.error('Error in fallbackGetDashboardUsers:', error);
+      return { users: [], admins: [] };
+    }
+  },
 }; 

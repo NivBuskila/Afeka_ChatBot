@@ -37,6 +37,7 @@ import { userService } from '../../services/userService';
 import { analyticsService, DashboardAnalytics } from '../../services/analyticsService';
 import type { Document } from '../../config/supabase';
 import { supabase } from '../../config/supabase';
+import i18n from 'i18next';
 
 type Language = 'he' | 'en';
 
@@ -86,12 +87,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<Language>(i18n.language as Language);
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>('analytics');
 
   useEffect(() => {
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
     i18n.changeLanguage(language);
   }, [language, i18n]);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        console.log("Fetching dashboard analytics...");
+        
+        // קבלת נתוני האנליטיקה מהשירות
+        const analyticsData = await analyticsService.getDashboardAnalytics();
+        
+        console.log("Received analytics data:", analyticsData);
+        
+        setAnalytics(analyticsData);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (activeTab === 'analytics') {
+      fetchAnalytics();
+    }
+  }, [activeTab]);
 
   const menuItems: MenuItem[] = [
     {
@@ -165,17 +191,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const refreshData = async () => {
     setLoading(true);
     try {
+      console.log('Refreshing dashboard data...');
       const [docs, analyticsData] = await Promise.all([
         documentService.getAllDocuments(),
         analyticsService.getDashboardAnalytics()
       ]);
       
       console.log('Refreshed analytics data:', analyticsData);
-      console.log('Users found on refresh:', analyticsData.recentUsers.length);
-      console.log('Admins found on refresh:', analyticsData.recentAdmins.length);
+      console.log('Users found after refresh:', analyticsData.recentUsers?.length || 0);
+      console.log('Admins found after refresh:', analyticsData.recentAdmins?.length || 0);
       
       setDocuments(docs);
       setAnalytics(analyticsData);
+      
+      // מדפיסים את המידע לדיבאג
+      if (analyticsData.recentUsers?.length) {
+        console.log('First user example:', analyticsData.recentUsers[0]);
+      }
+      if (analyticsData.recentAdmins?.length) {
+        console.log('First admin example:', analyticsData.recentAdmins[0]);
+      }
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -380,14 +415,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         );
       case 'analytics':
         console.log('Active Sub Item:', activeSubItem);
-        console.log('Analytics Users:', analytics.recentUsers);
-        console.log('Analytics Admins:', analytics.recentAdmins);
+        console.log('Analytics Data:', analytics);
         
         if (activeSubItem === 'users') {
-          // רק משתמשים רגילים (משתמשים ב-recentUsers החדש שכבר מסונן ללא מנהלים)
-          const filteredUsers = analytics.recentUsers;
+          // רק משתמשים רגילים
+          const filteredUsers = analytics.recentUsers || [];
           
-          console.log('Filtered Users:', filteredUsers);
+          console.log('Rendering users view:', filteredUsers);
           
           return (
             <div className="p-6">
@@ -407,13 +441,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <h3 className="text-lg font-semibold text-green-400">{t('analytics.users')}</h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between">
+                  {filteredUsers && filteredUsers.length > 0 ? (
+                    filteredUsers.map((user, index) => (
+                      <div key={user.id || index} className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-green-400">{user.email}</p>
+                          <p className="font-medium text-green-400">{user.email || user.name || 'Unknown User'}</p>
                           <p className="text-sm text-green-400/50">
-                            {new Date(user.created_at).toLocaleDateString()}
+                            {user.created_at ? new Date(user.created_at).toLocaleDateString() : ''}
                           </p>
                         </div>
                         <span className="text-sm text-green-400/70">
@@ -429,10 +463,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           );
         } else if (activeSubItem === 'admins') {
-          // רק מנהלים (משתמשים ב-recentAdmins החדש)
-          const filteredAdmins = analytics.recentAdmins;
+          // רק מנהלים
+          const filteredAdmins = analytics.recentAdmins || [];
           
-          console.log('Filtered Admins:', filteredAdmins);
+          console.log('Rendering admins view:', filteredAdmins);
           
           return (
             <div className="p-6">
@@ -449,16 +483,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
               <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
                 <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">{t('admin.sidebar.administrators')}</h3>
+                  <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeAdmins')}</h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {filteredAdmins.length > 0 ? (
-                    filteredAdmins.map((admin) => (
-                      <div key={admin.id} className="flex items-center justify-between">
+                  {filteredAdmins && filteredAdmins.length > 0 ? (
+                    filteredAdmins.map((admin, index) => (
+                      <div key={admin.id || index} className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-green-400">{admin.email}</p>
+                          <p className="font-medium text-green-400">{admin.email || admin.name || 'Unknown Admin'}</p>
                           <p className="text-sm text-green-400/50">
-                            {new Date(admin.created_at).toLocaleDateString()}
+                            {admin.created_at ? new Date(admin.created_at).toLocaleDateString() : ''}
                           </p>
                         </div>
                         <span className="text-sm text-green-400/70">
@@ -477,8 +511,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           // תצוגת Overview
           return (
             <div>
-              <h3 className="text-lg font-semibold text-green-400 mb-4"></h3>
-              <AnalyticsOverview analytics={analytics} />
+              <div className="flex justify-between items-center mb-6 px-6 pt-6">
+                <h2 className="text-2xl font-bold text-green-400">
+                  {t('analytics.overview')}
+                </h2>
+                <button
+                  onClick={refreshData}
+                  className="bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors"
+                >
+                  {t('Refresh')}
+                </button>
+              </div>
+              <AnalyticsOverview analytics={analytics} isLoading={loading} />
             </div>
           );
         }

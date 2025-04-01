@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Brain, LogIn, Shield, User, Lock, Eye, EyeOff, Globe } from 'lucide-react';
 import './APEXStaticLogin.css';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../../i18n/config';
+import { useNavigate } from 'react-router-dom';
 
 interface APEXStaticLoginProps {
   onLoginSuccess: (isAdmin: boolean) => void;
@@ -15,7 +17,12 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetEmailLoading, setResetEmailLoading] = useState(false);
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   
   // Minimal Matrix effect
   const MatrixRain = () => {
@@ -197,6 +204,48 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
     }, 500);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!forgotEmail.trim()) {
+      setError(i18n.language === 'he' ? 'נא להזין כתובת אימייל' : 'Please enter your email address');
+      return;
+    }
+    
+    setResetEmailLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) {
+        setError(i18n.language === 'he' ? 'שגיאה בשליחת קישור איפוס: ' + error.message : 'Error sending reset link: ' + error.message);
+        setResetEmailLoading(false);
+        return;
+      }
+      
+      setResetEmailSent(true);
+      setResetEmailLoading(false);
+    } catch (err) {
+      console.error('Error sending password reset email:', err);
+      setError(i18n.language === 'he' ? 'אירעה שגיאה בשליחת דוא"ל לאיפוס סיסמה' : 'Error sending password reset email');
+      setResetEmailLoading(false);
+    }
+  };
+
+  const closeForgotModal = () => {
+    setShowForgotModal(false);
+    setForgotEmail('');
+    setResetEmailSent(false);
+    setError('');
+  };
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'he' ? 'en' : 'he';
+    changeLanguage(newLang);
+  };
+
   return (
     <div className="relative h-screen bg-black text-white overflow-hidden">
       <MatrixRain />
@@ -319,9 +368,13 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
             {/* Recovery link */}
             <div className="text-center mt-4">
               <div className="flex flex-col space-y-2">
-                <a href="#" className="text-green-400/60 hover:text-green-400/80 text-sm transition-colors">
-                  {i18n.language === 'he' ? 'שכחת פרטי התחברות? פנה למנהל המערכת' : 'Forgot login details? Contact system admin'}
-                </a>
+                <button 
+                  type="button" 
+                  onClick={() => setShowForgotModal(true)} 
+                  className="text-green-400/60 hover:text-green-400/80 text-sm transition-colors"
+                >
+                  {i18n.language === 'he' ? 'שכחתי סיסמה' : 'Forgot Password'}
+                </button>
                 <button 
                   type="button"
                   onClick={onRegisterClick}
@@ -334,11 +387,116 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
           </form>
           
           {/* System info footer */}
-          <div className="bg-black/40 px-6 py-3 text-xs text-green-400/50 flex justify-between">
-            <span>APEX v3.5.2</span>
+          <div className="bg-black/40 px-6 py-3 text-xs text-green-400/50 flex justify-between items-center">
+            <span>APEX v1.0.0</span>
+            <button 
+              onClick={toggleLanguage} 
+              className="flex items-center text-green-400/70 hover:text-green-400 transition-colors"
+            >
+              <Globe className="w-4 h-4 mr-1" />
+              <span>{i18n.language === 'he' ? 'English' : 'עברית'}</span>
+            </button>
           </div>
         </div>
       </div>
+      
+      {/* Password Reset Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-gray-900 rounded-lg border border-green-500/20 shadow-lg overflow-hidden">
+            <div className="bg-green-500/5 border-b border-green-500/10 px-6 py-4 flex justify-between items-center">
+              <span className="text-green-400/90 font-semibold">
+                {i18n.language === 'he' ? 'איפוס סיסמה' : 'Reset Password'}
+              </span>
+              <button 
+                type="button" 
+                onClick={closeForgotModal}
+                className="text-green-400/60 hover:text-green-400"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {resetEmailSent ? (
+                <div className="text-center py-4">
+                  <div className="bg-green-500/10 border border-green-500/30 text-green-400 px-4 py-3 rounded-md text-sm mb-4">
+                    {i18n.language === 'he' 
+                      ? 'קישור לאיפוס סיסמה נשלח לאימייל שלך' 
+                      : 'Password reset link has been sent to your email'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeForgotModal}
+                    className="bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-md border border-green-500/30 transition-colors"
+                  >
+                    {i18n.language === 'he' ? 'סגור' : 'Close'}
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword}>
+                  <p className="text-gray-400 mb-4">
+                    {i18n.language === 'he' 
+                      ? 'הזן את כתובת האימייל שלך ואנו נשלח לך קישור לאיפוס הסיסמה' 
+                      : 'Enter your email address and we will send you a password reset link'}
+                  </p>
+                  
+                  {error && (
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-md text-sm mb-4">
+                      {error}
+                    </div>
+                  )}
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-green-400/80 mb-1">
+                        {i18n.language === 'he' ? 'אימייל' : 'Email'}
+                      </label>
+                      <input
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="w-full px-4 py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50"
+                        placeholder={i18n.language === 'he' ? 'הכנס את האימייל שלך' : 'Enter your email'}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-2 rtl:space-x-reverse">
+                      <button
+                        type="button"
+                        onClick={closeForgotModal}
+                        className="flex-1 bg-gray-700/30 hover:bg-gray-700/50 text-gray-300 font-medium py-2 px-4 rounded-md border border-gray-600/30 transition-colors"
+                      >
+                        {i18n.language === 'he' ? 'ביטול' : 'Cancel'}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={resetEmailLoading}
+                        className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-md border border-green-500/30 transition-colors flex items-center justify-center"
+                      >
+                        {resetEmailLoading ? (
+                          <div className="flex space-x-1">
+                            {[...Array(3)].map((_, i) => (
+                              <div
+                                key={i}
+                                className="w-1 h-1 bg-green-400 rounded-full animate-bounce"
+                                style={{ animationDelay: `${i * 0.2}s` }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          i18n.language === 'he' ? 'שלח קישור' : 'Send Reset Link'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Ambient light effects */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">

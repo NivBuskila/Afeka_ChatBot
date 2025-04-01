@@ -10,6 +10,8 @@ import APEXStaticLogin from './components/Login/APEXStaticLogin';
 import APEXRegistration from './components/Login/APEXRegistration';
 import { AdminDashboard } from './components/Dashboard/AdminDashboard';
 import ChatWindow from './components/Chat/ChatWindow';
+import TermsAndConditions from './components/Terms/TermsAndConditions';
+import ResetPassword from './components/ResetPassword/ResetPassword';
 
 import './styles/globals.css';
 
@@ -84,12 +86,14 @@ const App: React.FC = () => {
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <div className="h-screen w-screen bg-black text-white font-sans overflow-hidden">
+      <div className="h-screen w-screen bg-black text-white font-sans overflow-auto">
         <Routes>
           <Route path="/" element={renderAuthScreen()} />
           <Route path="/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
           <Route path="/chat" element={<ChatWindow onLogout={handleLogout} />} />
           <Route path="/register" element={<APEXRegistration onRegistrationSuccess={handleRegistrationSuccess} onBackToLogin={() => navigate('/')} />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </div>
     </SessionContextProvider>

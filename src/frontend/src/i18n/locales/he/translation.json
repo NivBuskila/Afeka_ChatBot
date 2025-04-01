@@ -1,0 +1,56 @@
+{
+  "settings": {
+    "userSettings": "הגדרות משתמש",
+    "changeEmail": "שינוי כתובת דואר אלקטרוני",
+    "newEmailPlaceholder": "הזן כתובת דואר אלקטרוני חדשה",
+    "update": "עדכן",
+    "resetPassword": "איפוס סיסמה",
+    "sendResetLink": "שלח קישור לאיפוס סיסמה",
+    "connectGoogle": "התחברות עם Google",
+    "signInWithGoogle": "התחבר באמצעות Google",
+    "emailUpdateSuccess": "כתובת הדואר האלקטרוני עודכנה בהצלחה",
+    "emailUpdateError": "שגיאה בעדכון כתובת הדואר האלקטרוני",
+    "passwordResetEmailSent": "נשלח קישור לאיפוס סיסמה לכתובת הדואר האלקטרוני שלך",
+    "passwordResetError": "שגיאה בשליחת קישור לאיפוס סיסמה",
+    "googleSignInError": "שגיאה בהתחברות באמצעות Google"
+  },
+  "resetPassword": {
+    "title": "איפוס סיסמה",
+    "newPassword": "סיסמה חדשה",
+    "confirmPassword": "אימות סיסמה",
+    "update": "עדכן סיסמה",
+    "updating": "מעדכן...",
+    "success": "הסיסמה עודכנה בהצלחה!",
+    "redirecting": "מעביר אותך לדף ההתחברות...",
+    "passwordsMismatch": "הסיסמאות אינן תואמות",
+    "updateError": "אירעה שגיאה בעדכון הסיסמה"
+  },
+  "analytics": {
+    "overview": "סקירה כללית",
+    "users": "משתמשים",
+    "documents": "מסמכים",
+    "totalUsers": "סך הכל משתמשים",
+    "totalAdmins": "סך הכל מנהלים",
+    "totalDocuments": "סך הכל מסמכים",
+    "activeDocuments": "מסמכים פעילים",
+    "activeUsers": "משתמשים אחרונים",
+    "activeAdmins": "מנהלים אחרונים",
+    "noUsers": "לא נמצאו משתמשים",
+    "noAdmins": "לא נמצאו מנהלים"
+  },
+  "dashboard": {
+    "totalUsers": "סך הכל משתמשים",
+    "totalAdmins": "סך הכל מנהלים",
+    "totalDocuments": "סך הכל מסמכים",
+    "recentUsers": "משתמשים אחרונים",
+    "recentAdmins": "מנהלים אחרונים",
+    "recentDocuments": "מסמכים אחרונים",
+    "noUsers": "אין משתמשים",
+    "noAdmins": "אין מנהלים",
+    "noDocuments": "אין מסמכים"
+  },
+  "general": {
+    "noName": "ללא שם",
+    "untitled": "ללא כותרת"
+  }
+} 

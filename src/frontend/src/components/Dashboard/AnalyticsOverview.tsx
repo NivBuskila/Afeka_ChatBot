@@ -2,6 +2,45 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Users, FileText, Clock, UserCog } from 'lucide-react';
 import type { Document } from '../../config/supabase';
+import { FaUsers, FaUserShield, FaFileAlt } from 'react-icons/fa';
+
+// יצירת רכיב Spinner בסיסי אם לא קיים בפרוייקט
+const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {
+  const sizeClasses = {
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-8 h-8",
+  };
+
+  return (
+    <div className={`animate-spin rounded-full border-t-2 border-b-2 border-green-500 ${sizeClasses[size as keyof typeof sizeClasses]}`}></div>
+  );
+};
+
+// יצירת רכיב StatBox
+interface StatBoxProps {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+}
+
+const StatBox: React.FC<StatBoxProps> = ({ title, value, icon }) => {
+  return (
+    <div className="bg-gray-800 p-4 rounded-lg flex items-center">
+      <div className="mr-4">{icon}</div>
+      <div>
+        <p className="text-sm text-gray-400">{title}</p>
+        <p className="text-xl font-bold">{value}</p>
+      </div>
+    </div>
+  );
+};
+
+// פונקציית עזר לפורמט תאריכים
+const formatDate = (dateString?: string) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString();
+};
 
 interface AnalyticsOverviewProps {
   analytics: {
@@ -12,42 +51,42 @@ interface AnalyticsOverviewProps {
     recentUsers: any[];
     recentAdmins: any[];
   };
+  isLoading: boolean;
 }
 
-export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics }) => {
+export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics, isLoading }) => {
   const { t } = useTranslation();
+  
+  console.log("Analytics data in AnalyticsOverview:", analytics);
 
-  const stats = [
-    {
-      title: t('analytics.totalDocuments'),
-      value: analytics.totalDocuments,
-      icon: <FileText className="w-6 h-6" />,
-      color: 'text-blue-500'
-    },
-    {
-      title: t('analytics.totalUsers'),
-      value: analytics.totalUsers,
-      icon: <Users className="w-6 h-6" />,
-      color: 'text-green-500'
-    },
-    {
-      title: t('analytics.totalAdmins'),
-      value: analytics.totalAdmins,
-      icon: <UserCog className="w-6 h-6" />,
-      color: 'text-purple-500'
-    },
-    {
-      title: t('analytics.activeDocuments'),
-      value: analytics.recentDocuments.length,
-      icon: <Clock className="w-6 h-6" />,
-      color: 'text-yellow-500'
-    }
-  ];
+  // בדיקה עבור נתונים ריקים או לא קיימים
+  const hasData = analytics && !isLoading;
+  const hasUsers = hasData && Array.isArray(analytics.recentUsers) && analytics.recentUsers.length > 0;
+  const hasAdmins = hasData && Array.isArray(analytics.recentAdmins) && analytics.recentAdmins.length > 0;
+  const hasDocuments = hasData && Array.isArray(analytics.recentDocuments) && analytics.recentDocuments.length > 0;
+
+  // מונים כלליים - אם אין נתונים, נראה לפחות 0
+  const totalDocuments = hasData ? analytics.totalDocuments || 0 : 0;
+  const totalUsers = hasData ? analytics.totalUsers || 0 : 0;
+  const totalAdmins = hasData ? analytics.totalAdmins || 0 : 0;
+
+  // לקיחת רק 5 משתמשים/מנהלים להצגה
+  const recentUsers = hasUsers ? analytics.recentUsers.slice(0, 5) : [];
+  const recentAdmins = hasAdmins ? analytics.recentAdmins.slice(0, 5) : [];
+  const recentDocuments = hasDocuments ? analytics.recentDocuments.slice(0, 5) : [];
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-40">
+          <Spinner size="lg" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-green-400 mb-6">{t('analytics.overview')}</h2>
-      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* User metrics */}
         <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-6">
@@ -56,7 +95,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-400/70">{t('analytics.totalUsers')}</p>
-                <p className="text-2xl font-semibold mt-1 text-green-400">{analytics.totalUsers}</p>
+                <p className="text-2xl font-semibold mt-1 text-green-400">{totalUsers}</p>
               </div>
               <div className="text-green-500 bg-opacity-10 p-3 rounded-full">
                 <Users className="w-6 h-6" />
@@ -65,7 +104,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-400/70">{t('analytics.totalAdmins')}</p>
-                <p className="text-2xl font-semibold mt-1 text-green-400">{analytics.totalAdmins}</p>
+                <p className="text-2xl font-semibold mt-1 text-green-400">{totalAdmins}</p>
               </div>
               <div className="text-purple-500 bg-opacity-10 p-3 rounded-full">
                 <UserCog className="w-6 h-6" />
@@ -81,7 +120,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-400/70">{t('analytics.totalDocuments')}</p>
-                <p className="text-2xl font-semibold mt-1 text-green-400">{analytics.totalDocuments}</p>
+                <p className="text-2xl font-semibold mt-1 text-green-400">{totalDocuments}</p>
               </div>
               <div className="text-blue-500 bg-opacity-10 p-3 rounded-full">
                 <FileText className="w-6 h-6" />
@@ -90,7 +129,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-400/70">{t('analytics.activeDocuments')}</p>
-                <p className="text-2xl font-semibold mt-1 text-green-400">{analytics.recentDocuments.length}</p>
+                <p className="text-2xl font-semibold mt-1 text-green-400">{recentDocuments.length}</p>
               </div>
               <div className="text-yellow-500 bg-opacity-10 p-3 rounded-full">
                 <Clock className="w-6 h-6" />
@@ -107,41 +146,49 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics 
             <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeUsers')}</h3>
           </div>
           <div className="p-6 space-y-4">
-            {analytics.recentUsers.map((user) => (
-              <div key={user.id} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-green-400">{user.email}</p>
-                  <p className="text-sm text-green-400/50">
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </p>
+            {hasUsers ? (
+              recentUsers.map((user, index) => (
+                <div key={user.id || index} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-green-400">{user.email || user.name || t('general.noName')}</p>
+                    <p className="text-sm text-green-400/50">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString() : ''}
+                    </p>
+                  </div>
+                  <span className="text-sm text-green-400/70">
+                    user
+                  </span>
                 </div>
-                <span className="text-sm text-green-400/70">
-                  user
-                </span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-green-400/70">{t('analytics.noUsers')}</p>
+            )}
           </div>
         </div>
         
         {/* Recent admins */}
         <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
           <div className="border-b border-green-500/20 py-3 px-6">
-            <h3 className="text-lg font-semibold text-green-400">{t('Active Admins')}</h3>
+            <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeAdmins')}</h3>
           </div>
           <div className="p-6 space-y-4">
-            {analytics.recentAdmins.map((admin) => (
-              <div key={admin.id} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-green-400">{admin.email}</p>
-                  <p className="text-sm text-green-400/50">
-                    {new Date(admin.created_at).toLocaleDateString()}
-                  </p>
+            {hasAdmins ? (
+              recentAdmins.map((admin, index) => (
+                <div key={admin.id || index} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-green-400">{admin.email || admin.name || t('general.noName')}</p>
+                    <p className="text-sm text-green-400/50">
+                      {admin.created_at ? new Date(admin.created_at).toLocaleDateString() : ''}
+                    </p>
+                  </div>
+                  <span className="text-sm text-green-400/70">
+                    admin {admin.department ? `(${admin.department})` : ''}
+                  </span>
                 </div>
-                <span className="text-sm text-green-400/70">
-                  admin {admin.department ? `(${admin.department})` : ''}
-                </span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-green-400/70">{t('analytics.noAdmins')}</p>
+            )}
           </div>
         </div>
       </div>
