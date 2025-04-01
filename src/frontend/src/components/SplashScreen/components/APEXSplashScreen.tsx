@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import MatrixBackground from './MatrixBackground';
 import LogoContainer from './LogoContainer';
 import AnimatedText from './AnimatedText';
 import AmbientEffects from './AmbientEffects';
@@ -38,7 +37,7 @@ const APEXSplashScreen: React.FC<APEXSplashScreenProps> = ({ onSplashComplete })
       className="relative h-screen bg-black text-white overflow-hidden cursor-pointer"
       onClick={onSplashComplete}
     >
-      <MatrixBackground />
+      <div className="absolute inset-0 bg-black"></div>
       <div className="relative z-10 h-full flex flex-col items-center justify-center">
         <LogoContainer />
         <AnimatedText textVisible={textVisible} showFullName={showFullName} />

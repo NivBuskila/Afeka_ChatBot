@@ -1,47 +1,32 @@
-@keyframes matrix {
-    0% {
-      transform: translateY(-100%);
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(1000%);
-      opacity: 0;
-    }
+@keyframes spin-reverse {
+  from {
+    transform: rotate(360deg);
   }
-  
-  @keyframes spin-reverse {
-    from {
-      transform: rotate(360deg);
-    }
-    to {
-      transform: rotate(0deg);
-    }
+  to {
+    transform: rotate(0deg);
   }
-  
-  @keyframes blob {
-    0%, 100% {
-      transform: translate(0, 0) scale(1);
-    }
-    25% {
-      transform: translate(20px, -20px) scale(1.1);
-    }
-    50% {
-      transform: translate(-20px, 20px) scale(0.9);
-    }
-    75% {
-      transform: translate(20px, 20px) scale(1.1);
-    }
+}
+
+@keyframes blob {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
   }
-  
-  .animate-matrix {
-    animation: matrix 20s linear infinite;
+  25% {
+    transform: translate(20px, -20px) scale(1.1);
   }
-  
-  .animate-spin-reverse {
-    animation: spin-reverse 15s linear infinite;
+  50% {
+    transform: translate(-20px, 20px) scale(0.9);
   }
-  
-  .animate-blob {
-    animation: blob 7s infinite;
+  75% {
+    transform: translate(20px, 20px) scale(1.1);
   }
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 15s linear infinite;
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
   
