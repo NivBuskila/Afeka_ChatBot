@@ -37,12 +37,12 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
     // Show loading state
     setIsLoading(true);
     
-    // אימות דרך Supabase
+    // Authenticate via Supabase
     setTimeout(async () => {
       try {
-        // התחברות לסופאבייס עם האימייל והסיסמה שהמשתמש הזין
+        // Sign in with Supabase using email and password
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: username.trim(), // משתמשים בשדה username כדוא"ל
+          email: username.trim(), // Using username field as email
           password: password,
         });
         
@@ -60,11 +60,11 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
         
         console.log('התחברות הצליחה, מידע משתמש:', data.user);
         
-        // מאחר ויש בעיות RLS, נבדוק אם המשתמש הוא מנהל
+        // Due to RLS issues, check if user is admin
         try {
           console.log('בודק אם המשתמש הוא מנהל...');
           
-          // ננסה תחילה גישה ישירה לטבלת המנהלים
+          // First try direct access to admins table
           try {
             const { data: adminData, error: adminError } = await supabase
               .from('admins')
@@ -83,9 +83,9 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
             console.error('שגיאת גישה לטבלת מנהלים:', dbError);
           }
           
-          // אם לא הצלחנו בגישה ישירה, ננסה שימוש ב-RPC
+          // If direct access failed, try using RPC
           try {
-            // נשתמש בפרמטר מפורש אחד בלבד כדי למנוע דו-משמעות
+            // Use one explicit parameter to avoid ambiguity
             const { data: isAdminResult, error: isAdminError } = await supabase
               .rpc('is_admin', { user_id: data.user.id });
             
@@ -100,16 +100,16 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
             console.error('שגיאה בקריאת RPC:', rpcError);
           }
           
-          // אם הגענו לכאן, ננסה לקרוא מהמטא-דאטה של המשתמש
+          // If we got here, try reading from user metadata
           const isAdminFromMetadata = data.user.user_metadata?.role === 'admin';
           console.log('בדיקת מנהל ממטא-דאטה:', isAdminFromMetadata);
           
-          // החלטה סופית על התפקיד
+          // Final decision on role
           onLoginSuccess(isAdminFromMetadata || false);
           
         } catch (err) {
           console.error('שגיאה בבדיקת מנהל:', err);
-          // במקרה של שגיאה, נתחבר כמשתמש רגיל
+          // In case of error, log in as regular user
           onLoginSuccess(false);
         }
         

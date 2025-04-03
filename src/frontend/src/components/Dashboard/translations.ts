@@ -49,6 +49,18 @@ export const translations: Translations = {
     he: 'משתמשים פעילים',
     en: 'Active Users'
   },
+  'analytics.activeUsers': {
+    he: 'משתמשים פעילים',
+    en: 'Active Users'
+  },
+  'analytics.activeAdmins': {
+    he: 'מנהלים פעילים',
+    en: 'Active Administrators'
+  },
+  'analytics.totalAdmins': {
+    he: 'סך הכל מנהלים',
+    en: 'Total Administrators'
+  },
   'analytics.daily.conversations': {
     he: 'שיחות יומיות',
     en: 'Daily Conversations'
@@ -220,7 +232,7 @@ export const translations: Translations = {
     en: 'Schedules'
   },
 
-  // צ'אטבוט
+  // Chatbot
   'chatbot.name': {
     he: 'APEX צ\'אטבוט',
     en: 'APEX Chatbot'

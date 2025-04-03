@@ -27,7 +27,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
     e.preventDefault();
     setError('');
     
-    // בדיקת תקינות שדות
+    // Field validation
     if (!email.trim()) {
       setError(i18n.language === 'he' ? 'נא להזין כתובת אימייל' : 'Please enter an email address');
       return;
@@ -52,7 +52,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
     
     setTimeout(async () => {
       try {
-        // שימוש בפונקציה המורחבת עם הפרדה בין משתמשים ומנהלים
+        // Use enhanced function with user/admin separation
         const result = await userService.signUp(
           email.trim(),
           password,
