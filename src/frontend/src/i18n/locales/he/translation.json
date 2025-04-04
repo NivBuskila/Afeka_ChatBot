@@ -49,6 +49,10 @@
     "noAdmins": "אין מנהלים",
     "noDocuments": "אין מסמכים"
   },
+  "chat": {
+    "inputPlaceholder": "שאל כל שאלה...",
+    "sendMessage": "שלח הודעה"
+  },
   "general": {
     "noName": "ללא שם",
     "untitled": "ללא כותרת"
