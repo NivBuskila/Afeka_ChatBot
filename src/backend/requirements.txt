@@ -1,7 +1,7 @@
-fastapi==0.103.1
+fastapi>=0.109.1
 uvicorn==0.23.2
-pydantic==2.3.0
+pydantic>=2.4.0
 python-dotenv==1.0.0
 httpx==0.24.1
-python-multipart==0.0.6
+python-multipart>=0.0.7
 supabase==1.0.4 
