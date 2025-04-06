@@ -12,7 +12,7 @@ export const translations: Translations = {
     en: 'Chatbot Preview'
   },
   'analytics': {
-    he: 'אנליטיקס',
+    he: 'סטטיסטיקה',
     en: 'Analytics'
   },
   'analytics.overview': {
