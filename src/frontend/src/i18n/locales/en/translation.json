@@ -49,6 +49,10 @@
     "noAdmins": "No admins found",
     "noDocuments": "No documents found"
   },
+  "chat": {
+    "inputPlaceholder": "Ask anything...",
+    "sendMessage": "Send message"
+  },
   "general": {
     "noName": "No name",
     "untitled": "Untitled"

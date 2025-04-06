@@ -1,16 +1,33 @@
 import React from 'react';
 import { User, Bot } from 'lucide-react';
-
-interface Message {
-  id: number;
-  type: 'user' | 'bot';
-  content: string;
-  timestamp: string;
-}
+import { Message } from './types';
 
 interface MessageItemProps {
   message: Message;
 }
+
+// Avatar component handles the message avatar display
+const MessageAvatar: React.FC<{ isUser: boolean }> = ({ isUser }) => (
+  isUser ? (
+    <User className="w-3 h-3 text-green-600 dark:text-green-400" />
+  ) : (
+    <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
+  )
+);
+
+// Timestamp component for displaying message time
+const MessageTimestamp: React.FC<{ timestamp: string }> = ({ timestamp }) => (
+  <span className="text-xs text-green-700/70 dark:text-green-400/60">
+    {timestamp}
+  </span>
+);
+
+// Content component for the message text
+const MessageContent: React.FC<{ content: string }> = ({ content }) => (
+  <p className="text-sm text-gray-700 dark:text-gray-100">
+    {content}
+  </p>
+);
 
 const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.type === 'user';
@@ -29,18 +46,10 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         } max-w-2xl`}
       >
         <div className="flex items-center gap-2 mb-1">
-          {isUser ? (
-            <User className="w-3 h-3 text-green-600 dark:text-green-400" />
-          ) : (
-            <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
-          )}
-          <span className="text-xs text-green-700/70 dark:text-green-400/60">
-            {message.timestamp}
-          </span>
+          <MessageAvatar isUser={isUser} />
+          <MessageTimestamp timestamp={message.timestamp} />
         </div>
-        <p className="text-sm text-gray-700 dark:text-gray-100">
-          {message.content}
-        </p>
+        <MessageContent content={message.content} />
       </div>
     </div>
   );

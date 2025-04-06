@@ -101,7 +101,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         setLoading(true);
         console.log("Fetching dashboard analytics...");
         
-        // קבלת נתוני האנליטיקה מהשירות
+        // Get analytics data from service
         const analyticsData = await analyticsService.getDashboardAnalytics();
         
         console.log("Received analytics data:", analyticsData);
@@ -187,7 +187,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     fetchData();
   }, []);
 
-  // פונקציה לרענון נתונים ידני
+  // Manual data refresh function
   const refreshData = async () => {
     setLoading(true);
     try {
@@ -204,7 +204,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setDocuments(docs);
       setAnalytics(analyticsData);
       
-      // מדפיסים את המידע לדיבאג
+      // Print debug information
       if (analyticsData.recentUsers?.length) {
         console.log('First user example:', analyticsData.recentUsers[0]);
       }
@@ -250,7 +250,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleUpload = async (file: File) => {
     try {
-      // בדיקה שהמשתמש מחובר לפני העלאת הקובץ
+      // Verify user is authenticated before upload
       const { data: authData } = await supabase.auth.getSession();
       if (!authData.session) {
         console.error('User not authenticated');
@@ -258,22 +258,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         return;
       }
       
-      // הדפסת מידע לצורך דיבאג
+      // Print debug information
       console.log('User ID:', authData.session.user.id);
       console.log('User email:', authData.session.user.email);
       
-      // בודקים אם המשתמש קיים בטבלת משתמשים
+      // Check if user exists in users table
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id, role')
         .eq('id', authData.session.user.id)
         .single();
       
-      // אם המשתמש לא קיים, ננסה ליצור אותו (למרות שזה עלול להיכשל בגלל RLS)
+      // If user doesn't exist, try creating them (may fail due to RLS)
       if (userError || !userData) {
         console.error('User not found in database:', userError);
         
-        // ננסה ליצור רשומת משתמש חדשה
+        // Try creating a new user record
         try {
           const { error: insertError } = await supabase
             .from('users')
@@ -285,19 +285,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
           if (insertError) {
             console.error('Failed to insert user record:', insertError);
-            // ממשיכים למרות השגיאה, כי אנחנו כבר מנסים לעקוף את המגבלות
+            // Continue despite error, as we're already trying to bypass restrictions
           } else {
             console.log('Created new user record for', authData.session.user.email);
           }
         } catch (createError) {
           console.error('Error creating user record:', createError);
-          // ממשיכים למרות השגיאה
+          // Continue despite error
         }
       } else {
         console.log('Found existing user:', userData);
       }
       
-      // יצירת שם קובץ בטוח ללא תווים בעברית
+      // Create safe filename without Hebrew characters
       const fileExt = file.name.split('.').pop() || '';
       const safeFileName = `${Date.now()}.${fileExt}`;
       const path = `documents/${safeFileName}`;
@@ -305,7 +305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       console.log('Uploading file to path:', path);
       
       try {
-        // העלאת הקובץ - גישה ישירה ללא RPC
+        // Upload the file - direct access without RPC
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('documents')
           .upload(path, file);
@@ -318,7 +318,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         
         console.log('Upload successful:', uploadData);
         
-        // קבלת הURL הציבורי
+        // Get public URL
         const { data: urlData } = supabase.storage
           .from('documents')
           .getPublicUrl(path);
@@ -326,7 +326,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         console.log('File URL:', urlData.publicUrl);
         
         try {
-          // יצירת רשומת מסמך ישירות (לא דרך RPC)
+          // Create document record directly (not through RPC)
           const { data: docData, error: docError } = await supabase
             .from('documents')
             .insert({
@@ -346,7 +346,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           
           console.log('Document created successfully:', docData);
           
-          // ניסיון להוסיף רשומת אנליטיקס (עלול להיכשל בגלל RLS)
+          // Attempt to add analytics record (may fail due to RLS)
           try {
             const { error: analyticsError } = await supabase
               .from('document_analytics')
@@ -358,11 +358,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             if (analyticsError) {
               console.error('Error adding analytics record:', analyticsError);
-              // ממשיכים למרות השגיאה
+              // Continue despite error
             }
           } catch (analyticsError) {
             console.error('Failed to add analytics record:', analyticsError);
-            // ממשיכים למרות השגיאה
+            // Continue despite error
           }
           
           setDocuments(prev => [docData, ...prev]);
@@ -418,7 +418,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         console.log('Analytics Data:', analytics);
         
         if (activeSubItem === 'users') {
-          // רק משתמשים רגילים
+          // Regular users only
           const filteredUsers = analytics.recentUsers || [];
           
           console.log('Rendering users view:', filteredUsers);
@@ -463,7 +463,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           );
         } else if (activeSubItem === 'admins') {
-          // רק מנהלים
+          // Admins only
           const filteredAdmins = analytics.recentAdmins || [];
           
           console.log('Rendering admins view:', filteredAdmins);
@@ -508,7 +508,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           );
         } else {
-          // תצוגת Overview
+          // Overview display
           return (
             <div>
               <div className="flex justify-between items-center mb-6 px-6 pt-6">

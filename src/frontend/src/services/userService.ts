@@ -36,7 +36,7 @@ export const userService = {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) throw error || new Error('No authenticated user');
     
-    // בדיקה אם המשתמש הוא מנהל
+    // Check if user is admin
     const { data: adminData } = await supabase
       .from('admins')
       .select('*')
@@ -145,7 +145,7 @@ export const userService = {
   },
 
   async deleteUser(id: string) {
-    // בדיקה אם המשתמש הוא מנהל, אם כן - למחוק גם את רשומת המנהל
+    // Check if user is admin, if so delete admin record first
     await this.deleteAdminByUserId(id);
     
     const { error } = await supabase
@@ -189,16 +189,16 @@ export const userService = {
   },
 
   async signUp(email: string, password: string, isAdmin: boolean = false) {
-    // 1. רישום המשתמש בשירות האימות
+    // 1. Register user in auth service
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
     });
     
     if (authError) {
-      // אם המשתמש כבר רשום, ננסה להתחבר כדי לקבל את ה-ID שלו
+      // If user already registered, try to sign in to get ID
       if (authError.message.includes('User already registered')) {
-        // ננסה להתחבר ולקבל את פרטי המשתמש
+        // Try signing in to get user details
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -207,7 +207,7 @@ export const userService = {
         if (signInError) throw signInError;
         if (!signInData.user) throw new Error('Could not authenticate with existing user');
         
-        // אם מבקשים להפוך למנהל, נשתמש בפונקציית RPC שתיקנו
+        // If admin promotion requested, use the RPC function
         if (isAdmin) {
           try {
             const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
@@ -216,7 +216,7 @@ export const userService = {
             
             if (promoteError) {
               console.error('Error promoting user to admin:', promoteError);
-              // לא נזרוק שגיאה, נמשיך למרות השגיאה
+              // Continue despite error
             } else {
               console.log('User promoted to admin:', promoteResult);
             }
@@ -228,20 +228,20 @@ export const userService = {
         return signInData;
       }
       
-      // אם יש שגיאה אחרת, נזרוק אותה
+      // Throw other errors
       throw authError;
     }
     
     if (!authData.user) throw new Error('User registration failed');
     
-    // 2. הוספת המשתמש לטבלת המשתמשים
+    // 2. Add user to users table
     try {
       const { error: insertUserError } = await supabase
         .from('users')
         .insert({
           id: authData.user.id,
           email: email,
-          name: email.split('@')[0], // שם ברירת מחדל מהאימייל
+          name: email.split('@')[0], // Default name from email
           status: 'active'
         });
 
@@ -250,7 +250,7 @@ export const userService = {
         throw insertUserError;
       }
       
-      // 3. אם מדובר במנהל, נשתמש בפונקציית RPC במקום הכנסה ישירה לטבלה
+      // 3. If it's an admin, use the RPC function instead of direct insertion
       if (isAdmin) {
         try {
           const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
@@ -259,13 +259,13 @@ export const userService = {
           
           if (promoteError) {
             console.error('Error promoting user to admin:', promoteError);
-            // לא נזרוק שגיאה, נמשיך למרות זאת כדי לאפשר לפחות התחברות רגילה
+            // Continue despite error
           } else {
             console.log('User promoted to admin successfully:', promoteResult);
           }
         } catch (adminError) {
           console.error('Error in admin promotion RPC call:', adminError);
-          // נמשיך לתת למשתמש להירשם למרות שגיאת המנהל
+          // Continue despite error
         }
       }
     } catch (error) {
@@ -358,17 +358,17 @@ export const userService = {
   },
 
   /**
-   * פונקציה מיוחדת לקבלת נתוני משתמשים למטרות אנליטיקה
-   * מחזירה נתונים גם אם יש מגבלות RLS
+   * Special function to get user data for analytics purposes
+   * Returns data even with RLS restrictions
    */
   async getDashboardUsers() {
     try {
       console.log("Fetching dashboard users and admins...");
       
-      // ננסה להשתמש בפונקציית RPC החדשה שיצרנו - החדשה מחזירה מערך אחד עם role
+      // Try using the new RPC function we created - it returns a single array with role
       const { data: usersData, error: rpcError } = await supabase.rpc('get_all_users_and_admins');
       
-      // בדיקות מפורטות יותר לתוצאה שחזרה
+      // More detailed checks for the returned result
       console.log("RPC result:", { data: usersData, error: rpcError });
       
       if (rpcError) {
@@ -384,13 +384,13 @@ export const userService = {
       if (!Array.isArray(usersData)) {
         console.error("Data returned is not an array:", typeof usersData, usersData);
         
-        // אם זה לא מערך אבל כן יש נתונים, ננסה להמיר למערך
+        // If it's not an array but data exists, try converting to array
         const dataArray = usersData ? [usersData] : [];
         
         if (dataArray.length > 0) {
           console.log("Converted data to array:", dataArray);
           
-          // נפריד בין משתמשים רגילים למנהלים לפי השדה role
+          // Separate regular users and admins by role field
           const admins = dataArray.filter((user: any) => user.role === 'admin');
           const regularUsers = dataArray.filter((user: any) => user.role !== 'admin');
           
@@ -402,7 +402,7 @@ export const userService = {
         return await this.fallbackGetDashboardUsers();
       }
       
-      // נפריד בין משתמשים רגילים למנהלים לפי השדה role
+      // Separate regular users and admins by role field
       const admins = usersData.filter((user: any) => user.role === 'admin');
       const regularUsers = usersData.filter((user: any) => user.role !== 'admin');
       
@@ -419,7 +419,7 @@ export const userService = {
     try {
       console.log("Using fallback method to fetch users and admins...");
   
-      // ניסיון לקבל את כל המשתמשים
+      // Attempt to get all users
       const { data: allUsersData, error: allUsersError } = await supabase
         .from('users')
         .select('*')
@@ -430,37 +430,37 @@ export const userService = {
         return { users: [], admins: [] };
       }
       
-      // ניסיון לקבל את כל המנהלים כדי לסנן את המשתמשים
+      // Attempt to get all admins to filter users
       const { data: adminsData, error: adminsError } = await supabase
         .from('admins')
         .select('user_id, department');
       
       if (adminsError) {
         console.error('Error fetching admins:', adminsError);
-        // גם אם יש שגיאה, נמשיך עם המשתמשים שכבר יש לנו
+        // Even if there's an error, continue with the users we already have
       }
       
-      // יצירת מפתח של מזהי משתמשים שהם מנהלים
+      // Create a key of user IDs that are admins
       const adminUserIds = new Set(adminsData?.map(admin => admin.user_id) || []);
       
-      // סינון המשתמשים והוספת שדה role לכל משתמש
+      // Filter users and add role field to each user
       const regularUsers = [];
       const admins = [];
       
       for (const user of allUsersData || []) {
-        // בדיקה אם המשתמש הוא מנהל
+        // Check if the user is an admin
         if (adminUserIds.has(user.id)) {
-          // מצא את פרטי המנהל המתאימים
+          // Find the corresponding admin details
           const adminInfo = adminsData?.find(admin => admin.user_id === user.id);
           
-          // הוסף את שדה ה-role ושדות נוספים רלוונטיים
+          // Add the role field and other relevant fields
           admins.push({
             ...user,
             role: 'admin',
             department: adminInfo?.department || null
           });
         } else {
-          // זהו משתמש רגיל
+          // This is a regular user
           regularUsers.push({
             ...user,
             role: 'user'

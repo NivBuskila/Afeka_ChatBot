@@ -1,12 +1,6 @@
 import React from 'react';
 import MessageItem from './MessageItem';
-
-interface Message {
-  id: number;
-  type: 'user' | 'bot';
-  content: string;
-  timestamp: string;
-}
+import { Message } from './types';
 
 interface MessageListProps {
   messages: Message[];
