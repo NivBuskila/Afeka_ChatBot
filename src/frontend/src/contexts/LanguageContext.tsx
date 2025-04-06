@@ -21,10 +21,14 @@ export const useLanguage = () => useContext(LanguageContext);
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Get saved language or default to English
   const getSavedLanguage = (): Language => {
-    const savedLanguage = localStorage.getItem('language');
-    return (savedLanguage === 'he' || savedLanguage === 'en') 
-      ? savedLanguage as Language
-      : 'en';
+    // For now, always default to English to fix splash screen issue
+    return 'en';
+    
+    // Original code:
+    // const savedLanguage = localStorage.getItem('language');
+    // return (savedLanguage === 'he' || savedLanguage === 'en') 
+    //   ? savedLanguage as Language
+    //   : 'en';
   };
 
   const [language, setLanguageState] = useState<Language>(getSavedLanguage());

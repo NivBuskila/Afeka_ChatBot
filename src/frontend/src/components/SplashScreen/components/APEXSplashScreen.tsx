@@ -55,10 +55,8 @@ const APEXSplashScreen: React.FC<APEXSplashScreenProps> = ({ onSplashComplete })
     return () => clearTimeout(timer);
   }, [startAnimation]);
 
-  // Continue button text based on language
-  const continueText = i18n?.language === 'he' 
-    ? 'לחץ בכל מקום להמשיך' 
-    : 'Click anywhere to continue';
+  // Always use English for continue button text
+  const continueText = 'Click anywhere to continue';
 
   return (
     <div

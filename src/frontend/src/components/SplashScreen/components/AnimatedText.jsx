@@ -8,12 +8,12 @@ import PropTypes from "prop-types";
 const AnimatedText = ({ textVisible, showFullName }) => {
   const { i18n } = useTranslation();
   
-  // APEX acronym explanation based on the current language
+  // APEX acronym explanation - always in English regardless of current language
   const acronymExplanation = {
-    A: i18n?.language === 'he' ? 'אפקה' : 'AFEKAs',
-    P: i18n?.language === 'he' ? 'מקצועי' : 'Professional',
-    E: i18n?.language === 'he' ? 'הנדסי' : 'Engineering',
-    X: i18n?.language === 'he' ? 'חוויה' : 'eXperience'
+    A: 'AFEKAs',
+    P: 'Professional',
+    E: 'Engineering',
+    X: 'eXperience'
   };
   
   return (
