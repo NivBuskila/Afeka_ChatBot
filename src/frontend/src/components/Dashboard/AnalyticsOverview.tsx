@@ -103,7 +103,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics,
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-400/70">{t('analytics.totalAdmins')}</p>
+                <p className="text-sm text-green-400/70">{t('סך מנהלים')}</p>
                 <p className="text-2xl font-semibold mt-1 text-green-400">{totalAdmins}</p>
               </div>
               <div className="text-purple-500 bg-opacity-10 p-3 rounded-full">
@@ -169,7 +169,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics,
         {/* Recent admins */}
         <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
           <div className="border-b border-green-500/20 py-3 px-6">
-            <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeAdmins')}</h3>
+            <h3 className="text-lg font-semibold text-green-400">{t('מנהלים פעילים')}</h3>
           </div>
           <div className="p-6 space-y-4">
             {hasAdmins ? (
