@@ -25,11 +25,12 @@ const useTextareaResize = (
 
 // Define props interface for TypeScript type checking to match existing usage
 interface ChatInputProps {
-  input: string;
-  setInput: (value: string) => void;
+  value: string;
+  onChange: (value: string) => void;
   onSend: () => void;
   isLoading: boolean;
-  isInitial?: boolean;
+  onClear: () => void;
+  language: string;
 }
 
 /**
@@ -37,31 +38,33 @@ interface ChatInputProps {
  * Follows SOLID principles with clear separation of concerns
  */
 const ChatInput: React.FC<ChatInputProps> = ({ 
-  input, 
-  setInput, 
+  value, 
+  onChange, 
   onSend, 
   isLoading,
-  isInitial = false 
+  onClear,
+  language
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isCompact, setIsCompact] = useState(true);
   
-  // Use custom hook for textarea resize when not in initial mode
+  // Use custom hook for textarea resize when not in compact mode
   const { handleResize } = useTextareaResize(textareaRef, 150);
   
   // Auto-focus the input field when component mounts
   useEffect(() => {
-    if (textareaRef.current && !isInitial) {
+    if (textareaRef.current && !isCompact) {
       textareaRef.current.focus();
     }
-  }, [isInitial]);
+  }, [isCompact]);
 
   // Handle message input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setInput(e.target.value);
+    onChange(e.target.value);
     
-    // Only apply resize if using textarea (non-initial mode)
-    if (!isInitial && textareaRef.current) {
+    // Only apply resize if using textarea (non-compact mode)
+    if (!isCompact && textareaRef.current) {
       handleResize();
     }
   };
@@ -71,7 +74,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     e.preventDefault();
     
     // Validate message is not empty or just whitespace
-    const trimmedMessage = input.trim();
+    const trimmedMessage = value.trim();
     if (!trimmedMessage || isLoading) {
       return;
     }
@@ -79,14 +82,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
     // Send message
     onSend();
     
-    // Reset textarea height if not in initial mode
-    if (!isInitial && textareaRef.current) {
+    // Reset textarea height if not in compact mode
+    if (!isCompact && textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
     
     // Re-focus input after sending
     setTimeout(() => {
-      if (textareaRef.current && !isInitial) {
+      if (textareaRef.current && !isCompact) {
         textareaRef.current.focus();
       }
     }, 0);
@@ -100,16 +103,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  // Use different UI for initial vs chat modes
-  if (isInitial) {
+  // Use different UI for compact vs chat modes
+  if (isCompact) {
     return (
       <div className="relative max-w-4xl mx-auto">
         <input
           type="text"
-          value={input}
+          value={value}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
-          placeholder={i18n.language === 'he' ? 'שאל כל שאלה...' : 'Ask anything...'}
+          placeholder={language === 'he' ? 'שאל כל שאלה...' : 'Ask anything...'}
           disabled={isLoading}
           className="w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg p-4 pr-12 border border-gray-200 dark:border-gray-700
                      focus:outline-none focus:ring-2 focus:ring-green-500
@@ -117,8 +120,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                      shadow-sm"
         />
         <button
-          onClick={onSend}
-          disabled={isLoading || !input.trim()}
+          onClick={handleSubmit}
+          disabled={isLoading || !value.trim()}
           className="absolute right-2 top-1/2 -translate-y-1/2 p-2 
                      hover:bg-gray-100 dark:hover:bg-gray-700
                      rounded-lg transition-colors"
@@ -136,10 +139,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <div className="relative max-w-4xl mx-auto">
         <textarea
           ref={textareaRef}
-          value={input}
+          value={value}
           onChange={handleInputChange}
           onKeyDown={handleKeyPress}
-          placeholder={i18n.language === 'he' ? 'שאל כל שאלה...' : 'Ask anything...'}
+          placeholder={language === 'he' ? 'שאל כל שאלה...' : 'Ask anything...'}
           disabled={isLoading}
           rows={1}
           className="w-full p-4 pr-12 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-700
@@ -149,8 +152,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                    shadow-sm"
         />
         <button
-          onClick={onSend}
-          disabled={isLoading || !input.trim()}
+          onClick={handleSubmit}
+          disabled={isLoading || !value.trim()}
           className="absolute right-2 top-1/2 -translate-y-1/2 p-2 
                      hover:bg-gray-100 dark:hover:bg-gray-700
                      rounded-lg transition-colors"

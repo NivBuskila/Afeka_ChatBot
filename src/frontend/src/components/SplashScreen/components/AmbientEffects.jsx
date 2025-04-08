@@ -51,8 +51,9 @@ AmbientEffects.propTypes = {
   variant: PropTypes.oneOf(['default', 'intense'])
 };
 
-AmbientEffects.defaultProps = {
-  variant: 'default'
-};
+// defaultProps מיושן! נשתמש בפרמטרים ברירת מחדל במקום זה
+// AmbientEffects.defaultProps = {
+//   variant: 'default'
+// };
 
 export default AmbientEffects;

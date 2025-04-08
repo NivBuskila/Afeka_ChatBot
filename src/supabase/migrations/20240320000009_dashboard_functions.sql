@@ -4,14 +4,14 @@ DROP FUNCTION IF EXISTS get_all_users_and_admins();
 CREATE OR REPLACE FUNCTION get_all_users_and_admins()
 RETURNS SETOF JSON AS $$
 BEGIN
-    -- Return all users with their role (admin or not)
+    -- Return all users with is_admin flag instead of role
     RETURN QUERY
     SELECT json_build_object(
         'id', u.id,
         'email', u.email,
         'name', u.name,
         'created_at', u.created_at,
-        'role', CASE WHEN a.id IS NOT NULL THEN 'admin' ELSE 'user' END,
+        'is_admin', a.id IS NOT NULL,
         'department', a.department
     )
     FROM users u

@@ -47,11 +47,7 @@ COPY --from=build /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application files
-COPY --chown=appuser:appuser src/ai /app/ai
-COPY --chown=appuser:appuser requirements.txt /app/ai/requirements.txt
-
-# Re-run pip install if requirements moved or WORKDIR changed context
-# RUN pip install --no-cache-dir -r /app/ai/requirements.txt
+COPY --chown=appuser:appuser . /app/ai
 
 # Create models directory and set permissions
 RUN mkdir -p /app/ai/models && \
@@ -70,7 +66,7 @@ EXPOSE 5000
 
 # Define health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/ || exit 1
+    CMD curl -f http://localhost:5000/ || exit 1
 
 # Start application using Gunicorn
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "ai.app:create_app()"] 

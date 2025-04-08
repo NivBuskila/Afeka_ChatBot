@@ -1,0 +1,42 @@
+# הוראות להפעלת שירות ה-AI במקומי
+
+יש בעיה בהפעלת השירות עם הפקודה `python app.py` מכיוון שהמודול 'ai' לא מוכר בנתיב ה-Python.
+
+להלן הצעדים להפעלת השירות:
+
+## אפשרות 1: הוספת התיקייה לנתיב ה-Python
+
+בתיקיית הפרויקט הראשית:
+```
+cd src/ai
+# הוספת התיקייה הנוכחית לנתיב ה-Python
+$env:PYTHONPATH = "$env:PYTHONPATH;$(Get-Location)\.."
+
+# עכשיו ניתן להריץ
+python app.py
+```
+
+## אפשרות 2: שימוש ב-Relative Import
+
+עריכת הקובץ app.py כך שישתמש ב-relative imports במקום absolute imports:
+
+במקום:
+```
+from ai.core import config
+from ai.api.routes import register_routes
+```
+
+השתמש:
+```
+from core import config
+from api.routes import register_routes
+```
+
+## אפשרות 3: שימוש בדוקר
+
+בתיקיית הפרויקט הראשית:
+```
+docker start heuristic_nobel
+```
+
+שים לב שקיימת דוקר תמונה בשם `heuristic_nobel` שמכילה את שירות ה-AI מותקן כראוי. 

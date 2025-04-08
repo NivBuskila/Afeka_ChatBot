@@ -1,6 +1,12 @@
 import os
+import sys
 import logging
 import uvicorn
+
+# הוספת תיקיית השורש לנתיב החיפוש של Python
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '../..'))
+sys.path.insert(0, project_root)
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,16 +15,30 @@ from fastapi.responses import JSONResponse
 # Remove direct load_dotenv, config will handle it
 # from dotenv import load_dotenv 
 
-# Import config using absolute imports
-from backend.core import config
+# ייבוא רגיל
+try:
+    # Import config using absolute imports
+    from backend.core import config
 
-# Import middleware with absolute imports
-from backend.middleware.timing import add_process_time_header
-from backend.middleware.security import add_security_headers
-from backend.middleware.rate_limit import rate_limit_middleware
+    # Import middleware with absolute imports
+    from backend.middleware.timing import add_process_time_header
+    from backend.middleware.security import add_security_headers
+    from backend.middleware.rate_limit import rate_limit_middleware
 
-# Import routers with absolute imports
-from backend.api.routers import general, chat, documents
+    # Import routers with absolute imports
+    from backend.api.routers import general, chat, documents
+except ImportError:
+    # ניסיון ייבוא מקומי אם הייבוא הרגיל נכשל
+    # Import config using relative imports
+    from src.backend.core import config
+
+    # Import middleware with relative imports
+    from src.backend.middleware.timing import add_process_time_header
+    from src.backend.middleware.security import add_security_headers
+    from src.backend.middleware.rate_limit import rate_limit_middleware
+
+    # Import routers with relative imports
+    from src.backend.api.routers import general, chat, documents
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -1,0 +1,42 @@
+# הוראות להפעלת שירות ה-Backend במקומי
+
+יש בעיה בהפעלת השירות עם הפקודה `python main.py` מכיוון שהמודול 'backend' לא מוכר בנתיב ה-Python.
+
+להלן הצעדים להפעלת השירות:
+
+## אפשרות 1: הוספת התיקייה לנתיב ה-Python
+
+בתיקיית הפרויקט הראשית:
+```
+cd src/backend
+# הוספת התיקייה הנוכחית לנתיב ה-Python
+$env:PYTHONPATH = "$env:PYTHONPATH;$(Get-Location)\.."
+
+# עכשיו ניתן להריץ
+python main.py
+```
+
+## אפשרות 2: שימוש ב-Relative Import
+
+עריכת הקובץ main.py כך שישתמש ב-relative imports במקום absolute imports:
+
+במקום:
+```
+from backend.core import config
+from backend.middleware.timing import add_process_time_header
+```
+
+השתמש:
+```
+from core import config
+from middleware.timing import add_process_time_header
+```
+
+## אפשרות 3: התקנת הפרויקט בתור חבילה בפיתוח
+
+```
+cd src
+pip install -e .
+```
+
+זה ידרוש קובץ setup.py בתיקיית `src` אם הוא לא קיים. 

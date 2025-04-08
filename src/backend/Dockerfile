@@ -47,8 +47,7 @@ COPY --from=build /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application files
-COPY --chown=appuser:appuser src/backend /app/backend
-COPY --chown=appuser:appuser requirements.txt /app/backend/requirements.txt
+COPY --chown=appuser:appuser . /app/backend
 
 # Create data directory and set permissions
 RUN mkdir -p /app/backend/data && \
@@ -67,7 +66,7 @@ EXPOSE 8000
 
 # Define health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Start application using Uvicorn with module path
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"] 

@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../config/constants';
 import { useTranslation } from 'react-i18next';
 import UserSettings from '../Settings/UserSettings';
+import { supabase } from '../../supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Message {
   id: number;
@@ -18,8 +20,8 @@ interface Message {
 interface Conversation {
   id: string;
   title: string;
-  date: string;
-  preview: string;
+  date: Date;
+  messageCount?: number;
 }
 
 interface ChatWindowProps {
@@ -32,9 +34,12 @@ const groupConversations = (conversations: Conversation[]) => {
   const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
   
   return {
-    today: conversations.filter(conv => conv.date === today),
-    yesterday: conversations.filter(conv => conv.date === yesterday),
-    previous: conversations.filter(conv => conv.date !== today && conv.date !== yesterday),
+    today: conversations.filter(conv => conv.date.toLocaleDateString() === today),
+    yesterday: conversations.filter(conv => conv.date.toLocaleDateString() === yesterday),
+    previous: conversations.filter(conv => {
+      const dateStr = conv.date.toLocaleDateString();
+      return dateStr !== today && dateStr !== yesterday;
+    }),
   };
 };
 
@@ -54,56 +59,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const menuPositionRefs = useRef<Map<string, DOMRect>>(new Map());
-  const [activeConversation, setActiveConversation] = useState<string | null>(null);
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const [activeButtonRect, setActiveButtonRect] = useState<DOMRect | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Mock conversation history data (will be replaced with API data later)
-  const today = new Date().toLocaleDateString();
-  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
-  const previousDay = new Date(Date.now() - 2 * 86400000).toLocaleDateString();
+  const [settings] = useState({ 
+    systemPrompt: "You are a helpful assistant.",
+    model: "gemini-pro" 
+  });
+  const [user, setUser] = useState<any>(null);
   
-  const [conversations, setConversations] = useState([
-    {
-      id: '1',
-      title: 'שאלות על קורס אלגוריתמים',
-      date: today,
-      preview: 'שאלתי על חומר הלימוד בקורס אלגוריתמים והתנאים לקבלת תואר'
-    },
-    {
-      id: '2',
-      title: 'מידע על רישום לקורסים',
-      date: yesterday,
-      preview: 'התייעצתי בנוגע לרישום לקורסים והתנאים להרשמה'
-    },
-    {
-      id: '3',
-      title: 'שאלות על פרויקט גמר',
-      date: previousDay,
-      preview: 'ביקשתי מידע על דרישות פרויקט הגמר ומועדי הגשה'
-    },
-    {
-      id: '4',
-      title: '300 Million Button Company',
-      date: today,
-      preview: 'מידע על חברת 300 Million Button'
-    },
-    {
-      id: '5',
-      title: 'גניבת צמחים סיבות',
-      date: yesterday,
-      preview: 'דיון על הסיבות לגניבת צמחים'
-    },
-    {
-      id: '6',
-      title: 'המסך שחור בטלוויזיה',
-      date: previousDay,
-      preview: 'פתרון בעיות במסך שחור בטלוויזיה'
-    }
-  ]);
-
-  // Group conversations
-  const groupedConversations = groupConversations(conversations);
+  // חשוב: רק הגדרה אחת של activeConversation ושיחות
+  const [activeConversation, setActiveConversation] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  
+  // חשוב: רק הגדרה אחת של groupedConversations
+  const [groupedConversations, setGroupedConversations] = useState<{
+    today: Conversation[],
+    yesterday: Conversation[],
+    previous: Conversation[]
+  }>({
+    today: [],
+    yesterday: [],
+    previous: []
+  });
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -120,84 +98,199 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
     }
   }, [showHistory]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
-
-    if (!hasStarted) {
-      setHasStarted(true);
-      setMessages([
-        {
-          type: 'bot',
-          content: 'Welcome to APEX - AFEKAs Professional Engineering Experience. How can I assist you?',
-          id: Date.now() - 1,
-          timestamp: new Date().toLocaleTimeString(),
-        }
-      ]);
-    }
-
-    const userMessage: Message = {
-      type: 'user',
-      content: input,
-      id: Date.now(),
-      timestamp: new Date().toLocaleTimeString(),
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
     };
+    getCurrentUser();
+  }, []);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+  const handleSend = async (message: string) => {
+    if (!message.trim() || isLoading) return;
+    
     setIsLoading(true);
-
+    
+    // Create user message
+    const userMessage: Message = {
+      id: Date.now(),
+      type: 'user',
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+    
+    // Update messages state with user message
+    setMessages(prev => [...prev, userMessage]);
+    
     try {
-      // Call backend API
-      const response = await fetch(API_CONFIG.CHAT_ENDPOINT, {
+      // Handle conversation creation or retrieval
+      let currentConversationId = activeConversation;
+      
+      if (!currentConversationId && user) {
+        // Create new conversation
+        const { data: newConvData, error: convError } = await supabase.rpc(
+          'create_conversation',
+          {
+            user_id: user?.id || 'anonymous',
+            title: message.slice(0, 50),
+            system_prompt: settings.systemPrompt
+          }
+        );
+        
+        if (convError) {
+          console.error('Error creating conversation:', convError);
+          throw new Error('Failed to create conversation');
+        }
+        
+        currentConversationId = newConvData;
+        const newConversation: Conversation = {
+          id: currentConversationId || '',
+          title: message.slice(0, 50),
+          date: new Date(),
+          messageCount: 0
+        };
+        
+        setActiveConversation(currentConversationId);
+        setConversations(prev => [newConversation, ...prev]);
+      }
+      
+      // Add message to database if user is authenticated
+      if (user && currentConversationId) {
+        const { error: msgError } = await supabase.rpc(
+          'add_message',
+          {
+            conversation_id: currentConversationId,
+            user_id: user?.id || 'anonymous',
+            content: message,
+            role: 'user'
+          }
+        );
+        
+        if (msgError) {
+          console.error('Error adding user message:', msgError);
+        }
+      }
+      
+      // Send to API - שימוש בכתובת מוחלטת
+      const apiUrl = 'http://localhost:8000/api/chat';
+      console.log('Sending request to:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage.content }),
-        // Add timeout using AbortController
-        signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
+        body: JSON.stringify({
+          message,
+          conversation_id: currentConversationId || '',
+          model: settings.model
+        }),
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        const botReply: Message = {
-          type: 'bot',
-          content: data.result || "Sorry, I couldn't process your request.",
-          id: Date.now(),
-          timestamp: new Date().toLocaleTimeString(),
-        };
-        
-        setMessages((prev) => [...prev, botReply]);
-      } else {
-        // Handle error response
-        const botReply: Message = {
-          type: 'bot',
-          content: 'Sorry, I encountered an error while processing your request.',
-          id: Date.now(),
-          timestamp: new Date().toLocaleTimeString(),
-        };
-        setMessages((prev) => [...prev, botReply]);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
       }
-    } catch (error) {
-      // Handle network errors
+      
+      const data = await response.json();
+      
+      // Create bot reply
       const botReply: Message = {
+        id: Date.now() + 1,
         type: 'bot',
-        content: 'Sorry, I was unable to connect to the server. Please try again later.',
-        id: Date.now(),
-        timestamp: new Date().toLocaleTimeString(),
+        content: data.response || 'Sorry, I could not process your request.',
+        timestamp: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, botReply]);
+      
+      // Update messages state with bot reply
+      setMessages(prev => [...prev, botReply]);
+      
+      // Add bot message to database if user is authenticated and conversation exists
+      if (user && currentConversationId) {
+        const { error: botMsgError } = await supabase.rpc(
+          'add_message',
+          {
+            conversation_id: currentConversationId,
+            user_id: user?.id || 'anonymous',
+            content: botReply.content,
+            role: 'assistant'
+          }
+        );
+        
+        if (botMsgError) {
+          console.error('Error adding bot message:', botMsgError);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // Create error bot reply
+      const errorReply: Message = {
+        id: Date.now() + 2,
+        type: 'bot',
+        content: 'Sorry, there was an error processing your request. Please try again later.',
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Update messages with error
+      setMessages(prev => [...prev, errorReply]);
     } finally {
       setIsLoading(false);
+      setInput('');
     }
   };
 
-  const handleSelectConversation = (id: string) => {
-    // Will be implemented with backend integration later
-    
-    // Mock loading a conversation
-    alert(`בעתיד: טעינת שיחה מספר ${id}`);
+  const handleSelectConversation = async (id: string) => {
+    try {
+      setIsLoading(true);
+      setActiveConversation(id);
+      setShowHistory(false);
+      
+      // Clear current messages
+      setMessages([]);
+      
+      // Fetch messages for this conversation
+      const { data, error } = await supabase.rpc('get_conversation_messages', {
+        p_conversation_id: id,
+        p_limit: 100,
+        p_offset: 0
+      });
+      
+      if (error) throw error;
+      
+      // Convert to our Message format
+      if (data && data.length > 0) {
+        const loadedMessages: Message[] = [];
+        
+        data.forEach((msg: any, index: number) => {
+          if (msg.request) {
+            loadedMessages.push({
+              id: (index * 2) + Date.now(),
+              type: 'user',
+              content: msg.request,
+              timestamp: new Date(msg.created_at).toLocaleTimeString(),
+            });
+          }
+          
+          if (msg.response) {
+            loadedMessages.push({
+              id: (index * 2 + 1) + Date.now(),
+              type: 'bot',
+              content: msg.response,
+              timestamp: new Date(msg.created_at).toLocaleTimeString(),
+            });
+          }
+        });
+        
+        setMessages(loadedMessages);
+        setHasStarted(true);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      alert(i18n.language === 'he' ? 'שגיאה בטעינת השיחה' : 'Error loading conversation');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleHistory = () => {
@@ -249,6 +342,72 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       setConversations(prev => prev.filter(conv => conv.id !== id));
     }
   };
+
+  // Fetch conversation list on component mount
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data, error } = await supabase.rpc('get_user_conversations', {
+          p_user_id: user.id,
+          p_limit: 50,
+          p_offset: 0
+        });
+        
+        if (error) throw error;
+        
+        const today = new Date().toLocaleDateString();
+        const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
+        
+        if (data && data.length > 0) {
+          // Group conversations by date
+          const conversationsByDate = data.reduce((acc: Record<string, any[]>, conv: any) => {
+            const date = new Date(conv.created_at).toLocaleDateString();
+            if (!acc[date]) {
+              acc[date] = [];
+            }
+            acc[date].push({
+              id: conv.conversation_id,
+              title: conv.title || `Conversation ${conv.conversation_id.substring(0, 8)}`,
+              date: new Date(conv.created_at),
+              messageCount: conv.message_count || 0,
+            });
+            return acc;
+          }, {});
+          
+          const conversationsList = data.map((conv: any) => ({
+            id: conv.conversation_id,
+            title: conv.title || `Conversation ${conv.conversation_id.substring(0, 8)}`, 
+            date: new Date(conv.created_at),
+            messageCount: conv.message_count || 0,
+          }));
+          
+          setConversations(conversationsList);
+          
+          // עדכון קבוצות השיחות
+          setGroupedConversations({
+            today: conversationsByDate[today] || [],
+            yesterday: conversationsByDate[yesterday] || [],
+            previous: Object.keys(conversationsByDate)
+              .filter(date => date !== today && date !== yesterday)
+              .reduce((acc: any[], date) => [...acc, ...conversationsByDate[date]], []),
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
+      }
+    };
+    
+    fetchConversations();
+  }, []);
+
+  const handleClear = () => {
+    setInput('');
+  };
+
+  const language = i18n.language === 'he' ? 'he' : 'en';
 
   return (
     <div className="relative h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-white overflow-hidden">
@@ -494,11 +653,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                 </h1>
                 <div className="w-full max-w-2xl">
                   <ChatInput
-                    input={input}
-                    setInput={setInput}
-                    onSend={handleSend}
+                    value={input}
+                    onChange={setInput}
+                    onSend={() => handleSend(input)}
                     isLoading={isLoading}
-                    isInitial={true}
+                    onClear={handleClear}
+                    language={language}
                   />
                 </div>
               </div>
@@ -527,10 +687,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
 
           {hasStarted && (
             <ChatInput
-              input={input}
-              setInput={setInput}
-              onSend={handleSend}
+              value={input}
+              onChange={setInput}
+              onSend={() => handleSend(input)}
               isLoading={isLoading}
+              onClear={handleClear}
+              language={language}
             />
           )}
         </div>

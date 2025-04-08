@@ -14,7 +14,7 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./src/frontend:/app:rw
+      - frontend_src:/app
       - frontend_node_modules:/app/node_modules
     environment:
       - NODE_ENV=development
@@ -50,7 +50,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./src/backend:/app/backend:rw
+      - backend_src:/app/backend
       - backend_cache:/app/backend/.cache
     environment:
       - PYTHONUNBUFFERED=1
@@ -72,7 +72,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     logging:
       driver: "json-file"
       options:
@@ -87,12 +87,16 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./src/ai:/app/ai:rw
+      - ai_src:/app/ai
       - ai_cache:/app/ai/.cache
     environment:
       - PYTHONUNBUFFERED=1
       - DEBUG=True
       - TZ=Asia/Jerusalem
+      - GEMINI_API_KEY=AIzaSyB0D4QL-SIoR8LR4WkVRjxUV_HyIUQBdCU
+      - GEMINI_MODEL=gemini-pro
+      - GEMINI_TEMPERATURE=0.7
+      - GEMINI_MAX_OUTPUT_TOKENS=1024
     networks:
       - afeka_network
     healthcheck:
@@ -104,7 +108,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-    command: python app.py
+    command: python /app/ai/app.py
     logging:
       driver: "json-file"
       options:
@@ -120,9 +124,15 @@ networks:
         - subnet: 172.29.0.0/16
 
 volumes:
+  frontend_src:
+    driver: local
   frontend_node_modules:
     driver: local
+  backend_src:
+    driver: local
   backend_cache:
+    driver: local
+  ai_src:
     driver: local
   ai_cache:
     driver: local 

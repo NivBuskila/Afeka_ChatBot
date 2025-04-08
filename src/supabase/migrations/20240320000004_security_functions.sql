@@ -3,11 +3,11 @@ CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
-    SELECT 1 FROM users
-    WHERE id = user_id AND role = 'admin'
+    SELECT 1 FROM admins
+    WHERE user_id = $1
   );
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to validate file type
 CREATE OR REPLACE FUNCTION validate_file_type(file_type TEXT)

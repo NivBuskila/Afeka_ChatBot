@@ -109,6 +109,10 @@ services:
     environment:
       PYTHONUNBUFFERED: 1
       TZ: Asia/Jerusalem
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AIzaSyB0D4QL-SIoR8LR4WkVRjxUV_HyIUQBdCU}
+      GEMINI_MODEL: gemini-pro
+      GEMINI_TEMPERATURE: 0.7
+      GEMINI_MAX_OUTPUT_TOKENS: 1024
     volumes:
       - ai_models:/app/ai/models:rw
     networks:

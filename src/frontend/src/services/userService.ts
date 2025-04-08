@@ -36,12 +36,39 @@ export const userService = {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) throw error || new Error('No authenticated user');
     
-    // Check if user is admin
+    // בדיקה אם המשתמש יש לו תפקיד אדמין במטה-דאטה
+    const isAdminInMetadata = user.user_metadata?.is_admin === true || 
+                              user.user_metadata?.role === 'admin';
+    
+    if (isAdminInMetadata) {
+      // אם המשתמש אמור להיות אדמין במטה-דאטה, נוודא שהוא גם בטבלת admins
+      try {
+        await supabase.rpc('promote_to_admin', { user_id: user.id });
+        console.log('User promoted to admin based on metadata');
+        return 'admin';
+      } catch (error) {
+        console.error('Error promoting user from metadata:', error);
+      }
+    }
+    
+    // בדיקה אם המשתמש הוא אדמין בטבלת admins
     const { data: adminData } = await supabase
       .from('admins')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
+    
+    // עדכון מטה-דאטה של המשתמש אם הוא נמצא בטבלת admins
+    if (adminData && !isAdminInMetadata) {
+      try {
+        await supabase.auth.updateUser({
+          data: { is_admin: true }
+        });
+        console.log('Updated user metadata to reflect admin status');
+      } catch (error) {
+        console.error('Error updating user metadata:', error);
+      }
+    }
       
     return adminData ? 'admin' : 'user';
   },
@@ -193,6 +220,11 @@ export const userService = {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          is_admin: isAdmin // שומר ב-metadata של המשתמש שהוא אדמין
+        }
+      }
     });
     
     if (authError) {
@@ -210,13 +242,33 @@ export const userService = {
         // If admin promotion requested, use the RPC function
         if (isAdmin) {
           try {
+            // עדכון המטה-דאטה של המשתמש
+            await supabase.auth.updateUser({
+              data: { is_admin: true }
+            });
+            
+            // קידום המשתמש לאדמין
             const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
               user_id: signInData.user.id
             });
             
             if (promoteError) {
               console.error('Error promoting user to admin:', promoteError);
-              // Continue despite error
+              // Try direct insertion as fallback
+              try {
+                const { error: insertError } = await supabase
+                  .from('admins')
+                  .insert({ user_id: signInData.user.id })
+                  .single();
+                  
+                if (insertError) {
+                  console.error('Fallback admin insertion also failed:', insertError);
+                } else {
+                  console.log('User promoted to admin via direct insertion');
+                }
+              } catch (directError) {
+                console.error('Error in direct admin insertion:', directError);
+              }
             } else {
               console.log('User promoted to admin:', promoteResult);
             }
@@ -259,13 +311,56 @@ export const userService = {
           
           if (promoteError) {
             console.error('Error promoting user to admin:', promoteError);
-            // Continue despite error
+            // Try direct insertion as fallback
+            try {
+              const { error: insertError } = await supabase
+                .from('admins')
+                .insert({ user_id: authData.user.id })
+                .single();
+                
+              if (insertError) {
+                console.error('Fallback admin insertion also failed:', insertError);
+                
+                // נסיון אחרון - קריאה ישירה לSQL
+                try {
+                  const { error: sqlError } = await supabase.rpc('execute_sql', {
+                    sql: `INSERT INTO admins (user_id) VALUES ('${authData.user.id}') ON CONFLICT (user_id) DO NOTHING;`
+                  });
+                  
+                  if (sqlError) {
+                    console.error('SQL execution also failed:', sqlError);
+                  } else {
+                    console.log('User promoted to admin via SQL execution');
+                  }
+                } catch (sqlError) {
+                  console.error('SQL execution error:', sqlError);
+                }
+              } else {
+                console.log('User promoted to admin via direct insertion');
+              }
+            } catch (directError) {
+              console.error('Error in direct admin insertion:', directError);
+            }
           } else {
             console.log('User promoted to admin successfully:', promoteResult);
           }
         } catch (adminError) {
           console.error('Error in admin promotion RPC call:', adminError);
-          // Continue despite error
+          // Try direct insertion as fallback
+          try {
+            const { error: insertError } = await supabase
+              .from('admins')
+              .insert({ user_id: authData.user.id })
+              .single();
+              
+            if (insertError) {
+              console.error('Fallback admin insertion also failed:', insertError);
+            } else {
+              console.log('User promoted to admin via direct insertion');
+            }
+          } catch (directError) {
+            console.error('Error in direct admin insertion:', directError);
+          }
         }
       }
     } catch (error) {
@@ -390,9 +485,9 @@ export const userService = {
         if (dataArray.length > 0) {
           console.log("Converted data to array:", dataArray);
           
-          // Separate regular users and admins by role field
-          const admins = dataArray.filter((user: any) => user.role === 'admin');
-          const regularUsers = dataArray.filter((user: any) => user.role !== 'admin');
+          // Separate regular users and admins by is_admin field
+          const admins = dataArray.filter((user: any) => user.is_admin === true);
+          const regularUsers = dataArray.filter((user: any) => user.is_admin !== true);
           
           console.log(`Converted data has ${regularUsers.length} users and ${admins.length} admins`);
           
@@ -402,9 +497,9 @@ export const userService = {
         return await this.fallbackGetDashboardUsers();
       }
       
-      // Separate regular users and admins by role field
-      const admins = usersData.filter((user: any) => user.role === 'admin');
-      const regularUsers = usersData.filter((user: any) => user.role !== 'admin');
+      // Separate regular users and admins by is_admin field
+      const admins = usersData.filter((user: any) => user.is_admin === true);
+      const regularUsers = usersData.filter((user: any) => user.is_admin !== true);
       
       console.log(`RPC returned ${regularUsers.length} users and ${admins.length} admins`);
       
@@ -440,10 +535,10 @@ export const userService = {
         // Even if there's an error, continue with the users we already have
       }
       
-      // Create a key of user IDs that are admins
+      // Create a set of user IDs that are admins
       const adminUserIds = new Set(adminsData?.map(admin => admin.user_id) || []);
       
-      // Filter users and add role field to each user
+      // Filter users and add is_admin field to each user
       const regularUsers = [];
       const admins = [];
       
@@ -453,17 +548,17 @@ export const userService = {
           // Find the corresponding admin details
           const adminInfo = adminsData?.find(admin => admin.user_id === user.id);
           
-          // Add the role field and other relevant fields
+          // Add the is_admin field and other relevant fields
           admins.push({
             ...user,
-            role: 'admin',
+            is_admin: true,
             department: adminInfo?.department || null
           });
         } else {
           // This is a regular user
           regularUsers.push({
             ...user,
-            role: 'user'
+            is_admin: false
           });
         }
       }

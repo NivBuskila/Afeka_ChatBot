@@ -1,10 +1,21 @@
-import logging
 import os
+import sys
+import logging
 from flask import Flask
 
-# Import config and blueprints using absolute paths
-from ai.core import config
-from ai.api.routes import api_bp
+# הוספת תיקיית השורש לנתיב החיפוש של Python
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '../..'))
+sys.path.insert(0, project_root)
+
+# ייבוא רגיל
+try:
+    from ai.core import config
+    from ai.api.routes import api_bp
+except ImportError:
+    # ניסיון ייבוא מקומי אם הייבוא הרגיל נכשל
+    from src.ai.core import config
+    from src.ai.api.routes import api_bp
 
 # Configure logging (could also be done within create_app)
 logging.basicConfig(
@@ -14,8 +25,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def create_app():
-    """Application Factory Function"""
+    """Factory function to create and configure the Flask app."""
     app = Flask(__name__)
+    
+    # Configure logging
+    if config.DEBUG:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    
+    # Register blueprints
+    app.register_blueprint(api_bp)
+    
+    # Add more setup as needed (database, authentication, etc.)
+    logger.info(f"Application created in {config.ENVIRONMENT} mode with DEBUG={config.DEBUG}")
     
     # Load configuration from config object (optional, can access config directly)
     # app.config.from_object(config)

@@ -56,7 +56,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'user' | 'standard' | 'administrator';
+  is_admin: boolean;
   lastLogin: string;
   status: 'active' | 'inactive';
 }
@@ -152,9 +152,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   ];
 
   const mockUsers: User[] = [
-    { id: 1, name: 'ישראל ישראלי', email: 'israel@afeka.ac.il', role: 'admin', lastLogin: '2024-03-25 10:30', status: 'active' },
-    { id: 2, name: 'שרה כהן', email: 'sara@afeka.ac.il', role: 'user', lastLogin: '2024-03-25 09:15', status: 'active' },
-    { id: 3, name: 'דוד לוי', email: 'david@afeka.ac.il', role: 'user', lastLogin: '2024-03-24 15:45', status: 'inactive' },
+    { id: 1, name: 'ישראל ישראלי', email: 'israel@afeka.ac.il', is_admin: true, lastLogin: '2024-03-25 10:30', status: 'active' },
+    { id: 2, name: 'שרה כהן', email: 'sara@afeka.ac.il', is_admin: false, lastLogin: '2024-03-25 09:15', status: 'active' },
+    { id: 3, name: 'דוד לוי', email: 'david@afeka.ac.il', is_admin: false, lastLogin: '2024-03-24 15:45', status: 'inactive' },
   ];
 
   const mockDocuments: any[] = [
@@ -265,7 +265,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       // Check if user exists in users table
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id, role')
+        .select('id')
         .eq('id', authData.session.user.id)
         .single();
       
@@ -280,7 +280,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             .insert({
               id: authData.session.user.id,
               email: authData.session.user.email || '',
-              role: authData.session.user.user_metadata?.role || 'user'
+              name: authData.session.user.email?.split('@')[0] || 'User',
+              status: 'active'
             });
             
           if (insertError) {
@@ -288,6 +289,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             // Continue despite error, as we're already trying to bypass restrictions
           } else {
             console.log('Created new user record for', authData.session.user.email);
+            
+            // Check if user should be admin and add to admins table
+            if (authData.session.user.user_metadata?.is_admin || 
+                authData.session.user.user_metadata?.role === 'admin') {
+              try {
+                const { error: adminError } = await supabase
+                  .from('admins')
+                  .insert({
+                    user_id: authData.session.user.id
+                  });
+                  
+                if (adminError) {
+                  console.error('Failed to insert admin record:', adminError);
+                } else {
+                  console.log('Created new admin record for', authData.session.user.email);
+                }
+              } catch (adminError) {
+                console.error('Error creating admin record:', adminError);
+              }
+            }
           }
         } catch (createError) {
           console.error('Error creating user record:', createError);

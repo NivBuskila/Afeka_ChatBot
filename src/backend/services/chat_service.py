@@ -19,7 +19,7 @@ class ChatService:
         
         # Note: Input validation (length, presence) is assumed to be done in the router
         
-        ai_service_url = f"{config.AI_SERVICE_URL}/chat"
+        ai_service_url = f"{config.AI_SERVICE_URL}/gemini"
         logger.info(f"Forwarding chat message to AI service at {ai_service_url}: {user_message[:50]}...")
 
         try:

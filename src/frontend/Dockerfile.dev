@@ -20,13 +20,19 @@ COPY --chown=appuser:appgroup package*.json ./
 
 # Install dependencies with optional dependencies
 RUN npm config set ignore-scripts true && \
-    npm install --include=optional && \
-    npm config set ignore-scripts false && \
-    npm cache clean --force && \
-    chown -R appuser:appgroup node_modules
+  npm install --include=optional && \
+  npm config set ignore-scripts false && \
+  npm cache clean --force && \
+  chown -R appuser:appgroup node_modules
 
 # Copy the rest of the application
 COPY --chown=appuser:appgroup . .
+
+# Temporarily change back to root to ensure volume permissions are correct
+USER root
+
+# Ensure the directory /app is properly owned
+RUN chown -R appuser:appgroup /app
 
 # Switch to non-root user for remaining operations
 USER appuser

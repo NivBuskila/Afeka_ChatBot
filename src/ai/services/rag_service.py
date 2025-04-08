@@ -3,44 +3,40 @@ import logging
 import time
 from typing import Dict, Any
 
+from ai.services.gemini_service import get_gemini_service
+
 logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self):
         # Initialize resources needed for RAG here
         # e.g., vector store connection, language model client
-        logger.info("Initializing RAG Service (Placeholder)")
-        # self.vector_store = ...
-        # self.llm = ...
-        pass
+        logger.info("Initializing RAG Service with Gemini integration")
+        self.gemini_service = get_gemini_service()
+        # self.vector_store = ...  # Future implementation could include vector store
 
     def process_query(self, query: str) -> Dict[str, Any]:
-        """Processes the user query using RAG (placeholder implementation)."""
+        """Processes the user query using Gemini API."""
         start_time = time.time()
         logger.info(f"RAG Service received query: {query[:50]}...")
         
-        # 1. Retrieve relevant documents (Placeholder)
+        # In a full RAG implementation, we would:
+        # 1. Retrieve relevant documents from a vector store
         # retrieved_docs = self.vector_store.search(query)
-        retrieved_docs = ["doc1 content placeholder", "doc2 content placeholder"]
-        logger.debug("Retrieved relevant document placeholders.")
-
-        # 2. Augment prompt with context (Placeholder)
-        # prompt = f"Context: {retrieved_docs}\n\nQuestion: {query}\n\nAnswer:"
-
-        # 3. Generate response using LLM (Placeholder)
-        # llm_response = self.llm.generate(prompt)
-        llm_response = "This is a placeholder response from RAGService. Future implementation will use RAG to query document knowledge base."
-        logger.debug("Generated LLM response placeholder.")
-
-        # 4. Format and return result
+        retrieved_docs = []  # Placeholder for future implementation
+        
+        # 2. Generate response using Gemini API
+        # Get response from Gemini (handles its own timing)
+        gemini_result = self.gemini_service.generate_response(query)
+        
+        # 3. Format and return result
         processing_time = time.time() - start_time
-        result = {
-            "keywords": [], # Placeholder
-            "result": llm_response,
-            "sentiment": "neutral", # Placeholder
-            "retrieved_docs_count": len(retrieved_docs),
-            "processing_time": round(processing_time, 3)
-        }
+        
+        # Pass through most of the Gemini response data but update processing time
+        # to include any overhead in this service
+        result = gemini_result
+        result["processing_time"] = round(processing_time, 3)
+        result["retrieved_docs_count"] = len(retrieved_docs)
         
         return result
 

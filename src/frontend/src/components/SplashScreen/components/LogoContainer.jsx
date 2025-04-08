@@ -49,8 +49,9 @@ LogoContainer.propTypes = {
   size: PropTypes.oneOf(['sm', 'md', 'lg'])
 };
 
-LogoContainer.defaultProps = {
-  size: 'md'
-};
+// defaultProps מיושן! נשתמש בפרמטרים ברירת מחדל במקום זה
+// LogoContainer.defaultProps = {
+//   size: 'md'
+// };
 
 export default LogoContainer;

@@ -1,16 +1,28 @@
 -- Function to create new user
 CREATE OR REPLACE FUNCTION create_user(
   email TEXT,
-  role TEXT DEFAULT 'user'
+  is_admin BOOLEAN DEFAULT FALSE,
+  name TEXT DEFAULT NULL,
+  status TEXT DEFAULT 'active'
 )
 RETURNS UUID AS $$
 DECLARE
   new_user_id UUID;
 BEGIN
   -- Insert new user
-  INSERT INTO users (email, role)
-  VALUES (email, role)
+  INSERT INTO users (email, name, status)
+  VALUES (
+    email, 
+    COALESCE(name, split_part(email, '@', 1)), 
+    status
+  )
   RETURNING id INTO new_user_id;
+
+  -- If admin, add to admins table
+  IF is_admin THEN
+    INSERT INTO admins (user_id)
+    VALUES (new_user_id);
+  END IF;
 
   -- Log security event
   PERFORM log_security_event(
@@ -18,7 +30,7 @@ BEGIN
     new_user_id,
     jsonb_build_object(
       'email', email,
-      'role', role
+      'is_admin', is_admin
     )
   );
 
@@ -29,7 +41,7 @@ $$ LANGUAGE plpgsql;
 -- Function to update user role
 CREATE OR REPLACE FUNCTION update_user_role(
   user_id UUID,
-  new_role TEXT,
+  make_admin BOOLEAN,
   admin_id UUID
 )
 RETURNS BOOLEAN AS $$
@@ -40,9 +52,15 @@ BEGIN
   END IF;
 
   -- Update user role
-  UPDATE users
-  SET role = new_role
-  WHERE id = user_id;
+  IF make_admin THEN
+    -- Add to admins table if not already there
+    INSERT INTO admins (user_id)
+    VALUES (user_id)
+    ON CONFLICT (user_id) DO NOTHING;
+  ELSE
+    -- Remove from admins table if there
+    DELETE FROM admins WHERE user_id = user_id;
+  END IF;
 
   -- Log security event
   PERFORM log_security_event(
@@ -50,7 +68,7 @@ BEGIN
     admin_id,
     jsonb_build_object(
       'user_id', user_id,
-      'new_role', new_role
+      'is_admin', make_admin
     )
   );
 
@@ -96,7 +114,9 @@ CREATE OR REPLACE FUNCTION get_user_profile(user_id UUID)
 RETURNS TABLE (
   id UUID,
   email TEXT,
-  role TEXT,
+  is_admin BOOLEAN,
+  name TEXT,
+  status TEXT,
   created_at TIMESTAMP WITH TIME ZONE,
   last_activity TIMESTAMP WITH TIME ZONE,
   total_documents_viewed BIGINT,
@@ -107,7 +127,9 @@ BEGIN
   SELECT
     u.id,
     u.email,
-    u.role,
+    is_admin(u.id) as is_admin,
+    u.name,
+    u.status,
     u.created_at,
     MAX(da.created_at) as last_activity,
     COUNT(*) FILTER (WHERE da.action = 'view') as total_documents_viewed,
@@ -115,7 +137,7 @@ BEGIN
   FROM users u
   LEFT JOIN document_analytics da ON da.user_id = u.id
   WHERE u.id = $1
-  GROUP BY u.id, u.email, u.role, u.created_at;
+  GROUP BY u.id, u.email, u.name, u.status, u.created_at;
 END;
 $$ LANGUAGE plpgsql;
 
