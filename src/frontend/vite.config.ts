@@ -17,6 +17,14 @@ export default defineConfig({
     // Allow connections from outside
     host: '0.0.0.0',
     // Accept connections on any network interface
-    cors: true
+    cors: true,
+    // Add proxy configuration for API requests
+    proxy: {
+      '/api/chat': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/chat/, '/chat')
+      }
+    }
   }
 })

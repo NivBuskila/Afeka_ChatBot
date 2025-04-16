@@ -3,6 +3,7 @@ import os
 import logging
 import time
 from functools import wraps
+from google import genai
 
 # Configure logging
 logging.basicConfig(
@@ -10,6 +11,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Initialize Gemini API
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyBBw-VlqWekqnd_vPXCS7LSuKfrkbOro7s')
+# ביצירת מופע Client במקום להשתמש בפונקציית configure
+genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Create Flask app
 app = Flask(__name__)
@@ -39,8 +45,7 @@ def health_check():
 @app.route('/chat', methods=['POST'])
 def chat():
     """
-    Placeholder for future RAG implementation
-    Will process user queries against document knowledge base
+    Process user message with Gemini API
     """
     request_start_time = time.time()
     
@@ -91,11 +96,22 @@ def chat():
                 
         logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
         
-        # Simple placeholder response
+        # Use Gemini API to generate a response
+        try:
+            # שימוש ב-client ובמתודה generate_content לפי הגרסה החדשה
+            gemini_response = genai_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=user_message
+            )
+            ai_response = gemini_response.text
+            logger.info(f"Gemini API response received: {ai_response[:30]}...")
+        except Exception as gemini_error:
+            logger.error(f"Gemini API error: {str(gemini_error)}")
+            ai_response = "מצטער, אירעה שגיאה בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר."
+        
+        # Prepare the response
         result = {
-            "keywords": [],  # Future: Will contain extracted keywords from query
-            "result": "This is a placeholder response. Future implementation will use RAG to query document knowledge base.",
-            "sentiment": "neutral",  # Future: Will analyze sentiment
+            "result": ai_response,
             "processing_time": round(time.time() - request_start_time, 3)
         }
         

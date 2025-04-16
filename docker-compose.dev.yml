@@ -85,14 +85,18 @@ services:
       context: ./src/ai
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "${AI_SERVICE_PORT:-5000}:5000"
     volumes:
       - ./src/ai:/app/ai:rw
       - ai_cache:/app/ai/.cache
+      - ai_models:/app/ai/models:rw
     environment:
-      - PYTHONUNBUFFERED=1
-      - DEBUG=True
-      - TZ=Asia/Jerusalem
+      FLASK_APP: app.py
+      FLASK_DEBUG: 1
+      PYTHONPATH: /app
+      DEBUG: "True"
+      TZ: Asia/Jerusalem
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     networks:
       - afeka_network
     healthcheck:
