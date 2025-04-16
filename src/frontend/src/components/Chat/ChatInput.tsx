@@ -11,10 +11,10 @@ const useTextareaResize = (
   const handleResize = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    
+
     // Reset height to calculate the new scroll height
     textarea.style.height = 'auto';
-    
+
     // Set the new height based on scroll height (with max height limit)
     const newHeight = Math.min(textarea.scrollHeight, maxHeight);
     textarea.style.height = `${newHeight}px`;
@@ -37,10 +37,10 @@ interface ChatInputProps {
  * ChatInput component that renders the message input field and send button
  * Follows SOLID principles with clear separation of concerns
  */
-const ChatInput: React.FC<ChatInputProps> = ({ 
-  value, 
-  onChange, 
-  onSend, 
+const ChatInput: React.FC<ChatInputProps> = ({
+  value,
+  onChange,
+  onSend,
   isLoading,
   onClear,
   language
@@ -48,10 +48,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isCompact, setIsCompact] = useState(true);
-  
+
   // Use custom hook for textarea resize when not in compact mode
   const { handleResize } = useTextareaResize(textareaRef, 150);
-  
+
   // Auto-focus the input field when component mounts
   useEffect(() => {
     if (textareaRef.current && !isCompact) {
@@ -62,7 +62,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   // Handle message input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange(e.target.value);
-    
+
     // Only apply resize if using textarea (non-compact mode)
     if (!isCompact && textareaRef.current) {
       handleResize();
@@ -72,21 +72,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate message is not empty or just whitespace
     const trimmedMessage = value.trim();
     if (!trimmedMessage || isLoading) {
       return;
     }
-    
+
     // Send message
     onSend();
-    
+
     // Reset textarea height if not in compact mode
     if (!isCompact && textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    
+
     // Re-focus input after sending
     setTimeout(() => {
       if (textareaRef.current && !isCompact) {

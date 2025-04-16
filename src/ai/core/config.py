@@ -15,7 +15,7 @@ MAX_MESSAGE_LENGTH = int(os.environ.get('AI_MAX_MESSAGE_LENGTH', '2000'))  # Max
 
 # Server Settings
 PORT = int(os.environ.get('AI_PORT', 5000))
-HOST = os.environ.get('AI_HOST', '0.0.0.0')
+HOST = os.environ.get('AI_HOST', '0.0.0.0') 
 
 # Google Gemini API Configuration
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyB0D4QL-SIoR8LR4WkVRjxUV_HyIUQBdCU')

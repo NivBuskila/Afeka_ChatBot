@@ -216,159 +216,100 @@ export const userService = {
   },
 
   async signUp(email: string, password: string, isAdmin: boolean = false) {
-    // 1. Register user in auth service
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          is_admin: isAdmin // שומר ב-metadata של המשתמש שהוא אדמין
-        }
-      }
-    });
+    console.log('Starting registration process...');
     
-    if (authError) {
-      // If user already registered, try to sign in to get ID
-      if (authError.message.includes('User already registered')) {
-        // Try signing in to get user details
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (signInError) throw signInError;
-        if (!signInData.user) throw new Error('Could not authenticate with existing user');
-        
-        // If admin promotion requested, use the RPC function
-        if (isAdmin) {
-          try {
-            // עדכון המטה-דאטה של המשתמש
-            await supabase.auth.updateUser({
-              data: { is_admin: true }
-            });
-            
-            // קידום המשתמש לאדמין
-            const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
-              user_id: signInData.user.id
-            });
-            
-            if (promoteError) {
-              console.error('Error promoting user to admin:', promoteError);
-              // Try direct insertion as fallback
-              try {
-                const { error: insertError } = await supabase
-                  .from('admins')
-                  .insert({ user_id: signInData.user.id })
-                  .single();
-                  
-                if (insertError) {
-                  console.error('Fallback admin insertion also failed:', insertError);
-                } else {
-                  console.log('User promoted to admin via direct insertion');
-                }
-              } catch (directError) {
-                console.error('Error in direct admin insertion:', directError);
-              }
-            } else {
-              console.log('User promoted to admin:', promoteResult);
-            }
-          } catch (adminError) {
-            console.error('Error in admin promotion RPC call:', adminError);
-          }
-        }
-        
-        return signInData;
-      }
-      
-      // Throw other errors
-      throw authError;
-    }
-    
-    if (!authData.user) throw new Error('User registration failed');
-    
-    // 2. Add user to users table
     try {
-      const { error: insertUserError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: email,
-          name: email.split('@')[0], // Default name from email
-          status: 'active'
-        });
-
-      if (insertUserError) {
-        console.error('Error inserting user:', insertUserError);
-        throw insertUserError;
-      }
-      
-      // 3. If it's an admin, use the RPC function instead of direct insertion
-      if (isAdmin) {
-        try {
-          const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
-            user_id: authData.user.id
-          });
-          
-          if (promoteError) {
-            console.error('Error promoting user to admin:', promoteError);
-            // Try direct insertion as fallback
-            try {
-              const { error: insertError } = await supabase
-                .from('admins')
-                .insert({ user_id: authData.user.id })
-                .single();
-                
-              if (insertError) {
-                console.error('Fallback admin insertion also failed:', insertError);
-                
-                // נסיון אחרון - קריאה ישירה לSQL
-                try {
-                  const { error: sqlError } = await supabase.rpc('execute_sql', {
-                    sql: `INSERT INTO admins (user_id) VALUES ('${authData.user.id}') ON CONFLICT (user_id) DO NOTHING;`
-                  });
-                  
-                  if (sqlError) {
-                    console.error('SQL execution also failed:', sqlError);
-                  } else {
-                    console.log('User promoted to admin via SQL execution');
-                  }
-                } catch (sqlError) {
-                  console.error('SQL execution error:', sqlError);
+        // 1. Register user in auth service
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    is_admin: isAdmin,
+                    role: isAdmin ? 'admin' : 'user',
+                    name: email.split('@')[0]
                 }
-              } else {
-                console.log('User promoted to admin via direct insertion');
-              }
-            } catch (directError) {
-              console.error('Error in direct admin insertion:', directError);
             }
-          } else {
-            console.log('User promoted to admin successfully:', promoteResult);
-          }
-        } catch (adminError) {
-          console.error('Error in admin promotion RPC call:', adminError);
-          // Try direct insertion as fallback
-          try {
-            const { error: insertError } = await supabase
-              .from('admins')
-              .insert({ user_id: authData.user.id })
-              .single();
-              
-            if (insertError) {
-              console.error('Fallback admin insertion also failed:', insertError);
-            } else {
-              console.log('User promoted to admin via direct insertion');
-            }
-          } catch (directError) {
-            console.error('Error in direct admin insertion:', directError);
-          }
+        });
+        
+        if (authError) {
+            console.error('Auth error:', authError);
+            throw authError;
         }
-      }
+        
+        if (!authData.user) {
+            console.error('No user data returned');
+            throw new Error('User registration failed - no user data');
+        }
+        
+        console.log('Auth registration successful');
+        
+        // 2. נבדוק אם הטריגר כבר יצר את המשתמש בטבלה
+        const { data: existingUser, error: checkError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+            
+        // אם המשתמש עדיין לא קיים בטבלה, ננסה ליצור אותו ידנית
+        if (!existingUser && !checkError) {
+            console.log('User not found in users table, inserting manually');
+            
+            const { error: insertUserError } = await supabase
+                .from('users')
+                .insert({
+                    id: authData.user.id,
+                    email: email,
+                    name: email.split('@')[0],
+                    status: 'active',
+                    last_sign_in: new Date().toISOString(),
+                    preferred_language: 'he',
+                    timezone: 'Asia/Jerusalem'
+                });
+            
+            if (insertUserError) {
+                console.error('Error inserting user:', insertUserError);
+                // לא נמחק את המשתמש מ-Auth, נסמוך על הטריגר שיטפל בזה בפעם הבאה שמתחברים
+                console.warn('Continue despite error, auth user is still created');
+            } else {
+                console.log('User inserted into users table manually');
+            }
+        } else if (existingUser) {
+            console.log('User already exists in users table');
+        } else if (checkError) {
+            console.error('Error checking if user exists:', checkError);
+        }
+        
+        // 3. הוספה לטבלת מנהלים אם צריך
+        if (isAdmin) {
+            // בדוק אם המשתמש כבר נמצא ברשימת המנהלים
+            const { data: existingAdmin, error: checkAdminError } = await supabase
+                .from('admins')
+                .select('id')
+                .eq('user_id', authData.user.id)
+                .maybeSingle();
+                
+            if (!existingAdmin && !checkAdminError) {
+                const { error: adminError } = await supabase
+                    .from('admins')
+                    .insert({ user_id: authData.user.id });
+                
+                if (adminError) {
+                    console.error('Error setting admin role:', adminError);
+                    // Don't throw here, user is still created as regular user
+                } else {
+                    console.log('Admin role set successfully');
+                }
+            } else if (existingAdmin) {
+                console.log('User is already an admin');
+            }
+        }
+        
+        return authData;
     } catch (error) {
-      console.error('Error in user creation:', error);
-      throw error;
+        console.error('Registration error:', error);
+        throw error;
     }
-    
-    return authData;
   },
 
   async getUserProfile(id: string) {

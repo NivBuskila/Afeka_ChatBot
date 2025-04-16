@@ -8,28 +8,28 @@ const AmbientEffects = ({ variant = 'default' }) => {
   const variations = {
     default: {
       first: {
-        position: "top-1/4 right-1/4", 
-        size: "w-96 h-96", 
+        position: "top-1/4 right-1/4",
+        size: "w-96 h-96",
         color: "bg-green-500",
         animation: "animate-blob"
       },
       second: {
-        position: "bottom-1/4 left-1/4", 
-        size: "w-96 h-96", 
+        position: "bottom-1/4 left-1/4",
+        size: "w-96 h-96",
         color: "bg-green-700",
         animation: "animate-blob animation-delay-2000"
       }
     },
     intense: {
       first: {
-        position: "top-1/4 right-1/4", 
-        size: "w-[30rem] h-[30rem]", 
+        position: "top-1/4 right-1/4",
+        size: "w-[30rem] h-[30rem]",
         color: "bg-green-500",
         animation: "animate-blob-fast"
       },
       second: {
-        position: "bottom-1/4 left-1/4", 
-        size: "w-[30rem] h-[30rem]", 
+        position: "bottom-1/4 left-1/4",
+        size: "w-[30rem] h-[30rem]",
         color: "bg-green-700",
         animation: "animate-blob-fast animation-delay-1000"
       }

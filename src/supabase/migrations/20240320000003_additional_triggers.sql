@@ -1,11 +1,30 @@
 -- Function to handle document deletion
 CREATE OR REPLACE FUNCTION handle_document_deletion()
 RETURNS TRIGGER AS $$
+DECLARE
+  storage_path TEXT;
 BEGIN
+  -- Extract the storage path from the URL
+  -- The URL is usually in format: https://domain.com/storage/v1/object/public/documents/filename.ext
+  storage_path := substring(OLD.url from '/documents/(.*)$');
+  
+  IF storage_path IS NULL THEN
+    -- Fallback: try to extract just the filename
+    storage_path := substring(OLD.url from '[^/]+$');
+    IF storage_path IS NOT NULL THEN
+      storage_path := 'documents/' || storage_path;
+    END IF;
+  ELSE
+    storage_path := 'documents/' || storage_path;
+  END IF;
+  
+  -- Log the path we're trying to delete for debugging
+  RAISE NOTICE 'Attempting to delete storage object: %', storage_path;
+  
   -- Delete the file from storage
   DELETE FROM storage.objects
   WHERE bucket_id = 'documents'
-  AND name = OLD.url;
+  AND (name = storage_path OR path = storage_path OR name = OLD.url OR path = OLD.url);
 
   -- Delete analytics data
   DELETE FROM document_analytics

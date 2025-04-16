@@ -28,7 +28,7 @@ services:
         limits:
           <<: *default-resources
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -63,7 +63,7 @@ services:
         limits:
           <<: *default-resources
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -101,7 +101,7 @@ services:
           cpus: '1'
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -137,4 +137,4 @@ volumes:
   backend_data:
     driver: local
   ai_models:
-    driver: local 
+    driver: local

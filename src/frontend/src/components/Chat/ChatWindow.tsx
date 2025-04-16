@@ -32,7 +32,7 @@ interface ChatWindowProps {
 const groupConversations = (conversations: Conversation[]) => {
   const today = new Date().toLocaleDateString();
   const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
-  
+
   return {
     today: conversations.filter(conv => conv.date.toLocaleDateString() === today),
     yesterday: conversations.filter(conv => conv.date.toLocaleDateString() === yesterday),
@@ -62,16 +62,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const [activeButtonRect, setActiveButtonRect] = useState<DOMRect | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settings] = useState({ 
+  const [settings] = useState({
     systemPrompt: "You are a helpful assistant.",
-    model: "gemini-pro" 
+    model: "gemini-pro"
   });
   const [user, setUser] = useState<any>(null);
-  
+
   // חשוב: רק הגדרה אחת של activeConversation ושיחות
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  
+
   // חשוב: רק הגדרה אחת של groupedConversations
   const [groupedConversations, setGroupedConversations] = useState<{
     today: Conversation[],
@@ -108,9 +108,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
 
   const handleSend = async (message: string) => {
     if (!message.trim() || isLoading) return;
-    
+
     setIsLoading(true);
-    
+
     // Create user message
     const userMessage: Message = {
       id: Date.now(),
@@ -118,14 +118,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       content: message,
       timestamp: new Date().toISOString(),
     };
-    
+
     // Update messages state with user message
     setMessages(prev => [...prev, userMessage]);
-    
+
     try {
       // Handle conversation creation or retrieval
       let currentConversationId = activeConversation;
-      
+
       if (!currentConversationId && user) {
         // Create new conversation
         const { data: newConvData, error: convError } = await supabase.rpc(
@@ -136,12 +136,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
             system_prompt: settings.systemPrompt
           }
         );
-        
+
         if (convError) {
           console.error('Error creating conversation:', convError);
           throw new Error('Failed to create conversation');
         }
-        
+
         currentConversationId = newConvData;
         const newConversation: Conversation = {
           id: currentConversationId || '',
@@ -149,11 +149,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           date: new Date(),
           messageCount: 0
         };
-        
+
         setActiveConversation(currentConversationId);
         setConversations(prev => [newConversation, ...prev]);
       }
-      
+
       // Add message to database if user is authenticated
       if (user && currentConversationId) {
         const { error: msgError } = await supabase.rpc(
@@ -165,16 +165,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
             role: 'user'
           }
         );
-        
+
         if (msgError) {
           console.error('Error adding user message:', msgError);
         }
       }
-      
+
       // Send to API - שימוש בכתובת מוחלטת
       const apiUrl = 'http://localhost:8000/api/chat';
       console.log('Sending request to:', apiUrl);
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -186,13 +186,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           model: settings.model
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Create bot reply
       const botReply: Message = {
         id: Date.now() + 1,
@@ -200,10 +200,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         content: data.response || 'Sorry, I could not process your request.',
         timestamp: new Date().toISOString(),
       };
-      
+
       // Update messages state with bot reply
       setMessages(prev => [...prev, botReply]);
-      
+
       // Add bot message to database if user is authenticated and conversation exists
       if (user && currentConversationId) {
         const { error: botMsgError } = await supabase.rpc(
@@ -215,15 +215,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
             role: 'assistant'
           }
         );
-        
+
         if (botMsgError) {
           console.error('Error adding bot message:', botMsgError);
         }
       }
-      
+
     } catch (error) {
       console.error('Error sending message:', error);
-      
+
       // Create error bot reply
       const errorReply: Message = {
         id: Date.now() + 2,
@@ -231,7 +231,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         content: 'Sorry, there was an error processing your request. Please try again later.',
         timestamp: new Date().toISOString(),
       };
-      
+
       // Update messages with error
       setMessages(prev => [...prev, errorReply]);
     } finally {
@@ -245,23 +245,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       setIsLoading(true);
       setActiveConversation(id);
       setShowHistory(false);
-      
+
       // Clear current messages
       setMessages([]);
-      
+
       // Fetch messages for this conversation
       const { data, error } = await supabase.rpc('get_conversation_messages', {
         p_conversation_id: id,
         p_limit: 100,
         p_offset: 0
       });
-      
+
       if (error) throw error;
-      
+
       // Convert to our Message format
       if (data && data.length > 0) {
         const loadedMessages: Message[] = [];
-        
+
         data.forEach((msg: any, index: number) => {
           if (msg.request) {
             loadedMessages.push({
@@ -271,7 +271,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               timestamp: new Date(msg.created_at).toLocaleTimeString(),
             });
           }
-          
+
           if (msg.response) {
             loadedMessages.push({
               id: (index * 2 + 1) + Date.now(),
@@ -281,7 +281,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
             });
           }
         });
-        
+
         setMessages(loadedMessages);
         setHasStarted(true);
       }
@@ -312,17 +312,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const handleRenameConversation = (id: string) => {
     console.log("Rename conversation called with ID:", id);
     const newTitle = window.prompt(
-      i18n.language === 'he' 
-        ? 'הזן שם חדש לשיחה:' 
+      i18n.language === 'he'
+        ? 'הזן שם חדש לשיחה:'
         : 'Enter a new name for this conversation:'
     );
-    
+
     if (newTitle?.trim()) {
       console.log("Setting new title:", newTitle);
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.id === id 
-            ? { ...conv, title: newTitle.trim() } 
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === id
+            ? { ...conv, title: newTitle.trim() }
             : conv
         )
       );
@@ -332,11 +332,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const handleDeleteConversation = (id: string) => {
     console.log("Delete conversation called with ID:", id);
     const shouldDelete = window.confirm(
-      i18n.language === 'he' 
-        ? 'האם אתה בטוח שברצונך למחוק את השיחה הזו?' 
+      i18n.language === 'he'
+        ? 'האם אתה בטוח שברצונך למחוק את השיחה הזו?'
         : 'Are you sure you want to delete this conversation?'
     );
-    
+
     if (shouldDelete) {
       console.log("Confirmed deletion");
       setConversations(prev => prev.filter(conv => conv.id !== id));
@@ -349,18 +349,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        
+
         const { data, error } = await supabase.rpc('get_user_conversations', {
           p_user_id: user.id,
           p_limit: 50,
           p_offset: 0
         });
-        
+
         if (error) throw error;
-        
+
         const today = new Date().toLocaleDateString();
         const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
-        
+
         if (data && data.length > 0) {
           // Group conversations by date
           const conversationsByDate = data.reduce((acc: Record<string, any[]>, conv: any) => {
@@ -376,16 +376,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
             });
             return acc;
           }, {});
-          
+
           const conversationsList = data.map((conv: any) => ({
             id: conv.conversation_id,
-            title: conv.title || `Conversation ${conv.conversation_id.substring(0, 8)}`, 
+            title: conv.title || `Conversation ${conv.conversation_id.substring(0, 8)}`,
             date: new Date(conv.created_at),
             messageCount: conv.message_count || 0,
           }));
-          
+
           setConversations(conversationsList);
-          
+
           // עדכון קבוצות השיחות
           setGroupedConversations({
             today: conversationsByDate[today] || [],
@@ -399,7 +399,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         console.error('Error fetching conversations:', error);
       }
     };
-    
+
     fetchConversations();
   }, []);
 
@@ -414,9 +414,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       <div className="relative h-full flex z-10">
         {/* Sidebar */}
         <div
-          className={`flex-shrink-0 bg-gray-100 dark:bg-black backdrop-blur-xl transform transition-all duration-300 ${
-            isExpanded ? `${showHistory ? 'w-80' : 'w-64'} p-4` : 'w-16 py-4 px-2'
-          } border-r border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden z-30`}
+          className={`flex-shrink-0 bg-gray-100 dark:bg-black backdrop-blur-xl transform transition-all duration-300 ${isExpanded ? `${showHistory ? 'w-80' : 'w-64'} p-4` : 'w-16 py-4 px-2'
+            } border-r border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden z-30`}
           onMouseEnter={() => setIsExpanded(true)}
           onMouseLeave={() => !showHistory && setIsExpanded(false)}
         >
@@ -438,11 +437,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               onClick={() => {
                 setShowHistory(false);
               }}
-              className={`w-full flex items-center transition-all ${
-                isExpanded 
-                  ? 'p-2 gap-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800' 
-                  : 'justify-center py-1'
-              }`}
+              className={`w-full flex items-center transition-all ${isExpanded
+                ? 'p-2 gap-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800'
+                : 'justify-center py-1'
+                }`}
             >
               <div className="relative">
                 <Terminal className="w-5 h-5 text-green-700 dark:text-green-500" />
@@ -453,14 +451,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                 </span>
               )}
             </button>
-            
+
             <button
               onClick={toggleHistory}
-              className={`w-full flex items-center transition-all ${
-                isExpanded 
-                  ? 'p-2 gap-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800' 
-                  : 'justify-center py-1'
-              } ${showHistory ? 'bg-gray-200 dark:bg-gray-800' : ''}`}
+              className={`w-full flex items-center transition-all ${isExpanded
+                ? 'p-2 gap-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800'
+                : 'justify-center py-1'
+                } ${showHistory ? 'bg-gray-200 dark:bg-gray-800' : ''}`}
             >
               <div className="relative">
                 <History className={`w-5 h-5 ${showHistory ? 'text-green-600 dark:text-green-400' : 'text-green-700 dark:text-green-500'}`} />
@@ -471,10 +468,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                 </span>
               )}
             </button>
-            
+
             {/* Conversation History Section - moved to appear directly after History button */}
             {showHistory && isExpanded && (
-              <div className="mt-1 mb-2 flex-col overflow-hidden">                
+              <div className="mt-1 mb-2 flex-col overflow-hidden">
                 <div className="overflow-y-auto max-h-[50vh] px-1">
                   {conversations.length === 0 ? (
                     <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-xs">
@@ -491,7 +488,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                           {groupedConversations.today.map(conversation => (
                             <div key={conversation.id} className="relative group">
                               <div className="flex justify-between items-center">
-                                <button 
+                                <button
                                   className="w-full text-left py-1.5 px-1 rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors flex-grow"
                                   onClick={() => handleSelectConversation(conversation.id)}
                                 >
@@ -520,7 +517,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                           ))}
                         </div>
                       )}
-                      
+
                       {/* Yesterday's conversations */}
                       {groupedConversations.yesterday.length > 0 && (
                         <div className="mt-1">
@@ -530,7 +527,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                           {groupedConversations.yesterday.map(conversation => (
                             <div key={conversation.id} className="relative group">
                               <div className="flex justify-between items-center">
-                                <button 
+                                <button
                                   className="w-full text-left py-1.5 px-1 rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors flex-grow"
                                   onClick={() => handleSelectConversation(conversation.id)}
                                 >
@@ -559,7 +556,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                           ))}
                         </div>
                       )}
-                      
+
                       {/* Previous conversations */}
                       {groupedConversations.previous.length > 0 && (
                         <div className="mt-1">
@@ -569,7 +566,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                           {groupedConversations.previous.map(conversation => (
                             <div key={conversation.id} className="relative group">
                               <div className="flex justify-between items-center">
-                                <button 
+                                <button
                                   className="w-full text-left py-1.5 px-1 rounded hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition-colors flex-grow"
                                   onClick={() => handleSelectConversation(conversation.id)}
                                 >
@@ -603,14 +600,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                 </div>
               </div>
             )}
-            
+
             <button
               onClick={() => setShowSettings(true)}
-              className={`w-full flex items-center transition-all ${
-                isExpanded 
-                  ? 'p-2 gap-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800' 
-                  : 'justify-center py-1'
-              }`}
+              className={`w-full flex items-center transition-all ${isExpanded
+                ? 'p-2 gap-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800'
+                : 'justify-center py-1'
+                }`}
             >
               <div className="relative">
                 <Settings className="w-5 h-5 text-green-700 dark:text-green-500" />
@@ -627,11 +623,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           <div className={`mt-auto ${isExpanded ? 'px-1' : 'px-0'}`}>
             <button
               onClick={handleLogout}
-              className={`w-full flex items-center transition-all ${
-                isExpanded 
-                  ? 'p-2 gap-3 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400' 
-                  : 'justify-center py-1 text-red-600 dark:text-red-400'
-              }`}
+              className={`w-full flex items-center transition-all ${isExpanded
+                ? 'p-2 gap-3 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+                : 'justify-center py-1 text-red-600 dark:text-red-400'
+                }`}
             >
               <LogOut className="w-5 h-5" />
               {isExpanded && (

@@ -38,6 +38,7 @@ import { analyticsService, DashboardAnalytics } from '../../services/analyticsSe
 import type { Document } from '../../config/supabase';
 import { supabase } from '../../config/supabase';
 import i18n from 'i18next';
+import { cacheService } from '../../services/cacheService';
 
 type Language = 'he' | 'en';
 
@@ -114,10 +115,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     };
 
-    if (activeTab === 'analytics') {
+    if (activeItem === 'analytics') {
       fetchAnalytics();
     }
-  }, [activeTab]);
+  }, [activeItem, activeSubItem]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // בדיקה אם המטמון עדכני או שצריך לרענן
+        const forceRefresh = cacheService.isCacheStale('documents');
+        
+        console.log(`Fetching data, force refresh: ${forceRefresh}`);
+        
+        const [docs, analyticsData] = await Promise.all([
+          documentService.getAllDocuments(),
+          analyticsService.getDashboardAnalytics()
+        ]);
+        
+        console.log('Fetched analytics data:', analyticsData);
+        console.log('Users found:', analyticsData.recentUsers.length);
+        console.log('Admins found:', analyticsData.recentAdmins.length);
+        console.log('Documents found:', docs.length);
+        
+        setDocuments(docs);
+        setAnalytics(analyticsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    
+    // האזנה לשינויים במטמון כדי לרענן נתונים בעת הצורך
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'documents_cache_invalidated') {
+        console.log('Document cache was invalidated, refreshing data');
+        fetchData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const menuItems: MenuItem[] = [
     {
@@ -163,30 +208,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     { id: 3, name: i18n.language === 'he' ? 'לוח זמנים' : 'Schedule', type: 'pdf', size: 3.2 * 1024 * 1024, url: '#', created_at: '2024-03-15' },
   ];
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [docs, analyticsData] = await Promise.all([
-          documentService.getAllDocuments(),
-          analyticsService.getDashboardAnalytics()
-        ]);
-        
-        console.log('Fetched analytics data:', analyticsData);
-        console.log('Users found:', analyticsData.recentUsers.length);
-        console.log('Admins found:', analyticsData.recentAdmins.length);
-        
-        setDocuments(docs);
-        setAnalytics(analyticsData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
   // Manual data refresh function
   const refreshData = async () => {
     setLoading(true);
@@ -219,11 +240,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleItemClick = (itemId: string) => {
+    console.log("Setting active item to:", itemId);
     setActiveItem(itemId);
-    setActiveSubItem(null);
+    
+    if (itemId === 'analytics') {
+      setActiveSubItem('overview');
+    } else if (itemId === 'documents') {
+      setActiveSubItem('active');
+    } else {
+      setActiveSubItem(null);
+    }
+    
+    setActiveTab(itemId);
   };
 
   const handleSubItemClick = (itemId: string, subItemId: string) => {
+    console.log(`Setting active item to: ${itemId}, subItem to: ${subItemId}`);
     setActiveItem(itemId);
     setActiveSubItem(subItemId);
   };
@@ -407,12 +439,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     if (!selectedDocument) return;
 
     try {
+      // קודם נאפס את סטטוס ההטענה למצב טוען
+      setLoading(true);
+      
+      // מחיקת המסמך
       await documentService.deleteDocument(selectedDocument.id);
+      
+      // מגדירים מחדש את הרשימה של המסמכים הזמינים תוך הסרת המסמך שנמחק
       setDocuments(prev => prev.filter(doc => doc.id !== selectedDocument.id));
+      
+      // סגירת הדיאלוג
       setShowDeleteModal(false);
       setSelectedDocument(null);
+      
+      // הודעה למשתמש
+      alert(t('documents.deleteSuccess'));
+      
+      // לאחר מחיקה, נבצע טעינה מחדש של כל המסמכים מהשרת
+      // כדי לוודא שהתצוגה מסונכרנת עם השרת
+      try {
+        const refreshedDocs = await documentService.getAllDocuments();
+        setDocuments(refreshedDocs);
+      } catch (refreshError) {
+        console.error('Error refreshing documents after deletion:', refreshError);
+        // אם נכשל הרענון, לפחות המחיקה מהתצוגה כבר בוצעה למעלה
+      }
     } catch (error) {
       console.error('Error deleting document:', error);
+      alert(t('documents.deleteError'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -435,14 +491,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         );
       case 'analytics':
-        console.log('Active Sub Item:', activeSubItem);
-        console.log('Analytics Data:', analytics);
-        
         if (activeSubItem === 'users') {
-          // Regular users only
-          const filteredUsers = analytics.recentUsers || [];
-          
-          console.log('Rendering users view:', filteredUsers);
+          // סינון רק משתמשים רגילים (לא אדמינים)
+          const regularUsers = analytics.recentUsers.filter(user => 
+            // בדיקה שהמשתמש אינו נמצא ברשימת האדמינים
+            !analytics.recentAdmins.some(admin => admin.user_id === user.id)
+          );
           
           return (
             <div className="p-6">
@@ -459,11 +513,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
               <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
                 <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">{t('analytics.users')}</h3>
+                  <h3 className="text-lg font-semibold text-green-400">
+                    {t('analytics.users')} ({regularUsers.length})
+                  </h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {filteredUsers && filteredUsers.length > 0 ? (
-                    filteredUsers.map((user, index) => (
+                  {regularUsers && regularUsers.length > 0 ? (
+                    regularUsers.map((user, index) => (
                       <div key={user.id || index} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-green-400">{user.email || user.name || 'Unknown User'}</p>
@@ -483,12 +539,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
             </div>
           );
-        } else if (activeSubItem === 'admins') {
-          // Admins only
-          const filteredAdmins = analytics.recentAdmins || [];
-          
-          console.log('Rendering admins view:', filteredAdmins);
-          
+        }
+        else if (activeSubItem === 'admins') {
           return (
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -504,11 +556,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
               <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
                 <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeAdmins')}</h3>
+                  <h3 className="text-lg font-semibold text-green-400">
+                    {t('analytics.activeAdmins')} ({analytics.recentAdmins.length})
+                  </h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {filteredAdmins && filteredAdmins.length > 0 ? (
-                    filteredAdmins.map((admin, index) => (
+                  {analytics.recentAdmins && analytics.recentAdmins.length > 0 ? (
+                    analytics.recentAdmins.map((admin, index) => (
                       <div key={admin.id || index} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-green-400">{admin.email || admin.name || 'Unknown Admin'}</p>
@@ -528,8 +582,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
             </div>
           );
-        } else {
-          // Overview display
+        }
+        else {
+          // תת-קטגוריה overview - הצג את כללי הנתונים
           return (
             <div>
               <div className="flex justify-between items-center mb-6 px-6 pt-6">
@@ -626,9 +681,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         activeItem={activeItem}
-        setActiveItem={setActiveItem}
+        setActiveItem={handleItemClick}
         activeSubItem={activeSubItem}
-        setActiveSubItem={setActiveSubItem}
+        setActiveSubItem={(subItem) => subItem && handleSubItemClick(activeItem, subItem)}
         language={language}
         onLogout={onLogout}
       />
