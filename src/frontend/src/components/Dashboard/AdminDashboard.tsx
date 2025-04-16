@@ -38,6 +38,7 @@ import { analyticsService, DashboardAnalytics } from '../../services/analyticsSe
 import type { Document } from '../../config/supabase';
 import { supabase } from '../../config/supabase';
 import i18n from 'i18next';
+import { cacheService } from '../../services/cacheService';
 
 type Language = 'he' | 'en';
 
@@ -56,7 +57,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'user' | 'standard' | 'administrator';
+  is_admin: boolean;
   lastLogin: string;
   status: 'active' | 'inactive';
 }
@@ -68,7 +69,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { t, i18n } = useTranslation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState('dashboard');
+  const [activeItem, setActiveItem] = useState('chatbot');
   const [activeSubItem, setActiveSubItem] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
@@ -87,7 +88,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<Language>(i18n.language as Language);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string>('analytics');
+  const [activeTab, setActiveTab] = useState<string>('chatbot');
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -101,7 +102,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         setLoading(true);
         console.log("Fetching dashboard analytics...");
         
-        // קבלת נתוני האנליטיקה מהשירות
+        // Get analytics data from service
         const analyticsData = await analyticsService.getDashboardAnalytics();
         
         console.log("Received analytics data:", analyticsData);
@@ -114,10 +115,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     };
 
-    if (activeTab === 'analytics') {
+    if (activeItem === 'analytics') {
       fetchAnalytics();
     }
-  }, [activeTab]);
+  }, [activeItem, activeSubItem]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // בדיקה אם המטמון עדכני או שצריך לרענן
+        const forceRefresh = cacheService.isCacheStale('documents');
+        
+        console.log(`Fetching data, force refresh: ${forceRefresh}`);
+        
+        const [docs, analyticsData] = await Promise.all([
+          documentService.getAllDocuments(),
+          analyticsService.getDashboardAnalytics()
+        ]);
+        
+        console.log('Fetched analytics data:', analyticsData);
+        console.log('Users found:', analyticsData.recentUsers.length);
+        console.log('Admins found:', analyticsData.recentAdmins.length);
+        console.log('Documents found:', docs.length);
+        
+        setDocuments(docs);
+        setAnalytics(analyticsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    
+    // האזנה לשינויים במטמון כדי לרענן נתונים בעת הצורך
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'documents_cache_invalidated') {
+        console.log('Document cache was invalidated, refreshing data');
+        fetchData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const menuItems: MenuItem[] = [
     {
@@ -152,9 +197,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   ];
 
   const mockUsers: User[] = [
-    { id: 1, name: 'ישראל ישראלי', email: 'israel@afeka.ac.il', role: 'admin', lastLogin: '2024-03-25 10:30', status: 'active' },
-    { id: 2, name: 'שרה כהן', email: 'sara@afeka.ac.il', role: 'user', lastLogin: '2024-03-25 09:15', status: 'active' },
-    { id: 3, name: 'דוד לוי', email: 'david@afeka.ac.il', role: 'user', lastLogin: '2024-03-24 15:45', status: 'inactive' },
+    { id: 1, name: 'ישראל ישראלי', email: 'israel@afeka.ac.il', is_admin: true, lastLogin: '2024-03-25 10:30', status: 'active' },
+    { id: 2, name: 'שרה כהן', email: 'sara@afeka.ac.il', is_admin: false, lastLogin: '2024-03-25 09:15', status: 'active' },
+    { id: 3, name: 'דוד לוי', email: 'david@afeka.ac.il', is_admin: false, lastLogin: '2024-03-24 15:45', status: 'inactive' },
   ];
 
   const mockDocuments: any[] = [
@@ -163,31 +208,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     { id: 3, name: i18n.language === 'he' ? 'לוח זמנים' : 'Schedule', type: 'pdf', size: 3.2 * 1024 * 1024, url: '#', created_at: '2024-03-15' },
   ];
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [docs, analyticsData] = await Promise.all([
-          documentService.getAllDocuments(),
-          analyticsService.getDashboardAnalytics()
-        ]);
-        
-        console.log('Fetched analytics data:', analyticsData);
-        console.log('Users found:', analyticsData.recentUsers.length);
-        console.log('Admins found:', analyticsData.recentAdmins.length);
-        
-        setDocuments(docs);
-        setAnalytics(analyticsData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // פונקציה לרענון נתונים ידני
+  // Manual data refresh function
   const refreshData = async () => {
     setLoading(true);
     try {
@@ -204,7 +225,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setDocuments(docs);
       setAnalytics(analyticsData);
       
-      // מדפיסים את המידע לדיבאג
+      // Print debug information
       if (analyticsData.recentUsers?.length) {
         console.log('First user example:', analyticsData.recentUsers[0]);
       }
@@ -219,11 +240,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleItemClick = (itemId: string) => {
+    console.log("Setting active item to:", itemId);
     setActiveItem(itemId);
-    setActiveSubItem(null);
+    
+    if (itemId === 'analytics') {
+      setActiveSubItem('overview');
+    } else if (itemId === 'documents') {
+      setActiveSubItem('active');
+    } else {
+      setActiveSubItem(null);
+    }
+    
+    setActiveTab(itemId);
   };
 
   const handleSubItemClick = (itemId: string, subItemId: string) => {
+    console.log(`Setting active item to: ${itemId}, subItem to: ${subItemId}`);
     setActiveItem(itemId);
     setActiveSubItem(subItemId);
   };
@@ -250,7 +282,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleUpload = async (file: File) => {
     try {
-      // בדיקה שהמשתמש מחובר לפני העלאת הקובץ
+      // Verify user is authenticated before upload
       const { data: authData } = await supabase.auth.getSession();
       if (!authData.session) {
         console.error('User not authenticated');
@@ -258,46 +290,67 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         return;
       }
       
-      // הדפסת מידע לצורך דיבאג
+      // Print debug information
       console.log('User ID:', authData.session.user.id);
       console.log('User email:', authData.session.user.email);
       
-      // בודקים אם המשתמש קיים בטבלת משתמשים
+      // Check if user exists in users table
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id, role')
+        .select('id')
         .eq('id', authData.session.user.id)
         .single();
       
-      // אם המשתמש לא קיים, ננסה ליצור אותו (למרות שזה עלול להיכשל בגלל RLS)
+      // If user doesn't exist, try creating them (may fail due to RLS)
       if (userError || !userData) {
         console.error('User not found in database:', userError);
         
-        // ננסה ליצור רשומת משתמש חדשה
+        // Try creating a new user record
         try {
           const { error: insertError } = await supabase
             .from('users')
             .insert({
               id: authData.session.user.id,
               email: authData.session.user.email || '',
-              role: authData.session.user.user_metadata?.role || 'user'
+              name: authData.session.user.email?.split('@')[0] || 'User',
+              status: 'active'
             });
             
           if (insertError) {
             console.error('Failed to insert user record:', insertError);
-            // ממשיכים למרות השגיאה, כי אנחנו כבר מנסים לעקוף את המגבלות
+            // Continue despite error, as we're already trying to bypass restrictions
           } else {
             console.log('Created new user record for', authData.session.user.email);
+            
+            // Check if user should be admin and add to admins table
+            if (authData.session.user.user_metadata?.is_admin || 
+                authData.session.user.user_metadata?.role === 'admin') {
+              try {
+                const { error: adminError } = await supabase
+                  .from('admins')
+                  .insert({
+                    user_id: authData.session.user.id
+                  });
+                  
+                if (adminError) {
+                  console.error('Failed to insert admin record:', adminError);
+                } else {
+                  console.log('Created new admin record for', authData.session.user.email);
+                }
+              } catch (adminError) {
+                console.error('Error creating admin record:', adminError);
+              }
+            }
           }
         } catch (createError) {
           console.error('Error creating user record:', createError);
-          // ממשיכים למרות השגיאה
+          // Continue despite error
         }
       } else {
         console.log('Found existing user:', userData);
       }
       
-      // יצירת שם קובץ בטוח ללא תווים בעברית
+      // Create safe filename without Hebrew characters
       const fileExt = file.name.split('.').pop() || '';
       const safeFileName = `${Date.now()}.${fileExt}`;
       const path = `documents/${safeFileName}`;
@@ -305,7 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       console.log('Uploading file to path:', path);
       
       try {
-        // העלאת הקובץ - גישה ישירה ללא RPC
+        // Upload the file - direct access without RPC
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('documents')
           .upload(path, file);
@@ -318,7 +371,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         
         console.log('Upload successful:', uploadData);
         
-        // קבלת הURL הציבורי
+        // Get public URL
         const { data: urlData } = supabase.storage
           .from('documents')
           .getPublicUrl(path);
@@ -326,7 +379,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         console.log('File URL:', urlData.publicUrl);
         
         try {
-          // יצירת רשומת מסמך ישירות (לא דרך RPC)
+          // Create document record directly (not through RPC)
           const { data: docData, error: docError } = await supabase
             .from('documents')
             .insert({
@@ -346,7 +399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           
           console.log('Document created successfully:', docData);
           
-          // ניסיון להוסיף רשומת אנליטיקס (עלול להיכשל בגלל RLS)
+          // Attempt to add analytics record (may fail due to RLS)
           try {
             const { error: analyticsError } = await supabase
               .from('document_analytics')
@@ -358,11 +411,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             if (analyticsError) {
               console.error('Error adding analytics record:', analyticsError);
-              // ממשיכים למרות השגיאה
+              // Continue despite error
             }
           } catch (analyticsError) {
             console.error('Failed to add analytics record:', analyticsError);
-            // ממשיכים למרות השגיאה
+            // Continue despite error
           }
           
           setDocuments(prev => [docData, ...prev]);
@@ -386,12 +439,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     if (!selectedDocument) return;
 
     try {
+      // קודם נאפס את סטטוס ההטענה למצב טוען
+      setLoading(true);
+      
+      // מחיקת המסמך
       await documentService.deleteDocument(selectedDocument.id);
+      
+      // מגדירים מחדש את הרשימה של המסמכים הזמינים תוך הסרת המסמך שנמחק
       setDocuments(prev => prev.filter(doc => doc.id !== selectedDocument.id));
+      
+      // סגירת הדיאלוג
       setShowDeleteModal(false);
       setSelectedDocument(null);
+      
+      // הודעה למשתמש
+      alert(t('documents.deleteSuccess'));
+      
+      // לאחר מחיקה, נבצע טעינה מחדש של כל המסמכים מהשרת
+      // כדי לוודא שהתצוגה מסונכרנת עם השרת
+      try {
+        const refreshedDocs = await documentService.getAllDocuments();
+        setDocuments(refreshedDocs);
+      } catch (refreshError) {
+        console.error('Error refreshing documents after deletion:', refreshError);
+        // אם נכשל הרענון, לפחות המחיקה מהתצוגה כבר בוצעה למעלה
+      }
     } catch (error) {
       console.error('Error deleting document:', error);
+      alert(t('documents.deleteError'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -414,14 +491,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         );
       case 'analytics':
-        console.log('Active Sub Item:', activeSubItem);
-        console.log('Analytics Data:', analytics);
-        
         if (activeSubItem === 'users') {
-          // רק משתמשים רגילים
-          const filteredUsers = analytics.recentUsers || [];
-          
-          console.log('Rendering users view:', filteredUsers);
+          // סינון רק משתמשים רגילים (לא אדמינים)
+          const regularUsers = analytics.recentUsers.filter(user => 
+            // בדיקה שהמשתמש אינו נמצא ברשימת האדמינים
+            !analytics.recentAdmins.some(admin => admin.user_id === user.id)
+          );
           
           return (
             <div className="p-6">
@@ -438,11 +513,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
               <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
                 <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">{t('analytics.users')}</h3>
+                  <h3 className="text-lg font-semibold text-green-400">
+                    {t('analytics.users')} ({regularUsers.length})
+                  </h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {filteredUsers && filteredUsers.length > 0 ? (
-                    filteredUsers.map((user, index) => (
+                  {regularUsers && regularUsers.length > 0 ? (
+                    regularUsers.map((user, index) => (
                       <div key={user.id || index} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-green-400">{user.email || user.name || 'Unknown User'}</p>
@@ -462,12 +539,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
             </div>
           );
-        } else if (activeSubItem === 'admins') {
-          // רק מנהלים
-          const filteredAdmins = analytics.recentAdmins || [];
-          
-          console.log('Rendering admins view:', filteredAdmins);
-          
+        }
+        else if (activeSubItem === 'admins') {
           return (
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -483,11 +556,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
               <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
                 <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeAdmins')}</h3>
+                  <h3 className="text-lg font-semibold text-green-400">
+                    {t('analytics.activeAdmins')} ({analytics.recentAdmins.length})
+                  </h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {filteredAdmins && filteredAdmins.length > 0 ? (
-                    filteredAdmins.map((admin, index) => (
+                  {analytics.recentAdmins && analytics.recentAdmins.length > 0 ? (
+                    analytics.recentAdmins.map((admin, index) => (
                       <div key={admin.id || index} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-green-400">{admin.email || admin.name || 'Unknown Admin'}</p>
@@ -507,8 +582,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
             </div>
           );
-        } else {
-          // תצוגת Overview
+        }
+        else {
+          // תת-קטגוריה overview - הצג את כללי הנתונים
           return (
             <div>
               <div className="flex justify-between items-center mb-6 px-6 pt-6">
@@ -605,9 +681,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         activeItem={activeItem}
-        setActiveItem={setActiveItem}
+        setActiveItem={handleItemClick}
         activeSubItem={activeSubItem}
-        setActiveSubItem={setActiveSubItem}
+        setActiveSubItem={(subItem) => subItem && handleSubItemClick(activeItem, subItem)}
         language={language}
         onLogout={onLogout}
       />
