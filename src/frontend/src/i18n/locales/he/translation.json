@@ -52,5 +52,56 @@
   "general": {
     "noName": "ללא שם",
     "untitled": "ללא כותרת"
+  },
+  "users": {
+    "confirmDelete": "אישור מחיקת משתמש",
+    "deleteWarning": "פעולה זו תמחק את המשתמש לצמיתות ולא ניתן לשחזר אותה.",
+    "deleteConfirmText": "האם אתה בטוח שברצונך למחוק את המשתמש:",
+    "deleteSuccess": "המשתמש נמחק בהצלחה.",
+    "deleteError": "אירעה שגיאה במחיקת המשתמש."
+  },
+  "common": {
+    "update": "עדכון",
+    "cancel": "ביטול",
+    "logout": "התנתק",
+    "save": "שמור",
+    "delete": "מחק",
+    "edit": "ערוך"
+  },
+  "documents": {
+    "replaceInstructions": "בחר קובץ חדש כדי להחליף את המסמך הנוכחי:",
+    "updateSuccess": "המסמך עודכן בהצלחה",
+    "updateError": "אירעה שגיאה בעדכון המסמך"
+  },
+  "chat": {
+    "sidebar": {
+      "chat": "צ'אט",
+      "history": "היסטוריה",
+      "settings": "הגדרות"
+    },
+    "history": {
+      "title": "היסטוריית שיחות",
+      "search": "חיפוש שיחות",
+      "newChat": "שיחה חדשה",
+      "untitled": "שיחה ללא כותרת",
+      "noChats": "לא נמצאו שיחות. התחל שיחה חדשה!",
+      "noResults": "לא נמצאו תוצאות לחיפוש שלך",
+      "clearSearch": "נקה חיפוש",
+      "edit": "ערוך כותרת",
+      "delete": "מחק שיחה",
+      "confirmDelete": "למחוק שיחה?",
+      "confirmDeleteMessage": "פעולה זו אינה ניתנת לביטול. כל ההודעות בשיחה זו יימחקו לצמיתות."
+    },
+    "welcomeMessage": "ברוכים הבאים ל-APEX - חווית הנדסה מקצועית של אפקה. איך אוכל לעזור לך?",
+    "startPrompt": "במה אני יכול לעזור?",
+    "untitledChat": "שיחה ללא כותרת",
+    "newChat": "שיחה חדשה",
+    "processing": "מעבד...",
+    "inputPlaceholder": "הקלד את ההודעה שלך כאן...",
+    "messageInput": "קלט הודעה",
+    "sendMessage": "שלח הודעה",
+    "errorProcessing": "מצטער, לא הצלחתי לעבד את הבקשה שלך.",
+    "errorRequest": "מצטער, אירעה שגיאה בעיבוד הבקשה שלך.",
+    "errorConnection": "מצטער, לא הצלחתי להתחבר לשרת. נסה שוב מאוחר יותר."
   }
-} 
+}

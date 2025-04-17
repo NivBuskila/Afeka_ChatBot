@@ -1,5 +1,6 @@
 import React, { KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ChatInputProps {
   input: string;
@@ -16,6 +17,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isLoading,
   isInitial = false 
 }) => {
+  const { t } = useTranslation();
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       onSend();
@@ -30,7 +32,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Ask anything..."
+          placeholder={t('chat.inputPlaceholder')}
           disabled={isLoading}
           className={`w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg ${isInitial ? 'p-4 border border-gray-200 dark:border-gray-700' : 'p-4 pr-12 border border-gray-300 dark:border-gray-700'}
                      focus:outline-none focus:ring-2 focus:ring-green-500

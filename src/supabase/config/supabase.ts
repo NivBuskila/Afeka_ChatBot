@@ -47,6 +47,29 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['document_analytics']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['document_analytics']['Insert']>;
       };
+      chat_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: Omit<Database['public']['Tables']['chat_sessions']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Omit<Database['public']['Tables']['chat_sessions']['Row'], 'id' | 'created_at'>>;
+      };
+      messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          chat_session_id: string;
+          content: string;
+          created_at: string;
+          is_bot: boolean;
+        };
+        Insert: Omit<Database['public']['Tables']['messages']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Omit<Database['public']['Tables']['messages']['Row'], 'id'>>;
+      };
     };
   };
 };

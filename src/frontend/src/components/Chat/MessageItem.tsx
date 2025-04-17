@@ -2,10 +2,11 @@ import React from 'react';
 import { User, Bot } from 'lucide-react';
 
 interface Message {
-  id: number;
+  id: string;
   type: 'user' | 'bot';
   content: string;
   timestamp: string;
+  sessionId?: string;
 }
 
 interface MessageItemProps {

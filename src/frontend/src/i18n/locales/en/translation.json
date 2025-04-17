@@ -52,5 +52,21 @@
   "general": {
     "noName": "No name",
     "untitled": "Untitled"
+  },
+  "users": {
+    "confirmDelete": "Confirm User Deletion",
+    "deleteWarning": "This action cannot be undone. The user will be permanently deleted.",
+    "deleteConfirmText": "Are you sure you want to delete the user:",
+    "deleteSuccess": "User deleted successfully.",
+    "deleteError": "An error occurred while deleting the user."
+  },
+  "common": {
+    "update": "Update",
+    "cancel": "Cancel"
+  },
+  "documents": {
+    "replaceInstructions": "Select a new file to replace the current document:",
+    "updateSuccess": "Document updated successfully",
+    "updateError": "Error updating document"
   }
-} 
+}

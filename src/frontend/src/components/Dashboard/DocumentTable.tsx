@@ -20,6 +20,43 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
 
+  const getFileType = (type: string): string => {
+    const mimeMap: Record<string, string> = {
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+      'application/pdf': 'PDF',
+      'text/plain': 'TXT',
+      'application/msword': 'DOC'
+    };
+    
+    if (mimeMap[type]) {
+      return mimeMap[type];
+    }
+    
+    if (type.includes('/')) {
+      return type.split('/')[1];
+    }
+    
+    return type;
+  };
+  
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   const filteredDocuments = documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -70,7 +107,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
                   <div className="text-sm text-green-400/80">
-                    {doc.type.includes('/') ? doc.type.split('/')[1] : doc.type}
+                    {getFileType(doc.type)}
                   </div>
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
@@ -86,7 +123,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                 <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
                   <div className={`flex items-center ${i18n.language === 'en' ? 'space-x-4' : 'space-x-4 space-x-reverse'}`}>
                     <button
-                      onClick={() => window.open(doc.url, '_blank')}
+                      onClick={() => downloadFile(doc.url, doc.name)}
                       className="text-green-400/80 hover:text-green-400"
                     >
                       <Download className="h-5 w-5" />

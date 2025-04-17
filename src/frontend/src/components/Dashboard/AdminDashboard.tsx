@@ -19,7 +19,8 @@ import {
   Trash2,
   Edit,
   Plus,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import './AdminDashboard.css';
 import { translations } from './translations';
@@ -31,6 +32,7 @@ import { AnalyticsOverview } from './AnalyticsOverview';
 import { DocumentTable } from './DocumentTable';
 import { UploadArea } from './UploadArea';
 import { UploadModal } from './UploadModal';
+import { EditDocumentModal } from './EditDocumentModal';
 import { DeleteModal } from './DeleteModal';
 import { documentService } from '../../services/documentService';
 import { userService } from '../../services/userService';
@@ -75,6 +77,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [showEditDocumentModal, setShowEditDocumentModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [analytics, setAnalytics] = useState<DashboardAnalytics>({
@@ -266,7 +271,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleEditDocument = (document: Document) => {
     setSelectedDocument(document);
-    // Add edit logic here
+    setShowEditDocumentModal(true);
   };
 
   const handleDeleteDocument = (document: Document) => {
@@ -435,6 +440,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
+  const handleUpdateDocument = async (document: Document, file: File) => {
+    try {
+      setLoading(true);
+      
+      // First delete the old file from storage
+      const storagePathMatch = document.url.match(/\/documents\/([^\/]+)$/); 
+      const storagePath = storagePathMatch ? storagePathMatch[1] : null;
+      
+      if (storagePath) {
+        try {
+          // Delete the old file from storage
+          const { error: removeError } = await supabase.storage
+            .from('documents')
+            .remove([`documents/${storagePath}`]);
+            
+          if (removeError) {
+            console.error('Error removing old file:', removeError);
+            // Continue anyway to try to upload the new file
+          }
+        } catch (removeError) {
+          console.error('Error in file removal process:', removeError);
+          // Continue anyway
+        }
+      }
+      
+      // Upload the new file
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop() || '';
+      const filePath = `documents/${timestamp}.${fileExtension}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+      
+      if (uploadError) {
+        throw new Error(`Error uploading file: ${uploadError.message}`);
+      }
+      
+      // Get URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(uploadData.path);
+      
+      // Update document record with new file information
+      const { data: updatedDoc, error: updateError } = await supabase
+        .from('documents')
+        .update({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', document.id)
+        .select()
+        .single();
+      
+      if (updateError) {
+        throw new Error(`Error updating document: ${updateError.message}`);
+      }
+      
+      // Update documents list
+      setDocuments(prev => prev.map(doc => 
+        doc.id === document.id ? updatedDoc : doc
+      ));
+      
+      // Close modal
+      setShowEditDocumentModal(false);
+      setSelectedDocument(null);
+      
+      alert(t('documents.updateSuccess') || 'Document updated successfully');
+      
+    } catch (error) {
+      console.error('Error updating document:', error);
+      alert(t('documents.updateError') || 'Error updating document');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!selectedDocument) return;
 
@@ -467,6 +552,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } catch (error) {
       console.error('Error deleting document:', error);
       alert(t('documents.deleteError'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = (user: any) => {
+    setSelectedUser(user);
+    setShowDeleteUserModal(true);
+  };
+
+  const handleDeleteUserConfirm = async () => {
+    if (!selectedUser || !selectedUser.id) return;
+
+    try {
+      setLoading(true);
+      
+      // מחיקת המשתמש באמצעות שירות המשתמשים
+      await userService.deleteUser(selectedUser.id);
+      
+      // סגירת הדיאלוג
+      setShowDeleteUserModal(false);
+      setSelectedUser(null);
+      
+      // הודעה למשתמש
+      alert(t('users.deleteSuccess') || 'User deleted successfully');
+      
+      // רענון הנתונים לאחר המחיקה
+      await refreshData();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert(t('users.deleteError') || 'Error deleting user');
     } finally {
       setLoading(false);
     }
@@ -527,9 +643,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             {user.created_at ? new Date(user.created_at).toLocaleDateString() : ''}
                           </p>
                         </div>
-                        <span className="text-sm text-green-400/70">
-                          user
-                        </span>
+                        <div className="flex items-center">
+                          <span className="text-sm text-green-400/70 mr-4">
+                            user
+                          </span>
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
+                            title={t('users.delete') || 'Delete user'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -708,6 +833,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         onConfirm={handleDelete}
         documentName={selectedDocument?.name}
       />
+
+      <EditDocumentModal 
+        isOpen={showEditDocumentModal}
+        onClose={() => setShowEditDocumentModal(false)}
+        document={selectedDocument}
+        onUpdate={handleUpdateDocument}
+      />
+
+      {/* Delete user modal */}
+      {showDeleteUserModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-black border border-green-500/30 rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-green-400">{t('users.confirmDelete') || 'Confirm User Deletion'}</h3>
+              <button
+                onClick={() => setShowDeleteUserModal(false)}
+                className="text-green-400 hover:text-green-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex items-center mb-4 text-amber-400 bg-amber-500/10 p-3 rounded-lg">
+              <AlertTriangle className="w-5 h-5 mr-2" />
+              <p className="text-sm">
+                {t('users.deleteWarning') || 'This action cannot be undone. The user will be permanently deleted.'}
+              </p>
+            </div>
+            <p className="text-green-400/80 mb-6">
+              {t('users.deleteConfirmText') || 'Are you sure you want to delete the user:'} <span className="font-semibold">{selectedUser?.email || selectedUser?.name || 'Unknown User'}</span>?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteUserModal(false)}
+                className="px-4 py-2 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/20"
+              >
+                {t('Cancel')}
+              </button>
+              <button
+                onClick={handleDeleteUserConfirm}
+                className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30"
+              >
+                {t('Delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
