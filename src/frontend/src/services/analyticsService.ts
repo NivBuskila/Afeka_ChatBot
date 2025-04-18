@@ -10,17 +10,17 @@ export interface DashboardAnalytics {
   recentAdmins: any[];
 }
 
-// פונקציה עזר לספירת שורות בטבלה
+// Helper function to count rows in a table
 async function getTableCount(tableName: string): Promise<number> {
   try {
-    // ננסה להשתמש בפונקציית count_rows שעוקפת מגבלות RLS
+    // Try using count_rows function to bypass RLS limitations
     const { data, error } = await supabase.rpc('count_rows', {
       table_name: tableName
     });
     
     if (error) {
       console.error(`Error using count_rows for ${tableName}:`, error);
-      // אם נכשלנו, ננסה את השיטה הרגילה
+      // If failed, try regular method
       return fallbackGetTableCount(tableName);
     }
     
@@ -28,12 +28,12 @@ async function getTableCount(tableName: string): Promise<number> {
     return data || 0;
   } catch (error) {
     console.error(`Error in getTableCount with RPC for ${tableName}:`, error);
-    // אם נכשלנו, ננסה את השיטה הרגילה
+    // If failed, try regular method
     return fallbackGetTableCount(tableName);
   }
 }
 
-// פונקציית גיבוי לספירת שורות בטבלה בשיטה רגילה
+// Backup function to count rows using regular method
 async function fallbackGetTableCount(tableName: string): Promise<number> {
   const { count, error } = await supabase
     .from(tableName)
@@ -62,12 +62,12 @@ export const analyticsService = {
     try {
       console.log("Starting getDashboardAnalytics...");
       
-      // שימוש בפונקציה החדשה שיצרנו כדי לקבל משתמשים ומנהלים
+      // Use the new function to get users and admins
       const { users: regularUsers, admins: recentAdmins } = await userService.getDashboardUsers();
       
       console.log(`Got users from userService: ${regularUsers?.length || 0} users, ${recentAdmins?.length || 0} admins`);
       
-      // קבלת המסמכים האחרונים
+      // Get recent documents
       const { data: recentDocuments, error: docsError } = await supabase
         .from('documents')
         .select('*')
@@ -80,12 +80,12 @@ export const analyticsService = {
       
       console.log(`Got ${recentDocuments?.length || 0} recent documents`);
       
-      // ספירת מספר השורות בכל טבלה (חשוב לסנכרן את המספרים שקיבלנו מהשירות)
+      // Count rows in each table (important to sync numbers from service)
       let totalDocuments = await getTableCount('documents');
-      let totalUsers = regularUsers.length + recentAdmins.length; // מספר כולל של משתמשים
-      let totalAdmins = recentAdmins.length; // מספר המנהלים
+      let totalUsers = regularUsers.length + recentAdmins.length; // Total users
+      let totalAdmins = recentAdmins.length; // Admin count
       
-      // אם ספירת המסמכים לא הצליחה, ננסה לספור לפי המערך שקיבלנו
+      // If document count failed, try counting from array
       if (totalDocuments === 0 && recentDocuments) {
         totalDocuments = recentDocuments.length;
       }
@@ -97,8 +97,8 @@ export const analyticsService = {
         totalUsers,
         totalAdmins,
         recentDocuments: recentDocuments || [],
-        recentUsers: regularUsers || [], // מעבירים את כל המשתמשים
-        recentAdmins: recentAdmins || [] // מעבירים את כל המנהלים
+        recentUsers: regularUsers || [], // Pass all regular users
+        recentAdmins: recentAdmins || [] // Pass all admins
       };
     } catch (error) {
       console.error('Error in getDashboardAnalytics:', error);

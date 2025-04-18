@@ -220,7 +220,7 @@ export const translations: Translations = {
     en: 'Schedules'
   },
 
-  // צ'אטבוט
+  // Chatbot
   'chatbot.name': {
     he: 'APEX צ\'אטבוט',
     en: 'APEX Chatbot'

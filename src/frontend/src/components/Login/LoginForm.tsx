@@ -17,7 +17,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
     e.preventDefault();
     setLocalError(null);
     
-    // בדיקת ולידציה בסיסית
+    // Basic validation check
     if (!email.trim()) {
       setLocalError(i18n.language === 'he' ? 'נא להזין אימייל' : 'Please enter an email');
       return;
@@ -37,7 +37,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
     }
   };
 
-  // אם יש משתמשי טסט מוגדרים מראש
+  // If there are predefined test users
   const loginAsTestUser = (userType: 'user' | 'admin') => {
     if (userType === 'user') {
       setEmail('omriuser@gmail.com');

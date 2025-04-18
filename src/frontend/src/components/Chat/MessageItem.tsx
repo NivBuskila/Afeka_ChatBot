@@ -11,9 +11,31 @@ interface Message {
 
 interface MessageItemProps {
   message: Message;
+  searchTerm?: string;
 }
 
-const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+// Function to highlight search term in text
+const highlightText = (text: string, searchTerm: string) => {
+  if (!searchTerm.trim()) return text;
+  
+  const parts = text.split(new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === searchTerm.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
+
+const MessageItem: React.FC<MessageItemProps> = ({ message, searchTerm = '' }) => {
   const isUser = message.type === 'user';
   
   return (
@@ -40,7 +62,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           </span>
         </div>
         <p className="text-sm text-gray-700 dark:text-gray-100">
-          {message.content}
+          {searchTerm ? highlightText(message.content, searchTerm) : message.content}
         </p>
       </div>
     </div>

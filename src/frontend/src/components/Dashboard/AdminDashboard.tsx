@@ -128,7 +128,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // בדיקה אם המטמון עדכני או שצריך לרענן
+        // Check if cache is stale or needs refresh
         const forceRefresh = cacheService.isCacheStale('documents');
         
         console.log(`Fetching data, force refresh: ${forceRefresh}`);
@@ -154,7 +154,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     fetchData();
     
-    // האזנה לשינויים במטמון כדי לרענן נתונים בעת הצורך
+    // Listen for cache changes to refresh data when needed
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'documents_cache_invalidated') {
         console.log('Document cache was invalidated, refreshing data');
@@ -521,37 +521,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleDelete = async () => {
-    if (!selectedDocument) return;
-
     try {
-      // קודם נאפס את סטטוס ההטענה למצב טוען
+      // First set loading status
       setLoading(true);
       
-      // מחיקת המסמך
-      await documentService.deleteDocument(selectedDocument.id);
+      // Delete the document
+      await documentService.deleteDocument(selectedDocument!.id);
       
-      // מגדירים מחדש את הרשימה של המסמכים הזמינים תוך הסרת המסמך שנמחק
-      setDocuments(prev => prev.filter(doc => doc.id !== selectedDocument.id));
+      // Update document list by removing the deleted document
+      setDocuments(documents.filter(doc => doc.id !== selectedDocument!.id));
       
-      // סגירת הדיאלוג
+      // Close the dialog
       setShowDeleteModal(false);
-      setSelectedDocument(null);
       
-      // הודעה למשתמש
-      alert(t('documents.deleteSuccess'));
+      // User notification
+      alert(t('admin.documents.deleteSuccess'));
       
-      // לאחר מחיקה, נבצע טעינה מחדש של כל המסמכים מהשרת
-      // כדי לוודא שהתצוגה מסונכרנת עם השרת
+      // After deletion, reload all documents from server
+      // to ensure view is synced with server
       try {
-        const refreshedDocs = await documentService.getAllDocuments();
-        setDocuments(refreshedDocs);
+        const updatedDocs = await documentService.getAllDocuments();
+        setDocuments(updatedDocs);
+        console.log('Documents reloaded after deletion');
       } catch (refreshError) {
-        console.error('Error refreshing documents after deletion:', refreshError);
-        // אם נכשל הרענון, לפחות המחיקה מהתצוגה כבר בוצעה למעלה
+        console.error('Error refreshing documents after delete:', refreshError);
+        // If refresh fails, at least the document was removed from view above
       }
     } catch (error) {
       console.error('Error deleting document:', error);
-      alert(t('documents.deleteError'));
+      alert(t('admin.documents.deleteError'));
     } finally {
       setLoading(false);
     }
@@ -563,26 +561,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleDeleteUserConfirm = async () => {
-    if (!selectedUser || !selectedUser.id) return;
-
     try {
       setLoading(true);
       
-      // מחיקת המשתמש באמצעות שירות המשתמשים
+      // Delete user via user service
       await userService.deleteUser(selectedUser.id);
       
-      // סגירת הדיאלוג
+      // Close dialog
       setShowDeleteUserModal(false);
-      setSelectedUser(null);
       
-      // הודעה למשתמש
-      alert(t('users.deleteSuccess') || 'User deleted successfully');
+      // User notification
+      alert(t('admin.users.deleteSuccess'));
       
-      // רענון הנתונים לאחר המחיקה
+      // Refresh data after deletion
       await refreshData();
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert(t('users.deleteError') || 'Error deleting user');
+      alert(t('admin.users.deleteError'));
     } finally {
       setLoading(false);
     }
@@ -601,18 +596,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-green-400 mb-4">{t('admin.sidebar.chatbotPreview')}</h2>
-            <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-4 h-[calc(100vh-200px)]">
-              <ChatWindow onLogout={onLogout} />
+            <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-4 h-[calc(100vh-200px)] overflow-hidden">
+              <div className="h-full relative">
+                <ChatWindow onLogout={onLogout} />
+              </div>
             </div>
           </div>
         );
       case 'analytics':
         if (activeSubItem === 'users') {
-          // סינון רק משתמשים רגילים (לא אדמינים)
-          const regularUsers = analytics.recentUsers.filter(user => 
-            // בדיקה שהמשתמש אינו נמצא ברשימת האדמינים
-            !analytics.recentAdmins.some(admin => admin.user_id === user.id)
-          );
+          // Filter only regular users (not admins)
+          const regularUsers = analytics.recentUsers.filter(user => {
+            // Check if user is not in the admins list
+            return !analytics.recentAdmins?.some(admin => admin.id === user.id);
+          });
           
           return (
             <div className="p-6">
@@ -709,7 +706,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           );
         }
         else {
-          // תת-קטגוריה overview - הצג את כללי הנתונים
+          // sub-category overview - show general data
           return (
             <div>
               <div className="flex justify-between items-center mb-6 px-6 pt-6">
@@ -723,7 +720,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {t('Refresh')}
                 </button>
               </div>
-              <AnalyticsOverview analytics={analytics} isLoading={loading} />
+              <AnalyticsOverview analytics={analytics} loading={loading} />
             </div>
           );
         }

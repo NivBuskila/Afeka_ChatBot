@@ -36,12 +36,12 @@ export const userService = {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) throw error || new Error('No authenticated user');
     
-    // בדיקה אם המשתמש יש לו תפקיד אדמין במטה-דאטה
+    // Check if user has admin role in metadata
     const isAdminInMetadata = user.user_metadata?.is_admin === true || 
                               user.user_metadata?.role === 'admin';
     
     if (isAdminInMetadata) {
-      // אם המשתמש אמור להיות אדמין במטה-דאטה, נוודא שהוא גם בטבלת admins
+      // If user should be admin in metadata, ensure they're also in admins table
       try {
         await supabase.rpc('promote_to_admin', { user_id: user.id });
         console.log('User promoted to admin based on metadata');
@@ -51,14 +51,14 @@ export const userService = {
       }
     }
     
-    // בדיקה אם המשתמש הוא אדמין בטבלת admins
+    // Check if user is admin in admins table
     const { data: adminData } = await supabase
       .from('admins')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
     
-    // עדכון מטה-דאטה של המשתמש אם הוא נמצא בטבלת admins
+    // Update user metadata if found in admins table
     if (adminData && !isAdminInMetadata) {
       try {
         await supabase.auth.updateUser({
@@ -244,14 +244,14 @@ export const userService = {
         
         console.log('Auth registration successful');
         
-        // 2. נבדוק אם הטריגר כבר יצר את המשתמש בטבלה
+        // 2. Check if user already exists in admin list
         const { data: existingUser, error: checkError } = await supabase
             .from('users')
             .select('id')
             .eq('id', authData.user.id)
             .maybeSingle();
             
-        // אם המשתמש עדיין לא קיים בטבלה, ננסה ליצור אותו ידנית
+        // If user doesn't exist in table yet, try creating manually
         if (!existingUser && !checkError) {
             console.log('User not found in users table, inserting manually');
             
@@ -269,7 +269,7 @@ export const userService = {
             
             if (insertUserError) {
                 console.error('Error inserting user:', insertUserError);
-                // לא נמחק את המשתמש מ-Auth, נסמוך על הטריגר שיטפל בזה בפעם הבאה שמתחברים
+                // Don't delete user from Auth, rely on trigger to handle it on next login
                 console.warn('Continue despite error, auth user is still created');
             } else {
                 console.log('User inserted into users table manually');
@@ -280,9 +280,9 @@ export const userService = {
             console.error('Error checking if user exists:', checkError);
         }
         
-        // 3. הוספה לטבלת מנהלים אם צריך
+        // 3. The code to add a user to the admins table if needed
         if (isAdmin) {
-            // בדוק אם המשתמש כבר נמצא ברשימת המנהלים
+            // Check if the user is already in the admins table
             const { data: existingAdmin, error: checkAdminError } = await supabase
                 .from('admins')
                 .select('id')

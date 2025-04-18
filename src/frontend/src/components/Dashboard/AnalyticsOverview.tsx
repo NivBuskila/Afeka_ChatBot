@@ -4,7 +4,7 @@ import { BarChart3, Users, FileText, Clock, UserCog } from 'lucide-react';
 import type { Document } from '../../config/supabase';
 import { FaUsers, FaUserShield, FaFileAlt } from 'react-icons/fa';
 
-// יצירת רכיב Spinner בסיסי אם לא קיים בפרוייקט
+// Create basic Spinner component if not in project
 const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {
   const sizeClasses = {
     sm: "w-4 h-4",
@@ -17,7 +17,7 @@ const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {
   );
 };
 
-// יצירת רכיב StatBox
+// Create StatBox component
 interface StatBoxProps {
   title: string;
   value: string;
@@ -36,7 +36,7 @@ const StatBox: React.FC<StatBoxProps> = ({ title, value, icon }) => {
   );
 };
 
-// פונקציית עזר לפורמט תאריכים
+// Helper function for date formatting
 const formatDate = (dateString?: string) => {
   if (!dateString) return '';
   return new Date(dateString).toLocaleDateString();
@@ -59,18 +59,18 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics,
   
   console.log("Analytics data in AnalyticsOverview:", analytics);
 
-  // בדיקה עבור נתונים ריקים או לא קיימים
+  // Check for empty or non-existent data
   const hasData = analytics && !isLoading;
   const hasUsers = hasData && Array.isArray(analytics.recentUsers) && analytics.recentUsers.length > 0;
   const hasAdmins = hasData && Array.isArray(analytics.recentAdmins) && analytics.recentAdmins.length > 0;
   const hasDocuments = hasData && Array.isArray(analytics.recentDocuments) && analytics.recentDocuments.length > 0;
 
-  // מונים כלליים - אם אין נתונים, נראה לפחות 0
+  // General counters - if no data, show at least 0
   const totalDocuments = hasData ? analytics.totalDocuments || 0 : 0;
   const totalUsers = hasData ? analytics.totalUsers || 0 : 0;
   const totalAdmins = hasData ? analytics.totalAdmins || 0 : 0;
 
-  // לקיחת רק 5 משתמשים/מנהלים להצגה
+  // Take only 5 users/admins for display
   const recentUsers = hasUsers ? analytics.recentUsers.slice(0, 5) : [];
   const recentAdmins = hasAdmins ? analytics.recentAdmins.slice(0, 5) : [];
   const recentDocuments = hasDocuments ? analytics.recentDocuments.slice(0, 5) : [];

@@ -51,12 +51,12 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
     setIsLoading(true);
     
     try {
-      // שיטה ישירה - ניצור את המשתמש באופן ישיר מול ה-API
+      // Direct method - create user directly via API
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          // הדגל החשוב שמאפשר לעקוף את השגיאה
+          // Important flag to bypass the error
           emailRedirectTo: window.location.origin + '/auth/callback',
           data: {
             is_admin: role === 'admin',
@@ -79,7 +79,7 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
         return;
       }
       
-      // ניצור את המשתמש בטבלת users באופן ידני
+      // Create user in users table manually
       try {
         const { error: dbInsertError } = await supabase
           .from('users')
@@ -95,11 +95,11 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
         
         if (dbInsertError) {
           console.warn('Error inserting user record:', dbInsertError);
-          // ממשיכים למרות השגיאה, כי ייתכן שהטריגר כבר יצר את הרשומה
+          // Continue despite error, as trigger may have already created the record
         }
         
-        // אם זה משתמש מנהל, נוסיף אותו לטבלת מנהלים
-        // יתכן שתהיה שגיאת 403, אבל זה בסדר - נטפל בכך בהתחברות הראשונה
+        // If admin user, add to admins table
+        // Might get 403 error, but that's ok - will be handled on first login
         if (role === 'admin') {
           try {
             const { error: adminError } = await supabase
@@ -111,19 +111,19 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
             
             if (adminError) {
               console.warn('Error setting admin role:', adminError);
-              // לא נטפל בשגיאה כאן - נקבל אותה בהתחברות הראשונה
+              // Don't handle error here - will be addressed on first login
             }
           } catch (adminInsertError) {
             console.warn('Exception setting admin role:', adminInsertError);
-            // ממשיכים למרות השגיאה - זה יטופל בהתחברות
+            // Continue despite error - will be handled on login
           }
         }
       } catch (dbError) {
         console.warn('Database error:', dbError);
-        // ממשיכים למרות השגיאה, כי המשתמש כבר נוצר ב-Auth
+        // Continue despite error, as user is already created in Auth
       }
       
-      // עכשיו נבצע התחברות אוטומטית עם המשתמש שנוצר
+      // Now perform automatic login with created user
       try {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -132,19 +132,19 @@ const APEXRegistration: React.FC<APEXRegistrationProps> = ({ onRegistrationSucce
         
         if (signInError) {
           console.warn('Auto sign-in error:', signInError);
-          // לא נכשלים בגלל זה, פשוט נודיע למשתמש שנרשם בהצלחה ונבקש ממנו להתחבר
+          // Don't fail because of this, just notify user of successful registration and prompt to login
         }
       } catch (signInError) {
         console.warn('Exception during auto sign-in:', signInError);
-        // ממשיכים למרות השגיאה - נבקש מהמשתמש להתחבר
+        // Continue despite error - ask user to login
       }
       
-      // קוראים לפונקציה שמודיעה להורה על הצלחת הרישום
+      // Call function to notify parent of registration success
       onRegistrationSuccess(role === 'admin');
     } catch (error: any) {
       console.error('Registration error:', error);
       
-      // התעלמות משגיאות 403 הקשורות לטבלת מנהלים
+      // Ignore 403 errors related to admins table
       if (error.message?.includes('admins') && error.message?.includes('403')) {
         console.warn('Ignoring admin 403 error - registration succeeded');
         onRegistrationSuccess(role === 'admin');

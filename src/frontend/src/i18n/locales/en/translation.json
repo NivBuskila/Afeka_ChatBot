@@ -12,7 +12,13 @@
     "emailUpdateError": "Error updating email address",
     "passwordResetEmailSent": "Password reset link has been sent to your email",
     "passwordResetError": "Error sending password reset link",
-    "googleSignInError": "Error signing in with Google"
+    "googleSignInError": "Error signing in with Google",
+    "language": "Language",
+    "language.he": "Hebrew",
+    "language.en": "English",
+    "theme": "Theme",
+    "theme.light": "Light",
+    "theme.dark": "Dark"
   },
   "resetPassword": {
     "title": "Reset Password",
@@ -33,8 +39,8 @@
     "totalAdmins": "Total Admins",
     "totalDocuments": "Total Documents",
     "activeDocuments": "Active Documents",
-    "activeUsers": "Recent Users",
-    "activeAdmins": "Recent Admins",
+    "activeUsers": "Active Users",
+    "activeAdmins": "Active Admins",
     "noUsers": "No users found",
     "noAdmins": "No admins found"
   },
@@ -62,11 +68,68 @@
   },
   "common": {
     "update": "Update",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "logout": "Logout",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit"
   },
   "documents": {
     "replaceInstructions": "Select a new file to replace the current document:",
     "updateSuccess": "Document updated successfully",
-    "updateError": "Error updating document"
+    "updateError": "Error updating document",
+    "search": "Search documents",
+    "add": "Add document",
+    "activeDocuments": "Active Documents"
+  },
+  "chat": {
+    "sidebar": {
+      "chat": "Chat",
+      "history": "History",
+      "settings": "Settings"
+    },
+    "history": {
+      "title": "Chat History",
+      "search": "Search conversations",
+      "newChat": "New chat",
+      "untitled": "Untitled conversation",
+      "noChats": "No conversations found. Start a new chat!",
+      "noResults": "No results found for your search",
+      "clearSearch": "Clear search",
+      "edit": "Edit title",
+      "delete": "Delete conversation",
+      "confirmDelete": "Delete conversation?",
+      "confirmDeleteMessage": "This action cannot be undone. All messages in this conversation will be permanently deleted.",
+      "searching": "Searching...",
+      "foundResults": "Found {{count}} results"
+    },
+    "welcomeMessage": "Welcome to APEX - Afeka Professional Engineering Experience. How can I help you today?",
+    "startPrompt": "How can I help you?",
+    "untitledChat": "Untitled Chat",
+    "newChat": "New Chat",
+    "processing": "Processing...",
+    "inputPlaceholder": "Type your message here...",
+    "messageInput": "Message input",
+    "sendMessage": "Send message",
+    "errorProcessing": "Sorry, I couldn't process your request.",
+    "errorRequest": "Sorry, I encountered an error while processing your request.",
+    "errorConnection": "Sorry, I couldn't connect to the server. Please try again later.",
+    "search": "Search",
+    "searchMessages": "Search messages",
+    "previous": "Previous",
+    "next": "Next",
+    "close": "Close",
+    "noActiveSession": "Welcome to Afeka Chatbot!",
+    "startNewChatPrompt": "Here you can ask questions about academic regulations, faculty procedures, and other information related to your studies at Afeka. Start a new conversation to begin!",
+    "showHistory": "Show history"
+  },
+  "admin": {
+    "sidebar": {
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "documents": "Documents",
+      "settings": "Settings",
+      "chatbotPreview": "Chatbot Preview"
+    }
   }
 }

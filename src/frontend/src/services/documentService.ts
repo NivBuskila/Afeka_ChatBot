@@ -87,27 +87,27 @@ export const documentService = {
     try {
       console.log('Document URL:', document.url);
       
-      // הוצאת שם הקובץ בכמה דרכים אפשריות
-      // שיטה 1: חיפוש בתבנית URL מלאה
+      // Extract filename using multiple methods
+      // Method 1: Search in full URL pattern
       const urlRegex = /\/storage\/v1\/object\/(?:public\/)?([^?]+)/;
       const match = document.url.match(urlRegex);
       
       if (match && match[1]) {
-        // מסלול מלא שכולל את שם הדלי והקובץ
+        // Full path including bucket name and file
         storageFullPath = match[1];
         
-        // חילוץ רק את החלק הפנימי (אחרי שם הדלי)
+        // Extract only the internal part (after bucket name)
         const pathParts = storageFullPath.split('/');
         if (pathParts.length > 1) {
-          // הדלי הוא החלק הראשון, שאר הנתיב הוא מה שאנחנו צריכים
+          // Bucket is the first part, rest of the path is what we need
           const bucketName = pathParts[0];
           storageBucketPath = storageFullPath.substring(bucketName.length + 1);
         } else {
-          // רק שם קובץ ללא תיקיות
+          // Just filename without folders
           storageBucketPath = storageFullPath;
         }
       } else {
-        // שיטה 2: חילוץ רק שם הקובץ
+        // Method 2: Extract only filename
         const parts = document.url.split('/');
         const filename = parts[parts.length - 1].split('?')[0];
         storageBucketPath = filename;
@@ -133,10 +133,10 @@ export const documentService = {
       throw error;
     }
     
-    // מחיקת הקובץ מהאחסון - ננסה כמה שיטות
+    // Delete file from storage - try multiple methods
     let storageDeleteSuccess = false;
     
-    // שיטה 1: מחיקה לפי הנתיב המלא (אם יש)
+    // Method 1: Delete by full path (if available)
     if (storageBucketPath) {
       try {
         console.log('Attempting to delete by direct path:', storageBucketPath);
@@ -155,10 +155,10 @@ export const documentService = {
       }
     }
     
-    // שיטה 2: ניסיון עם path אחר אם שיטה 1 נכשלה
+    // Method 2: Try with different path if method 1 failed
     if (!storageDeleteSuccess && document.url) {
       try {
-        // חילוץ רק שם הקובץ
+        // Extract just the filename
         const parts = document.url.split('/');
         const filename = parts[parts.length - 1].split('?')[0];
         
@@ -178,7 +178,7 @@ export const documentService = {
       }
     }
     
-    // שיטה 3: ניסיון עם נתיב מלא כולל 'documents'
+    // Method 3: Try with full path including 'documents'
     if (!storageDeleteSuccess && storageBucketPath) {
       try {
         const fullDocPath = `documents/${storageBucketPath}`;
@@ -199,10 +199,10 @@ export const documentService = {
       }
     }
     
-    // אם כל השיטות נכשלו, ננסה אחת אחרונה בעזרת ה-URL המלא
+    // If all methods failed, try one last with the full URL
     if (!storageDeleteSuccess) {
       try {
-        // הסתמך על הטריגר בצד השרת למחיקת הקובץ
+        // Rely on server-side trigger to delete the file
         console.log('All deletion methods failed, relying on server-side trigger');
       } catch (err) {
         console.error('Error handling storage deletion:', err);

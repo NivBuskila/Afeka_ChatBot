@@ -10,10 +10,10 @@ export const cacheService = {
    */
   async invalidateDocumentsCache(): Promise<void> {
     try {
-      // מנקה את המטמון של הטבלה
+      // Clear table cache
       await supabase.removeAllChannels();
       
-      // יוצר חתימת זמן לניקוי
+      // Create timestamp for cleanup
       const timestamp = new Date().toISOString();
       localStorage.setItem('documents_cache_invalidated', timestamp);
       
@@ -29,10 +29,10 @@ export const cacheService = {
    */
   async invalidateCache(entityType: string): Promise<void> {
     try {
-      // מנקה את המטמון של הטבלה
+      // Clear table cache
       await supabase.removeAllChannels();
       
-      // יוצר חתימת זמן לניקוי
+      // Create timestamp for cleanup
       const timestamp = new Date().toISOString();
       localStorage.setItem(`${entityType}_cache_invalidated`, timestamp);
       

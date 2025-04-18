@@ -14,22 +14,30 @@ const APEXSplashScreen: React.FC<APEXSplashScreenProps> = ({ onSplashComplete })
   const [textVisible, setTextVisible] = useState(Array(4).fill(false));
 
   useEffect(() => {
+    // Start animation after 1 second
     setTimeout(() => {
-      const showLetters = setInterval(() => {
-        setTextVisible((prev) => {
-          const newState = [...prev];
-          const nextIndex = newState.findIndex((v) => !v);
-          if (nextIndex !== -1) {
-            newState[nextIndex] = true;
-          }
-          return newState;
-        });
-      }, 500);
-
+      // Show first letter (A) after initial delay
+      setTextVisible([true, false, false, false]);
+      
+      // Show second letter (P) after 500ms
       setTimeout(() => {
-        setShowFullName(true);
-        clearInterval(showLetters);
-      }, 2500);
+        setTextVisible([true, true, false, false]);
+        
+        // Show third letter (E) after 500ms
+        setTimeout(() => {
+          setTextVisible([true, true, true, false]);
+          
+          // Show fourth letter (X) after 500ms
+          setTimeout(() => {
+            setTextVisible([true, true, true, true]);
+            
+            // Show full name after all letters are visible
+            setTimeout(() => {
+              setShowFullName(true);
+            }, 500);
+          }, 500);
+        }, 500);
+      }, 500);
     }, 1000);
   }, []);
 
