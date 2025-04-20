@@ -118,7 +118,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             <p className="text-lg font-medium text-green-400 mb-2">
               {isDragging
                 ? t('documents.dropHere')
-                : t('documents.uploadInstructions')}
+                : t('Documents Upload')}
             </p>
             <p className="text-sm text-green-400/70">
               {t('documents.supportedFormats')}

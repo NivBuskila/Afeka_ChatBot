@@ -13,7 +13,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   onClose,
   onUpload
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -58,7 +58,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       <div className="bg-black/80 backdrop-blur-lg rounded-lg border border-green-500/30 max-w-md w-full mx-4 text-white">
         <div className="flex items-center justify-between p-4 border-b border-green-500/30">
           <h2 className="text-xl font-semibold text-green-400">
-            {t('documents.upload')}
+            {i18n.language === 'he' ? 'העלאת מסמך' : 'Upload Document'}
           </h2>
           <button
             onClick={onClose}
@@ -87,11 +87,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             <Upload className="w-12 h-12 text-green-400/70 mx-auto mb-4" />
             <p className="text-lg font-medium text-green-400 mb-2">
               {isDragging
-                ? t('documents.dropHere')
-                : t('documents.uploadInstructions')}
+                ? (i18n.language === 'he' ? 'שחרר כאן' : 'Drop Here')
+                : (i18n.language === 'he' ? 'לחץ או גרור קובץ לכאן' : 'Click or drag file here')}
             </p>
             <p className="text-sm text-green-400/70">
-              {t('documents.supportedFormats')}
+              {i18n.language === 'he' 
+                ? 'פורמטים נתמכים: PDF, DOC, DOCX, XLS, XLSX, TXT' 
+                : 'Supported formats: PDF, DOC, DOCX, XLS, XLSX, TXT'}
             </p>
           </div>
 
@@ -120,7 +122,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-green-400/80 bg-black/50 border border-green-500/30 rounded-md hover:bg-green-500/10"
           >
-            {t('common.cancel')}
+            {i18n.language === 'he' ? 'ביטול' : 'Cancel'}
           </button>
           <button
             onClick={handleSubmit}
@@ -130,7 +132,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 ? 'bg-green-500/70 hover:bg-green-500/90'
                 : 'bg-green-500/20 text-green-400/50 cursor-not-allowed'}`}
           >
-            {t('documents.upload')}
+            {i18n.language === 'he' ? 'העלאה' : 'Upload'}
           </button>
         </div>
       </div>

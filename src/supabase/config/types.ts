@@ -1,5 +1,5 @@
-// Data types for Supabase
-// Auto-generated file to resolve missing import issues
+// טיפוסי נתונים עבור Supabase
+// קובץ זה נוצר אוטומטית כדי לפתור את בעיית היבוא החסר
 
 export type UserProfile = {
   id: string;

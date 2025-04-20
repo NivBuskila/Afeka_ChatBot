@@ -729,7 +729,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-green-400">
-                {activeSubItem === 'upload' ? t('admin.sidebar.uploadDocuments') : t('documents.activeDocuments')}
+                {activeSubItem === 'upload' 
+                  ? (i18n.language === 'he' ? 'העלאת מסמכים' : 'Upload Documents') 
+                  : (i18n.language === 'he' ? 'מסמכים פעילים' : 'Active Documents')}
               </h2>
               {activeSubItem === 'active' && (
                 <button
@@ -771,7 +773,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         : 'bg-black/50 border-green-500/30 text-green-400/70 hover:bg-green-500/10'
                     }`}
                   >
-                    {t('settings.language.he')}
+                    {t('Hebrew')}
                   </button>
                   <button
                     onClick={() => handleLanguageChange('en')}
@@ -781,7 +783,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         : 'bg-black/50 border-green-500/30 text-green-400/70 hover:bg-green-500/10'
                     }`}
                   >
-                    {t('settings.language.en')}
+                    {t('English')}
                   </button>
                 </div>
               </div>

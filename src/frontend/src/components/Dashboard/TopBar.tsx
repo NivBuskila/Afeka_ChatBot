@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Search, UserCog } from 'lucide-react';
-import { translations } from './translations';
 
 type Language = 'he' | 'en';
 
@@ -10,9 +9,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ language }) => {
-  const { t } = useTranslation();
-
-  const tLocal = (key: string) => translations[key]?.[language] || key;
+  const { t, i18n } = useTranslation();
 
   return (
     <div className="bg-black/50 backdrop-blur-sm border-b border-green-500/20 py-3 px-6">
