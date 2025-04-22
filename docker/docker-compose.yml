@@ -1,0 +1,137 @@
+# Common environment variables
+x-environment: &common-env
+  SUPABASE_URL: https://cqvicgimmzrffvarlokq.supabase.co
+  SUPABASE_KEY: ${SUPABASE_KEY:?SUPABASE_KEY is required}
+
+# Common resource constraints
+x-resources: &default-resources
+  cpus: '0.5'
+  memory: 512M
+
+# Common restart policy
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+services:
+  # Frontend service (production build with Nginx)
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_SKIP_TS_CHECK=true
+    <<: *restart-policy
+    ports:
+      - "80:80"
+    deploy:
+      resources:
+        limits:
+          <<: *default-resources
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - afeka_network
+    depends_on:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - TZ=Asia/Jerusalem
+      - VITE_SUPABASE_URL=https://cqvicgimmzrffvarlokq.supabase.co
+      - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+      - VITE_SKIP_TS_CHECK=true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Backend service
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    <<: *restart-policy
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          <<: *default-resources
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      <<: *common-env
+      PYTHONUNBUFFERED: 1
+      AI_SERVICE_URL: http://ai-service:5000
+      TZ: Asia/Jerusalem
+    volumes:
+      - backend_data:/app/backend/data:rw
+    depends_on:
+      - ai-service
+    networks:
+      - afeka_network
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # AI service
+  ai-service:
+    build:
+      context: ./src/ai
+      dockerfile: Dockerfile
+    <<: *restart-policy
+    ports:
+      - "5000:5000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      PYTHONUNBUFFERED: 1
+      TZ: Asia/Jerusalem
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - ai_models:/app/ai/models:rw
+    networks:
+      - afeka_network
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  afeka_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  backend_data:
+    driver: local
+  ai_models:
+    driver: local 

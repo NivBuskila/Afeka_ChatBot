@@ -1,3 +1,45 @@
+# Afeka ChatBot
+
+## מבנה הפרויקט
+
+הפרויקט מאורגן במבנה התיקיות הבא:
+
+```
+afeka-chatbot/
+├── config/               # קבצי תצורה וסביבה
+│   ├── .env              # הגדרות סביבה פעילות
+│   └── .env.example      # דוגמה להגדרות סביבה
+├── docker/               # קבצי Docker
+│   ├── docker-compose.yml        # הגדרות Docker לסביבת ייצור
+│   ├── docker-compose.dev.yml    # הגדרות Docker לסביבת פיתוח
+│   └── nginx.conf                # קונפיגורציית Nginx
+├── scripts/              # סקריפטי הפעלה
+│   ├── run_full_project.bat      # הפעלת הפרויקט המלא
+│   ├── run_frontend.bat          # הפעלת הפרונטאנד בלבד
+│   ├── run_chat_gui.bat          # הפעלת ממשק צ'אט גרפי
+│   └── run_gemini_test.bat       # בדיקת חיבור ל-Gemini API
+├── src/                  # קוד המקור
+│   ├── ai/               # שירות ה-AI
+│   ├── backend/          # שירות הבקאנד
+│   ├── frontend/         # ממשק המשתמש
+│   ├── config/           # קבצי קונפיגורציה פנימיים
+│   └── supabase/         # קבצים הקשורים ל-Supabase
+├── data/                 # נתונים וקבצי מידע
+├── docs/                 # תיעוד הפרויקט
+├── tests/                # בדיקות
+└── run.bat               # סקריפט הפעלה מרכזי
+```
+
+## הפעלה מהירה
+
+הדרך הקלה ביותר להריץ את הפרויקט היא באמצעות סקריפט ההפעלה המרכזי:
+
+```
+run.bat
+```
+
+סקריפט זה יציג תפריט המאפשר לבחור את המרכיב שברצונך להפעיל.
+
 # Afeka Regulations ChatBot 🤖
 
 An AI-powered chatbot designed to help Afeka College students easily access and understand academic regulations and information.
@@ -99,22 +141,29 @@ python app.py
 
 ```
 afeka-chatbot/
-├── docker-compose.yml       # Production Docker configuration
-├── docker-compose.dev.yml   # Development Docker configuration
-├── nginx.conf              # Nginx reverse proxy configuration
-├── docs/                   # Documentation
-├── src/                    # Source code
-│   ├── frontend/          # React frontend (TypeScript)
-│   │   ├── src/           # Application source
-│   │   └── Dockerfile     # Frontend Docker config
-│   ├── backend/           # FastAPI backend
-│   │   ├── main.py        # Main application entry
-│   │   └── Dockerfile     # Backend Docker config
-│   ├── ai/                # AI service
-│   │   ├── app.py         # Flask application
-│   │   └── Dockerfile     # AI service Docker config
-│   └── supabase/          # Supabase configuration
-└── tests/                 # Test files
+├── config/               # קבצי תצורה וסביבה
+│   ├── .env              # הגדרות סביבה פעילות
+│   └── .env.example      # דוגמה להגדרות סביבה
+├── docker/               # קבצי Docker
+│   ├── docker-compose.yml        # הגדרות Docker לסביבת ייצור
+│   ├── docker-compose.dev.yml    # הגדרות Docker לסביבת פיתוח
+│   └── nginx.conf                # קונפיגורציית Nginx
+├── scripts/              # סקריפטי הפעלה
+│   ├── run_full_project.bat      # הפעלת הפרויקט המלא
+│   ├── run_frontend.bat          # הפעלת הפרונטאנד בלבד
+│   ├── run_chat_gui.bat          # הפעלת ממשק צ'אט גרפי
+│   └── run_gemini_test.bat       # בדיקת חיבור ל-Gemini API
+├── src/                  # קוד המקור
+│   ├── ai/               # שירות ה-AI
+│   ├── backend/          # שירות הבקאנד
+│   ├── frontend/         # ממשק המשתמש
+│   ├── config/           # קבצי קונפיגורציה פנימיים
+│   └── supabase/         # קבצים הקשורים ל-Supabase
+├── data/                 # נתונים וקבצי מידע
+├── docs/                 # תיעוד הפרויקט
+├── tests/                # בדיקות
+└── run.bat               # סקריפט הפעלה מרכזי
+
 ```
 
 ## 🛠️ Technology Stack
