@@ -671,8 +671,32 @@ async def proxy_update_message(request: Request):
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
-        body = await request.json()
-        logger.info(f"Received message data: {body}")
+        # קריאת גוף הבקשה ורישום לוג
+        body_bytes = await request.body()
+        body_str = body_bytes.decode('utf-8', errors='replace')
+        logger.info(f"Raw message request body: {body_str[:200]}...")
+        
+        try:
+            body = json.loads(body_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON body: {e}")
+            return JSONResponse(
+                status_code=400, 
+                content={"error": f"Invalid JSON in request body: {str(e)}"}
+            )
+        
+        logger.info(f"Parsed message data: {str(body)[:200]}...")
+        
+        # וידוי שהשדות הנדרשים קיימים
+        required_fields = ["user_id", "conversation_id"]
+        missing_fields = [field for field in required_fields if not body.get(field)]
+        
+        if missing_fields:
+            logger.error(f"Missing required fields: {missing_fields}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Missing required fields: {', '.join(missing_fields)}"}
+            )
         
         # Generate ID if not provided
         if 'message_id' not in body and 'id' not in body:
@@ -684,31 +708,74 @@ async def proxy_update_message(request: Request):
         # Ensure created_at is set
         if 'created_at' not in body:
             body['created_at'] = datetime.now().isoformat()
-        
-        # נקה שדות null או undefined
+            
+        # נקה שדות null, undefined או ריקים
         cleaned_body = {}
         for key, value in body.items():
-            if value is not None:
-                cleaned_body[key] = value
+            if value is not None and value != "" and key != "":
+                # המר ערכי JSON לפי הצורך
+                if key in ['request_payload', 'response_payload', 'metadata'] and isinstance(value, dict):
+                    try:
+                        cleaned_body[key] = json.dumps(value)
+                    except Exception as e:
+                        logger.warning(f"Could not serialize JSON field {key}: {e}")
+                        # השתמש בערך מקורי אם ההמרה נכשלת
+                        cleaned_body[key] = str(value)
+                else:
+                    cleaned_body[key] = value
         
-        logger.info(f"Cleaned message data for insert: {cleaned_body}")
-        # בדוק אם יש שדות JSON שצריך להמיר
-        for key in ['request_payload', 'response_payload', 'metadata']:
-            if key in cleaned_body and isinstance(cleaned_body[key], dict):
-                cleaned_body[key] = json.dumps(cleaned_body[key])
+        # וידוא שהמזהים הם מחרוזות, הערכים שאינם מחרוזות יומרו
+        if 'conversation_id' in cleaned_body and not isinstance(cleaned_body['conversation_id'], str):
+            cleaned_body['conversation_id'] = str(cleaned_body['conversation_id'])
+            
+        if 'user_id' in cleaned_body and not isinstance(cleaned_body['user_id'], str):
+            cleaned_body['user_id'] = str(cleaned_body['user_id'])
         
-        result = supabase_client.table("messages").insert(cleaned_body).select().execute()
-        logger.info(f"Message insert result: {result.data if hasattr(result, 'data') else 'No data'}")
+        logger.info(f"Cleaned message data for insert: {str(cleaned_body)[:200]}...")
         
-        if result.data and len(result.data) > 0:
-            return JSONResponse(content=result.data[0])
-        else:
-            logger.warning("No data returned from message insert")
-            return JSONResponse(content={"id": cleaned_body.get('message_id') or cleaned_body.get('id'), 
-                                         "created_at": cleaned_body.get('created_at')})
+        try:
+            # נסה להוסיף את ההודעה לטבלה
+            result = supabase_client.table("messages").insert(cleaned_body).execute()
+            
+            if hasattr(result, 'data') and result.data:
+                logger.info(f"Message insert success, returned data: {str(result.data)[:200]}...")
+                # החזר את הנתונים כפי שהוחזרו מסופאבייס
+                return JSONResponse(content=result.data[0])
+            else:
+                # אם אין נתונים בתשובה, החזר את המזהה והזמן שיצרנו
+                logger.warning("No data returned from message insert")
+                response_data = {
+                    "id": cleaned_body.get('message_id', cleaned_body.get('id', 'unknown')),
+                    "created_at": cleaned_body.get('created_at', datetime.now().isoformat()),
+                    "conversation_id": cleaned_body.get('conversation_id', ""),
+                    "user_id": cleaned_body.get('user_id', "")
+                }
+                logger.info(f"Generating fallback response: {response_data}")
+                return JSONResponse(content=response_data)
+        except Exception as insert_err:
+            # רישום כל הפרטים של שגיאת ההוספה לבסיס הנתונים
+            logger.error(f"Database insertion error: {insert_err}", exc_info=True)
+            # בדוק אם זו שגיאת דופליקט
+            error_str = str(insert_err).lower()
+            if "duplicate" in error_str or "unique constraint" in error_str:
+                return JSONResponse(
+                    status_code=409,
+                    content={"error": "Message ID already exists", "detail": str(insert_err)}
+                )
+            # החזר שגיאה מפורטת
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Database error", "detail": str(insert_err)}
+            )
+            
     except Exception as e:
+        # רישום כל הפרטים של השגיאה הכללית
         logger.error(f"Error proxying message creation: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        # החזר שגיאה מובנת יותר למשתמש
+        return JSONResponse(
+            status_code=500, 
+            content={"error": "Internal server error", "detail": str(e)}
+        )
 
 @app.get("/api/proxy/search_chat_sessions")
 async def proxy_search_chat_sessions(user_id: str, search_term: str, request: Request):

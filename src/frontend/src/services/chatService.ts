@@ -137,7 +137,7 @@ const chatService = {
         console.error('No session data found for ID:', sessionId);
         return null;
       }
-      
+
       return response.data as ChatSession;
     } catch (error) {
       console.error('Error fetching chat session:', error);
@@ -179,7 +179,7 @@ const chatService = {
       return {
         id: response.data[0].message_id || response.data[0].id,
         user_id: userId,
-        chat_session_id: sessionId,
+          chat_session_id: sessionId,
         content: message,
         created_at: response.data[0].created_at,
         is_bot: isBot
@@ -199,97 +199,140 @@ const chatService = {
     try {
       console.log('Adding message to session:', message.chat_session_id);
       
-      // First update the chat session's and conversation's updated_at timestamp
-      await chatService.updateChatSessionTitle(message.chat_session_id, null);
+      try {
+        // First update the chat session's and conversation's updated_at timestamp
+        await chatService.updateChatSessionTitle(message.chat_session_id, null);
+      } catch (updateError) {
+        console.error('Failed to update chat session timestamp:', updateError);
+        // Continue anyway - this shouldn't prevent message creation
+      }
 
-      // Get messages schema to understand the column structure
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/messages_schema`);
-      
-      if (!response.data || !response.data.columns) {
-        console.error('Failed to get messages schema');
+      try {
+        // Get messages schema to understand the column structure
+        const response = await axios.get(`${BACKEND_URL}/api/proxy/messages_schema`);
+        
+        if (!response.data || !response.data.columns) {
+          console.error('Failed to get messages schema');
         return null;
       }
 
-      const columns = response.data.columns;
-      console.log('Available columns in messages table:', columns);
-      
-      // Determine which fields to use based on the schema
-      const hasPrimaryKey = columns.includes('message_id');
-      const hasConversationId = columns.includes('conversation_id');
-      const hasRequest = columns.includes('request');
-      const hasResponse = columns.includes('response');
-      
-      // Create message data with the appropriate schema
-      let messageData: any = {};
-      
-      // Set the primary key (use custom ID if needed)
-      if (hasPrimaryKey) {
-        // Generate a timestamp-based numeric ID instead of UUID
-        const numericId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
-        messageData.message_id = numericId;
-      } else {
-        messageData.id = uuidv4();
-      }
-      
-      // Set the user ID
-      messageData.user_id = message.user_id;
-      
-      // Always use conversation_id field (our database schema requires it)
-      messageData.conversation_id = message.chat_session_id;
-      
-      // Set the message content based on bot/user
-      if (message.is_bot) {
-        if (hasResponse) {
-          messageData.response = message.content;
-          messageData.request = ''; // Might be required
+        const columns = response.data.columns;
+        console.log('Available columns in messages table:', columns);
+        
+        // Determine which fields to use based on the schema
+        const hasPrimaryKey = columns.includes('message_id');
+        const hasConversationId = columns.includes('conversation_id');
+        const hasRequest = columns.includes('request');
+        const hasResponse = columns.includes('response');
+        
+        // Create message data with the appropriate schema
+        let messageData: any = {};
+        
+        // Set the primary key (use custom ID if needed)
+        if (hasPrimaryKey) {
+          // Generate a timestamp-based numeric ID instead of UUID
+          const numericId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+          messageData.message_id = numericId;
         } else {
-          messageData.content = message.content;
+          messageData.id = uuidv4();
         }
-      } else {
-        if (hasRequest) {
-          messageData.request = message.content;
-          messageData.response = ''; // Might be required
+        
+        // Set the user ID
+        messageData.user_id = message.user_id;
+        
+        // Always use conversation_id field (our database schema requires it)
+        messageData.conversation_id = message.chat_session_id;
+        
+        // Set the message content based on bot/user
+        if (message.is_bot) {
+          if (hasResponse) {
+            messageData.response = message.content;
+            messageData.request = ''; // Might be required
+          } else {
+            messageData.content = message.content;
+          }
         } else {
-          messageData.content = message.content;
+          if (hasRequest) {
+            messageData.request = message.content;
+            messageData.response = ''; // Might be required
+          } else {
+            messageData.content = message.content;
+          }
         }
+        
+        // Add bot flag if the schema uses it
+        if (columns.includes('is_bot')) {
+          messageData.is_bot = message.is_bot;
+        }
+        
+        // Set status if the schema has it
+        if (columns.includes('status')) {
+          messageData.status = 'completed';
+        }
+        
+        console.log('Inserting message with adapted schema:', messageData);
+        
+        try {
+          // Insert the message using the backend proxy endpoint
+          const insertResponse = await axios.put(`${BACKEND_URL}/api/proxy/message`, messageData);
+          
+          console.log('Message inserted successfully:', insertResponse.data);
+          
+          if (!insertResponse.data) {
+            console.error('Error adding message via backend proxy: No data returned');
+          return null;
+        }
+        
+        // Create a normalized message object to return
+        const normalizedMessage: Message = {
+            id: insertResponse.data.message_id?.toString() || insertResponse.data.id,
+            user_id: message.user_id,
+            chat_session_id: message.chat_session_id,
+            content: message.content,
+            created_at: insertResponse.data.created_at || new Date().toISOString(),
+            is_bot: message.is_bot
+          };
+          
+          return normalizedMessage;
+        } catch (insertError: any) {
+          console.error('Error adding message via backend proxy:', insertError.message);
+          if (insertError.response) {
+            console.error('Server response:', insertError.response.data);
+          }
+          
+          // יצירת הודעה מקומית - במקרה של כישלון, עדיין להחזיר אובייקט כדי שהממשק ימשיך לעבוד
+          return {
+            id: `local_${Date.now()}`,
+            user_id: message.user_id,
+            chat_session_id: message.chat_session_id,
+            content: message.content,
+            created_at: new Date().toISOString(),
+            is_bot: message.is_bot
+          };
+        }
+      } catch (schemaError) {
+        console.error('Error fetching message schema:', schemaError);
+        // יצירת הודעה מקומית במקרה של כישלון
+        return {
+          id: `local_${Date.now()}`,
+          user_id: message.user_id,
+          chat_session_id: message.chat_session_id,
+          content: message.content,
+          created_at: new Date().toISOString(),
+          is_bot: message.is_bot
+        };
       }
-      
-      // Add bot flag if the schema uses it
-      if (columns.includes('is_bot')) {
-        messageData.is_bot = message.is_bot;
-      }
-      
-      // Set status if the schema has it
-      if (columns.includes('status')) {
-        messageData.status = 'completed';
-      }
-      
-      console.log('Inserting message with adapted schema:', messageData);
-      
-      // Insert the message using the backend proxy endpoint
-      const insertResponse = await axios.put(`${BACKEND_URL}/api/proxy/message`, messageData);
-      
-      if (!insertResponse.data) {
-        console.error('Error adding message via backend proxy');
-        return null;
-      }
-      
-      console.log('Message inserted successfully:', insertResponse.data);
-      
-      // Create a normalized message object to return
-      const normalizedMessage: Message = {
-        id: insertResponse.data.message_id?.toString() || insertResponse.data.id,
+    } catch (error) {
+      console.error('Exception adding message:', error);
+      // יצירת הודעה מקומית במקרה של כישלון
+      return {
+        id: `local_${Date.now()}`,
         user_id: message.user_id,
         chat_session_id: message.chat_session_id,
         content: message.content,
-        created_at: insertResponse.data.created_at || new Date().toISOString(),
+        created_at: new Date().toISOString(),
         is_bot: message.is_bot
       };
-      
-      return normalizedMessage;
-    } catch (error) {
-      console.error('Exception adding message:', error);
-      return null;
     }
   },
 

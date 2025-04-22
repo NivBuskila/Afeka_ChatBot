@@ -113,14 +113,78 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Helper function to load session messages
+  const loadSessionMessages = async (sessionId: string) => {
+    try {
+      console.log('Reloading session messages for session:', sessionId);
+      const session = await chatService.getChatSessionWithMessages(sessionId);
+      
+      if (session && session.messages && session.messages.length > 0) {
+        console.log(`Successfully loaded ${session.messages.length} messages`);
+        console.log("First message structure example:", JSON.stringify(session.messages[0]));
+        
+        // המר את ההודעות למבנה הנכון עבור ממשק המשתמש
+        const formattedMessages = session.messages.map((msg: any) => {
+          // קביעת תוכן ההודעה - יכול להיות ב-content, request או response
+          let messageContent = '';
+          let isBot = !!msg.is_bot;
+          
+          // בדיקה אם יש לנו הודעת משתמש/בוט לפי שדות request/response
+          if (msg.request && msg.request.trim() !== '') {
+            messageContent = msg.request;
+            isBot = false;
+          } else if (msg.response && msg.response.trim() !== '') {
+            messageContent = msg.response;
+            isBot = true;
+          } else if (msg.content) {
+            messageContent = msg.content;
+          } else if (msg.message_text) {
+            messageContent = msg.message_text;
+          } else if (msg.text) {
+            messageContent = msg.text;
+          }
+          
+          // יצירת מזהה ייחודי אם חסר
+          const messageId = msg.id || msg.message_id || `msg-${Date.now()}`;
+          
+          console.log(`Message ${messageId} content source:`, 
+                      msg.request ? 'request' : 
+                      msg.response ? 'response' : 
+                      msg.content ? 'content' : 'other',
+                      "is_bot:", isBot);
+          
+          return {
+            id: messageId,
+            type: (isBot ? 'bot' : 'user') as 'bot' | 'user',
+            content: messageContent,
+            timestamp: new Date(msg.created_at).toLocaleTimeString(),
+            sessionId: msg.chat_session_id || msg.conversation_id || sessionId
+          };
+        });
+        
+        console.log('Formatted messages for display:', formattedMessages.length);
+        console.log('Message types count:', 
+                   'bot:', formattedMessages.filter(m => m.type === 'bot').length,
+                   'user:', formattedMessages.filter(m => m.type === 'user').length);
+        
+        // עדכן את מצב ההודעות בממשק
+        setMessages(formattedMessages);
+        setHasStarted(formattedMessages.length > 0);
+      } else {
+        console.log('No messages found in session or session is empty');
+      }
+    } catch (error) {
+      console.error('Error reloading session messages:', error);
+    }
+  };
+
   const handleSelectSession = async (sessionId: string) => {
-    // Special case for creating a new session
+    // If 'new' is passed, it's a request to start a new chat
     if (sessionId === 'new') {
-      console.log('Creating new chat session...');
-      setMessages([]);
       setActiveSession(null);
+      setMessages([]);
       setHasStarted(false);
-      setShowHistory(false); // Hide history after selecting "new chat"
+      setShowHistory(false);
       return;
     }
 
@@ -132,18 +196,57 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         console.log('Session loaded successfully:', session);
         console.log('Messages count:', session.messages?.length || 0);
         
+        if (session.messages && session.messages.length > 0) {
+          console.log("First message structure example:", JSON.stringify(session.messages[0]));
+        }
+        
         setActiveSession(session);
         
         if (session.messages && session.messages.length > 0) {
-          const formattedMessages = session.messages.map(msg => ({
-            id: msg.id,
-            type: (msg.is_bot ? 'bot' : 'user') as 'bot' | 'user',
-            content: msg.content,
-            timestamp: new Date(msg.created_at).toLocaleTimeString(),
-            sessionId: msg.chat_session_id
-          }));
+          // המר את ההודעות למבנה הנכון עבור ממשק המשתמש
+          const formattedMessages = session.messages.map((msg: any) => {
+            // קביעת תוכן ההודעה - יכול להיות ב-content, request או response
+            let messageContent = '';
+            let isBot = !!msg.is_bot;
+            
+            // בדיקה אם יש לנו הודעת משתמש/בוט לפי שדות request/response
+            if (msg.request && msg.request.trim() !== '') {
+              messageContent = msg.request;
+              isBot = false;
+            } else if (msg.response && msg.response.trim() !== '') {
+              messageContent = msg.response;
+              isBot = true;
+            } else if (msg.content) {
+              messageContent = msg.content;
+            } else if (msg.message_text) {
+              messageContent = msg.message_text;
+            } else if (msg.text) {
+              messageContent = msg.text;
+            }
+            
+            // יצירת מזהה ייחודי אם חסר
+            const messageId = msg.id || msg.message_id || `msg-${Date.now()}`;
+            
+            console.log(`Message ${messageId} content source:`, 
+                        msg.request ? 'request' : 
+                        msg.response ? 'response' : 
+                        msg.content ? 'content' : 'other',
+                        "is_bot:", isBot);
+            
+            return {
+              id: messageId,
+              type: (isBot ? 'bot' : 'user') as 'bot' | 'user',
+              content: messageContent,
+              timestamp: new Date(msg.created_at).toLocaleTimeString(),
+              sessionId: msg.chat_session_id || msg.conversation_id || sessionId
+            };
+          });
           
           console.log('Formatted messages:', formattedMessages.length);
+          console.log('Message types count:', 
+                     'bot:', formattedMessages.filter(m => m.type === 'bot').length,
+                     'user:', formattedMessages.filter(m => m.type === 'user').length);
+          
           setMessages(formattedMessages);
           setHasStarted(true);
         } else {
@@ -387,23 +490,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       }
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Helper function to load session messages
-  const loadSessionMessages = async (sessionId: string) => {
-    try {
-      console.log('Reloading session messages for session:', sessionId);
-      const session = await chatService.getChatSessionWithMessages(sessionId);
-      
-      if (session && session.messages && session.messages.length > 0) {
-        console.log(`Successfully loaded ${session.messages.length} messages`);
-        
-        // Don't replace messages directly - might cause UI flicker
-        // Instead, keep our normalized message format for the UI
-      }
-    } catch (error) {
-      console.error('Error reloading session messages:', error);
     }
   };
 
