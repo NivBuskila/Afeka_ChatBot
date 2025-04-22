@@ -3,7 +3,7 @@ import os
 import logging
 import time
 from functools import wraps
-from google import genai
+import google.generativeai as genai
 
 # Configure logging
 logging.basicConfig(
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize Gemini API
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyBBw-VlqWekqnd_vPXCS7LSuKfrkbOro7s')
-# ביצירת מופע Client במקום להשתמש בפונקציית configure
-genai_client = genai.Client(api_key=GEMINI_API_KEY)
+# שימוש ב-configure במקום ביצירת מופע Client
+genai.configure(api_key=GEMINI_API_KEY)
 
 # Create Flask app
 app = Flask(__name__)
@@ -98,11 +98,9 @@ def chat():
         
         # Use Gemini API to generate a response
         try:
-            # שימוש ב-client ובמתודה generate_content לפי הגרסה החדשה
-            gemini_response = genai_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=user_message
-            )
+            # שימוש ישיר במודל Gemini לפי הגרסה החדשה
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            gemini_response = model.generate_content(user_message)
             ai_response = gemini_response.text
             logger.info(f"Gemini API response received: {ai_response[:30]}...")
         except Exception as gemini_error:

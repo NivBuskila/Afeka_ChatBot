@@ -2,6 +2,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../../../supabase/config/supabase';
 
+// IMPORTANT: Do not use this client directly for data operations.
+// Instead, use the backend proxy endpoints that start with /api/proxy/
+// Direct Supabase usage should be limited to:
+// 1. Authentication operations that must be client-side
+// 2. Storage operations that aren't yet proxied through the backend
+// 3. When specifically required for real-time subscriptions
 console.log('Initializing Supabase client...');
 
 // If running in browser, use import.meta.env

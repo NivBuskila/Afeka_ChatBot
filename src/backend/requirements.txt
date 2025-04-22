@@ -1,7 +1,8 @@
-fastapi==0.103.1
-uvicorn==0.23.2
-pydantic==2.3.0
-python-dotenv==1.0.0
+fastapi
+uvicorn
+pydantic
+python-dotenv
 httpx==0.24.1
-python-multipart==0.0.6
-supabase==1.0.4 
+python-multipart>=0.0.9
+websockets<13,>=11
+supabase

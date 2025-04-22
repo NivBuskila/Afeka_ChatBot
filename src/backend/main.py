@@ -19,8 +19,8 @@ import re
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+# Load environment variables - force reload from .env file in current directory
+load_dotenv(override=True)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -35,7 +35,7 @@ app = FastAPI(
 # Define allowed origins for CORS
 ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS", 
-    "http://localhost:5173,http://localhost:80,http://localhost,http://frontend:3000,http://frontend"
+    "http://localhost:5173,http://localhost:80,http://localhost,http://frontend:3000,http://frontend,http://192.168.56.1:5173,http://172.16.16.179:5173,http://172.20.224.1:5173"
 ).split(",")
 
 logger.info(f"Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
@@ -43,10 +43,10 @@ logger.info(f"Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],  # Allow all origins in development
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
     max_age=600  # 10 minutes cache for preflight requests
 )
 
@@ -120,21 +120,33 @@ async def rate_limit_middleware(request: Request, call_next):
 
 # Initialize Supabase client
 try:
-    supabase_url = os.environ.get("SUPABASE_URL", "https://wzvyibgtfwvmbfaybmqx.supabase.co")
-    supabase_key = os.environ.get("SUPABASE_KEY")
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+    logger.info(f"SUPABASE_URL exists: {SUPABASE_URL is not None}")
+    logger.info(f"SUPABASE_KEY exists: {SUPABASE_KEY is not None}")
     
-    if not supabase_key:
-        logger.warning("SUPABASE_KEY environment variable not set. Supabase features will not work.")
-        supabase = None
+    # Print the values for debugging (Be sure to remove/redact in production)
+    logger.info(f"SUPABASE_URL value first 20 chars: {SUPABASE_URL[:20] if SUPABASE_URL else 'None'}")
+    logger.info(f"AI_SERVICE_URL from env: {os.environ.get('AI_SERVICE_URL')}")
+
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            # הסרת פרמטר ה-proxy שגורם לשגיאה
+            supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            logger.info("Supabase client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Supabase client: {e}")
+            supabase_client = None
     else:
-        supabase: Client = create_client(supabase_url, supabase_key)
-        logger.info("Supabase client initialized successfully")
+        logger.warning("SUPABASE_KEY or SUPABASE_URL not set, Supabase features will not work")
+        supabase_client = None
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
-    supabase = None
+    supabase_client = None
 
 # AI Service configuration
-AI_SERVICE_URL = os.environ.get("AI_SERVICE_URL", "http://localhost:5000")
+AI_SERVICE_URL = "http://localhost:5000"  # Force localhost for local development
 logger.info(f"AI service URL set to: {AI_SERVICE_URL}")
 
 # Security - API key for internal API calls
@@ -169,7 +181,9 @@ async def root():
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint for monitoring"""
-    return {"status": "ok"}
+    # Also check Supabase connection
+    supabase_status = "connected" if supabase_client else "disconnected"
+    return {"status": "ok", "supabase": supabase_status}
 
 @app.post("/api/chat")
 async def chat(request: Request):
@@ -277,11 +291,11 @@ async def get_documents():
     Returns a list of documents with their metadata
     """
     try:
-        if not supabase:
+        if not supabase_client:
             raise HTTPException(status_code=503, detail="Supabase connection not available")
         
         # Query documents from Supabase
-        response = supabase.table('documents').select('*').execute()
+        response = supabase_client.table('documents').select('*').execute()
         
         if hasattr(response, 'data'):
             logger.info(f"Retrieved {len(response.data)} documents from Supabase")
@@ -312,11 +326,11 @@ async def get_document(document_id: str):
             
         doc_id = int(document_id)
         
-        if not supabase:
+        if not supabase_client:
             raise HTTPException(status_code=503, detail="Supabase connection not available")
         
         # Query the specific document
-        response = supabase.table('documents').select('*').eq('id', doc_id).execute()
+        response = supabase_client.table('documents').select('*').eq('id', doc_id).execute()
         
         if not response.data or len(response.data) == 0:
             logger.warning(f"Document with ID {doc_id} not found")
@@ -350,7 +364,7 @@ async def create_document(document: Document, api_key: str = Depends(api_key_hea
         )
         
     try:
-        if not supabase:
+        if not supabase_client:
             raise HTTPException(status_code=503, detail="Supabase connection not available")
             
         # Validate document length
@@ -361,7 +375,7 @@ async def create_document(document: Document, api_key: str = Depends(api_key_hea
         doc_data = document.model_dump()
         doc_data["created_at"] = "now()"
         
-        response = supabase.table('documents').insert(doc_data).execute()
+        response = supabase_client.table('documents').insert(doc_data).execute()
             
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create document")
@@ -390,6 +404,184 @@ async def general_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"error": "Internal server error"}
     )
+
+# Proxy routes for Supabase
+@app.post("/api/proxy/chat_sessions")
+async def proxy_create_chat_session(request: Request):
+    """Proxy endpoint for creating chat sessions"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        body = await request.json()
+        result = supabase_client.table("chat_sessions").insert(body).execute()
+        
+        # Also create a corresponding conversation record if needed
+        if result.data:
+            conversation_data = {
+                "conversation_id": result.data[0]["id"],
+                "user_id": body.get("user_id"),
+                "title": body.get("title"),
+                "created_at": body.get("created_at", result.data[0].get("created_at")),
+                "updated_at": body.get("updated_at", result.data[0].get("updated_at")),
+                "is_active": True
+            }
+            
+            supabase_client.table("conversations").insert(conversation_data).execute()
+            
+        return JSONResponse(content=result.data)
+    except Exception as e:
+        logger.error(f"Error proxying chat session creation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy/chat_sessions")
+async def proxy_get_chat_sessions(user_id: str, request: Request):
+    """Proxy endpoint for getting chat sessions"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).order("updated_at", desc=True).execute()
+        return JSONResponse(content=result.data)
+    except Exception as e:
+        logger.error(f"Error proxying chat sessions retrieval: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy/chat_sessions/{session_id}")
+async def proxy_get_chat_session(session_id: str, request: Request):
+    """Proxy endpoint for getting a specific chat session"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        # Get the session
+        session_result = supabase_client.table("chat_sessions").select("*").eq("id", session_id).single().execute()
+        
+        if not session_result.data:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        
+        # Get messages for this session
+        messages_result = supabase_client.table("messages").select("*").eq("conversation_id", session_id).order("created_at").execute()
+        
+        # Combine the data
+        result = {
+            **session_result.data,
+            "messages": messages_result.data or []
+        }
+        
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Error proxying chat session retrieval: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/proxy/messages")
+async def proxy_create_message(request: Request):
+    """Proxy endpoint for creating messages"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        body = await request.json()
+        result = supabase_client.table("messages").insert(body).execute()
+        return JSONResponse(content=result.data)
+    except Exception as e:
+        logger.error(f"Error proxying message creation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy/documents")
+async def proxy_get_documents(request: Request):
+    """Proxy endpoint for retrieving documents"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        result = supabase_client.table("documents").select("*").order("created_at", desc=True).execute()
+        return JSONResponse(content=result.data)
+    except Exception as e:
+        logger.error(f"Error proxying documents retrieval: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy/documents/{document_id}")
+async def proxy_get_document(document_id: int, request: Request):
+    """Proxy endpoint for retrieving a specific document"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        result = supabase_client.table("documents").select("*").eq("id", document_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return JSONResponse(content=result.data)
+    except Exception as e:
+        logger.error(f"Error proxying document retrieval: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/proxy/documents")
+async def proxy_create_document(request: Request):
+    """Proxy endpoint for creating documents"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        body = await request.json()
+        # Use RPC function if it exists, otherwise fall back to direct insert
+        try:
+            result = supabase_client.rpc("create_document", {
+                "name": body.get("name"),
+                "type": body.get("type"),
+                "size": body.get("size"),
+                "url": body.get("url"),
+                "user_id": body.get("user_id")
+            }).execute()
+            
+            # Get the newly created document
+            if result.data:
+                doc_result = supabase_client.table("documents").select("*").eq("id", result.data).single().execute()
+                return JSONResponse(content=doc_result.data)
+            else:
+                raise HTTPException(status_code=500, detail="Document creation failed")
+        except Exception as rpc_err:
+            logger.warning(f"RPC method failed, falling back to direct insert: {rpc_err}")
+            result = supabase_client.table("documents").insert(body).execute()
+            return JSONResponse(content=result.data[0] if result.data else None)
+    except Exception as e:
+        logger.error(f"Error proxying document creation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/proxy/documents/{document_id}")
+async def proxy_delete_document(document_id: int, request: Request):
+    """Proxy endpoint for deleting documents"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        # Get document info before deletion
+        doc_result = supabase_client.table("documents").select("*").eq("id", document_id).single().execute()
+        if not doc_result.data:
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        # Delete from database
+        result = supabase_client.table("documents").delete().eq("id", document_id).execute()
+        
+        # Try to delete from storage if URL exists
+        if doc_result.data.get("url"):
+            try:
+                url = doc_result.data.get("url")
+                
+                # Extract storage path from URL
+                # This is a simplified version - we might need more complex logic based on URL format
+                parts = url.split("/")
+                filename = parts[-1].split("?")[0]
+                
+                # Try to delete the file - silently fail if it doesn't work
+                supabase_client.storage.from_("documents").remove([filename])
+            except Exception as storage_err:
+                logger.warning(f"Failed to delete file from storage: {storage_err}")
+                
+        return JSONResponse(content={"success": True})
+    except Exception as e:
+        logger.error(f"Error proxying document deletion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

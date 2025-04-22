@@ -1,5 +1,9 @@
 import { supabase } from '../../../supabase/config/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
+
+// Get the backend URL from environment
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 /**
  * Types for chat functionality
@@ -66,48 +70,18 @@ const chatService = {
         updated_at: new Date().toISOString()
       };
       
-      console.log('Supabase insert data:', sessionInput);
+      console.log('Session input data:', sessionInput);
       
-      // Create the chat session
-      const { data: sessionResult, error: sessionError } = await supabase
-        .from('chat_sessions')
-        .insert(sessionInput)
-        .select()
-        .single();
-
-      if (sessionError) {
-        console.error('Supabase error creating chat session:', sessionError);
-        return null;
-      }
-
-      if (!sessionResult) {
+      // Create the chat session through the backend
+      const response = await axios.post(`${BACKEND_URL}/api/proxy/chat_sessions`, sessionInput);
+      
+      if (!response.data || response.data.length === 0) {
         console.error('No data returned from chat session creation');
         return null;
       }
 
-      // Also create a corresponding conversation record
-      const conversationData = {
-        conversation_id: sessionResult.id, // Use the same ID as the chat session
-        user_id: userId,
-        title: title || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_active: true
-      };
-
-      const { error: conversationError } = await supabase
-        .from('conversations')
-        .insert(conversationData);
-
-      if (conversationError) {
-        console.error('Error creating corresponding conversation:', conversationError);
-        // Continue anyway since the chat session was created
-      } else {
-        console.log('Conversation record created successfully');
-      }
-
-      console.log('Chat session created successfully:', sessionResult);
-      return sessionResult as ChatSession;
+      console.log('Chat session created successfully:', response.data[0]);
+      return response.data[0] as ChatSession;
     } catch (error) {
       console.error('Exception in createChatSession:', error);
       return null;
@@ -121,18 +95,16 @@ const chatService = {
    */
   getUserChatSessions: async (userId: string): Promise<ChatSession[]> => {
     try {
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
+      const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions`, {
+        params: { user_id: userId }
+      });
 
-      if (error) {
-        console.error('Error fetching chat sessions:', error);
+      if (!response.data) {
+        console.error('Error fetching chat sessions');
         return [];
       }
 
-      return data as ChatSession[];
+      return response.data as ChatSession[];
     } catch (error) {
       console.error('Exception fetching chat sessions:', error);
       return [];
@@ -148,76 +120,61 @@ const chatService = {
     try {
       console.log('Fetching chat session with ID:', sessionId);
       
-      // Get the chat session
-      const { data: sessionResult, error: sessionError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
-
-      if (sessionError) {
-        console.error('Error fetching chat session:', sessionError);
-        return null;
-      }
-
-      if (!sessionResult) {
+      const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
+      
+      if (!response.data) {
         console.error('No session data found for ID:', sessionId);
         return null;
       }
-
-      console.log('Session data retrieved:', sessionResult);
       
-      // Get messages for this session using conversation_id
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', sessionId)
-        .order('created_at', { ascending: true });
+      return response.data as ChatSession;
+    } catch (error) {
+      console.error('Error fetching chat session:', error);
+      return null;
+    }
+  },
 
-      if (messagesError) {
-        console.error('Error fetching messages for session:', messagesError);
-        // Return the session without messages if there was an error fetching messages
-        return {
-          ...sessionResult,
-          messages: []
-        } as ChatSession;
+  /**
+   * Sends a message to the backend
+   * @param message The message content
+   * @param userId The user ID
+   * @param sessionId The chat session ID
+   * @param isBot Whether this is a bot message
+   * @returns The created message
+   */
+  sendMessage: async (
+    message: string,
+    userId: string,
+    sessionId: string,
+    isBot: boolean = false
+  ): Promise<Message | null> => {
+    try {
+      const messageObj = {
+        conversation_id: sessionId,
+        user_id: userId,
+        message_text: message,
+        is_bot: isBot,
+        created_at: new Date().toISOString()
+      };
+      
+      const response = await axios.post(`${BACKEND_URL}/api/proxy/messages`, messageObj);
+
+      if (!response.data || response.data.length === 0) {
+        console.error('No data returned from message creation');
+        return null;
       }
 
-      console.log(`Retrieved ${messagesData?.length || 0} messages for session`);
-      
-      // Process messages to normalize content from the actual schema
-      const processedMessages = (messagesData || []).map(msg => {
-        // Create a normalized message object
-        const normalizedMsg: any = {
-          id: msg.message_id?.toString() || msg.id,
-          user_id: msg.user_id,
-          chat_session_id: sessionId,
-          created_at: msg.created_at,
-          // Determine if it's a bot message - if response is filled and request is empty/null
-          is_bot: msg.is_bot !== undefined ? msg.is_bot : (!!msg.response && !msg.request)
-        };
-        
-        // Set content from the appropriate field
-        if (normalizedMsg.is_bot) {
-          // Bot message content comes from response
-          normalizedMsg.content = msg.response || msg.content || '';
-        } else {
-          // User message content comes from request
-          normalizedMsg.content = msg.request || msg.content || '';
-        }
-        
-        return normalizedMsg;
-      });
-
-      // Combine session with its messages
-      const sessionWithMessages = {
-        ...sessionResult,
-        messages: processedMessages
-      } as ChatSession;
-      
-      return sessionWithMessages;
+      // Process to standardize the message object
+      return {
+        id: response.data[0].message_id || response.data[0].id,
+        user_id: userId,
+        chat_session_id: sessionId,
+        content: message,
+        created_at: response.data[0].created_at,
+        is_bot: isBot
+      };
     } catch (error) {
-      console.error('Exception fetching chat session with messages:', error);
+      console.error('Error sending message:', error);
       return null;
     }
   },
