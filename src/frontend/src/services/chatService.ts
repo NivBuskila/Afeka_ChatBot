@@ -89,12 +89,13 @@ const chatService = {
   },
 
   /**
-   * Gets all chat sessions for a user
+   * Fetches all chat sessions for a given user
    * @param userId The ID of the user
    * @returns Array of chat sessions
    */
-  getUserChatSessions: async (userId: string): Promise<ChatSession[]> => {
+  fetchAllChatSessions: async (userId: string): Promise<ChatSession[]> => {
     try {
+      // Fetch chat sessions through the backend proxy endpoint
       const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions`, {
         params: { user_id: userId }
       });
@@ -109,6 +110,16 @@ const chatService = {
       console.error('Exception fetching chat sessions:', error);
       return [];
     }
+  },
+
+  /**
+   * Legacy function name - Gets all chat sessions for a user
+   * @param userId The ID of the user
+   * @returns Array of chat sessions
+   */
+  getUserChatSessions: async (userId: string): Promise<ChatSession[]> => {
+    // Call the renamed function to maintain backwards compatibility
+    return chatService.fetchAllChatSessions(userId);
   },
 
   /**
@@ -188,125 +199,94 @@ const chatService = {
     try {
       console.log('Adding message to session:', message.chat_session_id);
       
-      // First update the chat session's updated_at timestamp
-      const { error: updateError } = await supabase
-        .from('chat_sessions')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', message.chat_session_id);
-      
-      if (updateError) {
-        console.error('Error updating chat session timestamp:', updateError);
-      }
+      // First update the chat session's and conversation's updated_at timestamp
+      await chatService.updateChatSessionTitle(message.chat_session_id, null);
 
-      // Also update the conversation's updated_at timestamp
-      const { error: conversationUpdateError } = await supabase
-        .from('conversations')
-        .update({ 
-          updated_at: new Date().toISOString(),
-          last_message_at: new Date().toISOString()
-        })
-        .eq('conversation_id', message.chat_session_id);
+      // Get messages schema to understand the column structure
+      const response = await axios.get(`${BACKEND_URL}/api/proxy/messages_schema`);
       
-      if (conversationUpdateError) {
-        console.error('Error updating conversation timestamp:', conversationUpdateError);
-      }
-
-      // Get column information from the messages table to understand the schema
-      const { data: columnInfo, error: columnError } = await supabase
-        .from('messages')
-        .select('*')
-        .limit(1);
-      
-      if (columnError) {
-        console.error('Error fetching message schema:', columnError);
+      if (!response.data || !response.data.columns) {
+        console.error('Failed to get messages schema');
         return null;
       }
 
-      if (columnInfo && columnInfo.length > 0) {
-        const columns = Object.keys(columnInfo[0]);
-        console.log('Available columns in messages table:', columns);
-        
-        // Determine which fields to use based on the schema
-        const hasPrimaryKey = columns.includes('message_id');
-        const hasConversationId = columns.includes('conversation_id');
-        const hasRequest = columns.includes('request');
-        const hasResponse = columns.includes('response');
-        
-        // Create message data with the appropriate schema
-        let messageData: any = {};
-        
-        // Set the primary key
-        if (hasPrimaryKey) {
-          // Generate a timestamp-based numeric ID instead of UUID
-          const numericId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
-          messageData.message_id = numericId;
-        } else {
-          messageData.id = uuidv4();
-        }
-        
-        // Set the user ID
-        messageData.user_id = message.user_id;
-        
-        // Always use conversation_id field (our database schema requires it)
-        messageData.conversation_id = message.chat_session_id;
-        
-        // Set the message content based on bot/user
-        if (message.is_bot) {
-          if (hasResponse) {
-            messageData.response = message.content;
-            messageData.request = ''; // Might be required
-          } else {
-            messageData.content = message.content;
-          }
-        } else {
-          if (hasRequest) {
-            messageData.request = message.content;
-            messageData.response = ''; // Might be required
-          } else {
-            messageData.content = message.content;
-          }
-        }
-        
-        // Add bot flag if the schema uses it
-        if (columns.includes('is_bot')) {
-          messageData.is_bot = message.is_bot;
-        }
-        
-        // Set status if the schema has it
-        if (columns.includes('status')) {
-          messageData.status = 'completed';
-        }
-        
-        console.log('Inserting message with adapted schema:', messageData);
-        
-        // Insert the message
-        const { data, error } = await supabase
-          .from('messages')
-          .insert(messageData)
-          .select();
-        
-        if (error) {
-          console.error('Error adding message:', error);
-          return null;
-        }
-        
-        console.log('Message inserted successfully:', data);
-        
-        // Create a normalized message object to return
-        const normalizedMessage: Message = {
-          id: data[0].message_id?.toString() || data[0].id,
-          user_id: message.user_id,
-          chat_session_id: message.chat_session_id,
-          content: message.content,
-          created_at: new Date().toISOString(),
-          is_bot: message.is_bot
-        };
-        
-        return normalizedMessage;
+      const columns = response.data.columns;
+      console.log('Available columns in messages table:', columns);
+      
+      // Determine which fields to use based on the schema
+      const hasPrimaryKey = columns.includes('message_id');
+      const hasConversationId = columns.includes('conversation_id');
+      const hasRequest = columns.includes('request');
+      const hasResponse = columns.includes('response');
+      
+      // Create message data with the appropriate schema
+      let messageData: any = {};
+      
+      // Set the primary key (use custom ID if needed)
+      if (hasPrimaryKey) {
+        // Generate a timestamp-based numeric ID instead of UUID
+        const numericId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+        messageData.message_id = numericId;
       } else {
-        console.error('No column information available');
+        messageData.id = uuidv4();
+      }
+      
+      // Set the user ID
+      messageData.user_id = message.user_id;
+      
+      // Always use conversation_id field (our database schema requires it)
+      messageData.conversation_id = message.chat_session_id;
+      
+      // Set the message content based on bot/user
+      if (message.is_bot) {
+        if (hasResponse) {
+          messageData.response = message.content;
+          messageData.request = ''; // Might be required
+        } else {
+          messageData.content = message.content;
+        }
+      } else {
+        if (hasRequest) {
+          messageData.request = message.content;
+          messageData.response = ''; // Might be required
+        } else {
+          messageData.content = message.content;
+        }
+      }
+      
+      // Add bot flag if the schema uses it
+      if (columns.includes('is_bot')) {
+        messageData.is_bot = message.is_bot;
+      }
+      
+      // Set status if the schema has it
+      if (columns.includes('status')) {
+        messageData.status = 'completed';
+      }
+      
+      console.log('Inserting message with adapted schema:', messageData);
+      
+      // Insert the message using the backend proxy endpoint
+      const insertResponse = await axios.put(`${BACKEND_URL}/api/proxy/message`, messageData);
+      
+      if (!insertResponse.data) {
+        console.error('Error adding message via backend proxy');
         return null;
       }
+      
+      console.log('Message inserted successfully:', insertResponse.data);
+      
+      // Create a normalized message object to return
+      const normalizedMessage: Message = {
+        id: insertResponse.data.message_id?.toString() || insertResponse.data.id,
+        user_id: message.user_id,
+        chat_session_id: message.chat_session_id,
+        content: message.content,
+        created_at: insertResponse.data.created_at || new Date().toISOString(),
+        is_bot: message.is_bot
+      };
+      
+      return normalizedMessage;
     } catch (error) {
       console.error('Exception adding message:', error);
       return null;
@@ -319,24 +299,26 @@ const chatService = {
    * @param title The new title
    * @returns Boolean indicating success
    */
-  updateChatSessionTitle: async (sessionId: string, title: string): Promise<boolean> => {
+  updateChatSessionTitle: async (sessionId: string, title: string | null): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from('chat_sessions')
-        .update({ 
-          title, 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', sessionId);
-
-      if (error) {
-        console.error('Error updating chat session title:', error);
+      const updateData: any = { updated_at: new Date().toISOString() };
+      
+      // Only include title if it's not null (to support timestamp-only updates)
+      if (title !== null) {
+        updateData.title = title;
+      }
+      
+      // Update the chat session through the backend proxy endpoint
+      const response = await axios.patch(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`, updateData);
+      
+      if (!response.data || response.data.success !== true) {
+        console.error('Error updating chat session:', response.data?.error || 'Unknown error');
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Exception updating chat session title:', error);
+      console.error('Exception updating chat session:', error);
       return false;
     }
   },
@@ -353,60 +335,20 @@ const chatService = {
         return [];
       }
 
-      // First search for chat sessions with matching titles
-      const { data: titleMatches, error: titleError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', userId)
-        .ilike('title', `%${searchTerm}%`);
-
-      if (titleError) {
-        console.error('Error searching chat sessions by title:', titleError);
-      }
-
-      // Then search for messages with matching content
-      const { data: messageMatches, error: messageError } = await supabase
-        .from('messages')
-        .select('conversation_id')
-        .eq('user_id', userId)
-        .or(`request.ilike.%${searchTerm}%,response.ilike.%${searchTerm}%`);
-
-      if (messageError) {
-        console.error('Error searching messages:', messageError);
-      }
-
-      // Get unique session IDs from message matches
-      const matchedSessionIds = messageMatches 
-        ? [...new Set(messageMatches.map(m => m.conversation_id))]
-        : [];
-
-      // If we have session IDs from message content, fetch those sessions
-      let contentMatchSessions: ChatSession[] = [];
-      if (matchedSessionIds.length > 0) {
-        const { data: sessions, error: sessionsError } = await supabase
-          .from('chat_sessions')
-          .select('*')
-          .eq('user_id', userId)
-          .in('id', matchedSessionIds);
-
-        if (sessionsError) {
-          console.error('Error fetching message-matched sessions:', sessionsError);
-        } else {
-          contentMatchSessions = sessions as ChatSession[];
+      // Search chat sessions through the backend proxy endpoint
+      const response = await axios.get(`${BACKEND_URL}/api/proxy/search_chat_sessions`, {
+        params: {
+          user_id: userId,
+          search_term: searchTerm
         }
+      });
+
+      if (!response.data) {
+        console.error('Error searching chat sessions');
+        return [];
       }
 
-      // Combine and deduplicate results
-      const allSessions = [...(titleMatches || []), ...contentMatchSessions];
-      const uniqueSessions = Array.from(
-        new Map(allSessions.map(session => [session.id, session])).values()
-      );
-
-      // Sort by updated_at (newest first)
-      return uniqueSessions.sort((a, b) => 
-        new Date(b.updated_at || b.created_at).getTime() - 
-        new Date(a.updated_at || a.created_at).getTime()
-      );
+      return response.data as ChatSession[];
     } catch (error) {
       console.error('Exception searching chat sessions:', error);
       return [];
@@ -420,36 +362,11 @@ const chatService = {
    */
   deleteChatSession: async (sessionId: string): Promise<boolean> => {
     try {
-      // First delete all messages in the session
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('conversation_id', sessionId);
-
-      if (messagesError) {
-        console.error('Error deleting messages:', messagesError);
-        return false;
-      }
-
-      // Delete the conversation record
-      const { error: conversationError } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('conversation_id', sessionId);
-
-      if (conversationError) {
-        console.error('Error deleting conversation:', conversationError);
-        // Continue anyway to delete the chat session
-      }
-
-      // Then delete the session itself
-      const { error: sessionError } = await supabase
-        .from('chat_sessions')
-        .delete()
-        .eq('id', sessionId);
-
-      if (sessionError) {
-        console.error('Error deleting chat session:', sessionError);
+      // Delete the chat session through the backend proxy endpoint
+      const response = await axios.delete(`${BACKEND_URL}/api/proxy/chat_session/${sessionId}`);
+      
+      if (!response.data || response.data.success !== true) {
+        console.error('Error deleting chat session:', response.data?.error || 'Unknown error');
         return false;
       }
 

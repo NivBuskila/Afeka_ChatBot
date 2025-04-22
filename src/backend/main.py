@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 import time
 import secrets
 import re
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -581,6 +582,198 @@ async def proxy_delete_document(document_id: int, request: Request):
         return JSONResponse(content={"success": True})
     except Exception as e:
         logger.error(f"Error proxying document deletion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/api/proxy/chat_session/{session_id}")
+async def proxy_update_chat_session(session_id: str, request: Request):
+    """Proxy endpoint for updating a chat session"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        body = await request.json()
+        
+        # Ensure we have the updated timestamp
+        if 'updated_at' not in body:
+            body['updated_at'] = datetime.now().isoformat()
+            
+        result = supabase_client.table("chat_sessions").update(body).eq("id", session_id).execute()
+        
+        # Also update conversation if it exists
+        try:
+            conversation_update = {
+                'updated_at': body.get('updated_at'),
+                'last_message_at': body.get('updated_at')
+            }
+            if 'title' in body:
+                conversation_update['title'] = body['title']
+                
+            supabase_client.table("conversations").update(conversation_update).eq("conversation_id", session_id).execute()
+        except Exception as conv_err:
+            logger.warning(f"Error updating conversation: {conv_err}")
+        
+        return JSONResponse(content={"success": True, "data": result.data})
+    except Exception as e:
+        logger.error(f"Error proxying chat session update: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/api/proxy/chat_sessions/{session_id}")
+async def proxy_update_chat_sessions_plural(session_id: str, request: Request):
+    """Alias for proxy_update_chat_session to maintain backwards compatibility"""
+    return await proxy_update_chat_session(session_id, request)
+
+@app.get("/api/proxy/messages_schema")
+async def proxy_get_messages_schema(request: Request):
+    """Proxy endpoint for getting the message table schema"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        # Get a single message to determine schema
+        result = supabase_client.table("messages").select("*").limit(1).execute()
+        
+        if not result.data or len(result.data) == 0:
+            # Create a dummy message with all possible fields
+            dummy_schema = {
+                "message_id": 0,
+                "conversation_id": "",
+                "user_id": "",
+                "request": "",
+                "response": "",
+                "created_at": "",
+                "status": "",
+                "status_updated_at": "",
+                "error_message": "",
+                "request_type": "",
+                "request_payload": {},
+                "response_payload": {},
+                "status_code": 0,
+                "processing_start_time": "",
+                "processing_end_time": "",
+                "processing_time_ms": 0,
+                "is_sensitive": False,
+                "metadata": {},
+                "chat_session_id": ""
+            }
+            return JSONResponse(content={"columns": list(dummy_schema.keys())})
+        
+        # Return the column names
+        columns = list(result.data[0].keys())
+        return JSONResponse(content={"columns": columns})
+    except Exception as e:
+        logger.error(f"Error proxying message schema retrieval: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/proxy/message")
+async def proxy_update_message(request: Request):
+    """Proxy endpoint for adding a message with custom ID"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        body = await request.json()
+        logger.info(f"Received message data: {body}")
+        
+        # Generate ID if not provided
+        if 'message_id' not in body and 'id' not in body:
+            # Generate timestamp-based numeric ID
+            import time
+            import random
+            body['message_id'] = int(time.time() * 1000) * 1000 + random.randint(0, 999)
+        
+        # Ensure created_at is set
+        if 'created_at' not in body:
+            body['created_at'] = datetime.now().isoformat()
+        
+        # נקה שדות null או undefined
+        cleaned_body = {}
+        for key, value in body.items():
+            if value is not None:
+                cleaned_body[key] = value
+        
+        logger.info(f"Cleaned message data for insert: {cleaned_body}")
+        # בדוק אם יש שדות JSON שצריך להמיר
+        for key in ['request_payload', 'response_payload', 'metadata']:
+            if key in cleaned_body and isinstance(cleaned_body[key], dict):
+                cleaned_body[key] = json.dumps(cleaned_body[key])
+        
+        result = supabase_client.table("messages").insert(cleaned_body).select().execute()
+        logger.info(f"Message insert result: {result.data if hasattr(result, 'data') else 'No data'}")
+        
+        if result.data and len(result.data) > 0:
+            return JSONResponse(content=result.data[0])
+        else:
+            logger.warning("No data returned from message insert")
+            return JSONResponse(content={"id": cleaned_body.get('message_id') or cleaned_body.get('id'), 
+                                         "created_at": cleaned_body.get('created_at')})
+    except Exception as e:
+        logger.error(f"Error proxying message creation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy/search_chat_sessions")
+async def proxy_search_chat_sessions(user_id: str, search_term: str, request: Request):
+    """Proxy endpoint for searching chat sessions"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        # First search for chat sessions with matching titles
+        title_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).ilike("title", f"%{search_term}%").execute()
+        
+        # Then search for messages with matching content in request or response fields
+        message_result = supabase_client.table("messages").select("conversation_id").eq("user_id", user_id).or_(f"request.ilike.%{search_term}%,response.ilike.%{search_term}%").execute()
+        
+        # Get unique session IDs from message matches
+        session_ids = []
+        if message_result.data:
+            session_ids = list(set([msg.get("conversation_id") for msg in message_result.data]))
+        
+        # If we have matching session IDs from messages, fetch those sessions
+        content_match_sessions = []
+        if session_ids:
+            content_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).in_("id", session_ids).execute()
+            content_match_sessions = content_result.data or []
+        
+        # Combine and deduplicate results
+        all_sessions = title_result.data + content_match_sessions if title_result.data else content_match_sessions
+        
+        # Remove duplicates by creating a dictionary with session ID as key
+        unique_sessions = {}
+        for session in all_sessions:
+            if session.get("id") not in unique_sessions:
+                unique_sessions[session.get("id")] = session
+        
+        # Convert back to a list and sort by updated_at (newest first)
+        result = list(unique_sessions.values())
+        result.sort(key=lambda x: x.get("updated_at", x.get("created_at", "")), reverse=True)
+        
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Error searching chat sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/proxy/chat_session/{session_id}")
+async def proxy_delete_chat_session(session_id: str, request: Request):
+    """Proxy endpoint for deleting a chat session"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase connection not available")
+    
+    try:
+        # First delete all messages in the session
+        messages_result = supabase_client.table("messages").delete().eq("conversation_id", session_id).execute()
+        
+        # Delete the conversation record if it exists
+        try:
+            conversation_result = supabase_client.table("conversations").delete().eq("conversation_id", session_id).execute()
+        except Exception as conv_err:
+            logger.warning(f"Error deleting conversation: {conv_err}")
+        
+        # Then delete the session itself
+        session_result = supabase_client.table("chat_sessions").delete().eq("id", session_id).execute()
+        
+        return JSONResponse(content={"success": True})
+    except Exception as e:
+        logger.error(f"Error deleting chat session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
