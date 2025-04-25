@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "python -m pytest",
+    "test:cov": "python -m pytest --cov=. --cov-report=term-missing",
+    "test:watch": "python -m pytest-watch -- -v"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.3",
