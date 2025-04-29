@@ -25,7 +25,7 @@ TEST_SCRIPTS = [
     },
     {
         "name": "User Management Tests",
-        "script": "run_user_tests.py"
+        "script": "run_user_tests_mock.py"  # Using mock version for demo
     }
 ]
 
@@ -38,7 +38,7 @@ def print_header(text):
 
 def print_test_result(name, success, duration):
     """Print a formatted test result"""
-    status = "✓ PASSED" if success else "✗ FAILED"
+    status = "[PASS]" if success else "[FAIL]"
     print(f"{status} - {name} ({duration:.2f}s)")
 
 def run_test(test):

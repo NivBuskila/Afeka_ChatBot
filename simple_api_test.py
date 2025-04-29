@@ -15,13 +15,13 @@ def test_api_health():
         response = requests.get(f"{API_URL}/api/health")
         
         if response.status_code == 200:
-            print("✓ API health check: SUCCESS")
+            print("[PASS] API health check: SUCCESS")
             return True
         else:
-            print(f"✗ API health check: FAILED (Status: {response.status_code})")
+            print(f"[FAIL] API health check: FAILED (Status: {response.status_code})")
             return False
     except requests.RequestException as e:
-        print(f"✗ API health check: ERROR - {e}")
+        print(f"[FAIL] API health check: ERROR - {e}")
         return False
 
 if __name__ == "__main__":

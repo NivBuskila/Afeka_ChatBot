@@ -23,10 +23,10 @@ class ApiTests:
         """Report the result of a test"""
         if success:
             self.passed += 1
-            print(f"✓ {test_name}: SUCCESS")
+            print(f"[PASS] {test_name}: SUCCESS")
         else:
             self.failed += 1
-            print(f"✗ {test_name}: FAILED {details if details else ''}")
+            print(f"[FAIL] {test_name}: FAILED {details if details else ''}")
     
     def test_root_endpoint(self):
         """Test the root endpoint (/)"""

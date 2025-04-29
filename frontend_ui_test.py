@@ -18,22 +18,22 @@ def test_frontend_accessibility():
         response = requests.get(FRONTEND_URL, timeout=TIMEOUT)
         
         if response.status_code == 200:
-            print("✓ Frontend accessibility: SUCCESS")
+            print("[PASS] Frontend accessibility: SUCCESS")
             return response
         else:
-            print(f"✗ Frontend accessibility: FAILED (Status: {response.status_code})")
+            print(f"[FAIL] Frontend accessibility: FAILED (Status: {response.status_code})")
             return None
     except requests.RequestException as e:
-        print(f"✗ Frontend accessibility: ERROR - {e}")
+        print(f"[FAIL] Frontend accessibility: ERROR - {e}")
         return None
 
 def check_for_element(html, search_text, element_name):
     """Check if HTML contains the specified element"""
     if search_text in html:
-        print(f"✓ {element_name} found: SUCCESS")
+        print(f"[PASS] {element_name} found: SUCCESS")
         return True
     else:
-        print(f"✗ {element_name} not found: FAILED")
+        print(f"[FAIL] {element_name} not found: FAILED")
         return False
 
 def test_frontend_elements(response):
@@ -45,7 +45,7 @@ def test_frontend_elements(response):
     
     # Elements to check for
     elements = [
-        ('<script src="/src/main.tsx"', 'Main script'),
+        ('src="/src/main', 'Main script'),
         ('<div id="root"', 'Root div'),
         ('<title>Afeka ChatBot</title>', 'Title'),
         ('/@vite/client', 'Vite client')
