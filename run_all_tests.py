@@ -25,7 +25,7 @@ TEST_SCRIPTS = [
     },
     {
         "name": "User Management Tests",
-        "script": "run_user_tests_mock.py"  # Using mock version for demo
+        "script": "test_user_management.py"  # Using the real test file instead of mock
     }
 ]
 
