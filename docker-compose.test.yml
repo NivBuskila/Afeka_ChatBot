@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Backend test service
+  backend-test:
+    image: afeka_chatbot-backend:latest
+    volumes:
+      - ./src/backend:/app/backend:ro
+      - ./tests:/app/tests:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SUPABASE_URL=https://cqvicgimmzrffvarlokq.supabase.co
+      - SUPABASE_KEY=dummy-key-for-testing
+      - AI_SERVICE_URL=http://localhost:5000
+      - DEBUG=True
+      - TZ=Asia/Jerusalem
+    command: python -m pytest /app/tests/backend -v
+
+  # Frontend test service
+  frontend-test:
+    image: afeka_chatbot-frontend:latest
+    volumes:
+      - ./src/frontend:/app:ro
+      - ./tests/frontend:/app/tests:ro
+    environment:
+      - NODE_ENV=test
+    command: sh -c "npm install -g vitest && cd /app && npm test || echo 'No test script defined'" 

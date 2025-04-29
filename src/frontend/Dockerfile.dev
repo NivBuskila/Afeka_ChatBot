@@ -1,4 +1,5 @@
-FROM node:20.10-alpine
+# Build stage
+FROM node:20.10-alpine AS builder
 
 # Add labels
 LABEL maintainer="Afeka ChatBot Team"
@@ -8,28 +9,21 @@ LABEL description="Frontend development service for Afeka College Regulations Ch
 # Set working directory
 WORKDIR /app
 
-# Install wget for healthcheck
-RUN apk add --no-cache wget
+# Install wget for healthcheck & git for npm
+RUN apk add --no-cache wget git
 
-# Use non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN chown -R appuser:appgroup /app
+# Copy package files
+COPY package*.json ./
 
-# Copy package files with proper ownership
-COPY --chown=appuser:appgroup package*.json ./
-
-# Install dependencies with optional dependencies
+# Install dependencies with all optional dependencies explicitly
 RUN npm config set ignore-scripts true && \
-    npm install --include=optional && \
+    npm install && \
+    npm install @esbuild/linux-x64 --no-save && \
     npm config set ignore-scripts false && \
-    npm cache clean --force && \
-    chown -R appuser:appgroup node_modules
+    npm cache clean --force
 
 # Copy the rest of the application
-COPY --chown=appuser:appgroup . .
-
-# Switch to non-root user for remaining operations
-USER appuser
+COPY . .
 
 # Set development-specific env vars
 ENV VITE_SKIP_TS_CHECK=true
