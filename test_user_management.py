@@ -5,10 +5,14 @@ import json
 import os
 import sys
 import uuid
-from dotenv import load_dotenv  # Uncommented to load from .env file
+import logging
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cqvicgimmzrffvarlokq.supabase.co")
@@ -28,7 +32,7 @@ class TestUserManagement:
     def setup_and_teardown(self):
         """Setup and teardown for each test case"""
         # Store created user data for cleanup
-        self.created_users = []
+        self.created_user_ids = []
         yield
         # Cleanup - delete any test users created during tests
         self.delete_test_users()
@@ -38,27 +42,35 @@ class TestUserManagement:
         from supabase import create_client
         
         if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-            print("WARNING: Supabase credentials not found. Skipping user cleanup.")
+            logger.warning("Supabase credentials not found. Skipping user cleanup.")
             return
             
         try:
             # Initialize Supabase client with admin key for deletion
             supabase_admin_key = os.getenv("SUPABASE_SERVICE_KEY")
             if not supabase_admin_key:
-                print("WARNING: Supabase admin key not found. Skipping user cleanup.")
+                logger.warning("Supabase admin key not found. Skipping user cleanup.")
                 return
                 
             supabase = create_client(SUPABASE_URL, supabase_admin_key)
             
-            # Delete each user
-            for user in self.created_users:
+            # Print summary before deletion
+            user_count = len(self.created_user_ids)
+            logger.info(f"Cleaning up {user_count} test users...")
+            
+            # Delete each user by ID
+            for user_id in self.created_user_ids:
                 try:
-                    supabase.auth.admin.delete_user(user["id"])
-                    print(f"Deleted test user: {user['email']}")
+                    supabase.auth.admin.delete_user(user_id)
+                    logger.info(f"Successfully deleted test user with ID: {user_id}")
                 except Exception as e:
-                    print(f"Error deleting user {user['email']}: {e}")
+                    logger.error(f"Error deleting user with ID {user_id}: {e}")
+                    
+            # Clear the list after deletion attempts
+            self.created_user_ids = []
+            logger.info("User cleanup completed.")
         except Exception as e:
-            print(f"Error in cleanup: {e}")
+            logger.error(f"Error in cleanup: {e}")
     
     def test_create_and_delete_regular_user(self):
         """Test creating, authenticating, and deleting a regular user"""
@@ -82,9 +94,11 @@ class TestUserManagement:
                 "password": user_password
             })
             
-            # Store user for cleanup
+            # Store user ID for cleanup
             user = user_data.user
-            self.created_users.append(user)
+            user_id = user.id
+            self.created_user_ids.append(user_id)
+            logger.info(f"Created regular user: {user_email} (ID: {user_id})")
             
             # 2. Verify user exists in Supabase
             assert user is not None
@@ -121,11 +135,11 @@ class TestUserManagement:
             # response = requests.get(f"{API_BASE_URL}/api/user/profile", headers=headers)
             # assert response.status_code in [401, 403]
             
-            print(f"Regular user test passed: {user_email}")
+            logger.info(f"Regular user test passed: {user_email}")
             
         except Exception as e:
             # Ensure user gets cleaned up even if test fails
-            print(f"Error in regular user test: {e}")
+            logger.error(f"Error in regular user test: {e}")
             raise
     
     def test_create_and_delete_admin_user(self):
@@ -156,12 +170,14 @@ class TestUserManagement:
             })
             
             user = user_data.user
-            self.created_users.append(user)
+            user_id = user.id
+            self.created_user_ids.append(user_id)
+            logger.info(f"Created admin user: {user_email} (ID: {user_id})")
             
             # 2. Set user as admin (this depends on your application's role setup)
             # NOTE: We're skipping this part since the table might not exist
             # or we don't have permissions to insert into it
-            print(f"Skipping setting user as admin since user_roles table might not exist")
+            logger.info("Skipping setting user as admin since user_roles table might not exist")
             
             # 3. Verify user exists in Supabase
             assert user is not None
@@ -187,11 +203,67 @@ class TestUserManagement:
             
             # 7. We skip checking logout with admin endpoints
             
-            print(f"Admin user test passed: {user_email}")
+            logger.info(f"Admin user test passed: {user_email}")
             
         except Exception as e:
             # Ensure user gets cleaned up even if test fails
-            print(f"Error in admin user test: {e}")
+            logger.error(f"Error in admin user test: {e}")
+            raise
+    
+    def test_manual_user_deletion(self):
+        """Test explicitly deleting a user to ensure the deletion process works"""
+        from supabase import create_client
+        
+        # Skip if no Supabase credentials
+        if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+            pytest.skip("Supabase credentials not found")
+            
+        supabase_admin_key = os.getenv("SUPABASE_SERVICE_KEY")
+        if not supabase_admin_key:
+            pytest.skip("Supabase admin key not found")
+        
+        # Create user with anon key
+        anon_supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        user_email = generate_test_email()
+        user_password = "Delete123456!"
+        
+        try:
+            # Sign up user
+            user_data = anon_supabase.auth.sign_up({
+                "email": user_email,
+                "password": user_password
+            })
+            
+            user = user_data.user
+            user_id = user.id
+            logger.info(f"Created test user for deletion: {user_email} (ID: {user_id})")
+            
+            # Verify user exists
+            assert user is not None
+            assert user.email == user_email
+            
+            # Delete user with admin key
+            admin_supabase = create_client(SUPABASE_URL, supabase_admin_key)
+            admin_supabase.auth.admin.delete_user(user_id)
+            logger.info(f"Manually deleted test user: {user_email}")
+            
+            # Try to login (should fail)
+            try:
+                login_response = anon_supabase.auth.sign_in_with_password({
+                    "email": user_email,
+                    "password": user_password
+                })
+                # If login succeeds, the test should fail
+                assert False, "User was not deleted - login still succeeded"
+            except Exception as e:
+                # Login should fail if user was deleted
+                logger.info(f"Login failed as expected for deleted user: good!")
+                pass
+                
+            logger.info(f"Manual deletion test passed: {user_email}")
+            
+        except Exception as e:
+            logger.error(f"Error in manual deletion test: {e}")
             raise
             
 if __name__ == "__main__":
@@ -200,7 +272,8 @@ if __name__ == "__main__":
     # Initialize pytest
     pytest_args = [
         __file__,
-        "-v"  # Verbose output
+        "-v",  # Verbose output
+        "--log-cli-level=INFO"  # Show logs in console output
     ]
     
     # Run the tests
