@@ -12,7 +12,7 @@ load_dotenv()
 
 # Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cqvicgimmzrffvarlokq.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_KEY")  # Public anon key for testing
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")  # Public anon key for testing
 API_BASE_URL = "http://localhost:8000"
 
 # Test data - use random email to avoid conflicts
@@ -37,7 +37,7 @@ class TestUserManagement:
         """Helper to delete all test users created during tests"""
         from supabase import create_client
         
-        if not SUPABASE_URL or not SUPABASE_KEY:
+        if not SUPABASE_URL or not SUPABASE_ANON_KEY:
             print("WARNING: Supabase credentials not found. Skipping user cleanup.")
             return
             
@@ -65,11 +65,11 @@ class TestUserManagement:
         from supabase import create_client
         
         # Skip if no Supabase credentials
-        if not SUPABASE_URL or not SUPABASE_KEY:
+        if not SUPABASE_URL or not SUPABASE_ANON_KEY:
             pytest.skip("Supabase credentials not found")
         
         # Initialize Supabase client
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
         
         # 1. Create a regular user
         user_email = generate_test_email()
@@ -133,7 +133,7 @@ class TestUserManagement:
         from supabase import create_client
         
         # Skip if no Supabase credentials
-        if not SUPABASE_URL or not SUPABASE_KEY:
+        if not SUPABASE_URL or not SUPABASE_ANON_KEY:
             pytest.skip("Supabase credentials not found")
             
         supabase_admin_key = os.getenv("SUPABASE_SERVICE_KEY")
@@ -169,7 +169,7 @@ class TestUserManagement:
             
             # 4. Test login
             # Switch to anon key for login test
-            auth_supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            auth_supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
             login_response = auth_supabase.auth.sign_in_with_password({
                 "email": user_email,
                 "password": user_password
