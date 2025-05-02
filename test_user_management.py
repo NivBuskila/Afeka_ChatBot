@@ -25,8 +25,121 @@ def generate_test_email():
     random_id = uuid.uuid4().hex[:8]
     return f"test-{random_id}@afeka-test.com"
 
+def force_cleanup_existing_test_users():
+    """Force cleanup of any existing test users from previous test runs"""
+    from supabase import create_client
+    
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        logger.warning("Supabase credentials not found. Skipping force cleanup.")
+        return
+        
+    try:
+        # Initialize Supabase client with admin key for deletion
+        supabase_admin_key = os.getenv("SUPABASE_SERVICE_KEY")
+        if not supabase_admin_key:
+            logger.warning("Supabase admin key not found. Skipping force cleanup.")
+            return
+        
+        logger.info("=== Performing force cleanup of any lingering test users ===")
+        supabase = create_client(SUPABASE_URL, supabase_admin_key)
+        
+        # Try to delete users directly through the Supabase client
+        try:
+            # Try to batch-delete users via admin API
+            logger.info("Deleting test users directly through Supabase client")
+            
+            # First get test users
+            try:
+                # Run a direct query on auth.users table
+                result = supabase.rpc(
+                    "get_test_users",
+                    {"test_domain": "afeka-test.com"}
+                ).execute()
+                
+                if "data" in result:
+                    users = result["data"]
+                    logger.info(f"Found {len(users)} users to clean up")
+                    
+                    # Delete each user
+                    for user in users:
+                        try:
+                            user_id = user.get("id")
+                            if user_id:
+                                supabase.auth.admin.delete_user(user_id)
+                                logger.info(f"Deleted user: {user.get('email')}")
+                        except Exception as e:
+                            logger.warning(f"Error deleting user: {e}")
+            except Exception as e:
+                logger.warning(f"Could not get users via RPC: {e}")
+                
+                # Fallback - try direct deletion 
+                test_emails = []
+                
+                # Try an alternative approach - sign out current user to ensure we don't delete them
+                try:
+                    supabase.auth.sign_out()
+                    logger.info("Signed out current user for safety")
+                except:
+                    pass
+                    
+                # Use auth API with admin key for deletion
+                try:
+                    # Get list of users first
+                    resp = requests.get(
+                        f"{SUPABASE_URL}/auth/v1/admin/users",
+                        headers={
+                            "apikey": supabase_admin_key,
+                            "Authorization": f"Bearer {supabase_admin_key}"
+                        }
+                    )
+                    
+                    if resp.status_code == 200:
+                        users = resp.json()
+                        test_users = [u for u in users if "afeka-test.com" in u.get("email", "")]
+                        
+                        if test_users:
+                            logger.info(f"Found {len(test_users)} test users to delete")
+                            
+                            for user in test_users:
+                                user_id = user.get("id")
+                                email = user.get("email")
+                                
+                                if user_id:
+                                    del_resp = requests.delete(
+                                        f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+                                        headers={
+                                            "apikey": supabase_admin_key,
+                                            "Authorization": f"Bearer {supabase_admin_key}"
+                                        }
+                                    )
+                                    
+                                    if del_resp.status_code in [200, 204]:
+                                        logger.info(f"Deleted test user: {email}")
+                                    else:
+                                        logger.warning(f"Failed to delete user {email}: {del_resp.status_code}")
+                        else:
+                            logger.info("No test users found to delete")
+                    else:
+                        logger.warning(f"Failed to get users list: {resp.status_code}")
+                except Exception as e:
+                    logger.warning(f"Error in auth API cleanup: {e}")
+                
+        except Exception as e:
+            logger.error(f"Error during user cleanup: {e}")
+            # Continue with tests even if cleanup fails
+    
+    except Exception as e:
+        logger.error(f"Force cleanup failed: {e}")
+        # Continue with tests even if force cleanup fails
+
 class TestUserManagement:
     """Test user management functionalities (signup, login, logout, delete)"""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup before any test in the class runs"""
+        # Try to clean up any lingering test users
+        force_cleanup_existing_test_users()
     
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self):
@@ -65,10 +178,25 @@ class TestUserManagement:
                     logger.info(f"Successfully deleted test user with ID: {user_id}")
                 except Exception as e:
                     logger.error(f"Error deleting user with ID {user_id}: {e}")
+                    # If the standard API fails, try a direct request
+                    try:
+                        url = f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+                        headers = {
+                            "apikey": supabase_admin_key,
+                            "Authorization": f"Bearer {supabase_admin_key}"
+                        }
+                        response = requests.delete(url, headers=headers)
+                        if response.status_code in [200, 204]:
+                            logger.info(f"Successfully deleted user with direct API call: {user_id}")
+                        else:
+                            logger.error(f"Direct API call failed: {response.status_code}")
+                    except Exception as direct_e:
+                        logger.error(f"Direct deletion also failed: {direct_e}")
                     
             # Clear the list after deletion attempts
             self.created_user_ids = []
             logger.info("User cleanup completed.")
+            
         except Exception as e:
             logger.error(f"Error in cleanup: {e}")
     
