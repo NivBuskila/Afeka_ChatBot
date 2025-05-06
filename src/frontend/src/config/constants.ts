@@ -6,8 +6,8 @@ export const CHAT_CONFIG = {
   } as const;
 
 export const API_CONFIG = {
-  CHAT_ENDPOINT: '/api/chat',
-  DOCUMENTS_ENDPOINT: '/api/documents',
-  HEALTH_ENDPOINT: '/api/health',
-  DEFAULT_TIMEOUT: 5000,
+  CHAT_ENDPOINT: 'http://localhost:5000/api/chat',
+  DOCUMENTS_ENDPOINT: 'http://localhost:5000/api/documents',
+  HEALTH_ENDPOINT: 'http://localhost:5000/api/health',
+  DEFAULT_TIMEOUT: 30000,
 } as const;

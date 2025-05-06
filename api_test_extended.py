@@ -101,14 +101,14 @@ class ApiTests:
             success = response.status_code == 200
             
             if success:
-                # Verify that the response contains a valid message
+                # Verify that the response contains a valid result
                 data = response.json()
-                if not isinstance(data, dict) or 'message' not in data:
+                if not isinstance(data, dict) or 'result' not in data:
                     success = False
-                    details = "(Invalid response format, expected dict with 'message')"
+                    details = "(Invalid response format, expected dict with 'result')"
                 else:
-                    message_length = len(data.get('message', ''))
-                    details = f"(Response message length: {message_length} chars)"
+                    message_length = len(data.get('result', ''))
+                    details = f"(Response result length: {message_length} chars)"
             else:
                 details = f"(Status: {response.status_code})"
             

@@ -436,7 +436,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       if (response.ok) {
         const data = await response.json();
         console.log('API response:', data);
-        botContent = data.result || data.response || data.answer || t('chat.errorProcessing') || "Sorry, I couldn't process your request.";
+        botContent = data.message || data.result || data.response || data.answer || "Sorry, I couldn't process your request.";
       } else {
         botContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
       }
@@ -466,7 +466,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       await loadSessionMessages(sessionId);
     } catch (error) {
       console.error('Exception while processing bot response:', error);
-      const errorContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
+      
+      // בדיקה אם השגיאה היא timeout
+      let errorContent;
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        errorContent = 'השאלה שלך מורכבת ודורשת זמן עיבוד ארוך יותר. אנא נסה שוב או פצל את השאלה לחלקים קטנים יותר.';
+      } else {
+        errorContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
+      }
+      
       const botReply: Message = {
         id: `error-${Date.now().toString()}`,
         type: 'bot',
