@@ -13,6 +13,9 @@ import importlib
 from pathlib import Path
 from datetime import datetime
 
+# Add parent directory to sys.path to allow imports from the project root
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,19 +50,19 @@ REQUIRED_PACKAGES = [
 TEST_SCRIPTS = [
     {
         "name": "Simple API Test",
-        "script": "simple_api_test.py"
+        "script": "backend/api/simple_api_test.py"
     },
     {
         "name": "Extended API Test",
-        "script": "api_test_extended.py"
+        "script": "backend/api/api_test_extended.py"
     },
     {
         "name": "Frontend UI Test",
-        "script": "frontend_ui_test.py"
+        "script": "frontend/frontend_ui_test.py"
     },
     {
         "name": "User Management Tests",
-        "script": "test_user_management.py"  # Using the real test file instead of mock
+        "script": "backend/services/test_user_management.py"
     }
 ]
 
@@ -157,8 +160,8 @@ def activate_virtual_env():
         logger.info(f"Already in a virtual environment: {sys.prefix}")
         return True
     
-    # Find and activate the test_env
-    venv_path = Path("test_env")
+    # Find and activate the test_env in the parent directory
+    venv_path = Path(os.path.join(os.path.dirname(__file__), '..', 'test_env'))
     if not venv_path.exists():
         logger.warning("test_env virtual environment not found")
         return False
@@ -544,5 +547,6 @@ def run_all_tests():
         shutdown_services(started_processes)
 
 if __name__ == "__main__":
+    # Run all tests directly
     success = run_all_tests()
     sys.exit(0 if success else 1) 

@@ -253,15 +253,18 @@ async def chat(request: Request):
                     import json
                     response_json = json.loads(response_text)
                 
+                # Extract message from AI response or use the entire response
+                ai_message = response_json.get("result") or response_json.get("response") or response_json.get("answer") or response_json
+                
+                # Ensure we return the expected format with 'message' key
                 return JSONResponse(
-                    content=response_json,
+                    content={"message": ai_message},
                     headers={"Content-Type": "application/json; charset=utf-8"}
                 )
         except httpx.RequestError as e:
             logger.error(f"Error communicating with AI service: {e}")
             return JSONResponse(
                 content={
-                    "error": "AI service is currently unavailable",
                     "message": "This is a placeholder response. Future implementation will use RAG to query document knowledge base."
                 },
                 headers={"Content-Type": "application/json; charset=utf-8"}
@@ -271,7 +274,7 @@ async def chat(request: Request):
         logger.error(f"Invalid JSON in request: {e}")
         return JSONResponse(
             status_code=400,
-            content={"error": "Invalid JSON in request body"},
+            content={"error": "Invalid JSON in request body", "message": "Error processing your request"},
             headers={"Content-Type": "application/json; charset=utf-8"}
         )
     except Exception as e:
