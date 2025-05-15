@@ -1,8 +1,19 @@
-fastapi
-uvicorn
-pydantic
-python-dotenv
-httpx==0.24.1
-python-multipart>=0.0.9
-websockets<13,>=11
-supabase
+# fastapi
+# uvicorn
+# pydantic
+# pydantic-settings
+# python-dotenv
+# httpx>=0.26
+# python-multipart>=0.0.9
+# websockets<13,>=11
+# supabase>=2.12.0
+
+fastapi>=0.103.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+httpx>=0.24.1
+supabase>=1.0.3  # Ensure the Supabase Python library is recent
+python-multipart>=0.0.6
+websockets>=11.0.0,<13.0.0
