@@ -421,13 +421,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   // Helper function to process bot response
   const processBotResponse = async (userMessage: Message, sessionId: string, userId: string) => {
     try {
+      // Prepare history from the current messages state
+      // This includes all messages currently in the 'messages' array.
+      const historyForBackend = messages.map(msg => ({
+        type: msg.type,
+        content: msg.content,
+      }));
+
+      // Assuming a logger is available, e.g., from a logging library
+      // If not, replace with console.log or remove
+      // console.log('Sending to backend:', { 
+      //   message: userMessage.content, 
+      //   userId, 
+      //   history: historyForBackend 
+      // });
+
       // Call backend API
       const response = await fetch(API_CONFIG.CHAT_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({
+          message: userMessage.content, // The current message text
+          user_id: userId, 
+          history: historyForBackend, // Send the mapped history
+        }),
         signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
       });
 
@@ -435,7 +454,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('API response:', data);
+        // console.log('API response:', data);
         botContent = data.result || data.response || data.answer || t('chat.errorProcessing') || "Sorry, I couldn't process your request.";
       } else {
         botContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
@@ -454,18 +473,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       
       // Save bot message to database
       const savedMessage = await chatService.addMessage({
-        user_id: userId,
+        user_id: userId, // Ensure userId is passed correctly
         chat_session_id: sessionId,
-        content: botContent,
+        content: botContent, // Ensure botContent has a value
         is_bot: true
       });
       
-      console.log('Bot message saved successfully:', savedMessage?.id);
+      // if (savedMessage) {
+      //   console.log('Bot message saved successfully:', savedMessage.id);
+      // } else {
+      //   console.warn('Bot message was not saved, addMessage returned null or undefined');
+      // }
       
-      // Reload the session to get the latest messages
       await loadSessionMessages(sessionId);
     } catch (error) {
-      console.error('Exception while processing bot response:', error);
+      // console.error('Exception while processing bot response:', error);
       const errorContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
       const botReply: Message = {
         id: `error-${Date.now().toString()}`,

@@ -20,10 +20,13 @@ export default defineConfig({
     cors: true,
     // Add proxy configuration for API requests
     proxy: {
-      '/api/chat': {
-        target: 'http://localhost:5000',
+      // Proxy all requests starting with /api to the backend server
+      '/api': { 
+        target: 'http://localhost:8000', // Target our main backend server
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/chat/, '/chat')
+        // No rewrite needed if backend handles /api/chat, /api/documents, etc.
+        // If backend expects /chat, /documents, then use:
+        // rewrite: (path) => path.replace(/^\/api/, '') 
       }
     }
   }

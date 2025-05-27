@@ -26,11 +26,16 @@ async def chat(
         try:
             body_bytes = await request.body()
             body_str = body_bytes.decode('utf-8', errors='replace')
-            logger.info(f"Raw request body (first 100 chars): {body_str[:100]}...")
+            logger.info(f"Raw request body (first 500 chars): {body_str[:500]}...")
             
             body = json.loads(body_str)
             # Validate with Pydantic
             chat_data = ChatRequest(**body)
+            logger.info(f"Validated chat_data.message: {chat_data.message[:50]}...")
+            if chat_data.history:
+                logger.info(f"Validated chat_data.history contains {len(chat_data.history)} messages.")
+            else:
+                logger.info("Validated chat_data.history is None or empty.")
         except json.JSONDecodeError:
             logger.warning("Invalid JSON received in chat request")
             raise HTTPException(status_code=400, detail="Invalid JSON format")
@@ -44,7 +49,8 @@ async def chat(
         # Process the message through the service
         result = await chat_service.process_chat_message(
             chat_data.message, 
-            chat_data.user_id
+            chat_data.user_id,
+            chat_data.history
         )
         
         # Return response

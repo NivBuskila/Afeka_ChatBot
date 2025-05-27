@@ -1,67 +1,104 @@
 import logging
 import json
-import httpx
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
 
 from ..core.interfaces import IChatService
 from ..config.settings import settings
+from ..domain.models import ChatMessageHistoryItem
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.chains import ConversationChain
+from langchain.prompts import (
+    ChatPromptTemplate,
+    MessagesPlaceholder,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 logger = logging.getLogger(__name__)
 
 class ChatService(IChatService):
-    """Implementation of chat service interface."""
+    """Implementation of chat service interface using LangChain with Google Gemini."""
     
-    async def process_chat_message(self, user_message: str, user_id: str = "anonymous") -> Dict[str, Any]:
-        """Process a chat message and return a response from the AI service."""
+    def __init__(self):
+        self.llm = None
+        self.conversation_chain = None
         
-        # Validate message length
-        if len(user_message) > settings.MAX_CHAT_MESSAGE_LENGTH:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Message too long (max {settings.MAX_CHAT_MESSAGE_LENGTH} characters)"
-            )
-        
-        logger.info(f"Processing chat request (user: {user_id}): {user_message[:50]}...")
-        
+        if not settings.GEMINI_API_KEY:
+            logger.error("GEMINI_API_KEY not found in settings. LangChain/Gemini functionalities will be disabled.")
+            return
+
         try:
-            # Call AI service
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Prepare request with explicit encoding
-                json_data = json.dumps({"message": user_message}, ensure_ascii=False)
-                headers = {
-                    "Content-Type": "application/json; charset=utf-8",
-                    "Accept": "application/json; charset=utf-8"
-                }
-                
-                response = await client.post(
-                    f"{settings.AI_SERVICE_URL}/chat",
-                    content=json_data.encode('utf-8'),
-                    headers=headers
-                )
-                
-                logger.info(f"AI service response status: {response.status_code}")
-                response.raise_for_status()  # Raise for HTTP error status
-                
-                # Parse the response
-                try:
-                    return response.json()
-                except json.JSONDecodeError as e:
-                    logger.error(f"Error parsing AI service response: {e}. Response text: {response.text[:200]}")
-                    raise HTTPException(status_code=500, detail="AI service returned invalid response format")
-                
-        except httpx.RequestError as e:
-            logger.error(f"Error communicating with AI service: {e}")
-            # Fallback response when AI service is unavailable
-            return {
-                "message": "This is a placeholder response. The AI service is currently unavailable."
-            }
-        except httpx.HTTPStatusError as e:
-            logger.error(f"AI service returned error status {e.response.status_code}: {e.response.text[:200]}")
-            # Determine appropriate status code to return
-            status_code = e.response.status_code if e.response.status_code != 500 else 503
-            detail = "AI service is currently unavailable" if status_code == 503 else "AI service error"
-            raise HTTPException(status_code=status_code, detail=detail)
+            self.llm = ChatGoogleGenerativeAI(
+                google_api_key=settings.GEMINI_API_KEY,
+                model=settings.GEMINI_MODEL_NAME,
+                temperature=settings.GEMINI_TEMPERATURE,
+                max_output_tokens=settings.GEMINI_MAX_TOKENS
+            )
+            
+            prompt_template = ChatPromptTemplate.from_messages([
+                SystemMessagePromptTemplate.from_template(settings.GEMINI_SYSTEM_PROMPT),
+                MessagesPlaceholder(variable_name="chat_history_buffer"),
+                HumanMessagePromptTemplate.from_template("{input}")
+            ])
+
+            self.memory = ConversationBufferWindowMemory(
+                k=settings.LANGCHAIN_HISTORY_K,
+                return_messages=True, 
+                memory_key="chat_history_buffer"
+            )
+            
+            self.conversation_chain = ConversationChain(
+                llm=self.llm,
+                prompt=prompt_template,
+                memory=self.memory,
+                verbose=settings.LANGCHAIN_VERBOSE 
+            )
+            logger.info("ChatService initialized successfully with LangChain and Google Gemini.")
+            logger.info(f"Using Gemini model: {settings.GEMINI_MODEL_NAME}, Temperature: {settings.GEMINI_TEMPERATURE}, Max Tokens: {settings.GEMINI_MAX_TOKENS}, History Window: {settings.LANGCHAIN_HISTORY_K}")
+
         except Exception as e:
-            logger.exception(f"Unexpected error in chat service: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Error initializing LangChain components with Gemini: {e}", exc_info=True)
+            self.llm = None
+            self.conversation_chain = None
+
+    async def process_chat_message(
+        self, 
+        user_message: str, 
+        user_id: str = "anonymous", 
+        history: Optional[List[ChatMessageHistoryItem]] = None
+    ) -> Dict[str, Any]:
+        """Process a chat message using LangChain with Gemini and return an AI response."""
+
+        if not self.conversation_chain:
+            logger.error("ConversationChain (Gemini) is not initialized. GEMINI_API_KEY might be missing or initialization failed.")
+            raise HTTPException(status_code=500, detail="AI Service (Gemini/LangChain) not initialized. Check GEMINI_API_KEY and server logs.")
+
+        logger.debug(f"Processing message for user_id: {user_id} with LangChain (Gemini).")
+        logger.debug(f"Incoming user_message: {user_message}")
+        
+        if history:
+            logger.info(f"Rehydrating memory with {len(history)} messages from provided history for Gemini.")
+            self.memory.clear()
+            for item in history:
+                if item.type == 'user':
+                    self.memory.chat_memory.add_user_message(item.content)
+                elif item.type == 'bot' or item.type == 'ai':
+                    self.memory.chat_memory.add_ai_message(item.content)
+            logger.debug(f"Memory after rehydration for Gemini: {self.memory.chat_memory.messages}")
+        elif not self.memory.chat_memory.messages:
+            logger.debug("No history provided and memory is empty. Starting fresh conversation.")
+
+        try:
+            response_content = await self.conversation_chain.apredict(input=user_message)
+            
+            logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
+            
+            return {"response": response_content}
+
+        except Exception as e:
+            logger.error(f"Error during LangChain (Gemini) conversation prediction: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error processing message with AI (Gemini): {e}")

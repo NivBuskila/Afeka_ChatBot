@@ -28,3 +28,7 @@ python-docx>=0.8.11
 unstructured>=0.10.0
 sentence-transformers>=2.2.0
 PyJWT>=2.8.0
+langchain
+langchain-openai
+langchain-google-genai
+python-dotenv

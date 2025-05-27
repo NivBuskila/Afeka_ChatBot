@@ -9,11 +9,15 @@ uvicorn src.backend.main:app --reload
 לא להשתמש ב-"main:app" ללא ציון הנתיב המלא כי זה יגרום לשגיאות טעינה.
 """
 import os
+# Load environment variables - force reload from .env file in current directory
+# THIS MUST BE DONE BEFORE ANY OTHER IMPORTS THAT RELY ON .env variables
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
-from dotenv import load_dotenv
 from typing import Dict, Any, List, Optional
 import json
 import logging
@@ -28,16 +32,26 @@ from datetime import datetime
 import uuid
 import asyncio
 import threading
+from app.config.settings import settings
 
 # Import vector management router
 from api.vector_management import router as vector_router
+
+# --- NEW IMPORTS FOR CHAT SERVICE ---
+from app.services.chat_service import ChatService
+from app.core.interfaces import IChatService
+from app.domain.models import ChatRequest as ChatRequestModel, ChatMessageHistoryItem # Renamed to avoid conflict with FastAPI's Request
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment variables - force reload from .env file in current directory
-load_dotenv(override=True)
+# Temporary debug log for OPENAI_API_KEY
+logger.info(f"Attempting to load OPENAI_API_KEY. Key found: {'YES' if settings.OPENAI_API_KEY else 'NO'}")
+if settings.OPENAI_API_KEY:
+    logger.info(f"OPENAI_API_KEY (in main.py) starts with: {settings.OPENAI_API_KEY[:5]}... and ends with: ...{settings.OPENAI_API_KEY[-5:]}")
+else:
+    logger.warning("OPENAI_API_KEY not found in settings when checking from main.py. Ensure it is set in the .env file in the backend directory.")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -244,92 +258,61 @@ async def health_check():
     supabase_status = "connected" if supabase_client else "disconnected"
     return {"status": "ok", "supabase": supabase_status}
 
+# --- NEW DEPENDENCY FOR CHAT SERVICE ---
+def get_chat_service() -> IChatService:
+    # This could be enhanced to handle singleton creation if needed,
+    # but FastAPI handles dependencies well for per-request instances.
+    # For ChatService with LangChain, it initializes its own LLM and memory.
+    # If the LLM/memory should be truly global singletons, this needs more sophisticated management.
+    # For now, a new instance per request (or per dependency resolution) is acceptable,
+    # especially if ChatService itself manages shared resources or session-based memory.
+    return ChatService()
+
+# --- MODIFIED /api/chat ENDPOINT ---
 @app.post("/api/chat")
-async def chat(request: Request):
+async def chat(
+    chat_request_data: ChatRequestModel, # Use the Pydantic model for request body
+    chat_service: IChatService = Depends(get_chat_service) # Dependency inject ChatService
+):
     """
-    Process chat messages - currently a placeholder for future RAG implementation
-    
-    Takes user message and returns a placeholder response
+    Process chat messages using the injected ChatService (LangChain based).
     """
     try:
-        # Log request headers for debugging
-        logger.info(f"Request headers: {request.headers.get('content-type', 'Not specified')}")
+        logger.info(f"Received chat request via ChatService. User: {chat_request_data.user_id}, Message: {chat_request_data.message[:50]}...")
+        if chat_request_data.history:
+            logger.info(f"History provided with {len(chat_request_data.history)} items.")
+
+        # Validate message length (can also be done in Pydantic model)
+        if len(chat_request_data.message) > settings.MAX_CHAT_MESSAGE_LENGTH:
+            raise HTTPException(status_code=400, detail=f"Message too long (max {settings.MAX_CHAT_MESSAGE_LENGTH} characters)")
+
+        # Process the message through the injected chat service
+        # The history from chat_request_data.history (List[ChatMessageHistoryItem])
+        # is directly compatible with what ChatService.process_chat_message expects.
+        ai_response_data = await chat_service.process_chat_message(
+            user_message=chat_request_data.message,
+            user_id=chat_request_data.user_id,
+            history=chat_request_data.history 
+        )
         
-        # Parse incoming request body with explicit UTF-8 encoding
-        try:
-            body_bytes = await request.body()
-            body_str = body_bytes.decode('utf-8', errors='replace')
-            logger.info(f"Raw request body (first 100 chars): {body_str[:100]}...")
+        # ai_response_data should be like {"response": "actual AI text"}
+        logger.info(f"Response from ChatService: {str(ai_response_data)[:100]}...")
+                
+        # Return the response from the service. 
+        # Ensure it's in a format the frontend expects.
+        # If ai_response_data is already {"response": "text"}, it's fine.
+        # If it's just the text, wrap it: return {"response": ai_response_data}
+        # Based on ChatService, it returns Dict[str, Any], likely {"response": "..."}
+        return JSONResponse(
+            content=ai_response_data,
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
             
-            import json
-            body = json.loads(body_str)
-        except Exception as json_err:
-            logger.error(f"Error parsing JSON: {json_err}")
-            # Fallback to default JSON parsing
-            body = await request.json()
-            
-        user_message = body.get("message", "")
-        
-        if not user_message:
-            raise HTTPException(status_code=400, detail="Message is required")
-            
-        # Validate message length
-        if len(user_message) > 1000:
-            raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
-            
-        logger.info(f"Received chat request with message (length {len(user_message)}): {user_message[:50]}...")
-        
-        # Forward the request to the AI service if it's available
-        try:
-            async with httpx.AsyncClient() as client:
-                logger.info(f"Sending to AI service: {user_message[:50]}...")
-                
-                # Prepare request with explicit encoding
-                json_data = json.dumps({"message": user_message}, ensure_ascii=False)
-                headers = {
-                    "Content-Type": "application/json; charset=utf-8",
-                    "Accept": "application/json; charset=utf-8"
-                }
-                
-                response = await client.post(
-                    f"{AI_SERVICE_URL}/chat",
-                    content=json_data.encode('utf-8'),
-                    headers=headers
-                )
-                
-                logger.info(f"AI service response status: {response.status_code}")
-                
-                # Try to get response in different ways
-                try:
-                    response_json = response.json()
-                except Exception as json_err:
-                    logger.error(f"Error parsing AI service response as JSON: {json_err}")
-                    # Try manual JSON parsing
-                    response_text = response.text
-                    logger.info(f"Raw AI response: {response_text[:100]}...")
-                    
-                    import json
-                    response_json = json.loads(response_text)
-                
-                # Extract message from AI response or use the entire response
-                ai_message = response_json.get("result") or response_json.get("response") or response_json.get("answer") or response_json
-                
-                # Ensure we return the expected format with 'message' key
-                return JSONResponse(
-                    content={"message": ai_message},
-                    headers={"Content-Type": "application/json; charset=utf-8"}
-                )
-        except httpx.RequestError as e:
-            logger.error(f"Error communicating with AI service: {e}")
-            return JSONResponse(
-                content={
-                    "message": "This is a placeholder response. Future implementation will use RAG to query document knowledge base."
-                },
-                headers={"Content-Type": "application/json; charset=utf-8"}
-            )
-            
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in request: {e}")
+    except HTTPException as he:
+        # Re-raise HTTPExceptions to be handled by FastAPI's exception handler
+        raise he
+    except json.JSONDecodeError as e: # Should be less likely if Pydantic handles parsing
+        logger.error(f"Invalid JSON in request (should be caught by Pydantic): {e}")
         return JSONResponse(
             status_code=400,
             content={"error": "Invalid JSON in request body", "message": "Error processing your request"},
@@ -337,11 +320,12 @@ async def chat(request: Request):
         )
     except Exception as e:
         import traceback
-        logger.error(f"Unexpected error in chat endpoint: {e}")
+        logger.error(f"Unexpected error in new chat endpoint: {e}")
         logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=500,
-            content={"error": "Internal server error", "message": str(e)},
+            # Provide a more generic error to the client for non-HTTP exceptions
+            content={"error": "Internal server error processing chat request"}, 
             headers={"Content-Type": "application/json; charset=utf-8"}
         )
 

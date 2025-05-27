@@ -1,6 +1,6 @@
 import os
 import secrets
-from typing import List
+from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -35,6 +35,26 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(default=os.environ.get("SUPABASE_URL", ""))
     SUPABASE_KEY: str = Field(default=os.environ.get("SUPABASE_KEY", ""))
     
+    # OpenAI API Key Configuration
+    OPENAI_API_KEY: Optional[str] = Field(default=os.environ.get("OPENAI_API_KEY"))
+
+    # Google Gemini API Key Configuration
+    GEMINI_API_KEY: Optional[str] = Field(default=os.environ.get("GEMINI_API_KEY"))
+    
+    # OpenAI & LangChain Model Configuration
+    OPENAI_TEMPERATURE: float = Field(default=0.7, description="Sampling temperature for OpenAI model")
+    OPENAI_MODEL_NAME: str = Field(default="gpt-3.5-turbo", description="Default OpenAI model name")
+    CHAT_HISTORY_WINDOW_SIZE: int = Field(default=10, description="Number of past messages to keep in memory for context")
+    OPENAI_SYSTEM_PROMPT: str = Field(default="You are a helpful assistant.", description="System prompt for the OpenAI model")
+    LANGCHAIN_VERBOSE: bool = Field(default=True, description="Enable verbose logging for LangChain")
+    
+    # Gemini & LangChain Model Configuration
+    GEMINI_MODEL_NAME: str = Field(default=os.environ.get("GEMINI_MODEL_NAME", "gemini-2.0-flash"))
+    GEMINI_TEMPERATURE: float = Field(default=float(os.environ.get("GEMINI_TEMPERATURE", "0.7")))
+    GEMINI_MAX_TOKENS: int = Field(default=int(os.environ.get("GEMINI_MAX_TOKENS", "1024")))
+    GEMINI_SYSTEM_PROMPT: str = Field(default=os.environ.get("GEMINI_SYSTEM_PROMPT", "You are a helpful AI assistant communicating via Gemini."))
+    LANGCHAIN_HISTORY_K: int = Field(default=int(os.environ.get("LANGCHAIN_HISTORY_K", "5")))
+    
     # AI Service Configuration
     AI_SERVICE_URL: str = Field(default=os.environ.get("AI_SERVICE_URL", "http://localhost:5000"))
     
@@ -57,7 +77,8 @@ class Settings(BaseSettings):
 
     model_config = {
         "env_file": ".env",
-        "case_sensitive": True
+        "case_sensitive": True,
+        "extra": "ignore"
     }
 
 # Create singleton instance

@@ -1,11 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 
+# Ensure ChatMessageHistoryItem is imported from the correct location
+from ..domain.models import ChatMessageHistoryItem 
+
 class IChatService(ABC):
     """Interface for chat services."""
     
     @abstractmethod
-    async def process_chat_message(self, user_message: str, user_id: str = "anonymous") -> Dict[str, Any]:
+    async def process_chat_message(
+        self, 
+        user_message: str, 
+        user_id: str = "anonymous",
+        history: Optional[List[ChatMessageHistoryItem]] = None # Added history parameter
+    ) -> Dict[str, Any]:
         """Process a chat message and return an AI response."""
         pass
 

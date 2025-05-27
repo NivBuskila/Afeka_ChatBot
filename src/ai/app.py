@@ -309,7 +309,7 @@ def chat():
         # Use Gemini API to generate a response
         try:
             # שימוש ישיר במודל Gemini לפי הגרסה החדשה
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-2.0-flash")
             
             # אם יש תוצאות מ-RAG, נוסיף אותן להקשר
             prompt = user_message
