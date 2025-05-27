@@ -51,6 +51,7 @@ async def get_supabase_client() -> Client:
             )
             
         try:
+            # בגרסה 2.8.1 של Supabase אין פרמטר proxy
             _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
             logger.info("Supabase client initialized successfully")
         except Exception as e:

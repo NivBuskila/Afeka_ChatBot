@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Download, Trash2, Edit } from 'lucide-react';
 import type { Document } from '../../config/supabase';
+import ProcessingProgressBar from './ProcessingProgressBar';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -89,6 +90,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
               <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[20%]`}>
                 {t('documents.date')}
               </th>
+              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[20%]`}>
+                {(t('documents.status') as string) || 'Status'}
+              </th>
               <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[15%]`}>
                 {t('documents.actions')}
               </th>
@@ -119,6 +123,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   <div className="text-sm text-green-400/80">
                     {new Date(doc.created_at).toLocaleDateString()}
                   </div>
+                </td>
+                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+                  <ProcessingProgressBar documentId={doc.id} />
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
                   <div className={`flex items-center ${i18n.language === 'en' ? 'space-x-4' : 'space-x-4 space-x-reverse'}`}>

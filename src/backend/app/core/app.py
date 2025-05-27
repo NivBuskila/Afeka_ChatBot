@@ -9,6 +9,7 @@ from ..middleware.timing import add_process_time_header
 from ..middleware.security import add_security_headers
 from ..middleware.rate_limit import rate_limit_middleware
 from ..api.routes import general, chat, documents, proxy
+from ..api import vector_management
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ class Application:
         self.app.include_router(chat.router)
         self.app.include_router(documents.router)
         self.app.include_router(proxy.router)
+        self.app.include_router(vector_management.router)
         logger.info("API routers configured")
     
     def _configure_exception_handlers(self):

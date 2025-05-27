@@ -115,6 +115,36 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Document processor service (automatic processing)
+  document-processor:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./src/backend:/app/backend:rw
+      - backend_cache:/app/backend/.cache
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SUPABASE_URL=https://cqvicgimmzrffvarlokq.supabase.co
+      - SUPABASE_KEY=${SUPABASE_KEY:?SUPABASE_KEY is required}
+      - AI_SERVICE_URL=http://ai-service:5000
+      - DEBUG=True
+      - TZ=Asia/Jerusalem
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - ai-service
+    networks:
+      - afeka_network
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    command: python auto_process_documents.py --interval 30
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   afeka_network:
     driver: bridge

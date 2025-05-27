@@ -17,3 +17,14 @@ httpx>=0.24.1
 supabase>=1.0.3  # Ensure the Supabase Python library is recent
 python-multipart>=0.0.6
 websockets>=11.0.0,<13.0.0
+
+# Document processing and embeddings
+google-generativeai>=0.3.0
+langchain>=0.1.0
+langchain-community>=0.0.10
+tiktoken>=0.5.0
+pypdf2>=3.0.0
+python-docx>=0.8.11
+unstructured>=0.10.0
+sentence-transformers>=2.2.0
+PyJWT>=2.8.0

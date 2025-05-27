@@ -1,3 +1,13 @@
+"""
+מודול שרת ראשי למערכת RAG
+הפעלה נכונה: מהתיקייה src/backend:
+uvicorn main:app --reload
+
+או מהתיקייה של הפרויקט:
+uvicorn src.backend.main:app --reload
+
+לא להשתמש ב-"main:app" ללא ציון הנתיב המלא כי זה יגרום לשגיאות טעינה.
+"""
 import os
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +26,11 @@ import secrets
 import re
 from datetime import datetime
 import uuid
+import asyncio
+import threading
+
+# Import vector management router
+from api.vector_management import router as vector_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -59,6 +74,9 @@ if os.environ.get("ENV", "development") == "production":
         TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS
     )
     logger.info(f"Added TrustedHostMiddleware with hosts: {ALLOWED_HOSTS}")
+
+# Include vector management router
+app.include_router(vector_router)
 
 # Request timing middleware
 @app.middleware("http")
@@ -174,6 +192,45 @@ class Document(BaseModel):
     content: str
     category: Optional[str] = None
     tags: Optional[List[str]] = None
+
+# תהליך עיבוד המסמכים האוטומטי
+auto_processor_thread = None
+
+def run_document_processor():
+    """הפעלת מעבד המסמכים האוטומטי בתהליך נפרד"""
+    from auto_process_documents import run_processor
+    
+    logger.info("Starting automatic document processor")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # הפעלת המעבד עם בדיקה כל 30 שניות
+    loop.run_until_complete(run_processor(interval=30))
+
+@app.on_event("startup")
+async def startup_event():
+    """פעולות שיבוצעו בעת הפעלת השרת"""
+    global auto_processor_thread
+    
+    # בדיקה האם להפעיל את מעבד המסמכים האוטומטי
+    AUTO_PROCESS_DOCUMENTS = os.environ.get("AUTO_PROCESS_DOCUMENTS", "True").lower() == "true"
+    
+    if AUTO_PROCESS_DOCUMENTS:
+        logger.info("Auto document processing is enabled")
+        
+        # הפעלת תהליך עיבוד המסמכים בתהליך נפרד
+        auto_processor_thread = threading.Thread(target=run_document_processor, daemon=True)
+        auto_processor_thread.start()
+        logger.info("Document processor thread started")
+    else:
+        logger.info("Auto document processing is disabled")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """פעולות שיבוצעו בעת סגירת השרת"""
+    logger.info("Server shutting down")
+    
+    # הסקריפט יסתיים אוטומטית כשהשרת יסתיים כי התהליך מוגדר כ-daemon
 
 @app.get("/")
 async def root():
@@ -764,18 +821,41 @@ async def proxy_delete_document(document_id: int, request: Request):
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
-        # Get document info before deletion
-        doc_result = supabase_client.table("documents").select("*").eq("id", document_id).single().execute()
-        if not doc_result.data:
-            raise HTTPException(status_code=404, detail="Document not found")
+        # Get document info before deletion - use safer approach that won't fail if no results
+        doc_result = supabase_client.table("documents").select("*").eq("id", document_id).execute()
+        if not doc_result.data or len(doc_result.data) == 0:
+            # Document already deleted or doesn't exist - return success
+            return JSONResponse(content={"success": True, "message": "Document not found or already deleted"})
+        
+        # חשוב למחוק את ה-embeddings לפני שמוחקים את document_chunks כדי למנוע מצב שבו
+        # יש embeddings ללא chunks מקושרים
+        try:
+            # Get chunk IDs first
+            chunk_result = supabase_client.table("document_chunks").select("id, embedding_id").eq("document_id", document_id).execute()
+            
+            if chunk_result.data and len(chunk_result.data) > 0:
+                # Extract embedding IDs
+                embedding_ids = [chunk.get("embedding_id") for chunk in chunk_result.data if chunk.get("embedding_id")]
+                
+                # Delete embeddings if we have any
+                if embedding_ids:
+                    logger.info(f"Deleting {len(embedding_ids)} embeddings for document {document_id}")
+                    for embedding_id in embedding_ids:
+                        supabase_client.table("embeddings").delete().eq("id", embedding_id).execute()
+            
+            # Delete document chunks
+            logger.info(f"Deleting document chunks for document {document_id}")
+            supabase_client.table("document_chunks").delete().eq("document_id", document_id).execute()
+        except Exception as chunks_err:
+            logger.warning(f"Error deleting document chunks or embeddings: {chunks_err}")
             
         # Delete from database
         result = supabase_client.table("documents").delete().eq("id", document_id).execute()
         
         # Try to delete from storage if URL exists
-        if doc_result.data.get("url"):
+        if doc_result.data and len(doc_result.data) > 0 and doc_result.data[0].get("url"):
             try:
-                url = doc_result.data.get("url")
+                url = doc_result.data[0].get("url")
                 
                 # Extract storage path from URL
                 # This is a simplified version - we might need more complex logic based on URL format
@@ -790,7 +870,10 @@ async def proxy_delete_document(document_id: int, request: Request):
         return JSONResponse(content={"success": True})
     except Exception as e:
         logger.error(f"Error proxying document deletion: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Internal server error", "message": str(e)}
+        )
 
 @app.patch("/api/proxy/chat_session/{session_id}")
 async def proxy_update_chat_session(session_id: str, request: Request):

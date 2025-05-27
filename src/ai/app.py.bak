@@ -20,12 +20,16 @@ dotenv.load_dotenv(override=True)
 try:
     from services.document_processor import DocumentProcessor
     from app.core.database import get_supabase_client
+    from core.rag_service import RAGService
     has_rag = True
     # Initialize document processor once
     doc_processor = DocumentProcessor()
+    # Initialize RAG service
+    rag_service = RAGService(doc_processor)
 except ImportError as e:
     logging.warning(f"RAG modules could not be imported: {e}")
     has_rag = False
+    rag_service = None
 
 # Configure logging
 logging.basicConfig(
@@ -44,22 +48,27 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # Create Flask app
 app = Flask(__name__)
-# הוספת תמיכה ב-CORS
-CORS(app, resources={r"/*": {"origins": "*"}})
+# פתרון בעיית CORS - הגדרה פשוטה
+CORS(app, supports_credentials=True)
 
 # Get environment settings
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 API_RATE_LIMIT = int(os.environ.get('API_RATE_LIMIT', '60'))  # Requests per minute per IP
 MAX_MESSAGE_LENGTH = int(os.environ.get('MAX_MESSAGE_LENGTH', '2000'))  # Maximum length of input message
 
-# Add security headers to all responses
+# Add security headers and CORS headers to all responses
 @app.after_request
-def add_security_headers(response):
+def add_headers(response):
+    # Security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Content-Security-Policy'] = "default-src 'self'"
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # Explicitly add CORS headers
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    
     return response
 
 # Basic route for health checks
@@ -71,6 +80,17 @@ def health_check():
         "service": "ai-service",
         "rag_support": has_rag
     })
+
+# נקודת קצה לטיפול בבקשות OPTIONS עבור CORS
+@app.route('/chat', methods=['OPTIONS'])
+def handle_options():
+    """Handle OPTIONS pre-flight requests for CORS"""
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Max-Age'] = '86400'  # 24 hours
+    return response
 
 # RAG endpoints
 @app.route('/rag/search', methods=['POST'])
@@ -239,6 +259,139 @@ def rag_document_status(document_id):
         logger.error(f"Error getting document status: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/rag/test', methods=['POST'])
+def rag_test():
+    """
+    נקודת קצה לבדיקת שירות ה-RAG החדש
+    """
+    if not has_rag or rag_service is None:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    try:
+        data = request.get_json(force=True)
+        query = data.get("query", "")
+        add_sources = data.get("add_sources", True)
+        
+        if not query.strip():
+            return jsonify({"error": "Query cannot be empty"}), 400
+        
+        # בדיקת חיפוש בלבד
+        if data.get("search_only", False):
+            # חיפוש באמצעות שירות ה-RAG
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            search_results = loop.run_until_complete(rag_service.search(query))
+            
+            return jsonify({
+                "query": query,
+                "results": search_results,
+                "count": len(search_results)
+            })
+        
+        # בדיקת פורמט הקשר בלבד
+        if data.get("context_only", False):
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            search_results = loop.run_until_complete(rag_service.search(query))
+            
+            context = rag_service.format_context(search_results)
+            
+            return jsonify({
+                "query": query,
+                "context": context,
+                "results_count": len(search_results)
+            })
+        
+        # בדיקה מלאה של קבלת תשובה
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(rag_service.get_answer(query, add_sources=add_sources))
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in RAG test endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# החלף את נקודת הקצה /rag/debug בקובץ app.py עם זה:
+
+@app.route('/rag/debug', methods=['POST'])
+def rag_debug():
+    """דיבאג מפורט של שירות ה-RAG"""
+    if not has_rag or rag_service is None:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    try:
+        data = request.get_json(force=True)
+        query = data.get("query", "")
+        
+        if not query.strip():
+            return jsonify({"error": "Query cannot be empty"}), 400
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # בדיקת חיפוש
+        search_results = loop.run_until_complete(rag_service.search(query))
+        
+        # בדיקת הקשר
+        context = rag_service.format_context(search_results, query)
+        
+        # בדיקת תשובה מלאה
+        full_result = loop.run_until_complete(rag_service.get_answer(query, add_sources=False))
+        
+        # בדיקת הגדרות עם טיפול בשגיאות
+        try:
+            rag_config = {
+                "default_limit": getattr(rag_service, 'default_limit', 5),
+                "default_threshold": getattr(rag_service, 'default_threshold', 0.6),
+                "use_hybrid_search": getattr(rag_service, 'use_hybrid_search', True),
+                "max_context_length": getattr(rag_service, 'max_context_length', 1500),
+                "current_config": getattr(rag_service, 'default_config', 'balanced'),
+                "available_configs": list(getattr(rag_service, 'search_configs', {}).keys())
+            }
+        except Exception as config_error:
+            logger.warning(f"Error getting RAG config: {str(config_error)}")
+            rag_config = {"error": "Could not retrieve config"}
+        
+        debug_info = {
+            "query": query,
+            "search_results": {
+                "count": len(search_results),
+                "results": [
+                    {
+                        "document_id": r.get("document_id"),
+                        "similarity": r.get("similarity", 0),
+                        "enhanced_score": r.get("enhanced_score", r.get("similarity", 0)),
+                        "content_preview": r.get("content", "")[:300] + "..." if len(r.get("content", "")) > 300 else r.get("content", ""),
+                        "content_length": len(r.get("content", ""))
+                    } for r in search_results
+                ]
+            },
+            "context_preview": context[:500] + "..." if len(context) > 500 else context,
+            "context_length": len(context),
+            "final_answer_preview": full_result["result"][:400] + "..." if len(full_result["result"]) > 400 else full_result["result"],
+            "processing_time": full_result["processing_time"],
+            "rag_config": rag_config,
+            "service_stats": rag_service.get_stats() if hasattr(rag_service, 'get_stats') else {"not_available": True}
+        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        logger.error(f"Error in RAG debug endpoint: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }), 500
+
 # Main chat endpoint
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -294,47 +447,60 @@ def chat():
                 
         logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
         
-        # קבלת תוצאות מהמסמכים אם RAG זמין
-        rag_results = []
-        if has_rag and 'use_rag' in data and data['use_rag']:
-            try:
+        # בדיקה אם להשתמש ב-RAG
+        use_rag = has_rag and 'use_rag' in data and data['use_rag'] and rag_service is not None
+        
+        try:
+            # הגדרת מודל Gemini ישירות כברירת מחדל
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            
+            if use_rag:
+                # שימוש במודול ה-RAG החדש
                 import asyncio
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                rag_results = loop.run_until_complete(doc_processor.search_documents(user_message, limit=3, threshold=0.75))
-                logger.info(f"Found {len(rag_results)} relevant documents with RAG")
-            except Exception as rag_err:
-                logger.error(f"Error using RAG: {str(rag_err)}")
-        
-        # Use Gemini API to generate a response
-        try:
-            # שימוש ישיר במודל Gemini לפי הגרסה החדשה
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            
-            # אם יש תוצאות מ-RAG, נוסיף אותן להקשר
-            prompt = user_message
-            if rag_results:
-                context_parts = ["הנה מידע שעשוי להיות רלוונטי לשאלתך:"]
-                for i, result in enumerate(rag_results[:3]):
-                    context_parts.append(f"מסמך {i+1}: {result.get('content', '')[:300]}...")
-                context_parts.append("\nעכשיו לשאלתך:")
-                context = "\n\n".join(context_parts)
-                prompt = f"{context}\n\n{user_message}"
-            
-            gemini_response = model.generate_content(prompt)
-            ai_response = gemini_response.text
-            logger.info(f"Gemini API response received: {ai_response[:30]}...")
-        except Exception as gemini_error:
-            logger.error(f"Gemini API error: {str(gemini_error)}")
+                
+                # הוספת פרמטרים אופציונליים מהבקשה
+                add_sources = data.get('add_sources', True)
+                
+                # קבלת תשובה מורחבת עם מידע מהמסמכים
+                response_data = loop.run_until_complete(rag_service.get_answer(user_message, add_sources=add_sources))
+                ai_response = response_data.get('result', '')
+                logger.info(f"RAG enhanced response received: {ai_response[:30]}...")
+                
+                # הכנת התשובה עם כל המידע שהתקבל מה-RAG
+                result = {
+                    "result": ai_response,
+                    "processing_time": response_data.get('processing_time', round(time.time() - request_start_time, 3)),
+                    "rag_used": response_data.get('rag_used', False),
+                    "rag_count": response_data.get('rag_count', 0),
+                    "sources": response_data.get('sources', [])
+                }
+            else:
+                # שימוש ישיר במודל ללא RAG
+                gemini_response = model.generate_content(user_message)
+                ai_response = gemini_response.text
+                logger.info(f"Standard Gemini response received: {ai_response[:30]}...")
+                
+                # הכנת תשובה סטנדרטית
+                result = {
+                    "result": ai_response,
+                    "processing_time": round(time.time() - request_start_time, 3),
+                    "rag_used": False,
+                    "rag_count": 0
+                }
+        except Exception as api_error:
+            logger.error(f"API error: {str(api_error)}")
             ai_response = "מצטער, אירעה שגיאה בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר."
         
-        # Prepare the response
-        result = {
-            "result": ai_response,
-            "processing_time": round(time.time() - request_start_time, 3),
-            "rag_used": len(rag_results) > 0,
-            "rag_count": len(rag_results)
-        }
+            # הכנת תשובת שגיאה
+            result = {
+                "result": ai_response,
+                "processing_time": round(time.time() - request_start_time, 3),
+                "rag_used": False,
+                "rag_count": 0,
+                "error": str(api_error)
+            }
         
         logger.info(f"Message processed successfully in {result['processing_time']}s")
         response = jsonify(result)

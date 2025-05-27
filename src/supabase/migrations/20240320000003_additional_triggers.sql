@@ -29,6 +29,17 @@ BEGIN
   -- Delete analytics data
   DELETE FROM document_analytics
   WHERE document_id = OLD.id;
+  
+  -- Delete document chunks
+  DELETE FROM document_chunks
+  WHERE document_id = OLD.id;
+  
+  -- Delete embeddings associated with this document
+  DELETE FROM embeddings
+  WHERE id IN (
+    SELECT embedding_id FROM document_chunks
+    WHERE document_id = OLD.id
+  );
 
   RETURN OLD;
 END;
