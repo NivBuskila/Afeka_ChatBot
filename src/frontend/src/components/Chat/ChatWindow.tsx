@@ -421,13 +421,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   // Helper function to process bot response
   const processBotResponse = async (userMessage: Message, sessionId: string, userId: string) => {
     try {
-      // Call backend API
+      // Prepare conversation history for context
+      const conversationHistory = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+      
+      // Add the new user message to history
+      conversationHistory.push({
+        role: 'user',
+        content: userMessage.content
+      });
+
+      // Call backend API with conversation history
       const response = await fetch(API_CONFIG.CHAT_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({ 
+          message: userMessage.content,
+          conversation_history: conversationHistory,
+          session_id: sessionId 
+        }),
         signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
       });
 

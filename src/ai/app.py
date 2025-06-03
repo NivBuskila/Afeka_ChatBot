@@ -277,7 +277,12 @@ def chat():
             return response, 400
             
         user_message = data['message']
+        conversation_history = data.get('conversation_history', [])
+        session_id = data.get('session_id', None)
+        
         logger.info(f"User message type: {type(user_message)}")
+        logger.info(f"Conversation history length: {len(conversation_history)}")
+        logger.info(f"Session ID: {session_id}")
         
         # Ensure message is properly decoded if it's bytes
         if isinstance(user_message, bytes):
@@ -311,17 +316,34 @@ def chat():
             # שימוש ישיר במודל Gemini לפי הגרסה החדשה
             model = genai.GenerativeModel("gemini-1.5-flash")
             
+            # בניית prompt עם היסטוריית השיחה
+            prompt_parts = []
+            
             # אם יש תוצאות מ-RAG, נוסיף אותן להקשר
-            prompt = user_message
             if rag_results:
                 context_parts = ["הנה מידע שעשוי להיות רלוונטי לשאלתך:"]
                 for i, result in enumerate(rag_results[:3]):
                     context_parts.append(f"מסמך {i+1}: {result.get('content', '')[:300]}...")
-                context_parts.append("\nעכשיו לשאלתך:")
-                context = "\n\n".join(context_parts)
-                prompt = f"{context}\n\n{user_message}"
+                context_parts.append("\nעכשיו לשיחה:")
+                prompt_parts.append("\n\n".join(context_parts))
             
-            gemini_response = model.generate_content(prompt)
+            # הוספת היסטוריית השיחה
+            if conversation_history and len(conversation_history) > 1:
+                prompt_parts.append("היסטוריית השיחה:")
+                for msg in conversation_history[:-1]:  # כל ההודעות חוץ מהאחרונה
+                    role_name = "משתמש" if msg['role'] == 'user' else "עוזר"
+                    prompt_parts.append(f"{role_name}: {msg['content']}")
+                prompt_parts.append("\nההודעה הנוכחית:")
+            
+            # הוספת ההודעה הנוכחית
+            prompt_parts.append(user_message)
+            
+            # יצירת prompt מלא
+            full_prompt = "\n\n".join(prompt_parts)
+            
+            logger.info(f"Full prompt length: {len(full_prompt)}")
+            
+            gemini_response = model.generate_content(full_prompt)
             ai_response = gemini_response.text
             logger.info(f"Gemini API response received: {ai_response[:30]}...")
         except Exception as gemini_error:
