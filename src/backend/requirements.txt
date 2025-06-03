@@ -1,8 +1,9 @@
 fastapi
 uvicorn
 pydantic
+pydantic-settings
 python-dotenv
-httpx==0.24.1
+httpx==0.27.2  #0.24.1
 python-multipart>=0.0.9
 websockets<13,>=11
 supabase
