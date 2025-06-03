@@ -102,3 +102,75 @@ WHERE document_id NOT IN (
 2. ודאו שנוצרו chunks ו-embeddings (בעזרת ה-Dashboard)
 3. מחקו את המסמך
 4. בדקו שה-chunks וה-embeddings נמחקו גם כן
+
+# פתרון בעיות מחיקה ו-Timeout בפרויקט
+
+מסמך זה מסביר כיצד לטפל בבעיות במחיקת מסמכים ו-timeout בבסיס הנתונים של Supabase.
+
+## בעיית Timeout במחיקת מסמכים
+
+במקרים בהם יש מסמכים עם כמות גדולה מאוד של חלקים (chunks), ניסיון למחוק אותם דרך ה-API הרגיל עלול לגרום לשגיאת timeout. להלן הפתרון:
+
+### 1. מחיקה בשלבים באמצעות סקריפט
+
+השתמש בסקריפט `delete_document.py` שנוצר במיוחד למטרה זו:
+
+```bash
+python delete_document.py
+```
+
+הסקריפט יבצע את הפעולות הבאות:
+- יציג רשימה של כל המסמכים במערכת
+- יאפשר לבחור מסמך למחיקה
+- ימחק את החלקים (chunks) של המסמך בקבוצות קטנות כדי להימנע מ-timeout
+- ינסה למחוק את רשומת המסמך עצמה
+
+### 2. מחיקה ישירה ב-SQL Editor של Supabase
+
+אם עדיין יש בעיות, ניתן להריץ את הפקודות הבאות ישירות ב-SQL Editor של Supabase:
+
+```sql
+-- מחיקת כל החלקים (chunks) של המסמך
+DELETE FROM document_chunks WHERE document_id = ID_המסמך;
+
+-- מחיקת המסמך עצמו
+DELETE FROM documents WHERE id = ID_המסמך;
+```
+
+## בעיית Timeout בפונקציית החיפוש ההיברידי
+
+פונקציית החיפוש ההיברידי עלולה לגרום ל-timeout כאשר יש הרבה מאוד וקטורים במערכת. להלן הפתרון:
+
+### 1. שימוש בגרסה המשופרת של פונקציית החיפוש
+
+הקובץ `src/supabase/manual_migration.sql` מכיל גרסה משופרת של פונקציית החיפוש ההיברידי, שכוללת:
+- הגבלת מספר התוצאות הראשוניות בחיפוש הסמנטי
+- שימוש באינדקסים לשיפור הביצועים
+- אופטימיזציות נוספות למניעת timeout
+
+הרץ את ה-SQL הזה ב-SQL Editor של Supabase.
+
+### 2. הוספת אינדקסים
+
+הוספת אינדקסים מתאימים יכולה לשפר משמעותית את הביצועים:
+
+```sql
+-- אינדקס לוקטורי אמבדינג
+CREATE INDEX idx_document_chunks_embedding ON document_chunks USING ivfflat (embedding vector_l2_ops);
+
+-- אינדקס לפי מזהה מסמך
+CREATE INDEX idx_document_chunks_document_id ON document_chunks(document_id);
+
+-- אינדקס לחיפוש טקסט
+CREATE INDEX idx_document_chunks_chunk_text ON document_chunks USING gin(to_tsvector('english', chunk_text));
+```
+
+## מניעת בעיות בעתיד
+
+כדי למנוע בעיות דומות בעתיד, בוצעו השינויים הבאים:
+
+1. **הגדלת גודל החלקים (chunks)**: השינוי הגדיל את גודל החלקים מ-800 ל-2000 תווים
+2. **הגבלת מספר הווקטורים למסמך**: הגבלת מספר הווקטורים למסמך הורדה מ-1000 ל-500
+3. **אופטימיזציית פונקציית החיפוש**: שיפור פונקציית החיפוש ההיברידי
+
+הגדרות אלו עודכנו בקובץ `src/backend/services/document_processor.py`.

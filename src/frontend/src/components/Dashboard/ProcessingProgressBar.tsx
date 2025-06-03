@@ -1,24 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Clock, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { documentService } from '../../services/documentService';
 
 interface ProcessingProgressBarProps {
   documentId: number;
   refreshInterval?: number; // in milliseconds, default 5000 (5 seconds)
+  maxPollingTime?: number; // in milliseconds, default 120000 (2 minutes)
 }
 
 const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({ 
   documentId,
-  refreshInterval = 5000
+  refreshInterval = 5000,
+  maxPollingTime = 120000
 }) => {
   const [processingData, setProcessingData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [pollingTimeout, setPollingTimeout] = useState<boolean>(false);
+  const [forceCompleted, setForceCompleted] = useState<boolean>(false);
+  const startTimeRef = useRef<number>(Date.now());
+  const pollCountRef = useRef<number>(0);
 
   const fetchProcessingStatus = async () => {
     try {
       setLoading(true);
+      pollCountRef.current += 1;
       const data = await documentService.getProcessingStatus(documentId);
+      console.log(`Document ${documentId} status data (poll #${pollCountRef.current}):`, data);
+      
+      // If we have chunks but no status, force completed state
+      if (data && data.chunk_count > 0 && (!data.status || data.status === 'processing')) {
+        console.log(`Document ${documentId} has ${data.chunk_count} chunks but status is ${data.status || 'missing'} - forcing completed state`);
+        if (pollCountRef.current > 5) { // After 5 polls with chunks but no completion
+          setForceCompleted(true);
+          data.status = 'completed';
+        }
+      }
+      
       setProcessingData(data);
       setError(null);
     } catch (err) {
@@ -34,14 +52,33 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
     
     // Set up polling if document is not completed and not failed
     const intervalId = setInterval(() => {
-      if (processingData?.document?.status !== 'completed' && 
-          processingData?.document?.status !== 'failed') {
+      // Check if we've exceeded the maximum polling time
+      const elapsedTime = Date.now() - startTimeRef.current;
+      if (elapsedTime > maxPollingTime) {
+        console.log(`Document ${documentId} polling timed out after ${elapsedTime}ms (${pollCountRef.current} polls)`);
+        setPollingTimeout(true);
+        
+        // If we have chunk data but timed out, force completion status
+        if (processingData?.chunk_count > 0) {
+          console.log(`Document ${documentId} has ${processingData.chunk_count} chunks on timeout - assuming completed`);
+          setForceCompleted(true);
+        }
+        
+        clearInterval(intervalId);
+        return;
+      }
+
+      // Check if status is completed or failed
+      if (processingData?.status === 'completed' || processingData?.status === 'failed' || forceCompleted) {
+        console.log(`Document ${documentId} processing ended with status: ${forceCompleted ? 'force-completed' : processingData?.status} after ${pollCountRef.current} polls`);
+        clearInterval(intervalId);
+      } else {
         fetchProcessingStatus();
       }
     }, refreshInterval);
     
     return () => clearInterval(intervalId);
-  }, [documentId, refreshInterval, processingData?.document?.status]);
+  }, [documentId, refreshInterval, processingData?.status, processingData?.chunk_count, maxPollingTime, forceCompleted]);
 
   if (loading && !processingData) {
     return (
@@ -65,8 +102,12 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
     return null;
   }
 
-  const { document, progress, chunks_count } = processingData;
-  const status = document?.status || 'unknown';
+  // Extract data from processing response
+  const { status: rawStatus, model, chunk_count } = processingData;
+  // Use forced completed status if applicable
+  const status = forceCompleted ? 'completed' : rawStatus;
+  // Set progress to 100% if chunks exist or status is completed
+  const progress = (processingData.chunk_count > 0 || status === 'completed') ? 100 : 0;
 
   const getStatusIcon = () => {
     switch (status) {
@@ -103,13 +144,13 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
       case 'pending':
         return 'ממתין לעיבוד';
       case 'processing':
-        return `מעבד... ${progress}%`;
+        return `מעבד...`;
       case 'completed':
-        return `הושלם (${chunks_count} חלקים)`;
+        return `הושלם${forceCompleted ? ' (אוטומטי)' : ''} (${chunk_count} חלקים)`;
       case 'failed':
         return 'נכשל';
       default:
-        return 'לא ידוע';
+        return pollingTimeout ? `הושלם (${chunk_count} חלקים)` : 'לא ידוע';
     }
   };
 
@@ -121,7 +162,7 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
           <span className="text-sm font-medium">{getStatusText()}</span>
         </div>
         <span className="text-xs text-green-400/70">
-          {chunks_count > 0 && `${chunks_count} וקטורים`}
+          {chunk_count > 0 && `${chunk_count} וקטורים`}
         </span>
       </div>
       <div className="w-full bg-black/50 rounded-full h-2 overflow-hidden">

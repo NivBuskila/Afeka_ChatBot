@@ -52,16 +52,32 @@ def run_server():
     
     # מציאת הנתיב הנכון
     backend_dir = Path(__file__).parent.resolve()
+    logger.info(f"Backend directory determined as: {backend_dir}")
+    
+    # נתיב לקובץ ההפעלה של פייתון בסביבה הווירטואלית
+    # Check for Windows-style venv path first
+    venv_python_executable = backend_dir / "backend_venv" / "Scripts" / "python.exe"
+    if not venv_python_executable.exists():
+        # Fallback to Unix-style venv path
+        venv_python_executable = backend_dir / "backend_venv" / "bin" / "python"
+
+    if venv_python_executable.exists():
+        logger.info(f"Using Python executable from venv: {venv_python_executable}")
+        python_executable_to_use = str(venv_python_executable)
+    else:
+        logger.warning(f"Virtual environment Python not found at {venv_python_executable} (and unix equivalent). Falling back to sys.executable: {sys.executable}")
+        python_executable_to_use = sys.executable
     
     # שינוי ספרייה לתיקיית הבקאנד
     os.chdir(backend_dir)
+    logger.info(f"Changed current working directory to: {os.getcwd()}")
     
     # הפעלת השרת
-    cmd = ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    cmd = [python_executable_to_use, "-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
     logger.info(f"מריץ פקודה: {' '.join(cmd)}")
     
     try:
-        subprocess.run(cmd)
+        subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
         logger.info("השרת הופסק ידנית")
     except Exception as e:

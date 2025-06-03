@@ -81,11 +81,20 @@ export const documentService = {
 
   async deleteDocument(id: number) {
     try {
-      const response = await axios.delete(`${BACKEND_URL}/api/proxy/documents/${id}`);
-      if (!response.data || !response.data.success) {
-        throw new Error('Failed to delete document');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('User not authenticated or session expired');
       }
-      return response.data;
+
+      const response = await axios.delete(`${BACKEND_URL}/api/vector/document/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      if (response.status !== 200 && response.status !== 204 && (!response.data || response.data.success === false)) {
+        throw new Error(response.data?.message || 'Failed to delete document');
+      }
+      return response.data || { success: true, message: "Document deleted successfully" };
     } catch (error) {
       console.error('Error deleting document:', error);
       throw error;
@@ -113,20 +122,44 @@ export const documentService = {
 
   async getProcessingStatus(documentId: number): Promise<any> {
     try {
-      const aiServiceUrl = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
-      const response = await fetch(`${aiServiceUrl}/rag/document/${documentId}`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('User not authenticated or session expired');
+      }
+
+      console.log(`Fetching processing status for document ${documentId}`);
+      
+      const response = await fetch(`${BACKEND_URL}/api/vector/document/${documentId}/status`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'שגיאה בקבלת נתוני העיבוד');
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // If parsing JSON fails, use text content
+          errorData = { error: await response.text() || 'שגיאה בקבלת נתוני העיבוד - תגובה לא תקינה' };
+        }
+        throw new Error(errorData.error || errorData.detail || 'שגיאה בקבלת נתוני העיבוד');
       }
 
       const data = await response.json();
+      console.log(`Processing status response for document ${documentId}:`, data);
+      
+      // Ensure the status is a string and has a valid value
+      if (data && !data.status) {
+        console.warn(`Document ${documentId} status is missing or invalid:`, data);
+        // If we have chunk_count but no status, assume it's completed
+        if (data.chunk_count > 0) {
+          data.status = 'completed';
+        }
+      }
+      
       return data;
     } catch (error) {
       console.error('Error getting document processing status:', error);

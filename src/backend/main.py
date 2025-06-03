@@ -223,21 +223,29 @@ def run_document_processor():
 
 @app.on_event("startup")
 async def startup_event():
-    """פעולות שיבוצעו בעת הפעלת השרת"""
+    """Initialize services on startup"""
     global auto_processor_thread
     
-    # בדיקה האם להפעיל את מעבד המסמכים האוטומטי
-    AUTO_PROCESS_DOCUMENTS = os.environ.get("AUTO_PROCESS_DOCUMENTS", "True").lower() == "true"
-    
-    if AUTO_PROCESS_DOCUMENTS:
-        logger.info("Auto document processing is enabled")
-        
-        # הפעלת תהליך עיבוד המסמכים בתהליך נפרד
-        auto_processor_thread = threading.Thread(target=run_document_processor, daemon=True)
-        auto_processor_thread.start()
-        logger.info("Document processor thread started")
+    # Initialize Google Gemini API key if available
+    if settings.GEMINI_API_KEY:
+        import google.generativeai as genai
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        logger.info("Google Generative AI API key configured.")
     else:
-        logger.info("Auto document processing is disabled")
+        logger.warning("GEMINI_API_KEY not found. Gemini features will be limited.")
+    
+    # Initialize OpenAI API key if available
+    if settings.OPENAI_API_KEY:
+        import openai
+        openai.api_key = settings.OPENAI_API_KEY
+        logger.info("OpenAI API key configured.")
+    else:
+        logger.warning("OPENAI_API_KEY not found. OpenAI features will be limited.")
+    
+    # Start document processor thread
+    auto_processor_thread = threading.Thread(target=run_document_processor, daemon=True)
+    auto_processor_thread.start()
+    logger.info("Document processor thread started")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -258,15 +266,21 @@ async def health_check():
     supabase_status = "connected" if supabase_client else "disconnected"
     return {"status": "ok", "supabase": supabase_status}
 
-# --- NEW DEPENDENCY FOR CHAT SERVICE ---
+# Singleton instance of ChatService
+_chat_service_instance = None
+
 def get_chat_service() -> IChatService:
-    # This could be enhanced to handle singleton creation if needed,
-    # but FastAPI handles dependencies well for per-request instances.
-    # For ChatService with LangChain, it initializes its own LLM and memory.
-    # If the LLM/memory should be truly global singletons, this needs more sophisticated management.
-    # For now, a new instance per request (or per dependency resolution) is acceptable,
-    # especially if ChatService itself manages shared resources or session-based memory.
-    return ChatService()
+    """
+    Return a singleton instance of ChatService.
+    This ensures the RAG service is initialized only once and reused across requests.
+    """
+    global _chat_service_instance
+    
+    if _chat_service_instance is None:
+        logger.info("Initializing ChatService singleton instance")
+        _chat_service_instance = ChatService()
+    
+    return _chat_service_instance
 
 # --- MODIFIED /api/chat ENDPOINT ---
 @app.post("/api/chat")

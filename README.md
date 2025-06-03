@@ -620,3 +620,68 @@ For database-related issues, check the Supabase console for any errors.
 ### Contact
 
 For questions or access issues, contact the project lead.
+
+## 🧪 Running Tests (Pytest without Virtual Environment)
+
+If you prefer to run `pytest` using your global Python installation (without creating a dedicated virtual environment), follow these steps. This can be useful for quick checks but be mindful of potential global package conflicts.
+
+**1. Install Required Packages:**
+
+Make sure you have `pytest` and other necessary libraries installed globally. If you encounter `ImportError` issues related to `langchain` or other packages during testing, you might need to install or upgrade them:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install pytest sentence-transformers langchain langchain-openai langchain_experimental langchain-google-genai python-dotenv
+```
+*(Adjust the list of packages as needed based on your project's specific test dependencies and any `ImportError` messages you see).*
+
+**2. Configure PYTHONPATH (Important for Module Resolution):**
+
+When running `pytest` from the project root, Python might not be able to find your project's internal modules (e.g., those inside `src/backend` or `src/ai`). To fix `ModuleNotFoundError` issues:
+
+*   **For Backend Tests:** If your tests import modules from `src/backend/services` or `src/backend/app`, you need to add `src/backend` to your `PYTHONPATH`.
+*   **For AI Tests:** Similarly, if tests import from `src/ai`, you might need to adjust `PYTHONPATH`.
+
+Example for PowerShell (when running tests that need `src/backend`):
+```powershell
+$env:PYTHONPATH = "src\backend" 
+```
+Or for bash/zsh:
+```bash
+export PYTHONPATH="src/backend"
+```
+You'll need to set this in your terminal session *before* running `pytest`.
+
+**3. Run Pytest:**
+
+Once packages are installed and `PYTHONPATH` is set correctly for your context, run `pytest` with verbose output:
+
+```powershell
+# Example for backend tests (assuming PYTHONPATH is set as above)
+python -m pytest -vv
+```
+
+If tests are located in a specific directory (e.g., `tests/backend`), you can target them:
+```powershell
+python -m pytest -vv tests/backend
+```
+
+**Troubleshooting `ImportError: cannot import name 'SemanticChunker' from 'langchain.text_splitter'`:**
+
+This specific error means that the `SemanticChunker` has moved. It's now in `langchain_experimental.text_splitter`. Ensure your code imports it correctly:
+
+```python
+# Old, incorrect import:
+# from langchain.text_splitter import SemanticChunker
+
+# New, correct import:
+from langchain_experimental.text_splitter import SemanticChunker
+```
+Make sure all files using `SemanticChunker` (like `rag_service.py` and `document_processor.py`) are updated. Also, ensure `langchain_experimental` is installed.
+
+## �� Project Structure
+
+- `frontend/`: Web interface (React/TypeScript)
+- `backend/`: API and business logic (Python/FastAPI)
+- `ai/`: AI models and processing (Python/Flask)
+- `supabase/`: Database schema and migrations

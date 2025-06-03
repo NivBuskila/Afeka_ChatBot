@@ -1,11 +1,20 @@
 import logging
 import json
+import sys
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
+from pathlib import Path
+
+# Add the backend directory to sys.path to allow importing from services
+backend_dir = Path(__file__).parent.parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
+from ..core.rag_service import RAGService
+from services.document_processor import DocumentProcessor  # Import from backend/services
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferWindowMemory
@@ -26,12 +35,22 @@ class ChatService(IChatService):
     def __init__(self):
         self.llm = None
         self.conversation_chain = None
+        self.rag_service = None
         
         if not settings.GEMINI_API_KEY:
             logger.error("GEMINI_API_KEY not found in settings. LangChain/Gemini functionalities will be disabled.")
             return
 
         try:
+            # Initialize RAG service
+            try:
+                doc_processor = DocumentProcessor()
+                self.rag_service = RAGService(doc_processor)
+                logger.info("RAG service initialized successfully")
+            except Exception as e:
+                logger.error(f"Error initializing RAG service: {e}")
+                self.rag_service = None
+
             self.llm = ChatGoogleGenerativeAI(
                 google_api_key=settings.GEMINI_API_KEY,
                 model=settings.GEMINI_MODEL_NAME,
@@ -93,6 +112,26 @@ class ChatService(IChatService):
             logger.debug("No history provided and memory is empty. Starting fresh conversation.")
 
         try:
+            # First, try to use RAG service if available and the message looks like a question
+            if self.rag_service and self._is_document_question(user_message):
+                logger.info("Using RAG service to answer document-based question")
+                try:
+                    rag_response = await self.rag_service.get_answer(
+                        query=user_message,
+                        use_hybrid_search=True,
+                        add_sources_to_response=True
+                    )
+                    
+                    # Add the RAG response to memory so it's part of the conversation history
+                    self.memory.chat_memory.add_user_message(user_message)
+                    self.memory.chat_memory.add_ai_message(rag_response["result"])
+                    
+                    logger.info(f"RAG service response: {rag_response['result'][:100]}...")
+                    return {"response": rag_response["result"], "sources": rag_response.get("sources", [])}
+                except Exception as e:
+                    logger.error(f"Error using RAG service: {e}. Falling back to regular LLM.")
+            
+            # If RAG service is not available or failed, use regular LLM
             response_content = await self.conversation_chain.apredict(input=user_message)
             
             logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
@@ -102,3 +141,16 @@ class ChatService(IChatService):
         except Exception as e:
             logger.error(f"Error during LangChain (Gemini) conversation prediction: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error processing message with AI (Gemini): {e}")
+    
+    def _is_document_question(self, message: str) -> bool:
+        """Determine if a message is likely a document-based question"""
+        # Simple heuristic: check if the message contains question words or ends with a question mark
+        message = message.lower()
+        question_indicators = ["?", "מה", "איך", "מתי", "למה", "האם", "איפה", "מי", "כמה", "איזה"]
+        
+        # Check for question indicators
+        for indicator in question_indicators:
+            if indicator in message:
+                return True
+        
+        return False

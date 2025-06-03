@@ -127,31 +127,140 @@ async def delete_document_with_embeddings(
     מחיקת מסמך כולל כל ה-embeddings שלו
     """
     try:
+        logger.info(f"Starting document deletion process for document_id: {document_id}")
         supabase = get_supabase_client()
         
+        if not supabase:
+            logger.error("Failed to get Supabase client")
+            raise HTTPException(status_code=500, detail="Database connection error")
+        
         # Check if document exists first
+        logger.info(f"Checking if document {document_id} exists")
         check_result = supabase.table("documents").select("id").eq("id", document_id).execute()
+        logger.debug(f"Document check result: {check_result}")
+        
         if not check_result.data or len(check_result.data) == 0:
             # Document doesn't exist, return success anyway
+            logger.info(f"Document {document_id} not found or already deleted")
             return {
                 "message": "Document not found or already deleted",
                 "document_id": document_id
             }
             
-        # Delete all document chunks first
-        supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
+        # Batch delete document chunks
+        logger.info(f"Starting batch deletion of chunks for document_id: {document_id}")
+        batch_size = 500  # Define a reasonable batch size
+        total_chunks_deleted = 0
+        
+        try:
+            while True:
+                # Fetch a batch of chunk IDs
+                logger.debug(f"Fetching batch of chunk IDs for document_id: {document_id}")
+                chunk_ids_response = supabase.table("document_chunks").select("id").eq("document_id", document_id).limit(batch_size).execute()
+                logger.debug(f"Chunk IDs response: {chunk_ids_response}")
+                
+                if not chunk_ids_response.data:
+                    logger.info(f"No more chunks found for document_id: {document_id}")
+                    break  # No more chunks to delete
+                    
+                chunk_ids_to_delete = [chunk['id'] for chunk in chunk_ids_response.data]
+                
+                if not chunk_ids_to_delete:
+                    logger.info(f"No chunk IDs to delete in this batch for document_id: {document_id}")
+                    break
+
+                logger.info(f"Deleting batch of {len(chunk_ids_to_delete)} chunks for document_id: {document_id}")
+                try:
+                    delete_response = supabase.table("document_chunks").delete().in_("id", chunk_ids_to_delete).execute()
+                    logger.debug(f"Delete response: {delete_response}")
+                    
+                    # Check for error in response - updated to handle different response formats
+                    error_detected = False
+                    if hasattr(delete_response, 'error') and delete_response.error:
+                        error_detected = True
+                        error_message = delete_response.error
+                        logger.error(f"Error attribute found in delete_response: {error_message}")
+                    elif isinstance(delete_response, dict) and delete_response.get('error'):
+                        error_detected = True
+                        error_message = delete_response.get('error')
+                        logger.error(f"Error key found in delete_response dict: {error_message}")
+                    
+                    if error_detected:
+                        logger.error(f"Error deleting a batch of chunks for document_id {document_id}: {error_message}")
+                        raise HTTPException(status_code=500, detail=f"Failed to delete document chunks: {error_message}")
+                    
+                    # Count deleted chunks
+                    if hasattr(delete_response, 'data') and delete_response.data:
+                        batch_deleted = len(delete_response.data)
+                        total_chunks_deleted += batch_deleted
+                        logger.info(f"Successfully deleted {batch_deleted} chunks in this batch")
+                    
+                except Exception as batch_error:
+                    logger.error(f"Exception during batch deletion: {str(batch_error)}", exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"Error during batch deletion: {str(batch_error)}")
+
+                # If fewer than batch_size chunks were processed, it means we're done or at the last batch.
+                # The next iteration's select will confirm if more exist.
+                if len(chunk_ids_to_delete) < batch_size:
+                    logger.info(f"Processed the last batch of chunks for document_id: {document_id}")
+                    break
+        except Exception as chunks_error:
+            logger.error(f"Error in chunk deletion loop: {str(chunks_error)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error in chunk deletion process: {str(chunks_error)}")
+        
+        logger.info(f"Finished batch deletion of chunks for document_id: {document_id}. Total chunks deleted: {total_chunks_deleted}")
         
         # Delete the document
-        supabase.table("documents").delete().eq("id", document_id).execute()
+        logger.info(f"Deleting document record for document_id: {document_id}")
+        try:
+            doc_delete_response = supabase.table("documents").delete().eq("id", document_id).execute()
+            logger.debug(f"Document delete response: {doc_delete_response}")
+
+            # Check for error in response - updated to handle different response formats
+            error_detected = False
+            if hasattr(doc_delete_response, 'error') and doc_delete_response.error:
+                error_detected = True
+                error_message = doc_delete_response.error
+                logger.error(f"Error attribute found in doc_delete_response: {error_message}")
+            elif isinstance(doc_delete_response, dict) and doc_delete_response.get('error'):
+                error_detected = True
+                error_message = doc_delete_response.get('error')
+                logger.error(f"Error key found in doc_delete_response dict: {error_message}")
+            
+            if error_detected:
+                logger.error(f"Error deleting document record for document_id {document_id}: {error_message}")
+                # Even if document deletion fails, chunks might have been deleted.
+                # Consider how to handle this scenario, e.g., retry or log for manual intervention.
+                raise HTTPException(status_code=500, detail=f"Failed to delete document record: {error_message}")
+            
+            # Check if document was actually deleted
+            if hasattr(doc_delete_response, 'data') and doc_delete_response.data:
+                deleted_count = len(doc_delete_response.data)
+                logger.info(f"Successfully deleted document record for document_id: {document_id}. Deleted count: {deleted_count}")
+            else:
+                logger.warning(f"Document deletion response has no data attribute or empty data for document_id: {document_id}")
+                
+        except Exception as doc_delete_error:
+            logger.error(f"Exception during document record deletion: {str(doc_delete_error)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error deleting document record: {str(doc_delete_error)}")
         
+        logger.info(f"Document deletion process completed successfully for document_id: {document_id}")
         return {
-            "message": "Document and all embeddings deleted successfully",
-            "document_id": document_id
+            "message": "Document and all associated chunks deleted successfully",
+            "document_id": document_id,
+            "chunks_deleted": total_chunks_deleted
         }
         
+    except HTTPException as he:
+        # Re-raise HTTP exceptions
+        logger.error(f"HTTP Exception in delete_document_with_embeddings: {str(he)}")
+        raise
     except Exception as e:
-        logger.error(f"Error deleting document: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error in delete_document_with_embeddings: {str(e)}", exc_info=True)
+        # Try to get more details about the exception
+        import traceback
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @router.post("/search")
 async def semantic_search(

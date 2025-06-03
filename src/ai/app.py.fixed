@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 import dotenv
 from flask_cors import CORS  # הוספת ייבוא של flask_cors
+import asyncio
 
 # הוספת הנתיב לתיקיית backend כדי לאפשר גישה למודולים של RAG
 backend_path = Path(__file__).parent.parent / "backend"
@@ -20,16 +21,31 @@ dotenv.load_dotenv(override=True)
 try:
     from services.document_processor import DocumentProcessor
     from app.core.database import get_supabase_client
-    from core.rag_service import RAGService
+    from app.core.rag_service import RAGService
     has_rag = True
     # Initialize document processor once
     doc_processor = DocumentProcessor()
-    # Initialize RAG service
-    rag_service = RAGService(doc_processor)
+    # Initialize RAG service with new parameters
+    rag_service = RAGService(
+        doc_processor=doc_processor,
+        enable_reranking=os.getenv('RAG_ENABLE_RERANKING', 'True').lower() == 'true',
+        default_search_limit=int(os.getenv('RAG_DEFAULT_SEARCH_LIMIT', 6)),
+        default_search_threshold=float(os.getenv('RAG_DEFAULT_SEARCH_THRESHOLD', 0.72)),
+        cross_encoder_model_name=os.getenv('RAG_CROSS_ENCODER_MODEL', 'cross-encoder/ms-marco-MiniLM-L-6-v2'),
+        llm_model_name=os.getenv('RAG_LLM_MODEL', 'gemini-1.5-flash-latest')
+    )
+    logger.info("RAGService initialized successfully.")
 except ImportError as e:
-    logging.warning(f"RAG modules could not be imported: {e}")
+    logger.error(f"RAG modules could not be imported: {e}. RAG features will be disabled.")
     has_rag = False
     rag_service = None
+    doc_processor = None # If RAGService init depends on it, and RAGService fails, ensure it's clear
+except Exception as e_init:
+    logger.error(f"Error initializing RAGService: {e_init}. RAG features will be disabled.")
+    logger.error(traceback.format_exc())
+    has_rag = False
+    rag_service = None
+    doc_processor = None # Ensure doc_processor is also None if it was part of the failed init sequence
 
 # Configure logging
 logging.basicConfig(
@@ -96,7 +112,7 @@ def handle_options():
 @app.route('/rag/search', methods=['POST'])
 def rag_search():
     """חיפוש סמנטי במסמכים"""
-    if not has_rag:
+    if not has_rag or not doc_processor: # Check doc_processor too
         return jsonify({"error": "RAG modules not available"}), 503
     
     try:
@@ -108,13 +124,8 @@ def rag_search():
         if not query.strip():
             return jsonify({"error": "Query cannot be empty"}), 400
         
-        results = doc_processor.search_documents(query, limit, threshold)
-        
-        # ממתינים לתוצאות מאחר שזו פונקציה אסינכרונית
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        results = loop.run_until_complete(results)
+        # Use asyncio.run() to execute the async function
+        results = asyncio.run(doc_processor.search_documents(query, limit, threshold))
         
         return jsonify({
             "query": query,
@@ -124,12 +135,13 @@ def rag_search():
         
     except Exception as e:
         logger.error(f"Error in semantic search: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(traceback.format_exc()) # Add traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/rag/search/hybrid', methods=['POST'])
 def rag_hybrid_search():
     """חיפוש היברידי (סמנטי + מילות מפתח)"""
-    if not has_rag:
+    if not has_rag or not doc_processor: # Check doc_processor too
         return jsonify({"error": "RAG modules not available"}), 503
     
     try:
@@ -141,13 +153,8 @@ def rag_hybrid_search():
         if not query.strip():
             return jsonify({"error": "Query cannot be empty"}), 400
         
-        results = doc_processor.hybrid_search(query, limit, threshold)
-        
-        # ממתינים לתוצאות מאחר שזו פונקציה אסינכרונית
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        results = loop.run_until_complete(results)
+        # Use asyncio.run() to execute the async function
+        results = asyncio.run(doc_processor.hybrid_search(query, limit, threshold))
         
         return jsonify({
             "query": query,
@@ -157,46 +164,43 @@ def rag_hybrid_search():
         
     except Exception as e:
         logger.error(f"Error in hybrid search: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(traceback.format_exc()) # Add traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/rag/stats', methods=['GET'])
 def rag_stats():
     """מידע על מסמכים ו-embeddings"""
-    if not has_rag:
-        return jsonify({"error": "RAG modules not available"}), 503
+    if not has_rag or doc_processor is None:
+        return jsonify({"error": "RAG components (doc_processor) not available"}), 503
     
     try:
-        supabase = get_supabase_client()
+        # Database stats from DocumentProcessor
+        db_stats = asyncio.run(doc_processor.get_stats())
         
-        # Count documents
-        docs_count = supabase.table("documents").select("*", count="exact").execute()
-        total_documents = docs_count.count if hasattr(docs_count, 'count') else 0
-        
-        # Count embeddings
-        embeddings_count = supabase.table("document_chunks").select("*", count="exact").execute()
-        total_embeddings = embeddings_count.count if hasattr(embeddings_count, 'count') else 0
-        
-        # Get status counts
-        status_counts = {}
-        try:
-            status_result = supabase.rpc("get_document_status_counts").execute()
-            if status_result.data:
-                status_counts = {item['status']: item['count'] for item in status_result.data}
-        except:
-            # Fall back to manual counting
-            for status in ['pending', 'processing', 'completed', 'failed']:
-                status_count = supabase.table("documents").select("*", count="exact").eq("processing_status", status).execute()
-                status_counts[status] = status_count.count if hasattr(status_count, 'count') else 0
-        
-        return jsonify({
-            "total_documents": total_documents,
-            "total_embeddings": total_embeddings,
-            "status_counts": status_counts
-        })
-        
+        # RAGService operational stats
+        service_stats = {}
+        if rag_service:
+            service_stats = rag_service.get_service_stats()
+        else:
+            service_stats = {"message": "RAGService not initialized or available."}
+            
+        # RAGService configuration (runtime)
+        service_config = {}
+        if rag_service:
+            service_config = rag_service.get_runtime_config()
+        else:
+            service_config = {"message": "RAGService not initialized or available."}
+
+        combined_stats = {
+            "database_stats": db_stats,
+            "rag_service_operational_stats": service_stats,
+            "rag_service_runtime_config": service_config
+        }
+        return jsonify(combined_stats)
     except Exception as e:
-        logger.error(f"Error getting RAG stats: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error fetching RAG stats: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": "Failed to retrieve RAG statistics", "details": str(e)}), 500
 
 @app.route('/rag/document/<int:document_id>', methods=['GET'])
 def rag_document_status(document_id):
@@ -265,132 +269,107 @@ def rag_test():
     נקודת קצה לבדיקת שירות ה-RAG החדש
     """
     if not has_rag or rag_service is None:
-        return jsonify({"error": "RAG service not available"}), 503
+        return jsonify({"error": "RAG service not available or not initialized properly"}), 503
     
     try:
         data = request.get_json(force=True)
         query = data.get("query", "")
-        add_sources = data.get("add_sources", True)
-        
         if not query.strip():
             return jsonify({"error": "Query cannot be empty"}), 400
+
+        use_hybrid = data.get("use_hybrid", False)
+        add_sources = data.get("add_sources", True)
+        limit = data.get("limit") 
+        threshold = data.get("threshold")
         
-        # בדיקת חיפוש בלבד
         if data.get("search_only", False):
-            # חיפוש באמצעות שירות ה-RAG
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            search_results = loop.run_until_complete(rag_service.search(query))
-            
-            return jsonify({
-                "query": query,
-                "results": search_results,
-                "count": len(search_results)
-            })
+            search_results = asyncio.run(rag_service.search(query, limit=limit, threshold=threshold, use_hybrid=use_hybrid))
+            return jsonify({"query": query, "search_results": search_results, "count": len(search_results)})
         
-        # בדיקת פורמט הקשר בלבד
+        if data.get("rerank_only", False):
+            search_results = asyncio.run(rag_service.search(query, limit=limit, threshold=threshold, use_hybrid=use_hybrid))
+            reranked_results = asyncio.run(rag_service.rerank_results(query, search_results))
+            return jsonify({"query": query, "reranked_results": reranked_results, "count": len(reranked_results)})
+
         if data.get("context_only", False):
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            search_results = loop.run_until_complete(rag_service.search(query))
-            
-            context = rag_service.format_context(search_results)
-            
-            return jsonify({
-                "query": query,
-                "context": context,
-                "results_count": len(search_results)
-            })
+            search_results = asyncio.run(rag_service.search(query, limit=limit, threshold=threshold, use_hybrid=use_hybrid))
+            reranked_results = asyncio.run(rag_service.rerank_results(query, search_results))
+            context_str = rag_service._build_context_string(reranked_results, 
+                                                            max_tokens_for_context=data.get("context_max_tokens", 2500),
+                                                            max_chunks_for_context=data.get("context_max_chunks",3))
+            return jsonify({"query": query, "context": context_str, "reranked_results_count": len(reranked_results)})
         
-        # בדיקה מלאה של קבלת תשובה
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(rag_service.get_answer(query, add_sources=add_sources))
-        
-        return jsonify(result)
+        response_data = asyncio.run(rag_service.get_answer(
+            query,
+            use_hybrid_search=use_hybrid,
+            add_sources_to_response=add_sources,
+            search_limit_override=limit,
+            search_threshold_override=threshold,
+            context_max_tokens=data.get("context_max_tokens", 2500),
+            context_max_chunks=data.get("context_max_chunks", 3)
+        ))
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"Error in RAG test endpoint: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-# החלף את נקודת הקצה /rag/debug בקובץ app.py עם זה:
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/rag/debug', methods=['POST'])
 def rag_debug():
     """דיבאג מפורט של שירות ה-RAG"""
     if not has_rag or rag_service is None:
-        return jsonify({"error": "RAG service not available"}), 503
+        return jsonify({"error": "RAG service not available or not initialized properly"}), 503
     
     try:
         data = request.get_json(force=True)
         query = data.get("query", "")
-        
         if not query.strip():
             return jsonify({"error": "Query cannot be empty"}), 400
         
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        use_hybrid = data.get("use_hybrid", False)
+        limit = data.get("limit")
+        threshold = data.get("threshold")
+
+        raw_search_results = asyncio.run(rag_service.search(query, limit=limit, threshold=threshold, use_hybrid=use_hybrid))
+        reranked_results = asyncio.run(rag_service.rerank_results(query, raw_search_results))
         
-        # בדיקת חיפוש
-        search_results = loop.run_until_complete(rag_service.search(query))
+        # Accessing __defaults__ can be brittle. Get defaults from RAGService config or pass explicitly.
+        # For simplicity, using direct values or request data for now.
+        context_max_tokens = data.get("context_max_tokens", rag_service.get_runtime_config().get("context_max_tokens", 2500)) # Example if config held this
+        context_max_chunks = data.get("context_max_chunks", rag_service.get_runtime_config().get("context_max_chunks", 3)) # Example if config held this
+        # Fallback to direct defaults if not in config from RAGService
+        context_max_tokens = data.get("context_max_tokens", 2500) 
+        context_max_chunks = data.get("context_max_chunks", 3)
+
+        context_str = rag_service._build_context_string(reranked_results, max_tokens=context_max_tokens, max_chunks=context_max_chunks)
         
-        # בדיקת הקשר
-        context = rag_service.format_context(search_results, query)
+        llm_prompt_for_debug = f"Context:\n{context_str}\n\nUser: {query}"
+        if not context_str: llm_prompt_for_debug = f"User: {query}"
         
-        # בדיקת תשובה מלאה
-        full_result = loop.run_until_complete(rag_service.get_answer(query, add_sources=False))
-        
-        # בדיקת הגדרות עם טיפול בשגיאות
-        try:
-            rag_config = {
-                "default_limit": getattr(rag_service, 'default_limit', 5),
-                "default_threshold": getattr(rag_service, 'default_threshold', 0.6),
-                "use_hybrid_search": getattr(rag_service, 'use_hybrid_search', True),
-                "max_context_length": getattr(rag_service, 'max_context_length', 1500),
-                "current_config": getattr(rag_service, 'default_config', 'balanced'),
-                "available_configs": list(getattr(rag_service, 'search_configs', {}).keys())
-            }
-        except Exception as config_error:
-            logger.warning(f"Error getting RAG config: {str(config_error)}")
-            rag_config = {"error": "Could not retrieve config"}
+        full_response_for_debug = asyncio.run(rag_service.get_answer(query, use_hybrid_search=use_hybrid, add_sources_to_response=False, search_limit_override=limit, search_threshold_override=threshold, context_max_tokens=context_max_tokens, context_max_chunks=context_max_chunks))
+        ai_answer_preview = full_response_for_debug.get("result", "Error getting preview")
         
         debug_info = {
             "query": query,
-            "search_results": {
-                "count": len(search_results),
-                "results": [
-                    {
-                        "document_id": r.get("document_id"),
-                        "similarity": r.get("similarity", 0),
-                        "enhanced_score": r.get("enhanced_score", r.get("similarity", 0)),
-                        "content_preview": r.get("content", "")[:300] + "..." if len(r.get("content", "")) > 300 else r.get("content", ""),
-                        "content_length": len(r.get("content", ""))
-                    } for r in search_results
-                ]
-            },
-            "context_preview": context[:500] + "..." if len(context) > 500 else context,
-            "context_length": len(context),
-            "final_answer_preview": full_result["result"][:400] + "..." if len(full_result["result"]) > 400 else full_result["result"],
-            "processing_time": full_result["processing_time"],
-            "rag_config": rag_config,
-            "service_stats": rag_service.get_stats() if hasattr(rag_service, 'get_stats') else {"not_available": True}
+            "params": {"use_hybrid": use_hybrid, "limit": limit, "threshold": threshold, "context_max_tokens": context_max_tokens, "context_max_chunks": context_max_chunks},
+            "raw_search_results_count": len(raw_search_results),
+            "raw_search_results_preview": [{k: v for k, v in r.items() if k != 'embedding'} for r in raw_search_results[:3]],
+            "reranked_results_count": len(reranked_results),
+            "reranked_results_preview": [{k: v for k, v in r.items() if k != 'embedding'} for r in reranked_results[:3]],
+            "context_preview": context_str[:1000] + ("..." if len(context_str) > 1000 else ""),
+            "context_length_chars": len(context_str),
+            "llm_prompt_preview_for_debug": llm_prompt_for_debug[:1000] + ("..." if len(llm_prompt_for_debug) > 1000 else ""),
+            "final_answer_from_service_preview": ai_answer_preview[:400] + ("..." if len(ai_answer_preview) > 400 else ""),
+            "rag_service_config": rag_service.get_runtime_config(),
+            "rag_service_stats_current_session": rag_service.get_service_stats() # These are cumulative for the service instance
         }
-        
         return jsonify(debug_info)
         
     except Exception as e:
         logger.error(f"Error in RAG debug endpoint: {str(e)}")
-        import traceback
         logger.error(traceback.format_exc())
-        return jsonify({
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 # Main chat endpoint
 @app.route('/chat', methods=['POST'])
@@ -448,30 +427,38 @@ def chat():
         logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
         
         # בדיקה אם להשתמש ב-RAG
-        use_rag = has_rag and 'use_rag' in data and data['use_rag'] and rag_service is not None
+        use_rag_flag = has_rag and 'use_rag' in data and data['use_rag'] and rag_service is not None
         
         try:
             # הגדרת מודל Gemini ישירות כברירת מחדל
             model = genai.GenerativeModel("gemini-2.0-flash")
             
-            if use_rag:
+            if use_rag_flag:
                 # שימוש במודול ה-RAG החדש
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                # הוספת פרמטרים אופציונליים מהבקשה
                 add_sources = data.get('add_sources', True)
+                use_hybrid = data.get('use_hybrid', False)
+                s_limit = data.get('rag_search_limit')
+                s_thresh = data.get('rag_search_threshold')
+                ctx_tokens = data.get('rag_context_max_tokens', 2500)
+                ctx_chunks = data.get('rag_context_max_chunks', 3)
                 
-                # קבלת תשובה מורחבת עם מידע מהמסמכים
-                response_data = loop.run_until_complete(rag_service.get_answer(user_message, add_sources=add_sources))
+                # Use asyncio.run() for the async call
+                response_data = asyncio.run(rag_service.get_answer(
+                    user_message, 
+                    use_hybrid_search=use_hybrid, 
+                    add_sources_to_response=add_sources,
+                    search_limit_override=s_limit,
+                    search_threshold_override=s_thresh,
+                    context_max_tokens=ctx_tokens,
+                    context_max_chunks=ctx_chunks
+                ))
                 ai_response = response_data.get('result', '')
                 logger.info(f"RAG enhanced response received: {ai_response[:30]}...")
                 
                 # הכנת התשובה עם כל המידע שהתקבל מה-RAG
                 result = {
                     "result": ai_response,
-                    "processing_time": response_data.get('processing_time', round(time.time() - request_start_time, 3)),
+                    "processing_time": response_data.get('processing_time_s', round(time.time() - request_start_time, 3)),
                     "rag_used": response_data.get('rag_used', False),
                     "rag_count": response_data.get('rag_count', 0),
                     "sources": response_data.get('sources', [])
