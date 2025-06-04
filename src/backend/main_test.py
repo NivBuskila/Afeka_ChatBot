@@ -17,8 +17,10 @@ import re
 from datetime import datetime
 import uuid
 
+# Import our app modules
 from app.config import settings
 from app.core.logging import setup_logging
+from app.core.exceptions import ServiceException
 from app.middleware import (
     setup_cors,
     setup_trusted_host,
@@ -30,33 +32,38 @@ from app.schemas import (
     ChatRequest,
     ChatResponse,
     DocumentCreate,
+    DocumentUpdate,
+    DocumentResponse,
+    DocumentListResponse,
     SuccessResponse,
     ErrorResponse
 )
+from app.domain import Document as DomainDocument, User as DomainUser
+from app.repositories.factory import init_repository_factory
+from app.dependencies import (
+    get_user_repository,
+    get_chat_session_repository,
+    get_chat_message_repository,
+    get_document_repository,
+    get_document_service,
+    get_chat_service,
+    get_user_service,
+    get_ai_service
+)
+
 from app.domain import Document as DomainDocument
 from app.repositories.factory import init_repository_factory
+from app.repositories.document_repository import DocumentRepository
+from app.services.factory import init_service_factory, service_factory
+from app.services.document_service import DocumentService
+from app.services.chat_service import ChatService
+from app.services.user_service import UserService
 
-#### testing logging.py
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 setup_logging()
+logger = logging.getLogger(__name__)
 
-# # Load environment variables - force reload from .env file in current directory
-# load_dotenv(override=True)
-### testing logging.py
-
-
-### testing config.py
-# # Initialize FastAPI app
-# app = FastAPI(
-#     title="Afeka ChatBot API",
-#     description="Backend API for Afeka College Regulations ChatBot",
-#     version="1.0.0",
-#     docs_url="/api/docs",
-#     redoc_url="/api/redoc",
-#     openapi_url="/api/openapi.json"
-# )
+# Initialize FastAPI app
 app = FastAPI(
     title=settings.app_name,
     description=settings.app_description,
@@ -65,176 +72,19 @@ app = FastAPI(
     redoc_url=settings.api_redoc_url,
     openapi_url=settings.api_openapi_url
 )
-### testing config.py
 
-
-#### testing middleware
-# ### testing config.py
-# # # Define allowed origins for CORS
-# # ALLOWED_ORIGINS = os.environ.get(
-# #     "ALLOWED_ORIGINS", 
-# #     "http://localhost:5173,http://localhost:80,http://localhost,http://frontend:3000,http://frontend,http://192.168.56.1:5173,http://172.16.16.179:5173,http://172.20.224.1:5173"
-# # ).split(",")
-# # logger.info(f"Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
-
-# logger.info(f"Configured CORS with allowed origins: {settings.allowed_origins}")
-# ### testing config.py
-
-# ### testing config.py
-# # # Add CORS middleware
-# # app.add_middleware(
-# #     CORSMiddleware,
-# #     allow_origins=["*"],  # Allow all origins in development
-# #     allow_credentials=True,
-# #     allow_methods=["*"],  # Allow all methods
-# #     allow_headers=["*"],  # Allow all headers
-# #     max_age=600  # 10 minutes cache for preflight requests
-# # )
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=settings.allowed_origins,  # Changed from ALLOWED_ORIGINS
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-#     max_age=600
-# )
-# ### testing config.py
-
-# Configure CORS
+# Configure middleware
 setup_cors(app)
-#### testing middleware
-
-
-#### testing middleware
-# # ### testing config.py
-# # # Add trusted host middleware for production
-# # if os.environ.get("ENV", "development") == "production":
-# #     ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
-# #     app.add_middleware(
-# #         TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS
-# #     )
-# #     logger.info(f"Added TrustedHostMiddleware with hosts: {ALLOWED_HOSTS}")
-
-# if settings.is_production:
-#     app.add_middleware(
-#         TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts
-#     )
-#     logger.info(f"Added TrustedHostMiddleware with hosts: {settings.allowed_hosts}")
-# ### testing config.py
-
 setup_trusted_host(app)
-#### testing middleware
-
-#### testing middleware
-# # Request timing middleware
-# @app.middleware("http")
-# async def add_process_time_header(request: Request, call_next):
-#     start_time = time.time()
-#     response = await call_next(request)
-#     process_time = time.time() - start_time
-#     response.headers["X-Process-Time"] = str(process_time)
-#     return response
 app.add_middleware(TimingMiddleware)
-#### testing middleware
-
-
-#### testing middleware
-# # Security headers middleware
-# @app.middleware("http")
-# async def add_security_headers(request: Request, call_next):
-#     response = await call_next(request)
-#     response.headers["X-Content-Type-Options"] = "nosniff"
-#     response.headers["X-Frame-Options"] = "DENY"
-#     response.headers["X-XSS-Protection"] = "1; mode=block"
-#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-#     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-#     return response
 app.add_middleware(SecurityHeadersMiddleware)
-#### testing middleware
-
-
-
-# ### testing config.py
-# # Rate limiting setup
-# API_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "100"))  # Requests per minute
-# rate_limit_data = {}
-
-API_RATE_LIMIT = settings.api_rate_limit
-rate_limit_data = {}
-# ### testing config.py
-
-
-#### testing middleware
-# # Rate limiting middleware
-# @app.middleware("http")
-# async def rate_limit_middleware(request: Request, call_next):
-#     # Get client IP
-#     client_ip = request.client.host if request.client else "unknown"
-    
-#     # Skip rate limiting for certain paths
-#     if request.url.path in ["/api/health", "/", "/api/docs", "/api/redoc", "/api/openapi.json"]:
-#         return await call_next(request)
-    
-#     current_time = time.time()
-#     minute_window = int(current_time / 60)
-    
-#     # Initialize or reset rate limit data for new minute window
-#     if client_ip not in rate_limit_data or rate_limit_data[client_ip]["window"] != minute_window:
-#         rate_limit_data[client_ip] = {"window": minute_window, "count": 0}
-    
-#     # Increment request count for this IP
-#     rate_limit_data[client_ip]["count"] += 1
-    
-#     # Check if rate limit exceeded
-#     if rate_limit_data[client_ip]["count"] > API_RATE_LIMIT:
-#         logger.warning(f"Rate limit exceeded for IP {client_ip}")
-#         return JSONResponse(
-#             status_code=429,
-#             content={"error": "Too many requests. Please try again later."}
-#         )
-    
-#     # Add rate limit headers
-#     response = await call_next(request)
-#     response.headers["X-RateLimit-Limit"] = str(API_RATE_LIMIT)
-#     response.headers["X-RateLimit-Remaining"] = str(max(0, API_RATE_LIMIT - rate_limit_data[client_ip]["count"]))
-#     response.headers["X-RateLimit-Reset"] = str((minute_window + 1) * 60)
-    
-#     return response
 app.add_middleware(RateLimitMiddleware)
-#### testing middleware
 
-### testing config.py
-# # Initialize Supabase client
-# try:
-#     SUPABASE_URL = os.environ.get("SUPABASE_URL")
-#     SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")  # Try SUPABASE_SERVICE_KEY if SUPABASE_KEY not found
-
-#     logger.info(f"SUPABASE_URL exists: {SUPABASE_URL is not None}")
-#     logger.info(f"SUPABASE_KEY exists: {SUPABASE_KEY is not None}")
-    
-#     # Print the values for debugging (Be sure to remove/redact in production)
-#     logger.info(f"SUPABASE_URL value first 20 chars: {SUPABASE_URL[:20] if SUPABASE_URL else 'None'}")
-#     logger.info(f"AI_SERVICE_URL from env: {os.environ.get('AI_SERVICE_URL')}")
-
-#     if SUPABASE_URL and SUPABASE_KEY:
-#         try:
-#             # הסרת פרמטר ה-proxy שגורם לשגיאה
-#             supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-#             logger.info("Supabase client initialized successfully")
-#         except Exception as e:
-#             logger.error(f"Failed to initialize Supabase client: {e}")
-#             supabase_client = None
-#     else:
-#         logger.warning("SUPABASE_KEY or SUPABASE_URL not set, Supabase features will not work")
-#         supabase_client = None
-# except Exception as e:
-#     logger.error(f"Failed to initialize Supabase client: {e}")
-#     supabase_client = None
+# Initialize Supabase client
 try:
     supabase_key = settings.get_supabase_key_value
     if settings.supabase_url and supabase_key:
         try:
-            # Create client without proxy parameter
             supabase_client = create_client(settings.supabase_url, supabase_key)
             logger.info("Supabase client initialized successfully")
         except Exception as e:
@@ -246,53 +96,23 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
     supabase_client = None
-### testing config.py
 
-#### testing repositories
 # Initialize repository factory
-init_repository_factory(supabase_client)
+repository_factory = init_repository_factory(supabase_client)
 logger.info("Repository factory initialized")
-#### testing repositories
 
-### testing config.py
-# # AI Service configuration
-# AI_SERVICE_URL = "http://localhost:5000"  # Force localhost for local development
-# logger.info(f"AI service URL set to: {AI_SERVICE_URL}")
+# Initialize service factory    
+service_factory = init_service_factory(repository_factory)
+logger.info("Service factory initialized")
 
+# AI Service configuration
 logger.info(f"AI service URL set to: {settings.ai_service_url}")
-### testing config.py
 
-
-### testing config.py
-# # Security - API key for internal API calls
-# API_KEY_NAME = "X-API-Key"
-# api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
-
-# # Generate random API key if not in environment
-# INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY", secrets.token_urlsafe(32))
-
+# Security - API key for internal API calls
 api_key_header = APIKeyHeader(name=settings.api_key_header_name, auto_error=False)
-### testing config.py
 
 # Input validation pattern for document IDs
 ID_PATTERN = re.compile(r"^\d+$")
-
-##### testing schemas.py and domain.py
-# # Models
-# class ChatRequest(BaseModel):
-#     message: str
-#     user_id: str = "anonymous"
-
-# class ChatResponse(BaseModel):
-#     response: Dict[str, Any]
-
-# class Document(BaseModel):
-#     title: str
-#     content: str
-#     category: Optional[str] = None
-#     tags: Optional[List[str]] = None
-##### testing schemas.py and domain.py
-
 
 @app.get("/")
 async def root():
@@ -306,401 +126,153 @@ async def health_check():
     supabase_status = "connected" if supabase_client else "disconnected"
     return {"status": "ok", "supabase": supabase_status}
 
-
-##### testing schemas.py and domain.py
-# @app.post("/api/chat")
-# async def chat(request: Request):
-#     """
-#     Process chat messages - currently a placeholder for future RAG implementation
-    
-#     Takes user message and returns a placeholder response
-#     """
-#     try:
-#         # Log request headers for debugging
-#         logger.info(f"Request headers: {request.headers.get('content-type', 'Not specified')}")
-        
-#         # Parse incoming request body with explicit UTF-8 encoding
-#         try:
-#             body_bytes = await request.body()
-#             body_str = body_bytes.decode('utf-8', errors='replace')
-#             logger.info(f"Raw request body (first 100 chars): {body_str[:100]}...")
-            
-#             import json
-#             body = json.loads(body_str)
-#         except Exception as json_err:
-#             logger.error(f"Error parsing JSON: {json_err}")
-#             # Fallback to default JSON parsing
-#             body = await request.json()
-            
-#         user_message = body.get("message", "")
-        
-#         if not user_message:
-#             raise HTTPException(status_code=400, detail="Message is required")
-            
-#         # Validate message length
-#         if len(user_message) > 1000:
-#             raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
-            
-#         logger.info(f"Received chat request with message (length {len(user_message)}): {user_message[:50]}...")
-        
-#         # Forward the request to the AI service if it's available
-#         try:
-#             async with httpx.AsyncClient() as client:
-#                 logger.info(f"Sending to AI service: {user_message[:50]}...")
-                
-#                 # Prepare request with explicit encoding
-#                 json_data = json.dumps({"message": user_message}, ensure_ascii=False)
-#                 headers = {
-#                     "Content-Type": "application/json; charset=utf-8",
-#                     "Accept": "application/json; charset=utf-8"
-#                 }
-                
-#                 response = await client.post(
-
-#                     ### testing config.py
-#                     # f"{AI_SERVICE_URL}/chat",
-#                     f"{settings.ai_service_url}/chat",
-#                     ### testing config.py
-
-#                     content=json_data.encode('utf-8'),
-#                     headers=headers
-#                 )
-                
-#                 logger.info(f"AI service response status: {response.status_code}")
-                
-#                 # Try to get response in different ways
-#                 try:
-#                     response_json = response.json()
-#                 except Exception as json_err:
-#                     logger.error(f"Error parsing AI service response as JSON: {json_err}")
-#                     # Try manual JSON parsing
-#                     response_text = response.text
-#                     logger.info(f"Raw AI response: {response_text[:100]}...")
-                    
-#                     import json
-#                     response_json = json.loads(response_text)
-                
-#                 # Extract message from AI response or use the entire response
-#                 ai_message = response_json.get("result") or response_json.get("response") or response_json.get("answer") or response_json
-                
-#                 # Ensure we return the expected format with 'message' key
-#                 return JSONResponse(
-#                     content={"message": ai_message},
-#                     headers={"Content-Type": "application/json; charset=utf-8"}
-#                 )
-#         except httpx.RequestError as e:
-#             logger.error(f"Error communicating with AI service: {e}")
-#             return JSONResponse(
-#                 content={
-#                     "message": "This is a placeholder response. Future implementation will use RAG to query document knowledge base."
-#                 },
-#                 headers={"Content-Type": "application/json; charset=utf-8"}
-#             )
-            
-#     except json.JSONDecodeError as e:
-#         logger.error(f"Invalid JSON in request: {e}")
-#         return JSONResponse(
-#             status_code=400,
-#             content={"error": "Invalid JSON in request body", "message": "Error processing your request"},
-#             headers={"Content-Type": "application/json; charset=utf-8"}
-#         )
-#     except Exception as e:
-#         import traceback
-#         logger.error(f"Unexpected error in chat endpoint: {e}")
-#         logger.error(traceback.format_exc())
-#         return JSONResponse(
-#             status_code=500,
-#             content={"error": "Internal server error", "message": str(e)},
-#             headers={"Content-Type": "application/json; charset=utf-8"}
-#         )
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):  # Remove the Request parameter
+async def chat(
+    request: ChatRequest,
+    chat_service: ChatService = Depends(get_chat_service),
+    user_service: UserService = Depends(get_user_service)
+):
     """
-    Process chat messages - currently a placeholder for future RAG implementation
-    
-    Takes user message and returns a placeholder response
+    Process chat messages using the ChatService
     """
     try:
-        # No need to parse request body manually anymore
-        user_message = request.message
-        
-        if len(user_message) > 1000:
-            raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
-            
-        logger.info(f"Received chat request with message (length {len(user_message)}): {user_message[:50]}...")
-        
-        # Forward the request to the AI service if it's available
-        try:
-            async with httpx.AsyncClient() as client:
-                logger.info(f"Sending to AI service: {user_message[:50]}...")
-                
-                # Prepare request with explicit encoding
-                json_data = json.dumps({"message": user_message}, ensure_ascii=False)
-                headers = {
-                    "Content-Type": "application/json; charset=utf-8",
-                    "Accept": "application/json; charset=utf-8"
-                }
-                
-                response = await client.post(
-                    f"{settings.ai_service_url}/chat",
-                    content=json_data.encode('utf-8'),
-                    headers=headers
-                )
-                
-                logger.info(f"AI service response status: {response.status_code}")
-                
-                # Try to get response in different ways
-                try:
-                    response_json = response.json()
-                except Exception as json_err:
-                    logger.error(f"Error parsing AI service response as JSON: {json_err}")
-                    # Try manual JSON parsing
-                    response_text = response.text
-                    logger.info(f"Raw AI response: {response_text[:100]}...")
-                    
-                    import json
-                    response_json = json.loads(response_text)
-                
-                # Extract message from AI response or use the entire response
-                ai_message = response_json.get("result") or response_json.get("response") or response_json.get("answer") or response_json
-                
-                # Return using the ChatResponse schema
-                return ChatResponse(
-                    message=ai_message,
-                    metadata={"processed": True}
-                )
-        except httpx.RequestError as e:
-            logger.error(f"Error communicating with AI service: {e}")
-            return ChatResponse(
-                message="This is a placeholder response. Future implementation will use RAG to query document knowledge base.",
-                metadata={"error": str(e)}
+        # Get or create user
+        user = await user_service.get_user_by_email(f"{request.user_id}@example.com")
+        if not user:
+            # Create a temporary user for anonymous requests
+            from app.domain.user import User
+            user = User(
+                email=f"{request.user_id}@example.com",
+                name=request.user_id,
+                role="user"
             )
-            
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in request: {e}")
-        raise HTTPException(status_code=400, detail="Invalid JSON in request body")
+            user = await user_service.create_user(user)
+        
+        # Get or create a chat session
+        sessions = await chat_service.get_user_sessions(user.id, active_only=True, limit=1)
+        
+        if sessions:
+            session = sessions[0]
+        else:
+            session = await chat_service.create_session(user.id, "Default Chat")
+        
+        # Process the message
+        assistant_message = await chat_service.process_message(
+            session_id=session.id,
+            user_id=user.id,
+            content=request.message
+        )
+        
+        return ChatResponse(
+            message=assistant_message.content,
+            metadata={
+                "session_id": str(session.id),
+                "message_id": str(assistant_message.id)
+            }
+        )
+        
     except Exception as e:
-        import traceback
-        logger.error(f"Unexpected error in chat endpoint: {e}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal server error")
-##### testing schemas.py and domain.py
-
-@app.get("/api/documents")
-async def get_documents():
-    """
-    Retrieve available documents from Supabase storage
+        logger.error(f"Error in chat endpoint: {e}")
+        # Return fallback response
+        return ChatResponse(
+            message="I apologize, but I encountered an error processing your request.",
+            metadata={"error": str(e)}
+        )
     
-    Returns a list of documents with their metadata
+@app.get("/api/documents", response_model=DocumentListResponse)
+async def get_documents(
+    category: Optional[str] = None,
+    document_service: DocumentService = Depends(get_document_service)
+):
+    """
+    Retrieve available documents using DocumentService
     """
     try:
-        if not supabase_client:
-            logger.warning("Supabase connection not available - returning mock data")
-            # Return mock data instead of failing when Supabase is not available
-            return [
-                {
-                    "id": 1,
-                    "title": "Academic Regulations",
-                    "content": "This document contains the academic regulations for Afeka College",
-                    "category": "Academic",
-                    "created_at": "2024-01-01T00:00:00"
-                },
-                {
-                    "id": 2,
-                    "title": "Student Handbook",
-                    "content": "A comprehensive guide for Afeka College students",
-                    "category": "Student",
-                    "created_at": "2024-01-15T00:00:00"
-                },
-                {
-                    "id": 3, 
-                    "title": "Course Catalog",
-                    "content": "List of all courses offered at Afeka College",
-                    "category": "Academic",
-                    "created_at": "2024-02-01T00:00:00"
-                }
-            ]
+        documents = await document_service.get_all_documents(category=category)
         
-        # Query documents from Supabase
-        response = supabase_client.table('documents').select('*').execute()
+        # Convert domain models to response schemas
+        document_responses = [
+            DocumentResponse(
+                id=doc.id,
+                name=doc.name,
+                type=doc.type,
+                size=doc.size,
+                url=doc.url,
+                user_id=doc.user_id,
+                category=doc.category,
+                tags=doc.tags,
+                processing_status=doc.processing_status,
+                size_mb=doc.size_mb,
+                is_processed=doc.is_processed,
+                created_at=doc.created_at,
+                updated_at=doc.updated_at
+            )
+            for doc in documents
+        ]
         
-        if hasattr(response, 'data'):
-            logger.info(f"Retrieved {len(response.data)} documents from Supabase")
-            return response.data
-        else:
-            logger.warning("No data returned from Supabase query")
-            return []
-            
+        return DocumentListResponse(
+            documents=document_responses,
+            total=len(document_responses)
+        )
+        
     except Exception as e:
         logger.error(f"Error retrieving documents: {str(e)}")
-        # Instead of failing with 500, return mock data
-        logger.warning("Returning mock data due to error")
-        return [
-            {
-                "id": 1,
-                "title": "Academic Regulations",
-                "content": "This document contains the academic regulations for Afeka College",
-                "category": "Academic",
-                "created_at": "2024-01-01T00:00:00"
-            },
-            {
-                "id": 2,
-                "title": "Student Handbook",
-                "content": "A comprehensive guide for Afeka College students",
-                "category": "Student",
-                "created_at": "2024-01-15T00:00:00"
-            }
-        ]
+        raise HTTPException(status_code=500, detail="Failed to retrieve documents")
 
-@app.get("/api/documents/{document_id}")
-async def get_document(document_id: str):
+
+@app.get("/api/documents/{document_id}", response_model=DocumentResponse)
+async def get_document(
+    document_id: str,
+    document_service: DocumentService = Depends(get_document_service)
+):
     """
-    Retrieve a specific document by ID
-    
-    Args:
-        document_id: The ID of the document to retrieve
-        
-    Returns:
-        Document data including URL for download
+    Retrieve a specific document by ID using DocumentService
     """
     try:
-        # Validate document_id format for security
+        # Validate document_id format
         if not ID_PATTERN.match(document_id):
             raise HTTPException(status_code=400, detail="Invalid document ID format")
             
         doc_id = int(document_id)
         
-        if not supabase_client:
-            logger.warning(f"Supabase connection not available - returning mock data for document ID {doc_id}")
-            # Return mock data for the specific document ID
-            mock_documents = {
-                1: {
-                    "id": 1,
-                    "title": "Academic Regulations",
-                    "content": "This document contains the academic regulations for Afeka College",
-                    "category": "Academic",
-                    "created_at": "2024-01-01T00:00:00"
-                },
-                2: {
-                    "id": 2,
-                    "title": "Student Handbook",
-                    "content": "A comprehensive guide for Afeka College students",
-                    "category": "Student",
-                    "created_at": "2024-01-15T00:00:00"
-                },
-                3: {
-                    "id": 3, 
-                    "title": "Course Catalog",
-                    "content": "List of all courses offered at Afeka College",
-                    "category": "Academic",
-                    "created_at": "2024-02-01T00:00:00"
-                }
-            }
-            
-            if doc_id in mock_documents:
-                return mock_documents[doc_id]
-            else:
-                # Create a generic mock document for any other ID
-                return {
-                    "id": doc_id,
-                    "title": f"Document {doc_id}",
-                    "content": f"This is a mock document with ID {doc_id}",
-                    "category": "General",
-                    "created_at": "2024-01-01T00:00:00"
-                }
+        document = await document_service.get_document(doc_id)
         
-        # Query the specific document
-        response = supabase_client.table('documents').select('*').eq('id', doc_id).execute()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
         
-        if not response.data or len(response.data) == 0:
-            logger.warning(f"Document with ID {doc_id} not found")
-            
-            # Return a mock document instead of 404 error
-            return {
-                "id": doc_id,
-                "title": f"Document {doc_id}",
-                "content": f"This is a mock document with ID {doc_id}",
-                "category": "General",
-                "created_at": "2024-01-01T00:00:00",
-                "note": "This is a mock document because the original was not found"
-            }
-            
-        logger.info(f"Retrieved document with ID {doc_id}")
-        return response.data[0]
+        return DocumentResponse(
+            id=document.id,
+            name=document.name,
+            type=document.type,
+            size=document.size,
+            url=document.url,
+            user_id=document.user_id,
+            category=document.category,
+            tags=document.tags,
+            processing_status=document.processing_status,
+            size_mb=document.size_mb,
+            is_processed=document.is_processed,
+            created_at=document.created_at,
+            updated_at=document.updated_at
+        )
         
-    except HTTPException as he:
-        # Only re-raise HTTP exceptions for invalid format
-        if he.status_code == 400:
-            raise he
-        logger.error(f"HTTP Exception: {str(he)}")
-        # Return mock data for other HTTP exceptions
-        return {"id": document_id, "title": "Error Document", "content": "This document could not be found", "error": str(he)}
+    except HTTPException:
+        raise
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid document ID format")
     except Exception as e:
         logger.error(f"Error retrieving document {document_id}: {str(e)}")
-        # Return mock data instead of failing
-        return {
-            "id": int(document_id) if document_id.isdigit() else 0,
-            "title": "Error Document",
-            "content": "There was an error retrieving this document",
-            "category": "Error",
-            "created_at": "2024-01-01T00:00:00",
-            "error_message": str(e)
-        }
+        raise HTTPException(status_code=500, detail="Failed to retrieve document")
 
-##### testing schemas.py and domain.py
-# @app.post("/api/documents", status_code=201)
-# async def create_document(document: Document, api_key: str = Depends(api_key_header)):
-#     """
-#     Create a new document in Supabase
-    
-#     Requires API key for authentication
-#     """
-#     # Validate API key
-#     ### testing config.py
-#     # if api_key != INTERNAL_API_KEY:
-#     if api_key != settings.internal_api_key:
-#     ### testing config.py
-
-#         raise HTTPException(
-#             status_code=401,
-#             detail="Invalid API Key",
-#             headers={"WWW-Authenticate": "APIKey"}
-#         )
-        
-#     try:
-#         if not supabase_client:
-#             raise HTTPException(status_code=503, detail="Supabase connection not available")
-            
-#         # Validate document length
-#         if len(document.content) > 100000:
-#             raise HTTPException(status_code=400, detail="Document content too large (max 100KB)")
-            
-#         # Create document in Supabase
-#         doc_data = document.model_dump()
-#         doc_data["created_at"] = "now()"
-        
-#         response = supabase_client.table('documents').insert(doc_data).execute()
-            
-#         if not response.data:
-#             raise HTTPException(status_code=500, detail="Failed to create document")
-            
-#         logger.info(f"Created new document: {document.title}")
-#         return {"success": True, "id": response.data[0]["id"], "message": "Document created successfully"}
-            
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Error creating document: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"Failed to create document")
 
 @app.post("/api/documents", status_code=201, response_model=SuccessResponse)
-async def create_document(document: DocumentCreate, api_key: str = Depends(api_key_header)):
+async def create_document(
+    document: DocumentCreate,
+    api_key: str = Depends(api_key_header),
+    document_service: DocumentService = Depends(get_document_service)
+):
     """
-    Create a new document in Supabase
-    
-    Requires API key for authentication
+    Create a new document using DocumentService
     """
     # Validate API key
     if api_key != settings.internal_api_key:
@@ -711,62 +283,140 @@ async def create_document(document: DocumentCreate, api_key: str = Depends(api_k
         )
         
     try:
-        if not supabase_client:
-            raise HTTPException(status_code=503, detail="Supabase connection not available")
-            
-        # Validate document using domain model
-        domain_doc = DomainDocument(**document.dict())
+        # Create domain model from request
+        domain_doc = DomainDocument(
+            name=document.name,
+            type=document.type,
+            size=document.size,
+            url=document.url,
+            category=document.category,
+            tags=document.tags
+        )
         
-        # Create document in Supabase
-        doc_data = document.dict()
-        doc_data["created_at"] = "now()"
+        created_doc = await document_service.create_document(domain_doc)
         
-        response = supabase_client.table('documents').insert(doc_data).execute()
-            
-        if not response.data:
-            raise HTTPException(status_code=500, detail="Failed to create document")
-            
         logger.info(f"Created new document: {document.name}")
         return SuccessResponse(
             message="Document created successfully",
-            data={"id": response.data[0]["id"]}
+            data={"id": created_doc.id}
         )
             
-    except HTTPException:
-        raise
+    except ServiceException as e:
+        logger.error(f"Service error creating document: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating document: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to create document")
-##### testing schemas.py and domain.py
+        raise HTTPException(status_code=500, detail="Failed to create document")
 
 
-# ##### testing schemas.py and domain.py
-# # Error handlers
-# @app.exception_handler(HTTPException)
-# async def http_exception_handler(request: Request, exc: HTTPException):
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content={"error": exc.detail}
-#     )
+@app.put("/api/documents/{document_id}", response_model=SuccessResponse)
+async def update_document(
+    document_id: str,
+    updates: DocumentUpdate,
+    api_key: str = Depends(api_key_header),
+    document_service: DocumentService = Depends(get_document_service)
+):
+    """
+    Update an existing document using DocumentService
+    """
+    # Validate API key
+    if api_key != settings.internal_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API Key",
+            headers={"WWW-Authenticate": "APIKey"}
+        )
+    
+    try:
+        # Validate document_id format
+        if not ID_PATTERN.match(document_id):
+            raise HTTPException(status_code=400, detail="Invalid document ID format")
+            
+        doc_id = int(document_id)
+        
+        # Update document
+        update_data = updates.dict(exclude_unset=True)
+        updated_doc = await document_service.update_document(doc_id, update_data)
+        
+        if not updated_doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        logger.info(f"Updated document: {doc_id}")
+        return SuccessResponse(
+            message="Document updated successfully",
+            data={"id": updated_doc.id}
+        )
+        
+    except HTTPException:
+        raise
+    except ServiceException as e:
+        logger.error(f"Service error updating document: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid document ID format")
+    except Exception as e:
+        logger.error(f"Error updating document {document_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update document")
+
+
+@app.delete("/api/documents/{document_id}", response_model=SuccessResponse)
+async def delete_document(
+    document_id: str,
+    api_key: str = Depends(api_key_header),
+    document_service: DocumentService = Depends(get_document_service)
+):
+    """
+    Delete a document using DocumentService
+    """
+    # Validate API key
+    if api_key != settings.internal_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API Key",
+            headers={"WWW-Authenticate": "APIKey"}
+        )
+    
+    try:
+        # Validate document_id format
+        if not ID_PATTERN.match(document_id):
+            raise HTTPException(status_code=400, detail="Invalid document ID format")
+            
+        doc_id = int(document_id)
+        
+        # Delete document
+        success = await document_service.delete_document(doc_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        logger.info(f"Deleted document: {doc_id}")
+        return SuccessResponse(
+            message="Document deleted successfully",
+            data={"id": doc_id}
+        )
+        
+    except HTTPException:
+        raise
+    except ServiceException as e:
+        logger.error(f"Service error deleting document: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid document ID format")
+    except Exception as e:
+        logger.error(f"Error deleting document {document_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete document")
+    
+# Error handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
             error=exc.detail,
-            detail=exc.detail
+            detail=exc.headers.get("detail") if hasattr(exc, "headers") else None
         ).dict()
     )
-# ##### testing schemas.py and domain.py
 
-##### testing schemas.py and domain.py
-# @app.exception_handler(Exception)
-# async def general_exception_handler(request: Request, exc: Exception):
-#     logger.error(f"Unhandled exception: {str(exc)}")
-#     return JSONResponse(
-#         status_code=500,
-#         content={"error": "Internal server error"}
-#     )
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {str(exc)}")
@@ -777,7 +427,6 @@ async def general_exception_handler(request: Request, exc: Exception):
             detail=str(exc) if settings.is_development else None
         ).dict()
     )
-# ##### testing schemas.py and domain.py
 
 # Proxy routes for Supabase
 @app.post("/api/proxy/chat_sessions")
@@ -1322,21 +971,12 @@ async def proxy_delete_chat_session(session_id: str, request: Request):
         logger.error(f"Error deleting chat session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ### testing config.py
-# if __name__ == "__main__":
-#     import uvicorn
-#     port = int(os.getenv("PORT", "8000"))
-#     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True) 
-
 if __name__ == "__main__":
     import uvicorn
-    # Setup logging
-    setup_logging()
     
     uvicorn.run(
-        "main:app", 
+        "main_test:app", 
         host=settings.host, 
         port=settings.port, 
         reload=settings.reload
     )
-### testing config.py
