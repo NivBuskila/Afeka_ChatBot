@@ -428,95 +428,49 @@ class DocumentProcessor:
         except Exception as e:
             logger.error(f"Exception updating document status for ID {document_id} to {status}: {e}", exc_info=True)
 
-    async def _update_document_content(self, document_id: int, chunks: List[Any]):
-        """עדכון תוכן המסמך במסד הנתונים עם הטקסט המחובר של ה-chunks"""
-        logger.debug(f"Updating document content for ID {document_id} with {len(chunks)} raw chunks.")
-        try:
-            # Concatenate the page_content of each chunk to form the full document text
-            full_text = "\n".join([chunk.page_content for chunk in chunks])
-            # Simple length check as a heuristic for content validity
-            if len(full_text) < 20: # Arbitrary small number, adjust as needed
-                logger.warning(f"Concatenated text for document ID {document_id} is very short (length {len(full_text)}). Check chunking.")
 
-            response = self.supabase.table("documents").update({
-                "content": full_text,
-                "token_count": len(self.encoding.encode(full_text)) # Update token count based on concatenated raw text
-            }).eq("id", document_id).execute()
-            
-            if hasattr(response, 'data') and response.data:
-                logger.info(f"Successfully updated content for document ID {document_id}.")
-            elif hasattr(response, 'error') and response.error is not None:
-                logger.error(f"Supabase error updating content for document ID {document_id}: {response.error.message}")
-            else:
-                logger.warning(f"Unknown Supabase response when updating content for document ID {document_id}: {response}")
-        except Exception as e:
-            logger.error(f"Exception updating document content for ID {document_id}: {e}", exc_info=True)
 
     async def delete_document_and_all_chunks(self, document_id: int) -> Dict[str, Any]:
         """
-        Deletes a document and all its associated chunks from the database.
-        First deletes chunks from 'document_chunks', then the document from 'documents'.
+        Deletes a document and all its associated chunks from both old and new tables.
+        Deletes from: advanced_document_chunks, document_chunks, and documents tables.
         """
         logger.info(f"Attempting to delete document and all its chunks for document_id: {document_id}")
         
         deleted_chunks_count = 0
+        deleted_advanced_chunks_count = 0
         try:
-            # Delete chunks from 'document_chunks' table
+            # Delete chunks from 'advanced_document_chunks' table (new system)
+            logger.debug(f"Deleting chunks for document_id: {document_id} from 'advanced_document_chunks' table.")
+            delete_advanced_chunks_response = self.supabase.table("advanced_document_chunks").delete().eq("document_id", document_id).execute()
+            
+            if delete_advanced_chunks_response.data:
+                deleted_advanced_chunks_count = len(delete_advanced_chunks_response.data)
+                logger.info(f"Successfully deleted {deleted_advanced_chunks_count} advanced chunks for document_id: {document_id}.")
+            
+            # Delete chunks from 'document_chunks' table (old system - for cleanup)
             logger.debug(f"Deleting chunks for document_id: {document_id} from 'document_chunks' table.")
             delete_chunks_response = self.supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
             
-            # Check for error in response - updated to handle different response formats
-            chunks_error_detected = False
-            if hasattr(delete_chunks_response, 'error') and delete_chunks_response.error is not None:
-                chunks_error_detected = True
-                chunks_error_message = delete_chunks_response.error
-            elif isinstance(delete_chunks_response, dict) and delete_chunks_response.get('error'):
-                chunks_error_detected = True
-                chunks_error_message = delete_chunks_response.get('error')
-            
-            if chunks_error_detected:
-                logger.error(f"Supabase error deleting chunks for document_id {document_id}: {chunks_error_message}")
-                # Even if deleting chunks fails, we might still want to attempt deleting the document record or handle differently.
-                # For now, we'll report error and stop.
-                return {"success": False, "error": f"Supabase error deleting chunks: {chunks_error_message}", "deleted_chunks_count": 0, "document_deleted": False}
-            
-            if hasattr(delete_chunks_response, 'data') and delete_chunks_response.data:
+            if delete_chunks_response.data:
                 deleted_chunks_count = len(delete_chunks_response.data)
-                logger.info(f"Successfully deleted {deleted_chunks_count} chunks for document_id: {document_id}.")
-            else:
-                logger.info(f"No chunks found or an issue occurred while deleting chunks for document_id: {document_id}. Response: {delete_chunks_response}")
-                # This might not be an error if the document had no chunks.
+                logger.info(f"Successfully deleted {deleted_chunks_count} old chunks for document_id: {document_id}.")
 
             # Delete the document from 'documents' table
             logger.debug(f"Deleting document record for document_id: {document_id} from 'documents' table.")
             delete_document_response = self.supabase.table("documents").delete().eq("id", document_id).execute()
 
-            document_deleted_successfully = False
+            document_deleted_successfully = bool(delete_document_response.data)
             
-            # Check for error in response - updated to handle different response formats
-            doc_error_detected = False
-            if hasattr(delete_document_response, 'error') and delete_document_response.error is not None:
-                doc_error_detected = True
-                doc_error_message = delete_document_response.error
-            elif isinstance(delete_document_response, dict) and delete_document_response.get('error'):
-                doc_error_detected = True
-                doc_error_message = delete_document_response.get('error')
-            
-            if doc_error_detected:
-                logger.error(f"Supabase error deleting document record for document_id {document_id}: {doc_error_message}")
-                # If document deletion fails, we should report it. Chunks might have been deleted.
-                return {"success": False, "error": f"Supabase error deleting document record: {doc_error_message}", "deleted_chunks_count": deleted_chunks_count, "document_deleted": False}
-            
-            if hasattr(delete_document_response, 'data') and delete_document_response.data:
+            if document_deleted_successfully:
                 logger.info(f"Successfully deleted document record for document_id: {document_id}.")
-                document_deleted_successfully = True
-            else:
-                logger.info(f"No document record found or an issue occurred while deleting document_id: {document_id} from 'documents'. Response: {delete_document_response}")
-                # This might not be an error if the document was already deleted.
-                if not deleted_chunks_count: # if no chunks were deleted either, it implies doc might not have existed
-                    document_deleted_successfully = True # Consider it successful if nothing was there to delete
 
-            return {"success": True, "deleted_chunks_count": deleted_chunks_count, "document_deleted": document_deleted_successfully}
+            return {
+                "success": True, 
+                "deleted_chunks_count": deleted_chunks_count,
+                "deleted_advanced_chunks_count": deleted_advanced_chunks_count,
+                "document_deleted": document_deleted_successfully
+            }
             
         except Exception as e:
             logger.error(f"Exception in delete_document_and_all_chunks for document_id {document_id}: {e}", exc_info=True)
@@ -524,288 +478,95 @@ class DocumentProcessor:
 
     async def delete_document_embeddings(self, document_id: int) -> Dict[str, Any]:
         """
-        Deletes all embeddings (chunks) for a given document ID.
+        Deletes all embeddings (chunks) for a given document ID from both old and new systems.
         This is used, for example, before reprocessing a document.
         """
         logger.info(f"Attempting to delete all embeddings/chunks for document_id: {document_id}")
         try:
-            # Batch delete document chunks from 'document_chunks' table
-            logger.info(f"Starting batch deletion of chunks from 'document_chunks' for document_id: {document_id}")
-            batch_size = 500  # Define a reasonable batch size
-            while True:
-                # Fetch a batch of chunk IDs
-                chunk_ids_response = self.supabase.table("document_chunks").select("id").eq("document_id", document_id).limit(batch_size).execute()
-                
-                if not chunk_ids_response.data:
-                    logger.info(f"No more chunks found in 'document_chunks' for document_id: {document_id}")
-                    break  # No more chunks to delete
-                    
-                chunk_ids_to_delete = [chunk['id'] for chunk in chunk_ids_response.data]
-                
-                if not chunk_ids_to_delete:
-                    logger.info(f"No chunk IDs to delete in this batch from 'document_chunks' for document_id: {document_id}")
-                    break
-
-                logger.info(f"Deleting batch of {len(chunk_ids_to_delete)} chunks from 'document_chunks' for document_id: {document_id}")
-                delete_response = self.supabase.table("document_chunks").delete().in_("id", chunk_ids_to_delete).execute()
-                
-                # Check for error in response - updated to handle different response formats
-                error_detected = False
-                if hasattr(delete_response, 'error') and delete_response.error:
-                    error_detected = True
-                    error_message = delete_response.error
-                elif isinstance(delete_response, dict) and delete_response.get('error'):
-                    error_detected = True
-                    error_message = delete_response.get('error')
-                
-                if error_detected:
-                    logger.error(f"Error deleting a batch of chunks from 'document_chunks' for document_id {document_id}: {error_message}")
-                    return {"success": False, "message": f"Failed to delete existing chunks from 'document_chunks': {error_message}"}
-
-                if len(chunk_ids_to_delete) < batch_size:
-                    logger.info(f"Processed the last batch of chunks from 'document_chunks' for document_id: {document_id}")
-                    break
+            # Delete from new advanced_document_chunks table
+            logger.info(f"Deleting chunks from 'advanced_document_chunks' for document_id: {document_id}")
+            delete_advanced_response = self.supabase.table("advanced_document_chunks").delete().eq("document_id", document_id).execute()
             
-            logger.info(f"Successfully finished batch deletion of chunks from 'document_chunks' for document_id: {document_id}.")
+            advanced_deleted_count = len(delete_advanced_response.data) if delete_advanced_response.data else 0
+            logger.info(f"Deleted {advanced_deleted_count} chunks from 'advanced_document_chunks' for document_id: {document_id}")
 
-            # Also delete from the old 'embeddings' table for cleanup/BC
-            # This can remain a single delete operation as it's less critical / likely smaller
+            # Delete from old document_chunks table
+            logger.info(f"Deleting chunks from 'document_chunks' for document_id: {document_id}")
+            delete_old_response = self.supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
+            
+            old_deleted_count = len(delete_old_response.data) if delete_old_response.data else 0
+            logger.info(f"Deleted {old_deleted_count} chunks from 'document_chunks' for document_id: {document_id}")
+
+            # Also delete from the old 'embeddings' table for cleanup
             try:
                 logger.info(f"Attempting to delete old embeddings from 'embeddings' table for document_id: {document_id}.")
                 delete_old_embeddings_response = self.supabase.table("embeddings").delete().eq("document_id", document_id).execute()
                 
-                # Check for error in response - updated to handle different response formats
-                error_detected = False
-                if hasattr(delete_old_embeddings_response, 'error') and delete_old_embeddings_response.error:
-                    error_detected = True
-                    error_message = delete_old_embeddings_response.error
-                elif isinstance(delete_old_embeddings_response, dict) and delete_old_embeddings_response.get('error'):
-                    error_detected = True
-                    error_message = delete_old_embeddings_response.get('error')
-                
-                if error_detected:
-                    logger.warning(f"Error deleting old embeddings from 'embeddings' table for document_id {document_id}: {error_message}")
-                else:
-                    logger.info(f"Successfully deleted old embeddings from 'embeddings' table for document_id: {document_id}.")
+                embeddings_deleted_count = len(delete_old_embeddings_response.data) if delete_old_embeddings_response.data else 0
+                logger.info(f"Deleted {embeddings_deleted_count} entries from 'embeddings' table for document_id: {document_id}")
             except Exception as e_old_emb_del:
                 logger.warning(f"Exception during deletion from old 'embeddings' table for document_id {document_id}: {e_old_emb_del}")
             
-            return {"success": True, "message": "All embeddings/chunks deleted successfully."}
+            return {
+                "success": True, 
+                "message": "All embeddings/chunks deleted successfully.",
+                "advanced_chunks_deleted": advanced_deleted_count,
+                "old_chunks_deleted": old_deleted_count
+            }
         except Exception as e:
             logger.error(f"General error in delete_document_embeddings for document_id {document_id}: {str(e)}", exc_info=True)
             return {"success": False, "message": str(e)}
 
     async def search_documents(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
-        """חיפוש סמנטי במסמכים"""
-        logger.info(f"Starting semantic search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
+        """חיפוש סמנטי במסמכים באמצעות המערכת החדשה"""
+        logger.info(f"Starting enhanced search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            logger.debug("Semantic search: Generating query embedding...")
-            query_embedding = await self._generate_embedding(query, is_query=True)
-            if not query_embedding:
-                logger.error("Semantic search: Failed to generate query embedding.")
-                return []
-            logger.debug(f"Semantic search: Query embedding generated. Vector length: {len(query_embedding)} Calling Supabase RPC 'match_documents_semantic' with limit={limit}, threshold={threshold}.")
-            
-            response = self.supabase.rpc(
-                "match_documents_semantic",
-                {
-                "query_embedding": query_embedding,
-                "match_threshold": threshold,
-                    "match_count": limit,
-                },
-            ).execute()
-            
-            if response.data:
-                logger.info(f"Semantic search: Supabase RPC 'match_documents_semantic' executed. Found {len(response.data)} results.")
-                # Enhanced logging for each result
-                for idx, item in enumerate(response.data):
-                    cleaned_text = item.get('chunk_text', '')[:100].replace('\n',' ')
-                logger.debug(f"  Result {idx+1}: id={item.get('id')}, doc_id={item.get('document_id')}, header='{item.get('chunk_header')}', similarity={item.get('similarity')}, page_no={item.get('page_number')}, text(100)='{cleaned_text}'") 
-                return response.data
-            else:
-                logger.info("Semantic search: No results from Supabase RPC or error in response.")
-                # Log error if present
-                if hasattr(response, 'error') and response.error:
-                    logger.error(f"Supabase RPC error in semantic search: {response.error.message}")
-                return []
+            # Use the enhanced processor for search
+            results = await self.enhanced_processor.search(query, limit)
+            logger.info(f"Enhanced search returned {len(results)} results")
+            return results
             
         except Exception as e:
-            logger.error(f"Error during semantic search: {e}", exc_info=True)
-            return []
-
-    async def hybrid_search(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
-        """חיפוש היברידי במסמכים (שילוב של סמנטי ו-keyword)"""
-        logger.info(f"Starting HYBRID search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
-        try:
-            logger.debug("Hybrid search: Generating query embedding...")
+            logger.error(f"Error during enhanced search: {e}", exc_info=True)
+            # Fallback to direct embedding search
+            try:
+                logger.info("Falling back to direct embedding search")
             query_embedding = await self._generate_embedding(query, is_query=True)
             if not query_embedding:
-                logger.error("Hybrid search: Failed to generate query embedding.")
+                    logger.error("Failed to generate query embedding for fallback")
                 return []
             
-            # Define weights for combining results
-            semantic_weight = 0.6
-            keyword_weight = 0.4
-            
-            # First try to use the database function if it exists
-            try:
-                logger.debug(f"Hybrid search: Query embedding generated. Attempting to call Supabase RPC 'hybrid_search_documents'...")
                 response = self.supabase.rpc(
-                    "hybrid_search_documents", 
+                    "advanced_semantic_search",
                     {
                 "query_embedding": query_embedding,
-                "query_text": query,
-                "match_threshold": threshold,
+                        "similarity_threshold": threshold,
                         "match_count": limit,
-                        "semantic_weight": semantic_weight,
-                        "keyword_weight": keyword_weight
-                    }
+                    },
                 ).execute()
                 
-                if hasattr(response, 'data') and response.data:
-                    logger.info(f"Hybrid search: Supabase RPC 'hybrid_search_documents' executed. Found {len(response.data)} results.")
-                    for i, result in enumerate(response.data[:5]):
-                        logger.debug(f"  Result {i+1}: id={result.get('id')}, doc_id={result.get('document_id')}, " + 
-                                    f"similarity={result.get('similarity')}, combined={result.get('combined_score')}, " +
-                                    f"text(100)='{result.get('chunk_text', '')[:100]}'")
+                if response.data:
+                    logger.info(f"Fallback search found {len(response.data)} results")
                     return response.data
-                else:
-                    logger.warning("Hybrid search: Supabase RPC 'hybrid_search_documents' returned no data.")
                     return []
                     
-            except Exception as e:
-                logger.warning(f"Error calling hybrid_search_documents RPC: {e}. Implementing hybrid search locally.")
-                
-            # Fallback: Implement hybrid search in Python if the database function is not available
-            logger.info("Performing hybrid search with local Python implementation...")
-            
-            # 1. Get semantic search results (using a lower threshold to get more candidates)
-            semantic_threshold = threshold * 0.8  # Lower threshold to get more candidates
-            semantic_results = await self.search_documents(query, limit=limit*2, threshold=semantic_threshold)
-            logger.info(f"Hybrid search (local): Semantic search returned {len(semantic_results)} results.")
-            
-            # Create semantic_dict for fast lookups
-            semantic_dict = {}
-            for result in semantic_results:
-                result_id = result.get('id')
-                if result_id:
-                    semantic_dict[result_id] = {
-                        'id': result_id,
-                        'document_id': result.get('document_id'),
-                        'document_name': result.get('document_name', ''),
-                        'chunk_text': result.get('chunk_text', ''),
-                        'chunk_header': result.get('chunk_header', ''),
-                        'page_number': result.get('page_number'),
-                        'section': result.get('section', ''),
-                        'similarity': result.get('similarity', 0),
-                        'text_match_rank': 0,
-                        'combined_score': result.get('similarity', 0) * semantic_weight,
-                    }
-            
-            # 2. Get keyword search results
-            # Use full-text search with plainto_tsquery (convert query to text search query)
-            keyword_search_query = f"""
-                SELECT 
-                    dc.id,
-                    dc.document_id,
-                    d.name as document_name,
-                    dc.chunk_text,
-                    dc.chunk_header,
-                    dc.page_number,
-                    dc.section,
-                    ts_rank_cd(to_tsvector('hebrew', dc.chunk_text), plainto_tsquery('hebrew', '{query}')) as text_match_rank
-                FROM document_chunks dc
-                JOIN documents d ON d.id = dc.document_id
-                WHERE to_tsvector('hebrew', dc.chunk_text) @@ plainto_tsquery('hebrew', '{query}')
-                ORDER BY text_match_rank DESC
-                LIMIT {limit*2}
-            """
-            
-            try:
-                keyword_response = self.supabase.rpc('execute_sql', { 'query': keyword_search_query }).execute()
-                keyword_results = []
-                
-                if hasattr(keyword_response, 'data') and keyword_response.data:
-                    keyword_results = keyword_response.data
-                else:
-                    # Fallback to direct SQL if RPC doesn't work
-                    keyword_response = self.supabase.sql(keyword_search_query).execute()
-                    if hasattr(keyword_response, 'data') and keyword_response.data:
-                        keyword_results = keyword_response.data
-            except Exception as e:
-                logger.warning(f"Hybrid search (local): Error executing keyword search: {e}")
-                keyword_results = []
-                
-                # Alternative: Get all document chunks and filter locally
-                all_chunks = await self._get_all_document_chunks(limit=100)
-                
-                # Simple token matching
-                query_tokens = set(query.lower().split())
-                for chunk in all_chunks:
-                    if chunk.get('chunk_text'):
-                        chunk_text = chunk.get('chunk_text', '').lower()
-                        # Compute a simple match score based on token overlap
-                        chunk_tokens = set(chunk_text.split())
-                        overlap = len(query_tokens.intersection(chunk_tokens))
-                        if overlap > 0:
-                            match_rank = overlap / len(query_tokens)
-                            chunk['text_match_rank'] = match_rank
-                            keyword_results.append(chunk)
-            
-            logger.info(f"Hybrid search (local): Keyword search returned {len(keyword_results)} results.")
-            
-            # 3. Process keyword results
-            combined_results = {}
-            # First, copy all semantic results to combined_results
-            combined_results.update(semantic_dict)
-            
-            # Then, process keyword results
-            for result in keyword_results:
-                result_id = result.get('id')
-                if not result_id:
-                    continue
-                    
-                text_match_rank = result.get('text_match_rank', 0)
-                keyword_score = text_match_rank * keyword_weight
-                
-                if result_id in combined_results:
-                    # If we already have this result from semantic search, update it
-                    combined_results[result_id]['text_match_rank'] = text_match_rank
-                    combined_results[result_id]['combined_score'] += keyword_score
-                else:
-                    # Otherwise add it as a new result
-                    combined_results[result_id] = {
-                        'id': result_id,
-                        'document_id': result.get('document_id'),
-                        'document_name': result.get('document_name', ''),
-                        'chunk_text': result.get('chunk_text', ''),
-                        'chunk_header': result.get('chunk_header', ''),
-                        'page_number': result.get('page_number'),
-                        'section': result.get('section', ''),
-                        'similarity': 0,  # No semantic similarity
-                        'text_match_rank': text_match_rank,
-                        'combined_score': keyword_score,
-                    }
-            
-            # 4. Finalize results - sort by combined_score and take top 'limit' results
-            final_results = list(combined_results.values())
-            final_results.sort(key=lambda x: x.get('combined_score', 0), reverse=True)
-            final_results = [r for r in final_results if r.get('combined_score', 0) > (threshold * semantic_weight)]
-            final_results = final_results[:limit]
-            
-            logger.info(f"Hybrid search (local): Combined and filtered results. Returning {len(final_results)} results.")
-            
-            # 5. Log a few results for debugging
-            for i, result in enumerate(final_results[:5]):
-                logger.debug(f"  Result {i+1}: id={result.get('id')}, doc_id={result.get('document_id')}, " + 
-                            f"similarity={result.get('similarity')}, combined={result.get('combined_score')}, " +
-                            f"text(100)='{result.get('chunk_text', '')[:100]}'")
-            
-            return final_results
+            except Exception as fallback_e:
+                logger.error(f"Fallback search also failed: {fallback_e}", exc_info=True)
+                return []
+
+    async def hybrid_search(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
+        """חיפוש היברידי במסמכים באמצעות המערכת החדשה"""
+        logger.info(f"Starting enhanced hybrid search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
+        try:
+            # Use the enhanced processor for hybrid search
+            results = await self.enhanced_processor.search(query, limit)
+            logger.info(f"Enhanced hybrid search returned {len(results)} results")
+            return results
                 
         except Exception as e:
-            logger.error(f"Error in hybrid_search: {e}", exc_info=True)
-            return []
+            logger.error(f"Error during enhanced hybrid search: {e}", exc_info=True)
+            # Fallback to regular search
+            return await self.search_documents(query, limit, threshold)
 
     async def _get_all_document_chunks(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get a set of document chunks for local processing"""

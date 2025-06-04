@@ -633,24 +633,29 @@ Make sure you have `pytest` and other necessary libraries installed globally. If
 python -m pip install --upgrade pip
 python -m pip install pytest sentence-transformers langchain langchain-openai langchain_experimental langchain-google-genai python-dotenv
 ```
-*(Adjust the list of packages as needed based on your project's specific test dependencies and any `ImportError` messages you see).*
+
+_(Adjust the list of packages as needed based on your project's specific test dependencies and any `ImportError` messages you see)._
 
 **2. Configure PYTHONPATH (Important for Module Resolution):**
 
 When running `pytest` from the project root, Python might not be able to find your project's internal modules (e.g., those inside `src/backend` or `src/ai`). To fix `ModuleNotFoundError` issues:
 
-*   **For Backend Tests:** If your tests import modules from `src/backend/services` or `src/backend/app`, you need to add `src/backend` to your `PYTHONPATH`.
-*   **For AI Tests:** Similarly, if tests import from `src/ai`, you might need to adjust `PYTHONPATH`.
+- **For Backend Tests:** If your tests import modules from `src/backend/services` or `src/backend/app`, you need to add `src/backend` to your `PYTHONPATH`.
+- **For AI Tests:** Similarly, if tests import from `src/ai`, you might need to adjust `PYTHONPATH`.
 
 Example for PowerShell (when running tests that need `src/backend`):
+
 ```powershell
-$env:PYTHONPATH = "src\backend" 
+$env:PYTHONPATH = "src\backend"
 ```
+
 Or for bash/zsh:
+
 ```bash
 export PYTHONPATH="src/backend"
 ```
-You'll need to set this in your terminal session *before* running `pytest`.
+
+You'll need to set this in your terminal session _before_ running `pytest`.
 
 **3. Run Pytest:**
 
@@ -662,6 +667,7 @@ python -m pytest -vv
 ```
 
 If tests are located in a specific directory (e.g., `tests/backend`), you can target them:
+
 ```powershell
 python -m pytest -vv tests/backend
 ```
@@ -677,6 +683,7 @@ This specific error means that the `SemanticChunker` has moved. It's now in `lan
 # New, correct import:
 from langchain_experimental.text_splitter import SemanticChunker
 ```
+
 Make sure all files using `SemanticChunker` (like `rag_service.py` and `document_processor.py`) are updated. Also, ensure `langchain_experimental` is installed.
 
 ## �� Project Structure

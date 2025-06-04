@@ -13,7 +13,7 @@ if str(backend_dir) not in sys.path:
 from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
-from ..core.rag_service import RAGService
+from services.rag_service import RAGService  # Import the new RAG service
 from services.document_processor import DocumentProcessor  # Import from backend/services
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -44,8 +44,7 @@ class ChatService(IChatService):
         try:
             # Initialize RAG service
             try:
-                doc_processor = DocumentProcessor()
-                self.rag_service = RAGService(doc_processor)
+                self.rag_service = RAGService()
                 logger.info("RAG service initialized successfully")
             except Exception as e:
                 logger.error(f"Error initializing RAG service: {e}")
@@ -112,33 +111,44 @@ class ChatService(IChatService):
             logger.debug("No history provided and memory is empty. Starting fresh conversation.")
 
         try:
-            # Check if the message is asking about information from previous conversation
-            if self._is_conversation_question(user_message) or not self._is_document_question(user_message):
-                # Use regular LLM with conversation history for personal questions and general chat
+            # Check if this is a personal conversation question
+            is_conversation_question = self._is_conversation_question(user_message)
+            
+            logger.info(f"Question analysis: conversation={is_conversation_question}")
+            
+            # For personal conversation questions, use regular LLM directly
+            if is_conversation_question:
+                logger.info("Using regular LLM for personal conversation question")
                 response_content = await self.conversation_chain.apredict(input=user_message)
                 logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
                 return {"response": response_content}
             
-            # For document-based questions, try RAG service first
-            if self.rag_service and self._is_document_question(user_message):
-                logger.info("Using RAG service to answer document-based question")
+            # For all other questions, try RAG service first
+            if self.rag_service:
+                logger.info("Trying RAG service first for potential document question")
                 try:
-                    rag_response = await self.rag_service.get_answer(
+                    rag_response = await self.rag_service.generate_answer(
                         query=user_message,
-                        use_hybrid_search=True,
-                        add_sources_to_response=True
+                        search_method="hybrid"
                     )
                     
-                    # Add the RAG response to memory so it's part of the conversation history
-                    self.memory.chat_memory.add_user_message(user_message)
-                    self.memory.chat_memory.add_ai_message(rag_response["result"])
-                    
-                    logger.info(f"RAG service response: {rag_response['result'][:100]}...")
-                    return {"response": rag_response["result"], "sources": rag_response.get("sources", [])}
+                    # Check if RAG found relevant results
+                    if rag_response.get("sources") and len(rag_response["sources"]) > 0:
+                        # RAG found relevant information
+                        self.memory.chat_memory.add_user_message(user_message)
+                        self.memory.chat_memory.add_ai_message(rag_response["answer"])
+                        
+                        logger.info(f"RAG service found {len(rag_response['sources'])} sources, using RAG response")
+                        return {"response": rag_response["answer"], "sources": rag_response.get("sources", [])}
+                    else:
+                        # RAG didn't find relevant information, fall back to regular LLM
+                        logger.info("RAG service didn't find relevant sources, falling back to regular LLM")
+                        
                 except Exception as e:
                     logger.error(f"Error using RAG service: {e}. Falling back to regular LLM.")
             
-            # If RAG service is not available or failed, use regular LLM
+            # Fallback to regular LLM (no RAG service or RAG didn't find relevant results)
+            logger.info("Using regular LLM as fallback")
             response_content = await self.conversation_chain.apredict(input=user_message)
             
             logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
@@ -165,32 +175,3 @@ class ChatService(IChatService):
         
         return False
     
-    def _is_document_question(self, message: str) -> bool:
-        """Determine if a message is likely a document-based question"""
-        message = message.lower()
-        
-        # Skip conversation questions even if they have question indicators
-        if self._is_conversation_question(message):
-            return False
-            
-        # Document-specific keywords
-        document_keywords = [
-            "תקנון", "חוק", "נוהל", "כללים", "חובות", "זכויות", 
-            "לימודים", "קורס", "מבחן", "ציון", "סמסטר", "אפקה",
-            "regulations", "rules", "course", "exam", "grade", "afeka"
-        ]
-        
-        # Check for document-specific keywords first
-        for keyword in document_keywords:
-            if keyword in message:
-                return True
-        
-        # If no document keywords, check for general question indicators
-        # but be more selective to avoid catching conversation questions
-        question_indicators = ["מה זה", "איך עושים", "מתי צריך", "איפה נמצא", "מי אחראי"]
-        
-        for indicator in question_indicators:
-            if indicator in message:
-                return True
-        
-        return False

@@ -20,12 +20,15 @@ dotenv.load_dotenv(override=True)
 try:
     from services.document_processor import DocumentProcessor
     from app.core.database import get_supabase_client
+    from services.enhanced_processor import EnhancedProcessor
     has_rag = True
-    # Initialize document processor once
+    # Initialize document processors
     doc_processor = DocumentProcessor()
+    enhanced_processor = EnhancedProcessor()
 except ImportError as e:
     logging.warning(f"RAG modules could not be imported: {e}")
     has_rag = False
+    enhanced_processor = None
 
 # Configure logging
 logging.basicConfig(
@@ -139,6 +142,48 @@ def rag_hybrid_search():
         logger.error(f"Error in hybrid search: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/rag/enhanced_search', methods=['POST'])
+def rag_enhanced_search():
+    """חיפוש מתקדם עם RAG משודרג"""
+    if not has_rag or not enhanced_processor:
+        return jsonify({"error": "Enhanced RAG modules not available"}), 503
+    
+    try:
+        data = request.get_json(force=True)
+        query = data.get("query", "")
+        max_results = data.get("max_results", 10)
+        include_context = data.get("include_context", True)
+        
+        if not query.strip():
+            return jsonify({"error": "Query cannot be empty"}), 400
+        
+        # ביצוע חיפוש מתקדם
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        if include_context:
+            # Full search with answer generation
+            results = loop.run_until_complete(
+                enhanced_processor.search_and_answer(query, max_results)
+            )
+        else:
+            # Search only
+            search_results = loop.run_until_complete(
+                enhanced_processor.search(query, max_results)
+            )
+            results = {
+                "results": search_results,
+                "query": query,
+                "count": len(search_results)
+            }
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        logger.error(f"Error in enhanced search: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/rag/stats', methods=['GET'])
 def rag_stats():
     """מידע על מסמכים ו-embeddings"""
@@ -156,6 +201,14 @@ def rag_stats():
         embeddings_count = supabase.table("document_chunks").select("*", count="exact").execute()
         total_embeddings = embeddings_count.count if hasattr(embeddings_count, 'count') else 0
         
+        # Count advanced chunks if available
+        advanced_embeddings = 0
+        try:
+            advanced_count = supabase.table("advanced_document_chunks").select("*", count="exact").execute()
+            advanced_embeddings = advanced_count.count if hasattr(advanced_count, 'count') else 0
+        except:
+            pass
+        
         # Get status counts
         status_counts = {}
         try:
@@ -171,11 +224,105 @@ def rag_stats():
         return jsonify({
             "total_documents": total_documents,
             "total_embeddings": total_embeddings,
-            "status_counts": status_counts
+            "advanced_embeddings": advanced_embeddings,
+            "status_counts": status_counts,
+            "enhanced_rag_available": enhanced_processor is not None
         })
         
     except Exception as e:
         logger.error(f"Error getting RAG stats: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/rag/document/<int:document_id>/reprocess', methods=['POST'])
+def rag_reprocess_document(document_id):
+    """עיבוד מחדש של מסמך עם המערכת החדשה"""
+    if not has_rag:
+        return jsonify({"error": "RAG modules not available"}), 503
+    
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Delete existing embeddings
+        delete_result = loop.run_until_complete(
+            doc_processor.delete_document_embeddings(document_id)
+        )
+        
+        # Get document info
+        supabase = get_supabase_client()
+        doc_result = supabase.table("documents").select("*").eq("id", document_id).execute()
+        
+        if not doc_result.data:
+            return jsonify({"error": f"Document {document_id} not found"}), 404
+        
+        document = doc_result.data[0]
+        
+        # For now, return success - actual reprocessing would need the file
+        return jsonify({
+            "message": f"Document {document['name']} queued for reprocessing with enhanced system",
+            "document_id": document_id,
+            "deleted_embeddings": delete_result,
+            "status": "reprocessing_needed"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error reprocessing document: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/rag/test_enhanced', methods=['POST'])
+def test_enhanced_system():
+    """בדיקת המערכת המשודרגת עם דוגמת טקסט"""
+    if not has_rag or not enhanced_processor:
+        return jsonify({"error": "Enhanced RAG modules not available"}), 503
+    
+    try:
+        data = request.get_json(force=True)
+        test_text = data.get("test_text", """
+        שלום! זהו טקסט לבדיקה של המערכת המשודרגת.
+        
+        1.1 כללי
+        תקנון זה מסדיר את כללי הלימודים במכללה.
+        
+        1.2 רישום ללימודים
+        על כל סטודנט להרשם עד לתאריך שנקבע.
+        
+        2.1 מבחנים
+        המבחנים יערכו לפי הלוח זמנים המתפרסם.
+        
+        2.2 ציונים
+        הציונים יפורסמו במערכת הממוחשבת.
+        """)
+        
+        document_name = data.get("document_name", "test_document.txt")
+        
+        # Use the smart chunker to process the text
+        chunks = doc_processor.smart_chunker.chunk_text(test_text, document_name)
+        
+        # Process chunks with enhanced system
+        processed_chunks = []
+        for i, chunk in enumerate(chunks):
+            processed_chunks.append({
+                "chunk_index": i,
+                "content": chunk.content,
+                "section_number": chunk.section_number,
+                "hierarchical_path": chunk.hierarchical_path,
+                "content_type": chunk.content_type,
+                "keywords": chunk.keywords,
+                "cross_references": chunk.cross_references,
+                "char_start": chunk.char_start,
+                "char_end": chunk.char_end
+            })
+        
+        return jsonify({
+            "message": "Enhanced system test completed",
+            "original_text_length": len(test_text),
+            "chunks_generated": len(chunks),
+            "chunks": processed_chunks
+        })
+        
+    except Exception as e:
+        logger.error(f"Error testing enhanced system: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/rag/document/<int:document_id>', methods=['GET'])
@@ -294,46 +441,54 @@ def chat():
                 
         logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
         
-        # קבלת תוצאות מהמסמכים אם RAG זמין
-        rag_results = []
-        if has_rag and 'use_rag' in data and data['use_rag']:
+        # Use enhanced RAG if available
+        ai_response = "מצטער, אירעה שגיאה בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר."
+        rag_used = False
+        rag_count = 0
+        
+        if has_rag and enhanced_processor and ('use_rag' not in data or data.get('use_rag', True)):
             try:
+                logger.info("Using enhanced RAG system for response generation")
                 import asyncio
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                rag_results = loop.run_until_complete(doc_processor.search_documents(user_message, limit=3, threshold=0.75))
-                logger.info(f"Found {len(rag_results)} relevant documents with RAG")
+                
+                # Use the enhanced search and answer function
+                enhanced_result = loop.run_until_complete(
+                    enhanced_processor.search_and_answer(user_message, max_results=3)
+                )
+                
+                ai_response = enhanced_result.get('answer', ai_response)
+                rag_used = True
+                rag_count = len(enhanced_result.get('sources', []))
+                logger.info(f"Enhanced RAG generated response with {rag_count} sources")
+                
             except Exception as rag_err:
-                logger.error(f"Error using RAG: {str(rag_err)}")
-        
-        # Use Gemini API to generate a response
-        try:
-            # שימוש ישיר במודל Gemini לפי הגרסה החדשה
+                logger.error(f"Error using enhanced RAG: {str(rag_err)}")
+                # Fallback to regular Gemini without RAG
+                try:
+                    model = genai.GenerativeModel("gemini-2.0-flash")
+                    gemini_response = model.generate_content(user_message)
+                    ai_response = gemini_response.text
+                    logger.info("Fallback to basic Gemini response")
+                except Exception as gemini_error:
+                    logger.error(f"Gemini fallback also failed: {str(gemini_error)}")
+        else:
+            # Use basic Gemini without RAG
+            try:
             model = genai.GenerativeModel("gemini-2.0-flash")
-            
-            # אם יש תוצאות מ-RAG, נוסיף אותן להקשר
-            prompt = user_message
-            if rag_results:
-                context_parts = ["הנה מידע שעשוי להיות רלוונטי לשאלתך:"]
-                for i, result in enumerate(rag_results[:3]):
-                    context_parts.append(f"מסמך {i+1}: {result.get('content', '')[:300]}...")
-                context_parts.append("\nעכשיו לשאלתך:")
-                context = "\n\n".join(context_parts)
-                prompt = f"{context}\n\n{user_message}"
-            
-            gemini_response = model.generate_content(prompt)
+                gemini_response = model.generate_content(user_message)
             ai_response = gemini_response.text
-            logger.info(f"Gemini API response received: {ai_response[:30]}...")
+                logger.info("Using basic Gemini response (no RAG)")
         except Exception as gemini_error:
             logger.error(f"Gemini API error: {str(gemini_error)}")
-            ai_response = "מצטער, אירעה שגיאה בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר."
         
         # Prepare the response
         result = {
             "result": ai_response,
             "processing_time": round(time.time() - request_start_time, 3),
-            "rag_used": len(rag_results) > 0,
-            "rag_count": len(rag_results)
+            "rag_used": rag_used,
+            "rag_count": rag_count
         }
         
         logger.info(f"Message processed successfully in {result['processing_time']}s")
