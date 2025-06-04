@@ -74,7 +74,7 @@ const chatService = {
       
       // Create the chat session through the backend
       const response = await axios.post(`${BACKEND_URL}/api/proxy/chat_sessions`, sessionInput);
-      
+            
       if (!response.data || response.data.length === 0) {
         console.error('No data returned from chat session creation');
         return null;
@@ -132,7 +132,6 @@ const chatService = {
       console.log('Fetching chat session with ID:', sessionId);
       
       const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
-      
       if (!response.data) {
         console.error('No session data found for ID:', sessionId);
         return null;
