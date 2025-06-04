@@ -262,7 +262,7 @@ class DocumentProcessor:
                             # else: log warning for no data/no error if necessary
                         except Exception as e_bc_insert_exc:
                             logger.error(f"BC Save: Exception inserting item {i+1} to 'embeddings' for doc {document_id}: {e_bc_insert_exc}", exc_info=True)
-            else:
+                    else:
                         logger.warning(f"BC Save: Mismatch between chunk_meta_info_for_bc and processed_chunks_for_db at index {i}. Cannot save to 'embeddings' table.")
                 
                 logger.info(f"Backward compatibility: Saved {bc_inserts_count}/{len(chunk_meta_info_for_bc)} items to 'embeddings' table for doc ID: {document_id}.")
@@ -379,7 +379,8 @@ class DocumentProcessor:
     async def _generate_embedding(self, text: str, is_query: bool = False) -> Optional[List[float]]:
         """יצירת embedding לטקסט"""
         task_type = "retrieval_query" if is_query else "retrieval_document"
-        logger.debug(f"Attempting to generate embedding for text (first 50 chars): '{text[:50].replace('\n', ' ')}' with task_type: {task_type}")
+        cleaned_text = text[:50].replace('\n', ' ')
+        logger.debug(f"Attempting to generate embedding for text (first 50 chars): '{cleaned_text}' with task_type: {task_type}")
 
         if not text or not text.strip():
             logger.warning(f"Cannot generate embedding for empty or whitespace-only text. Task type: {task_type}")
@@ -618,7 +619,8 @@ class DocumentProcessor:
                 logger.info(f"Semantic search: Supabase RPC 'match_documents_semantic' executed. Found {len(response.data)} results.")
                 # Enhanced logging for each result
                 for idx, item in enumerate(response.data):
-                    logger.debug(f"  Result {idx+1}: id={item.get('id')}, doc_id={item.get('document_id')}, header='{item.get('chunk_header')}', similarity={item.get('similarity')}, page_no={item.get('page_number')}, text(100)='{item.get('chunk_text', '')[:100].replace('\n',' ')}'") 
+                    cleaned_text = item.get('chunk_text', '')[:100].replace('\n',' ')
+                logger.debug(f"  Result {idx+1}: id={item.get('id')}, doc_id={item.get('document_id')}, header='{item.get('chunk_header')}', similarity={item.get('similarity')}, page_no={item.get('page_number')}, text(100)='{cleaned_text}'") 
                 return response.data
             else:
                 logger.info("Semantic search: No results from Supabase RPC or error in response.")

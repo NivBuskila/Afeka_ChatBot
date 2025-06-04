@@ -112,7 +112,14 @@ class ChatService(IChatService):
             logger.debug("No history provided and memory is empty. Starting fresh conversation.")
 
         try:
-            # First, try to use RAG service if available and the message looks like a question
+            # Check if the message is asking about information from previous conversation
+            if self._is_conversation_question(user_message) or not self._is_document_question(user_message):
+                # Use regular LLM with conversation history for personal questions and general chat
+                response_content = await self.conversation_chain.apredict(input=user_message)
+                logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
+                return {"response": response_content}
+            
+            # For document-based questions, try RAG service first
             if self.rag_service and self._is_document_question(user_message):
                 logger.info("Using RAG service to answer document-based question")
                 try:
@@ -142,13 +149,46 @@ class ChatService(IChatService):
             logger.error(f"Error during LangChain (Gemini) conversation prediction: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error processing message with AI (Gemini): {e}")
     
+    def _is_conversation_question(self, message: str) -> bool:
+        """Determine if a message is asking about information from previous conversation"""
+        message = message.lower()
+        conversation_indicators = [
+            "איך קוראים לי", "מה השם שלי", "איך קוראים לי?", "מה השם שלי?",
+            "מי אני", "איך קוראים לי?", "מה השם", "מה שמי",
+            "what is my name", "what's my name", "who am i"
+        ]
+        
+        # Check if the message is asking about personal information from conversation
+        for indicator in conversation_indicators:
+            if indicator in message:
+                return True
+        
+        return False
+    
     def _is_document_question(self, message: str) -> bool:
         """Determine if a message is likely a document-based question"""
-        # Simple heuristic: check if the message contains question words or ends with a question mark
         message = message.lower()
-        question_indicators = ["?", "מה", "איך", "מתי", "למה", "האם", "איפה", "מי", "כמה", "איזה"]
         
-        # Check for question indicators
+        # Skip conversation questions even if they have question indicators
+        if self._is_conversation_question(message):
+            return False
+            
+        # Document-specific keywords
+        document_keywords = [
+            "תקנון", "חוק", "נוהל", "כללים", "חובות", "זכויות", 
+            "לימודים", "קורס", "מבחן", "ציון", "סמסטר", "אפקה",
+            "regulations", "rules", "course", "exam", "grade", "afeka"
+        ]
+        
+        # Check for document-specific keywords first
+        for keyword in document_keywords:
+            if keyword in message:
+                return True
+        
+        # If no document keywords, check for general question indicators
+        # but be more selective to avoid catching conversation questions
+        question_indicators = ["מה זה", "איך עושים", "מתי צריך", "איפה נמצא", "מי אחראי"]
+        
         for indicator in question_indicators:
             if indicator in message:
                 return True
