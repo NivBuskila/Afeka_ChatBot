@@ -13,8 +13,8 @@ if str(backend_dir) not in sys.path:
 from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
-from services.rag_service import RAGService  # Import the new RAG service
-from services.document_processor import DocumentProcessor  # Import from backend/services
+from src.ai.services.rag_service import RAGService  # Import the new RAG service
+from src.ai.services.document_processor import DocumentProcessor  # Import from ai/services
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferWindowMemory

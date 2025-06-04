@@ -22,7 +22,7 @@ from docx import Document as DocxDocument
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 # ייבוא קובץ ההגדרות החדש
-from config.rag_config import (
+from ..config.rag_config import (
     get_embedding_config,
     get_chunk_config,
     get_database_config,

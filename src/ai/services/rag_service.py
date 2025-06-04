@@ -11,7 +11,7 @@ from supabase import create_client, Client
 import numpy as np
 
 # ייבוא קובץ ההגדרות החדש
-from config.rag_config import (
+from ..config.rag_config import (
     rag_config,
     get_search_config,
     get_embedding_config,
@@ -39,7 +39,7 @@ class RAGService:
         # 🎯 טעינת פרופיל מהמערכת המרכזית
         if config_profile is None:
             try:
-                from config.current_profile import get_current_profile
+                from ..config.current_profile import get_current_profile
                 config_profile = get_current_profile()
                 logger.info(f"🎯 Loaded central profile: {config_profile}")
             except ImportError:
@@ -48,7 +48,7 @@ class RAGService:
         # טעינת הגדרות לפי פרופיל או ברירת מחדל
         if config_profile:
             try:
-                from config.rag_config_profiles import get_profile
+                from ..config.rag_config_profiles import get_profile
                 profile_config = get_profile(config_profile)
                 self.search_config = profile_config.search
                 self.embedding_config = profile_config.embedding

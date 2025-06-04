@@ -23,7 +23,7 @@ dotenv.load_dotenv(override=True)
 
 # Import the document processor
 try:
-    from services.document_processor import DocumentProcessor
+    from ..services.document_processor import DocumentProcessor
 except ImportError:
     logger.error("Error importing DocumentProcessor. Make sure the module exists and is in the PYTHONPATH.")
     sys.exit(1)

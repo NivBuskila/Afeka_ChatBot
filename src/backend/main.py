@@ -9,6 +9,13 @@ uvicorn src.backend.main:app --reload
 לא להשתמש ב-"main:app" ללא ציון הנתיב המלא כי זה יגרום לשגיאות טעינה.
 """
 import os
+import sys
+
+# Add project root to path for imports
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 # Load environment variables - force reload from .env file in current directory
 # THIS MUST BE DONE BEFORE ANY OTHER IMPORTS THAT RELY ON .env variables
 from dotenv import load_dotenv
@@ -218,7 +225,7 @@ auto_processor_thread = None
 
 def run_document_processor():
     """הפעלת מעבד המסמכים האוטומטי בתהליך נפרד"""
-    from auto_process_documents import run_processor
+    from src.ai.scripts.auto_process_documents import run_processor
     
     logger.info("Starting automatic document processor")
     loop = asyncio.new_event_loop()

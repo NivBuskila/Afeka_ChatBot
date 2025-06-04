@@ -6,7 +6,7 @@ import tempfile
 import logging
 from pathlib import Path
 
-from services.document_processor import DocumentProcessor
+from src.ai.services.document_processor import DocumentProcessor
 from app.core.auth import get_current_user
 from app.core.database import get_supabase_client
 
@@ -62,7 +62,7 @@ async def upload_document(
         
         # Process document in background
         background_tasks.add_task(
-            process_document_background,
+            process_document_wrapper,
             document_id,
             temp_file_path
         )
@@ -81,19 +81,55 @@ async def upload_document(
         logger.error(f"Error uploading document: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def process_document_wrapper(document_id: int, file_path: str):
+    """Wrapper לקריאה סינכרונית לפונקציה אסינכרונית"""
+    import asyncio
+    try:
+        # Create new event loop for background task
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(process_document_background(document_id, file_path))
+        loop.close()
+        return result
+    except Exception as e:
+        logger.error(f"Error in process_document_wrapper for document {document_id}: {str(e)}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
 async def process_document_background(document_id: int, file_path: str):
     """עיבוד מסמך ברקע"""
     try:
+        logger.info(f"Starting background processing for document {document_id} at path {file_path}")
         result = await doc_processor.process_document(document_id, file_path)
         logger.info(f"Background processing completed for document {document_id}: {result}")
+        
+        # Update document status to completed if successful
+        if result.get("success", False):
+            logger.info(f"Document {document_id} processed successfully")
+        else:
+            logger.error(f"Document {document_id} processing failed: {result.get('error', 'Unknown error')}")
+            
     except Exception as e:
-        logger.error(f"Background processing failed for document {document_id}: {str(e)}")
+        logger.error(f"Background processing failed for document {document_id}: {str(e)}", exc_info=True)
+        
+        # Update document status to failed
+        try:
+            from app.core.database import get_supabase_client
+            supabase = get_supabase_client()
+            if supabase:
+                supabase.table("documents").update({
+                    "processing_status": "failed"
+                }).eq("id", document_id).execute()
+                logger.info(f"Updated document {document_id} status to failed")
+        except Exception as status_error:
+            logger.error(f"Failed to update document {document_id} status to failed: {status_error}")
     finally:
         # Clean up temporary file
         try:
-            os.unlink(file_path)
-        except:
-            pass
+            if os.path.exists(file_path):
+                os.unlink(file_path)
+                logger.info(f"Cleaned up temporary file: {file_path}")
+        except Exception as cleanup_error:
+            logger.error(f"Failed to clean up temporary file {file_path}: {cleanup_error}")
 
 @router.get("/document/{document_id}/status")
 async def get_document_status(

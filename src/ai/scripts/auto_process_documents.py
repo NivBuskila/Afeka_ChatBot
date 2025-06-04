@@ -17,7 +17,11 @@ import argparse
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Add the parent directory to the path
+# Add the project root to the path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Add the parent directory to the path for relative imports
 parent_dir = Path(__file__).parent.parent
 sys.path.append(str(parent_dir))
 
@@ -26,10 +30,14 @@ dotenv.load_dotenv(override=True)
 
 # Import required modules
 try:
-    from services.document_processor import DocumentProcessor
+    from src.ai.services.document_processor import DocumentProcessor
 except ImportError:
-    logger.error("Error importing DocumentProcessor. Make sure the module exists and is in the PYTHONPATH.")
-    sys.exit(1)
+    try:
+        # Fallback for relative import when run from script location
+        from ..services.document_processor import DocumentProcessor
+    except ImportError:
+        logger.error("Error importing DocumentProcessor. Make sure the module exists and is in the PYTHONPATH.")
+        sys.exit(1)
 
 async def process_pending_document(document_id: int, processor: DocumentProcessor):
     """עיבוד מסמך במצב pending"""

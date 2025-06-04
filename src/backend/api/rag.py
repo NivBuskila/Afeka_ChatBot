@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import logging
 
-from services.rag_service import RAGService
+from src.ai.services.rag_service import RAGService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rag", tags=["RAG"])

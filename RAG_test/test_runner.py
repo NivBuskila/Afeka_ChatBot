@@ -24,7 +24,7 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 try:
-    from services.rag_service import RAGService
+    from src.ai.services.rag_service import RAGService
     from app.config.settings import settings
 except ImportError as e:
     print(f"שגיאה בייבוא מודולים: {e}")

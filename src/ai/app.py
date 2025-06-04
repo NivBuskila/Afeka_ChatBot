@@ -18,9 +18,9 @@ dotenv.load_dotenv(override=True)
 
 # ייבוא מודולי RAG
 try:
-    from services.document_processor import DocumentProcessor
+    from .services.document_processor import DocumentProcessor
     from app.core.database import get_supabase_client
-    from services.enhanced_processor import EnhancedProcessor
+    from .services.enhanced_processor import EnhancedProcessor
     has_rag = True
     # Initialize document processors
     doc_processor = DocumentProcessor()

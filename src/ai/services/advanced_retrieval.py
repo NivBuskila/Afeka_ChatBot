@@ -18,7 +18,8 @@ sys.path.insert(0, str(backend_path))
 
 try:
     from app.core.database import get_supabase_client
-    from services.embedding_service import EmbeddingService
+    import google.generativeai as genai
+    import os
     has_supabase = True
 except ImportError as e:
     logging.warning(f"Could not import Supabase modules: {e}")
@@ -59,7 +60,12 @@ class AdvancedRetriever:
     
     def __init__(self):
         self.supabase = get_supabase_client() if has_supabase else None
-        self.embedding_service = EmbeddingService() if has_supabase else None
+        
+        # Configure Gemini API
+        if has_supabase:
+            api_key = os.getenv("GEMINI_API_KEY")
+            if api_key:
+                genai.configure(api_key=api_key)
         
         # משקלים לחישוב הציון הסופי
         self.scoring_weights = {
@@ -175,12 +181,12 @@ class AdvancedRetriever:
 
     async def _semantic_search(self, query: str, threshold: float, limit: int) -> List[SearchResult]:
         """חיפוש סמנטי באמצעות embeddings"""
-        if not self.supabase or not self.embedding_service:
+        if not self.supabase:
             return []
         
         try:
             # יצירת embedding לשאלה
-            query_embedding = await self.embedding_service.create_embedding(query)
+            query_embedding = await self._generate_embedding(query)
             
             # חיפוש סמנטי במסד הנתונים
             response = self.supabase.rpc(
@@ -218,6 +224,22 @@ class AdvancedRetriever:
         except Exception as e:
             logger.error(f"שגיאה בחיפוש סמנטי: {e}")
             return []
+
+    async def _generate_embedding(self, text: str) -> Optional[List[float]]:
+        """יצירת embedding לטקסט"""
+        if not text or not text.strip():
+            return None
+        
+        try:
+            result = genai.embed_content(
+                model="models/embedding-001",
+                content=text,
+                task_type="retrieval_query"
+            )
+            return result["embedding"]
+        except Exception as e:
+            logger.error(f"Error generating embedding: {e}")
+            return None
 
     def _rerank_results(self, results: List[SearchResult], query: str) -> List[SearchResult]:
         """דירוג מחדש של התוצאות עם חישוב ציון סופי"""

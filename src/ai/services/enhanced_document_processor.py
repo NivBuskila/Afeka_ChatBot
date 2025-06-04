@@ -15,7 +15,8 @@ sys.path.insert(0, str(backend_path))
 
 try:
     from app.core.database import get_supabase_client
-    from services.embedding_service import EmbeddingService
+    import google.generativeai as genai
+    import os
     has_supabase = True
 except ImportError as e:
     logging.warning(f"Could not import Supabase modules: {e}")
@@ -32,10 +33,15 @@ class EnhancedDocumentProcessor:
     
     def __init__(self):
         self.supabase = get_supabase_client() if has_supabase else None
-        self.embedding_service = EmbeddingService() if has_supabase else None
         self.smart_chunker = SmartChunker()
         self.retriever = AdvancedRetriever()
         self.context_builder = ContextBuilder()
+        
+        # Configure Gemini API
+        if has_supabase:
+            api_key = os.getenv("GEMINI_API_KEY")
+            if api_key:
+                genai.configure(api_key=api_key)
         
         logger.info("Enhanced Document Processor initialized")
 
@@ -109,12 +115,12 @@ class EnhancedDocumentProcessor:
     async def _store_advanced_chunk(self, chunk: ProcessedChunk, document_id: Optional[int]) -> Optional[int]:
         """שמירת chunk מתקדם במסד הנתונים"""
         
-        if not self.supabase or not self.embedding_service:
+        if not self.supabase:
             return None
         
         try:
-            # יצירת embedding
-            embedding = await self.embedding_service.create_embedding(chunk.text)
+            # יצירת embedding באמצעות Gemini
+            embedding = await self._generate_embedding(chunk.text)
             
             # הכנת הנתונים לשמירה
             chunk_data = {
@@ -150,6 +156,22 @@ class EnhancedDocumentProcessor:
             
         except Exception as e:
             logger.error(f"שגיאה בשמירת chunk: {e}")
+            return None
+
+    async def _generate_embedding(self, text: str) -> Optional[List[float]]:
+        """יצירת embedding לטקסט"""
+        if not text or not text.strip():
+            return None
+        
+        try:
+            result = genai.embed_content(
+                model="models/embedding-001",
+                content=text,
+                task_type="retrieval_document"
+            )
+            return result["embedding"]
+        except Exception as e:
+            logger.error(f"Error generating embedding: {e}")
             return None
 
     async def _process_cross_references(self, stored_chunks: List[Dict]) -> None:

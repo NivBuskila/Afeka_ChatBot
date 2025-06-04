@@ -66,7 +66,7 @@ def main():
         elif choice == "4":
             print("\n🧪 Testing configuration...")
             try:
-                from services.rag_service import RAGService
+                from src.ai.services.rag_service import RAGService
                 
                 print("Creating RAGService with current profile...")
                 rag = RAGService()
