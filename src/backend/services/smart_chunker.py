@@ -87,13 +87,49 @@ class SmartChunker:
         return text.strip()
 
     def extract_section_info(self, text: str) -> Tuple[Optional[str], Optional[str]]:
-        """חילוץ מספר סעיף וכותרת"""
-        for pattern in self.section_patterns:
-            match = re.search(pattern, text, re.MULTILINE | re.UNICODE)
+        """חילוץ מספר סעיף וכותרת - שיפור לזיהוי סעיפים מורכבים"""
+        
+        # דפוסים מורחבים לזיהוי סעיפים
+        enhanced_patterns = [
+            # דפוס רגיל: מספר סעיף עם כותרת
+            r'^\s*(\d+(?:\.\d+)*)\s*[.\-:]?\s*(.+?)(?:\n|$)',
+            # סעיף מפורש: "סעיף 1.5.1:"
+            r'^\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*(.+?)(?:\n|$)',
+            # מספר סעיף בתחילת שורה אפילו ללא כותרת
+            r'^\s*(\d+(?:\.\d+)*)\s*[.\-:]\s*(.*)$',
+            # זיהוי בתוך טקסט: "לפי סעיף 1.5.1"
+            r'סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*([^\n]*)',
+            # פרק עם מספר
+            r'^\s*פרק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)',
+            # מספר פשוט בתחילת שורה
+            r'^\s*(\d+(?:\.\d+)*)\s+([^\n]+?)(?:\n|$)',
+        ]
+        
+        # בדיקת הדפוסים הקיימים
+        for pattern in self.section_patterns + enhanced_patterns:
+            match = re.search(pattern, text[:500], re.MULTILINE | re.UNICODE)  # חיפוש ב-500 תווים ראשונים
             if match:
                 section_number = match.group(1)
                 section_title = match.group(2).strip() if len(match.groups()) > 1 else ""
+                
+                # ניקוי כותרת מתווים מיותרים
+                section_title = re.sub(r'^[:\-\.\s]+', '', section_title)
+                section_title = re.sub(r'[:\-\.\s]+$', '', section_title)
+                
                 return section_number, section_title
+        
+        # ניסיון נוסף - חיפוש מספרי סעיפים בכל הטקסט
+        section_number_pattern = r'\b(\d+(?:\.\d+){1,3})\b'
+        matches = re.findall(section_number_pattern, text[:200])
+        if matches:
+            # נבחר את המספר הראשון שנראה כמו מספר סעיף
+            for match in matches:
+                if '.' in match:  # זה נראה כמו מספר סעיף
+                    # ננסה לחלץ כותרת מהמשפט הראשון
+                    first_line = text.split('\n')[0][:100]
+                    title = re.sub(r'\d+(?:\.\d+)*\s*[:\-\.]?\s*', '', first_line).strip()
+                    return match, title if title else ""
+        
         return None, None
 
     def find_cross_references(self, text: str) -> List[str]:
@@ -289,21 +325,76 @@ class SmartChunker:
         return processed_chunks
 
     def _split_into_sections(self, text: str) -> List[Tuple[str, Dict]]:
-        """חלוקה ראשונית לסעיפים"""
-        # זיהוי סעיפים ראשיים
-        section_pattern = r'^(\d+(?:\.\d+)*\.?\s+.+?)(?=^\d+(?:\.\d+)*\.?\s+|\Z)'
-        sections = re.findall(section_pattern, text, re.MULTILINE | re.DOTALL | re.UNICODE)
+        """חלוקה ראשונית לסעיפים - שיפור לזיהוי סעיפים קטנים"""
         
-        if not sections:
-            # אם לא נמצאו סעיפים, נחזיר את כל הטקסט כסעיף אחד
-            return [(text, {})]
+        # דפוסים מרובים לזיהוי סעיפים
+        section_patterns = [
+            # סעיפים ברמה הראשית: 1. 2. 3.
+            r'(?:^|\n)\s*(\d+)\.?\s+([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
+            # תתי סעיפים: 1.1, 1.2, etc.
+            r'(?:^|\n)\s*(\d+\.\d+)\.?\s+([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
+            # תתי-תתי סעיפים: 1.1.1, 1.2.3, etc. 
+            r'(?:^|\n)\s*(\d+\.\d+\.\d+)\.?\s+([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
+            # סעיפים עם "סעיף": סעיף 1.5.1
+            r'(?:^|\n)\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*([^\n]*(?:\n(?!\s*(?:סעיף\s+)?\d+\.)[^\n]*)*)',
+            # סעיפים נוספים שיכולים להיות בתוך המסמך
+            r'(\d+(?:\.\d+){0,3})\s*[:\-]\s*([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
+        ]
         
-        result = []
-        for section in sections:
-            section_info = {'type': 'section'}
-            result.append((section.strip(), section_info))
+        all_sections = []
+        used_positions = set()
         
-        return result
+        # חיפוש לפי כל הדפוסים
+        for pattern in section_patterns:
+            matches = list(re.finditer(pattern, text, re.MULTILINE | re.UNICODE))
+            for match in matches:
+                start_pos = match.start()
+                end_pos = match.end()
+                
+                # בדיקה שהמיקום לא נתפס כבר
+                if not any(start_pos <= pos <= end_pos for pos in used_positions):
+                    section_number = match.group(1)
+                    section_content = match.group(2)
+                    full_text = match.group(0).strip()
+                    
+                    section_info = {
+                        'type': 'section',
+                        'number': section_number,
+                        'start_pos': start_pos,
+                        'end_pos': end_pos
+                    }
+                    
+                    all_sections.append((full_text, section_info))
+                    
+                    # סימון הטווח כתפוס
+                    for pos in range(start_pos, end_pos + 1):
+                        used_positions.add(pos)
+        
+        # אם לא נמצאו סעיפים, חלוקה פשוטה לפי פסקאות
+        if not all_sections:
+            paragraphs = text.split('\n\n')
+            result = []
+            for i, para in enumerate(paragraphs):
+                if para.strip():
+                    section_info = {'type': 'paragraph', 'number': str(i+1)}
+                    result.append((para.strip(), section_info))
+            return result if result else [(text, {'type': 'full_document'})]
+        
+        # מיון לפי מיקום במסמך
+        all_sections.sort(key=lambda x: x[1]['start_pos'])
+        
+        # הסרת כפילויות לפי מספר סעיף
+        seen_numbers = set()
+        unique_sections = []
+        for section_text, section_info in all_sections:
+            section_number = section_info.get('number', '')
+            if section_number not in seen_numbers:
+                seen_numbers.add(section_number)
+                unique_sections.append((section_text, section_info))
+        
+        logger.info(f"נמצאו {len(unique_sections)} סעיפים מזוהים: {[s[1].get('number') for s in unique_sections]}")
+        
+        return unique_sections
 
     def _identify_chapter(self, text: str, section_info: Dict) -> str:
         """זיהוי פרק מהטקסט"""

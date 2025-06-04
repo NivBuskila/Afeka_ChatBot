@@ -476,12 +476,12 @@ def chat():
         else:
             # Use basic Gemini without RAG
             try:
-            model = genai.GenerativeModel("gemini-2.0-flash")
+                model = genai.GenerativeModel("gemini-2.0-flash")
                 gemini_response = model.generate_content(user_message)
-            ai_response = gemini_response.text
+                ai_response = gemini_response.text
                 logger.info("Using basic Gemini response (no RAG)")
-        except Exception as gemini_error:
-            logger.error(f"Gemini API error: {str(gemini_error)}")
+            except Exception as gemini_error:
+                logger.error(f"Gemini API error: {str(gemini_error)}")
         
         # Prepare the response
         result = {

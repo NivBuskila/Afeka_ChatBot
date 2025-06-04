@@ -44,8 +44,9 @@ class ChatService(IChatService):
         try:
             # Initialize RAG service
             try:
-                self.rag_service = RAGService()
-                logger.info("RAG service initialized successfully")
+                # 🎯 שימוש בפרופיל מרכזי - ללא hard-coding!
+                self.rag_service = RAGService()  # יטען את הפרופיל המרכזי אוטומטית
+                logger.info("✅ RAG service initialized successfully with central profile")
             except Exception as e:
                 logger.error(f"Error initializing RAG service: {e}")
                 self.rag_service = None
@@ -133,17 +134,22 @@ class ChatService(IChatService):
                     )
                     
                     # Check if RAG found relevant results
-                    if rag_response.get("sources") and len(rag_response["sources"]) > 0:
+                    # בדיקה מעודכנת - יש לבדוק גם chunks_selected וגם sources
+                    has_sources = rag_response.get("sources") and len(rag_response["sources"]) > 0
+                    has_chunks = rag_response.get("chunks_selected") and len(rag_response["chunks_selected"]) > 0
+                    
+                    if has_sources or has_chunks:
                         # RAG found relevant information
                         self.memory.chat_memory.add_user_message(user_message)
                         self.memory.chat_memory.add_ai_message(rag_response["answer"])
                         
-                        logger.info(f"RAG service found {len(rag_response['sources'])} sources, using RAG response")
+                        sources_count = len(rag_response.get("sources", []))
+                        chunks_count = len(rag_response.get("chunks_selected", []))
+                        logger.info(f"🎯 RAG service found {sources_count} sources, {chunks_count} chunks - using RAG response")
                         return {"response": rag_response["answer"], "sources": rag_response.get("sources", [])}
                     else:
                         # RAG didn't find relevant information, fall back to regular LLM
-                        logger.info("RAG service didn't find relevant sources, falling back to regular LLM")
-                        
+                        logger.info("❌ RAG service didn't find relevant sources/chunks, falling back to regular LLM")
                 except Exception as e:
                     logger.error(f"Error using RAG service: {e}. Falling back to regular LLM.")
             
