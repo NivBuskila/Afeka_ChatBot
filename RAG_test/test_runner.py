@@ -17,9 +17,14 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-# Add the backend directory to sys.path to allow importing from services
+# Add the project root to sys.path to allow importing from src
 current_dir = Path(__file__).parent
-backend_dir = current_dir.parent / "src" / "backend"
+project_root = current_dir.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Also add backend directory for app imports
+backend_dir = project_root / "src" / "backend"
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
@@ -37,7 +42,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('results/test_debug.log', encoding='utf-8')
+        logging.FileHandler('RAG_test/results/test_debug.log', encoding='utf-8')
     ]
 )
 
@@ -52,10 +57,82 @@ class RAGTester:
         self.start_time = None
         self.end_time = None
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.selected_question_set = None
         
-        # טעינת שאלות בדיקה
-        with open('test_questions.json', 'r', encoding='utf-8') as f:
-            self.questions = json.load(f)['questions']
+        # בחירת סט שאלות
+        self.questions = self.select_question_set()
+    
+    def select_question_set(self) -> List[Dict[str, Any]]:
+        """בחירת סט שאלות לבדיקה"""
+        questions_dir = Path(__file__).parent / 'test_questions'
+        
+        # מציאת כל קבצי JSON בתיקיית השאלות
+        question_files = list(questions_dir.glob('*.json'))
+        
+        if not question_files:
+            raise FileNotFoundError("No question files found in test_questions directory")
+        
+        print("\n🧪 Available Question Sets:")
+        print("=" * 50)
+        
+        # טעינה והצגת מידע על כל סט שאלות
+        available_sets = []
+        for i, file_path in enumerate(question_files, 1):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # ניסיון לחלץ מידע על הסט
+                name = data.get('name', file_path.stem.replace('_', ' ').title())
+                description = data.get('description', 'No description available')
+                question_count = len(data.get('questions', []))
+                
+                available_sets.append({
+                    'index': i,
+                    'file_path': file_path,
+                    'name': name,
+                    'description': description,
+                    'question_count': question_count,
+                    'data': data
+                })
+                
+                print(f"{i}. {name}")
+                print(f"   📝 {description}")
+                print(f"   📊 {question_count} questions")
+                print()
+                
+            except Exception as e:
+                print(f"⚠️  Error loading {file_path.name}: {e}")
+        
+        if not available_sets:
+            raise ValueError("No valid question sets found")
+        
+        # בחירת המשתמש
+        while True:
+            try:
+                choice = input(f"Please select a question set (1-{len(available_sets)}): ").strip()
+                
+                if choice.lower() in ['quit', 'exit', 'q']:
+                    print("👋 Exiting...")
+                    sys.exit(0)
+                
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(available_sets):
+                    selected_set = available_sets[choice_num - 1]
+                    self.selected_question_set = selected_set['name']
+                    
+                    print(f"\n✅ Selected: {selected_set['name']}")
+                    print(f"📊 Loading {selected_set['question_count']} questions...")
+                    
+                    return selected_set['data']['questions']
+                else:
+                    print(f"❌ Please enter a number between 1 and {len(available_sets)}")
+                    
+            except ValueError:
+                print("❌ Please enter a valid number")
+            except KeyboardInterrupt:
+                print("\n👋 Exiting...")
+                sys.exit(0)
     
     async def initialize_services(self):
         """אתחול שירותים"""
@@ -72,6 +149,8 @@ class RAGTester:
         """חילוץ הגדרות RAG נוכחיות"""
         return {
             "timestamp": self.timestamp,
+            "selected_question_set": self.selected_question_set,
+            "total_questions_in_set": len(self.questions),
             "rag_settings": {
                 "max_context_tokens": getattr(self.rag_service, 'max_context_tokens', 'N/A'),
                 "similarity_threshold": getattr(self.rag_service, 'similarity_threshold', 'N/A'),
@@ -308,25 +387,29 @@ class RAGTester:
         stats = self.generate_summary_stats()
         recommendations = self.generate_recommendations(stats)
         
+        # יצירת נתיב תיקיית results
+        results_dir = Path(__file__).parent / 'results'
+        results_dir.mkdir(exist_ok=True)
+        
         # שמירת הגדרות למובן JSON
-        with open(f'results/rag_settings_{self.timestamp}.json', 'w', encoding='utf-8') as f:
+        with open(results_dir / f'rag_settings_{self.timestamp}.json', 'w', encoding='utf-8') as f:
             json.dump(settings_data, f, ensure_ascii=False, indent=2)
         
         # יצירת דוח טקסט מפורט
         report_content = self.create_detailed_text_report(stats, recommendations)
-        with open(f'results/test_report_{self.timestamp}.txt', 'w', encoding='utf-8') as f:
+        with open(results_dir / f'test_report_{self.timestamp}.txt', 'w', encoding='utf-8') as f:
             f.write(report_content)
         
         # שמירת ניתוח צ'אנקים
         chunks_analysis = self.create_chunks_analysis()
-        with open(f'results/chunks_analysis_{self.timestamp}.txt', 'w', encoding='utf-8') as f:
+        with open(results_dir / f'chunks_analysis_{self.timestamp}.txt', 'w', encoding='utf-8') as f:
             f.write(chunks_analysis)
         
         # שמירת נתונים גולמיים JSON
-        with open(f'results/raw_results_{self.timestamp}.json', 'w', encoding='utf-8') as f:
+        with open(results_dir / f'raw_results_{self.timestamp}.json', 'w', encoding='utf-8') as f:
             json.dump(self.test_results, f, ensure_ascii=False, indent=2)
         
-        logger.info(f"דוחות נשמרו בתיקיית results/ עם חותמת זמן {self.timestamp}")
+        logger.info(f"דוחות נשמרו בתיקיית {results_dir} עם חותמת זמן {self.timestamp}")
     
     def create_detailed_text_report(self, stats: Dict[str, Any], recommendations: List[str]) -> str:
         """יצירת דוח טקסט מפורט"""
@@ -337,6 +420,8 @@ class RAGTester:
 📅 תאריך: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}
 ⏱️ משך בדיקה: {stats.get('test_duration_seconds', 0):.1f} שניות
 🔧 גרסת מערכת: v2.1.3
+📋 סט שאלות: {self.selected_question_set}
+🔢 מספר שאלות: {len(self.questions)}
 
 📊 הגדרות RAG נוכחיות:
 ----------------------------------------

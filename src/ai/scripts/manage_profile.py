@@ -12,8 +12,12 @@ import sys
 import os
 from pathlib import Path
 
-# Add backend to path
-backend_dir = Path(__file__).parent / "src" / "backend"
+# Add project root to path for src imports (go up 3 levels: scripts -> ai -> src -> project_root)
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Add backend to path for app imports
+backend_dir = project_root / "src" / "backend"
 sys.path.insert(0, str(backend_dir))
 
 def main():
@@ -21,7 +25,7 @@ def main():
     print("=" * 50)
     
     try:
-        from config.current_profile import (
+        from src.ai.config.current_profile import (
             get_current_profile, 
             set_current_profile, 
             get_available_profiles,

@@ -1,0 +1,248 @@
+{
+  "name": "Basic RAG Test Set",
+  "description": "Original test set with 30 mixed questions covering various categories",
+  "author": "Afeka College Team",
+  "created": "2024",
+  "questions": [
+    {
+      "id": 1,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה אומר סעיף 1.5.1?",
+      "expected_section": "1.5.1",
+      "expected_content": "הגדרת מן המניין",
+      "difficulty": "easy"
+    },
+    {
+      "id": 2,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה כתוב בסעיף 2.1?",
+      "expected_section": "2.1",
+      "expected_content": "תנאי קבלה",
+      "difficulty": "easy"
+    },
+    {
+      "id": 3,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה הכללים בסעיף 3.2.8?",
+      "expected_section": "3.2.8",
+      "expected_content": "הנחות שכר לימוד",
+      "difficulty": "medium"
+    },
+    {
+      "id": 4,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה אומר סעיף 6.2.7.4?",
+      "expected_section": "6.2.7.4",
+      "expected_content": "פרטי הערכה",
+      "difficulty": "hard"
+    },
+    {
+      "id": 5,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה נאמר בסעיף 11.5.1?",
+      "expected_section": "11.5.1",
+      "expected_content": "מלכודת - סעיף לא קיים",
+      "difficulty": "trap"
+    },
+    {
+      "id": 6,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה בסעיף 1.5.2?",
+      "expected_section": "1.5.2",
+      "expected_content": "הגדרת מן החוץ",
+      "difficulty": "easy"
+    },
+    {
+      "id": 7,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה כתוב בסעיף 9.3?",
+      "expected_section": "9.3",
+      "expected_content": "תנאי לקבלת תואר",
+      "difficulty": "medium"
+    },
+    {
+      "id": 8,
+      "category": "דיוק מספרי סעיפים",
+      "question": "מה אומר סעיף 13.1?",
+      "expected_section": "13.1",
+      "expected_content": "הוועדה האקדמית",
+      "difficulty": "medium"
+    },
+    {
+      "id": 9,
+      "category": "שאלות תוכן מורכבות",
+      "question": "איך אני יכול לקבל פטור מקורסים?",
+      "expected_section": "multiple",
+      "expected_content": "תנאים לפטור מקורסים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 10,
+      "category": "שאלות תוכן מורכבות",
+      "question": "מה הסעיפים שמגדירים הרחקה אקדמית?",
+      "expected_section": "multiple",
+      "expected_content": "תנאי הרחקה אקדמית",
+      "difficulty": "hard"
+    },
+    {
+      "id": 11,
+      "category": "שאלות תוכן מורכבות",
+      "question": "איך מחושב הציון הסופי?",
+      "expected_section": "multiple",
+      "expected_content": "חישוב ציון סופי",
+      "difficulty": "medium"
+    },
+    {
+      "id": 12,
+      "category": "שאלות תוכן מורכבות",
+      "question": "מה הכללים לגבי לימודי אנגלית?",
+      "expected_section": "multiple",
+      "expected_content": "דרישות אנגלית",
+      "difficulty": "medium"
+    },
+    {
+      "id": 13,
+      "category": "שאלות תוכן מורכבות",
+      "question": "מה התנאים למעבר משנה לשנה?",
+      "expected_section": "multiple",
+      "expected_content": "תנאי מעבר",
+      "difficulty": "medium"
+    },
+    {
+      "id": 14,
+      "category": "שאלות תוכן מורכבות",
+      "question": "איך מתבצע מעבר בין תוכניות לימוד?",
+      "expected_section": "multiple",
+      "expected_content": "מעבר בין תוכניות",
+      "difficulty": "hard"
+    },
+    {
+      "id": 15,
+      "category": "שאלות תוכן מורכבות",
+      "question": "מה הכללים לגבי חזרה על קורסים?",
+      "expected_section": "multiple",
+      "expected_content": "חזרה על קורסים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 16,
+      "category": "שאלות תוכן מורכבות",
+      "question": "מתי ניתן לקבל תואר בהצטיינות?",
+      "expected_section": "multiple",
+      "expected_content": "תנאי הצטיינות",
+      "difficulty": "medium"
+    },
+    {
+      "id": 17,
+      "category": "שאלות משמעת",
+      "question": "מה הן עבירות המשמעת?",
+      "expected_section": "multiple",
+      "expected_content": "רשימת עבירות משמעת",
+      "difficulty": "medium"
+    },
+    {
+      "id": 18,
+      "category": "שאלות משמעת",
+      "question": "מה העונש על הונאה בבחינה?",
+      "expected_section": "multiple",
+      "expected_content": "עונש על הונאה",
+      "difficulty": "medium"
+    },
+    {
+      "id": 19,
+      "category": "שאלות משמעת",
+      "question": "איך מגישים תלונה?",
+      "expected_section": "multiple",
+      "expected_content": "הליך הגשת תלונה",
+      "difficulty": "medium"
+    },
+    {
+      "id": 20,
+      "category": "שאלות משמעת",
+      "question": "מה הזכויות של סטודנט בדיון משמעת?",
+      "expected_section": "multiple",
+      "expected_content": "זכויות סטודנט",
+      "difficulty": "medium"
+    },
+    {
+      "id": 21,
+      "category": "שאלות משמעת",
+      "question": "מי הן רשויות השיפוט?",
+      "expected_section": "multiple",
+      "expected_content": "רשויות שיפוט",
+      "difficulty": "medium"
+    },
+    {
+      "id": 22,
+      "category": "שאלות משמעת",
+      "question": "מה הן עבירות החנייה?",
+      "expected_section": "multiple",
+      "expected_content": "עבירות חנייה",
+      "difficulty": "medium"
+    },
+    {
+      "id": 23,
+      "category": "שאלות משמעת",
+      "question": "איך עובד מנגנון ברירת הקנס?",
+      "expected_section": "multiple",
+      "expected_content": "ברירת קנס",
+      "difficulty": "hard"
+    },
+    {
+      "id": 24,
+      "category": "שאלות אמביגואליות",
+      "question": "מה הכללים לגבי נוכחות?",
+      "expected_section": "multiple",
+      "expected_content": "דרישות נוכחות",
+      "difficulty": "medium"
+    },
+    {
+      "id": 25,
+      "category": "שאלות אמביגואליות",
+      "question": "איך עוברים בין תוכניות?",
+      "expected_section": "multiple",
+      "expected_content": "מעבר בין תוכניות",
+      "difficulty": "medium"
+    },
+    {
+      "id": 26,
+      "category": "שאלות אמביגואליות",
+      "question": "מה קורה אם נכשלתי בקורס?",
+      "expected_section": "multiple",
+      "expected_content": "כישלון בקורס",
+      "difficulty": "medium"
+    },
+    {
+      "id": 27,
+      "category": "שאלות אמביגואליות",
+      "question": "מתי אני מקבל תעודה?",
+      "expected_section": "multiple",
+      "expected_content": "קבלת תעודה",
+      "difficulty": "medium"
+    },
+    {
+      "id": 28,
+      "category": "שאלות מלכודת",
+      "question": "מה נקבע בנוגע לטלפונים סלולריים?",
+      "expected_section": "none",
+      "expected_content": "מידע לא קיים",
+      "difficulty": "trap"
+    },
+    {
+      "id": 29,
+      "category": "שאלות מלכודת",
+      "question": "מה הכללים על עישון במכללה?",
+      "expected_section": "none",
+      "expected_content": "מידע לא קיים",
+      "difficulty": "trap"
+    },
+    {
+      "id": 30,
+      "category": "שאלות מלכודת",
+      "question": "איך מתמודדים עם מחלת סטודנט?",
+      "expected_section": "none",
+      "expected_content": "מידע לא קיים",
+      "difficulty": "trap"
+    }
+  ]
+} 

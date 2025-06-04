@@ -691,4 +691,41 @@ Make sure all files using `SemanticChunker` (like `rag_service.py` and `document
 - `frontend/`: Web interface (React/TypeScript)
 - `backend/`: API and business logic (Python/FastAPI)
 - `ai/`: AI models and processing (Python/Flask)
+  - `ai/services/`: RAG and AI business logic
+  - `ai/config/`: AI configuration and profiles
+  - `ai/scripts/`: Management and utility scripts
 - `supabase/`: Database schema and migrations
+- `RAG_test/`: AI system testing and validation
+
+## 🔧 AI Configuration Management
+
+The project includes several AI-related management scripts:
+
+### Profile Management
+
+To manage RAG system configuration profiles:
+
+```bash
+python src/ai/scripts/manage_profile.py
+```
+
+This script allows you to:
+
+- View current AI configuration
+- Switch between different performance profiles (fast, balanced, high_quality, etc.)
+- Test the current configuration
+- List all available profiles
+
+### Testing Scripts
+
+Located in `RAG_test/`:
+
+```bash
+# Run comprehensive RAG system tests
+python RAG_test/test_runner.py
+
+# Quick debugging and profile comparison
+python RAG_test/debug_rag.py
+```
+
+Test results are saved in `RAG_test/results/` with detailed reports and analytics.

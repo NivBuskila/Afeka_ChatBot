@@ -8,8 +8,12 @@ import logging
 
 # הוספת הנתיב של הפרויקט
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, os.path.join(parent_dir, 'src', 'backend'))
+project_root = os.path.dirname(current_dir)
+sys.path.insert(0, project_root)
+
+# הוספת backend directory לimports של app
+backend_dir = os.path.join(project_root, 'src', 'backend')
+sys.path.insert(0, backend_dir)
 
 from src.ai.services.rag_service import RAGService
 
