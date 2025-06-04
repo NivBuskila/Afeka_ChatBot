@@ -21,12 +21,15 @@ from docx import Document as DocxDocument
 # Import SemanticChunker and Gemini Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-logger = logging.getLogger(__name__)
+# ייבוא קובץ ההגדרות החדש
+from config.rag_config import (
+    get_embedding_config,
+    get_chunk_config,
+    get_database_config,
+    get_performance_config
+)
 
-# Constants for chunking limits
-MAX_VECTORS_PER_DOCUMENT = 500  # Maximum number of vectors to create per document
-DEFAULT_CHUNK_SIZE = 2000        # Size in characters for RecursiveCharacterTextSplitter
-DEFAULT_CHUNK_OVERLAP = 200     # Overlap in characters for RecursiveCharacterTextSplitter
+logger = logging.getLogger(__name__)
 
 class DocumentProcessor:
     def __init__(self):
@@ -36,55 +39,61 @@ class DocumentProcessor:
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         )
         logger.debug(f"Supabase client initialized for URL: {os.getenv('SUPABASE_URL')}")
+        
+        # קבלת הגדרות מהconfig החדש
+        self.embedding_config = get_embedding_config()
+        self.chunk_config = get_chunk_config()
+        self.db_config = get_database_config()
+        self.performance_config = get_performance_config()
+        
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             logger.warning("GEMINI_API_KEY not found in environment variables during DocumentProcessor init.")
-            # SemanticChunker will fail without embeddings, which likely need the API key.
-            # Consider raising an error or having a fallback splitter if API key is missing.
         else:
             logger.info("GEMINI_API_KEY found in environment during DocumentProcessor init.")
             
-        genai.configure(api_key=api_key) # This configures the global genai object
+        genai.configure(api_key=api_key)
         logger.debug("genai configured with API key.")
         
         # Initialize Gemini Embeddings for SemanticChunker
-        # Ensure the model name is correct for embeddings.
-        # "gemini-pro" is a generative model, not an embedding model.
-        # "models/embedding-001" is used later in _generate_embedding.
         logger.debug("Initializing GoogleGenerativeAIEmbeddings...")
         try:
             gemini_embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001", 
-                task_type="retrieval_document",
-                google_api_key=api_key  # Explicitly pass the API key
+                model=self.embedding_config.MODEL_NAME, 
+                task_type=self.embedding_config.TASK_TYPE_DOCUMENT,
+                google_api_key=api_key
             )
-            logger.debug(f"GoogleGenerativeAIEmbeddings initialized successfully with model models/embedding-001.")
+            logger.debug(f"GoogleGenerativeAIEmbeddings initialized successfully with model {self.embedding_config.MODEL_NAME}.")
         except Exception as e_emb_init:
             logger.error(f"Failed to initialize GoogleGenerativeAIEmbeddings: {e_emb_init}", exc_info=True)
-            # Handle or re-raise, as this is critical for SemanticChunker
             raise
 
-        # Initialize both text splitters - we'll use RecursiveCharacterTextSplitter for more predictable chunking
+        # Initialize both text splitters
         logger.debug("Initializing text splitters...")
-        # Using SemanticChunker with the Gemini embedding model (kept for backup).
+        
+        # SemanticChunker for backup
         self.semantic_splitter = SemanticChunker(
             embeddings=gemini_embeddings, 
             breakpoint_threshold_type="percentile"
         )
         
-        # Primary text splitter: RecursiveCharacterTextSplitter (more reliable size control)
+        # Primary text splitter: RecursiveCharacterTextSplitter
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=DEFAULT_CHUNK_SIZE,
-            chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+            chunk_size=self.chunk_config.DEFAULT_CHUNK_SIZE,
+            chunk_overlap=self.chunk_config.DEFAULT_CHUNK_OVERLAP,
             length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
         
-        logger.debug(f"Text splitters initialized.")
+        logger.debug(f"Text splitters initialized with chunk_size={self.chunk_config.DEFAULT_CHUNK_SIZE}, "
+                    f"overlap={self.chunk_config.DEFAULT_CHUNK_OVERLAP}")
         
-        self.encoding = tiktoken.get_encoding("cl100k_base") # Retained for token counting if needed elsewhere
+        self.encoding = tiktoken.get_encoding("cl100k_base")
         logger.debug("tiktoken encoding cl100k_base loaded.")
-        logger.info("DocumentProcessor initialized successfully.")
+        
+        logger.info(f"DocumentProcessor initialized successfully with config - "
+                   f"Max chunks per doc: {self.chunk_config.MAX_CHUNKS_PER_DOCUMENT}, "
+                   f"Chunk size: {self.chunk_config.DEFAULT_CHUNK_SIZE}")
 
     async def process_document(self, document_id: int, file_path: str) -> Dict[str, Any]:
         """
@@ -94,7 +103,7 @@ class DocumentProcessor:
         logger.info(f"Starting process_document for ID: {document_id}, Path: {file_path}")
         try:
             logger.debug(f"Fetching document name for ID: {document_id}")
-            doc_result = self.supabase.table("documents").select("name").eq("id", document_id).execute()
+            doc_result = self.supabase.table(self.db_config.DOCUMENTS_TABLE).select("name").eq("id", document_id).execute()
             if doc_result.data and doc_result.data[0].get("name"):
                 document_name = doc_result.data[0]["name"]
                 logger.debug(f"Document name '{document_name}' found for ID: {document_id}.")
@@ -110,26 +119,25 @@ class DocumentProcessor:
             
             # Load and split document using the configured text_splitter
             logger.debug(f"Calling _load_and_split_document for file: {file_path}")
-            raw_chunks = await self._load_and_split_document(file_path) # These are Langchain Document objects
+            raw_chunks = await self._load_and_split_document(file_path)
             logger.info(f"Document ID: {document_id} ('{document_name}') split into {len(raw_chunks)} raw chunks using {type(self.text_splitter).__name__}.")
             
-            # Check if number of chunks exceeds limit
-            if len(raw_chunks) > MAX_VECTORS_PER_DOCUMENT:
-                logger.warning(f"Number of chunks ({len(raw_chunks)}) exceeds maximum limit ({MAX_VECTORS_PER_DOCUMENT}) for document ID: {document_id}")
-                # Trim the chunks to avoid processing too many
-                raw_chunks = raw_chunks[:MAX_VECTORS_PER_DOCUMENT]
+            # Check if number of chunks exceeds limit from config
+            if len(raw_chunks) > self.chunk_config.MAX_CHUNKS_PER_DOCUMENT:
+                logger.warning(f"Number of chunks ({len(raw_chunks)}) exceeds maximum limit "
+                             f"({self.chunk_config.MAX_CHUNKS_PER_DOCUMENT}) for document ID: {document_id}")
+                raw_chunks = raw_chunks[:self.chunk_config.MAX_CHUNKS_PER_DOCUMENT]
                 logger.info(f"Trimmed chunks to {len(raw_chunks)} for document ID: {document_id}")
             
             # Ensure API key is configured for embedding generation
             api_key = os.environ.get("GEMINI_API_KEY")
             if not api_key:
-                logger.error(f"GEMINI_API_KEY not found for document ID: {document_id} processing. This should have been caught earlier.")
+                logger.error(f"GEMINI_API_KEY not found for document ID: {document_id} processing.")
                 await self._update_document_status(document_id, "failed", note="Missing GEMINI_API_KEY")
                 return {"success": False, "error": "Missing GEMINI_API_KEY", "document_id": document_id}
-            # genai.configure(api_key=api_key) # Already configured in __init__ and on each embedding call if needed
 
             processed_chunks_for_db = []
-            chunk_meta_info_for_bc = [] # For backward compatibility "embeddings" table
+            chunk_meta_info_for_bc = []
 
             for i, chunk_doc in enumerate(raw_chunks):
                 try:
@@ -139,51 +147,66 @@ class DocumentProcessor:
                         
                     # Determine header and page number from metadata if available
                     header_to_use = chunk_doc.metadata.get('header', f"Chunk {i+1}")
-                    page_number = chunk_doc.metadata.get('page_number') # Might be None
+                    page_number = chunk_doc.metadata.get('page_number')
 
-                    # Original text (without header) for token count and potentially for embedding if desired
+                    # Original text (without header) for token count
                     original_chunk_text = chunk_doc.page_content
                     
                     # Text to be embedded and stored (potentially with header prepended)
-                    # For now, let's assume we embed and store text WITH header, as before.
                     chunk_text_with_header = f"{header_to_use}\n\n{original_chunk_text}" if header_to_use else original_chunk_text
 
                     # Check if we've reached the vector limit during processing
-                    if len(processed_chunks_for_db) >= MAX_VECTORS_PER_DOCUMENT:
-                        logger.warning(f"Maximum number of vectors ({MAX_VECTORS_PER_DOCUMENT}) reached during processing for document ID: {document_id}")
+                    if len(processed_chunks_for_db) >= self.chunk_config.MAX_CHUNKS_PER_DOCUMENT:
+                        logger.warning(f"Maximum number of vectors ({self.chunk_config.MAX_CHUNKS_PER_DOCUMENT}) "
+                                     f"reached during processing for document ID: {document_id}")
                         break
 
                     embedding_vector = await self._generate_embedding(chunk_text_with_header)
                     if not embedding_vector or len(embedding_vector) == 0:
-                        logger.error(f"Empty embedding returned for chunk {i} (doc ID: {document_id}). Original text snippet: {original_chunk_text[:100]}...")
+                        logger.error(f"Empty embedding returned for chunk {i} (doc ID: {document_id}). "
+                                   f"Original text snippet: {original_chunk_text[:100]}...")
                         continue
                     
-                    token_count = len(self.encoding.encode(original_chunk_text)) # Token count of the original text
+                    # Token count using configured encoding
+                    token_count = len(self.encoding.encode(original_chunk_text))
+                    
+                    # Check token limits from config
+                    if token_count > self.chunk_config.MAX_TOKENS_PER_CHUNK:
+                        logger.warning(f"Chunk {i} exceeds max token limit: {token_count} > {self.chunk_config.MAX_TOKENS_PER_CHUNK}")
+                    
+                    if token_count < self.chunk_config.MIN_TOKENS_PER_CHUNK:
+                        logger.warning(f"Chunk {i} below min token limit: {token_count} < {self.chunk_config.MIN_TOKENS_PER_CHUNK}")
 
                     processed_chunks_for_db.append({
                         "document_id": document_id,
-                        "chunk_text": chunk_text_with_header,  # Storing text WITH header
-                        "embedding": embedding_vector,        # Embedding is of text WITH header
-                        "content_token_count": token_count,   # Token count of ORIGINAL text
-                        # These were part of the old schema/RPC, ensure SQL function handles them or they are added to RPC params
-                        # "chunk_header": header_to_use, 
-                        # "page_number": page_number,
-                        # "section": header_to_use 
+                        "chunk_text": chunk_text_with_header,
+                        "embedding": embedding_vector,
+                        "content_token_count": token_count
                     })
-                    # For backward compatibility with 'embeddings' table
-                    chunk_meta_info_for_bc.append({"chunk_index": i, "original_text": original_chunk_text, "header": header_to_use})
-                    logger.info(f"Generated embedding for chunk {i+1}/{len(raw_chunks)} (doc ID: {document_id})")
+                    
+                    chunk_meta_info_for_bc.append({
+                        "chunk_index": i, 
+                        "original_text": original_chunk_text, 
+                        "header": header_to_use
+                    })
+                    
+                    logger.info(f"Generated embedding for chunk {i+1}/{len(raw_chunks)} "
+                              f"(doc ID: {document_id}, tokens: {token_count})")
+                              
                 except Exception as e_emb:
                     logger.error(f"Error generating embedding or preparing chunk {i} (doc ID: {document_id}): {e_emb}", exc_info=True)
-                    continue # Skip this chunk
+                    continue
             
             if not processed_chunks_for_db:
-                logger.warning(f"No processable chunks with embeddings found for document {document_id} after generation. Update status to failed.")
+                logger.warning(f"No processable chunks with embeddings found for document {document_id}")
                 await self._update_document_status(document_id, "failed", "No processable chunks with embeddings after generation.")
-                return {"success": False, "document_id": document_id, "chunks_created": 0, "error": "No processable chunks with embeddings after generation"}
+                return {"success": False, "document_id": document_id, "chunks_created": 0, 
+                       "error": "No processable chunks with embeddings after generation"}
 
-            # ----- Save chunks to 'document_chunks' table using RPC -----
-            logger.info(f"Attempting to save {len(processed_chunks_for_db)} processed chunks to 'document_chunks' via RPC 'insert_document_chunk_basic' for doc ID: {document_id}.")
+            # Save chunks to database using RPC
+            logger.info(f"Attempting to save {len(processed_chunks_for_db)} processed chunks to "
+                       f"'{self.db_config.CHUNKS_TABLE}' via RPC for doc ID: {document_id}.")
+            
             successful_rpc_inserts = 0
             any_rpc_insert_failed = False
             first_rpc_error_message = ""
@@ -191,51 +214,48 @@ class DocumentProcessor:
             for i, chunk_data_to_insert in enumerate(processed_chunks_for_db):
                 try:
                     logger.debug(f"Preparing to insert chunk {i+1}/{len(processed_chunks_for_db)} via RPC for doc ID: {document_id}. "
-                                 f"Snippet: '{chunk_data_to_insert['chunk_text'][:50]}...', Emb Dim: {len(chunk_data_to_insert['embedding']) if chunk_data_to_insert.get('embedding') else 'N/A'}")
+                                f"Snippet: '{chunk_data_to_insert['chunk_text'][:50]}...', "
+                                f"Emb Dim: {len(chunk_data_to_insert['embedding']) if chunk_data_to_insert.get('embedding') else 'N/A'}")
 
                     params_for_rpc = {
                         "p_document_id": chunk_data_to_insert["document_id"],
                         "p_chunk_text": chunk_data_to_insert["chunk_text"],
                         "p_embedding": chunk_data_to_insert["embedding"],
                         "p_content_token_count": chunk_data_to_insert["content_token_count"]
-                        # The RPC 'insert_document_chunk_basic' is defined to take these four parameters.
-                        # chunk_header, page_number, section are not part of this basic RPC.
-                        # If they need to be stored, the SQL function 'insert_document_chunk_basic'
-                        # and its parameters in this call would need to be updated.
                     }
                     
                     rpc_response = self.supabase.rpc("insert_document_chunk_basic", params_for_rpc).execute()
 
                     if hasattr(rpc_response, 'data') and rpc_response.data and len(rpc_response.data) > 0:
                         inserted_chunk_id = rpc_response.data[0].get('id', 'N/A') # RPC returns the inserted row
-                        logger.info(f"Successfully inserted chunk {i+1}/{len(processed_chunks_for_db)} via RPC for doc ID: {document_id}. Inserted 'document_chunks' ID: {inserted_chunk_id}")
+                        logger.info(f"Successfully inserted chunk {i+1}/{len(processed_chunks_for_db)} via RPC for doc ID: {document_id}. Inserted '{self.db_config.CHUNKS_TABLE}' ID: {inserted_chunk_id}")
                         successful_rpc_inserts += 1
                     elif hasattr(rpc_response, 'error') and rpc_response.error:
-                        error_msg = f"RPC call error for 'document_chunks' chunk {i+1} (doc ID: {document_id}): Code: {rpc_response.error.code}, Message: {rpc_response.error.message}, Details: {rpc_response.error.details}, Hint: {rpc_response.error.hint}"
+                        error_msg = f"RPC call error for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}): Code: {rpc_response.error.code}, Message: {rpc_response.error.message}, Details: {rpc_response.error.details}, Hint: {rpc_response.error.hint}"
                         logger.error(error_msg)
                         any_rpc_insert_failed = True
                         if not first_rpc_error_message: first_rpc_error_message = error_msg
                     else:
-                        warn_msg = f"RPC call for 'document_chunks' chunk {i+1} (doc ID: {document_id}) returned no data and no explicit error. Status: {rpc_response.status_code if hasattr(rpc_response, 'status_code') else 'N/A'}. Resp: {rpc_response}"
+                        warn_msg = f"RPC call for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}) returned no data and no explicit error. Status: {rpc_response.status_code if hasattr(rpc_response, 'status_code') else 'N/A'}. Resp: {rpc_response}"
                         logger.warning(warn_msg)
                         any_rpc_insert_failed = True # Treat as failure for safety
                         if not first_rpc_error_message: first_rpc_error_message = warn_msg
                 except Exception as e_rpc_call:
-                    error_msg = f"Exception during RPC call for 'document_chunks' chunk {i+1} (doc ID: {document_id}): {e_rpc_call}"
+                    error_msg = f"Exception during RPC call for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}): {e_rpc_call}"
                     logger.error(error_msg, exc_info=True)
                     any_rpc_insert_failed = True
                     if not first_rpc_error_message: first_rpc_error_message = error_msg
             
-            logger.info(f"Finished RPC inserts for 'document_chunks' for doc ID: {document_id}. Successfully inserted: {successful_rpc_inserts}/{len(processed_chunks_for_db)}.")
+            logger.info(f"Finished RPC inserts for '{self.db_config.CHUNKS_TABLE}' for doc ID: {document_id}. Successfully inserted: {successful_rpc_inserts}/{len(processed_chunks_for_db)}.")
 
             if any_rpc_insert_failed or (len(processed_chunks_for_db) > 0 and successful_rpc_inserts == 0):
-                final_status_reason = first_rpc_error_message or "One or more chunks failed to insert into 'document_chunks' via RPC."
-                logger.error(f"Overall 'document_chunks' RPC insertion for doc ID {document_id} failed or partially failed. Error: {final_status_reason}")
+                final_status_reason = first_rpc_error_message or "One or more chunks failed to insert into '{self.db_config.CHUNKS_TABLE}' via RPC."
+                logger.error(f"Overall '{self.db_config.CHUNKS_TABLE}' RPC insertion for doc ID {document_id} failed or partially failed. Error: {final_status_reason}")
                 await self._update_document_status(document_id, "failed", final_status_reason)
                 return {"success": False, "document_id": document_id, "chunks_created": successful_rpc_inserts, "error": final_status_reason}
             
-            # If we reach here, all RPC inserts to 'document_chunks' were successful.
-            logger.info(f"All {successful_rpc_inserts} chunks for document ID {document_id} saved successfully to 'document_chunks' via RPC.")
+            # If we reach here, all RPC inserts to '{self.db_config.CHUNKS_TABLE}' were successful.
+            logger.info(f"All {successful_rpc_inserts} chunks for document ID {document_id} saved successfully to '{self.db_config.CHUNKS_TABLE}' via RPC.")
             
             # --- Backward Compatibility: Save to 'embeddings' table ---
             # This uses 'chunk_meta_info_for_bc' and 'processed_chunks_for_db' which should be aligned.
@@ -271,7 +291,7 @@ class DocumentProcessor:
             await self._update_document_status(document_id, "completed")
             
             # Only try to update document content if we processed fewer than MAX_VECTORS_PER_DOCUMENT
-            if len(raw_chunks) <= MAX_VECTORS_PER_DOCUMENT:
+            if len(raw_chunks) <= self.chunk_config.MAX_CHUNKS_PER_DOCUMENT:
                 await self._update_document_content(document_id, raw_chunks)
             else:
                 logger.warning(f"Skipping document content update due to large chunk count for document ID: {document_id}")
@@ -281,7 +301,7 @@ class DocumentProcessor:
                 "document_id": document_id,
                 "chunks_created": successful_rpc_inserts,
                 "total_chunks": len(raw_chunks),
-                "trimmed": len(raw_chunks) > MAX_VECTORS_PER_DOCUMENT
+                "trimmed": len(raw_chunks) > self.chunk_config.MAX_CHUNKS_PER_DOCUMENT
             }
             
         except Exception as e:
@@ -397,9 +417,9 @@ class DocumentProcessor:
             # The model name for embeddings might be different from generative models.
             # Using the model specified for embeddings, e.g., "models/embedding-001"
             # Task types: "retrieval_query", "retrieval_document", "semantic_similarity", "classification", "clustering"
-            logger.debug(f"Calling genai.embed_content with model models/embedding-001 and task_type {task_type}")
+            logger.debug(f"Calling genai.embed_content with model {self.embedding_config.MODEL_NAME} and task_type {task_type}")
             result = genai.embed_content(
-                model="models/embedding-001", # Correct embedding model
+                model=self.embedding_config.MODEL_NAME, # Correct embedding model
                 content=text,
                 task_type=task_type
             )
@@ -417,7 +437,7 @@ class DocumentProcessor:
             if note is not None:
                 update_data["processing_notes"] = note
             
-            response = self.supabase.table("documents").update(update_data).eq("id", document_id).execute()
+            response = self.supabase.table(self.db_config.DOCUMENTS_TABLE).update(update_data).eq("id", document_id).execute()
             # Check response for errors (Supabase client specific)
             if hasattr(response, 'data') and response.data:
                 logger.debug(f"Successfully updated status for document ID {document_id} to {status}. Response: {response.data}")
@@ -427,8 +447,6 @@ class DocumentProcessor:
                 logger.warning(f"Unknown Supabase response or no data returned when updating status for document ID {document_id}: {response}")
         except Exception as e:
             logger.error(f"Exception updating document status for ID {document_id} to {status}: {e}", exc_info=True)
-
-
 
     async def delete_document_and_all_chunks(self, document_id: int) -> Dict[str, Any]:
         """
@@ -458,7 +476,7 @@ class DocumentProcessor:
 
             # Delete the document from 'documents' table
             logger.debug(f"Deleting document record for document_id: {document_id} from 'documents' table.")
-            delete_document_response = self.supabase.table("documents").delete().eq("id", document_id).execute()
+            delete_document_response = self.supabase.table(self.db_config.DOCUMENTS_TABLE).delete().eq("id", document_id).execute()
 
             document_deleted_successfully = bool(delete_document_response.data)
             
@@ -531,15 +549,15 @@ class DocumentProcessor:
             # Fallback to direct embedding search
             try:
                 logger.info("Falling back to direct embedding search")
-            query_embedding = await self._generate_embedding(query, is_query=True)
-            if not query_embedding:
+                query_embedding = await self._generate_embedding(query, is_query=True)
+                if not query_embedding:
                     logger.error("Failed to generate query embedding for fallback")
-                return []
-            
+                    return []
+                
                 response = self.supabase.rpc(
                     "advanced_semantic_search",
                     {
-                "query_embedding": query_embedding,
+                        "query_embedding": query_embedding,
                         "similarity_threshold": threshold,
                         "match_count": limit,
                     },
@@ -548,7 +566,7 @@ class DocumentProcessor:
                 if response.data:
                     logger.info(f"Fallback search found {len(response.data)} results")
                     return response.data
-                    return []
+                return []
                     
             except Exception as fallback_e:
                 logger.error(f"Fallback search also failed: {fallback_e}", exc_info=True)

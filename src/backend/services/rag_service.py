@@ -23,7 +23,7 @@ class RAGService:
             raise ValueError("GEMINI_API_KEY environment variable is required")
             
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         
         # הגדרות RAG
         self.max_context_tokens = 6000  # השארת מקום לשאלה ותשובה
