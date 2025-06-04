@@ -1,6 +1,6 @@
 // Directly create Supabase client instead of importing
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '../../../supabase/config/supabase';
+import { Database } from '../../../../supabase/config/supabase';
 
 // IMPORTANT: Do not use this client directly for data operations.
 // Instead, use the backend proxy endpoints that start with /api/proxy/
@@ -43,4 +43,4 @@ try {
 export const supabase = supabaseClient;
 
 // Export types from types.ts file
-export * from '../../../supabase/config/supabase'; 
+export * from '../../../../supabase/config/supabase'; 

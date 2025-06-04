@@ -1,4 +1,4 @@
-import { supabase } from '../../../supabase/config/supabase';
+import { supabase } from '../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 
