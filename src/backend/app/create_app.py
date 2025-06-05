@@ -22,7 +22,12 @@ from app.api.request_handlers import (
 from app.api.v1 import api_router
 from app.api.v1.proxy import router as proxy_router_direct
 import logging
-from app.api.lifecycle import register_lifecycle_handlers
+from app.api.lifecycle import lifespan #register_lifecycle_handlers
+
+from supabase import create_client
+from app.repositories.factory import init_repository_factory
+from app.services.factory import init_service_factory
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +43,7 @@ def create_application() -> FastAPI:
         title=settings.app_name,
         description=settings.app_description,
         version=settings.app_version,
+        lifespan=lifespan,
         docs_url="/docs" if settings.is_development else None,  # Disable in production
         redoc_url="/redoc" if settings.is_development else None,
         openapi_url="/openapi.json" if settings.is_development else None
@@ -95,18 +101,12 @@ def create_application() -> FastAPI:
     # Log successful initialization
     logger.info(f"{settings.app_name} v{settings.app_version} initialized successfully")
     
-    # Register lifecycle handlers
-    register_lifecycle_handlers(app)
 
     return app
 
 
 def init_dependencies(app: FastAPI) -> None:
     """Initialize application dependencies"""
-    from supabase import create_client
-    from app.repositories.factory import init_repository_factory
-    from app.services.factory import init_service_factory
-    
     # Initialize Supabase client
     supabase_client = None
     try:
