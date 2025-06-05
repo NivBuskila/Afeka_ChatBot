@@ -6,6 +6,7 @@ import json
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+import time
 
 from app.services.base import BaseService
 from app.domain.chat import ChatMessage
@@ -129,22 +130,19 @@ class AIServiceClient(BaseService):
         conversation_history: Optional[List[ChatMessage]] = None,
         use_rag: bool = True
     ) -> Dict[str, Any]:
-        """Send message with conversation context to AI service"""
+        """Send message with simple conversation context to AI service"""
         
-        # Prepare context from history
+        # ✅ SIMPLE: Build basic context
         context_messages = []
         if conversation_history:
-            context_messages = self._build_context_window(conversation_history)
+            context_messages = self._build_simple_context(conversation_history)
         
         payload = {
             "message": message,
             "use_rag": use_rag,
-            "context": context_messages  # ✅ Send context
+            "context": context_messages
         }
         
-        if session_id:
-            payload["session_id"] = session_id
-            
         try:
             result = await self._make_request("POST", self.ai_config.chat_endpoint, payload)
             
@@ -152,8 +150,7 @@ class AIServiceClient(BaseService):
                 "response": result.get("result", "No response received"),
                 "processing_time": result.get("processing_time", 0),
                 "rag_used": result.get("rag_used", False),
-                "rag_count": result.get("rag_count", 0),
-                "session_id": session_id
+                "context_messages": result.get("context_messages", 0)
             }
             
         except ServiceException as e:
@@ -162,11 +159,29 @@ class AIServiceClient(BaseService):
                 "response": self._get_fallback_response(),
                 "processing_time": 0,
                 "rag_used": False,
-                "rag_count": 0,
-                "error": str(e),
-                "session_id": session_id
+                "error": str(e)
             }
-    
+
+    def _build_simple_context(self, history: List[ChatMessage]) -> List[Dict[str, str]]:
+        """Build simple context from conversation history"""
+        
+        if not history:
+            return []
+        
+        context_messages = []
+        
+        # Take last 10 messages
+        recent_history = history[-10:] if len(history) > 10 else history
+        
+        for message in recent_history:
+            if message.content and message.content.strip():
+                context_messages.append({
+                    "role": message.role,
+                    "content": message.content.strip()
+                })
+        
+        return context_messages
+
     async def get_chat_response(
         self,
         message: str,
@@ -370,52 +385,6 @@ class AIServiceClient(BaseService):
     def last_health_check(self) -> Optional[datetime]:
         """Get timestamp of last health check"""
         return self._last_health_check
-
-    def _build_context_window(self, history: List[ChatMessage]) -> List[Dict[str, str]]:
-        """Build context window from conversation history with proper filtering"""
-        
-        if not history:
-            return []
-        
-        self._log_operation("build_context_window", f"history_length={len(history)}")
-        
-        # ✅ ENHANCED: Sort by created_at to ensure proper chronological order
-        sorted_history = sorted(history, key=lambda x: x.created_at if hasattr(x, 'created_at') else x.id)
-        
-        # ✅ ENHANCED: Apply context window size limit from config
-        max_context_messages = getattr(settings, 'chat_context_window_size', 10)
-        
-        # Take the most recent messages within the limit
-        recent_history = sorted_history[-max_context_messages:] if len(sorted_history) > max_context_messages else sorted_history
-        
-        context_messages = []
-        total_chars = 0
-        max_context_chars = getattr(settings, 'chat_max_context_tokens', 4000) * 4  # Rough chars per token estimate
-        
-        # ✅ ENHANCED: Build context with character limit
-        for message in recent_history:
-            # Skip empty messages or system messages
-            if not message.content or not message.content.strip():
-                continue
-            
-            message_entry = {
-                "role": message.role,  # "user" or "assistant"
-                "content": message.content.strip()
-            }
-            
-            # Check if adding this message would exceed character limit
-            estimated_chars = len(message.content) + 50  # Include role and formatting
-            if total_chars + estimated_chars > max_context_chars and context_messages:
-                self._log_operation("build_context_window", f"Character limit reached at {total_chars} chars")
-                break
-            
-            context_messages.append(message_entry)
-            total_chars += estimated_chars
-        
-        self._log_operation("build_context_window", 
-                           f"Built context: {len(context_messages)} messages, {total_chars} chars")
-        
-        return context_messages
 
 
 # Legacy alias for backward compatibility

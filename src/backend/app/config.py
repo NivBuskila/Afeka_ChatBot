@@ -112,11 +112,15 @@ class Settings(BaseSettings):
     # Trusted Hosts
     allowed_hosts: str | List[str] = Field(default="localhost", env="ALLOWED_HOSTS")
     
-    # ✅ STANDARDIZED: Context Window Configuration
+    # ✅ SIMPLE: Basic Context Configuration
     chat_context_window_size: int = Field(default=10, env="CHAT_CONTEXT_WINDOW_SIZE")
     chat_max_context_tokens: int = Field(default=4000, env="CHAT_MAX_CONTEXT_TOKENS")
     chat_context_enabled: bool = Field(default=True, env="CHAT_CONTEXT_ENABLED")
-    chat_context_strategy: str = Field(default="recent", env="CHAT_CONTEXT_STRATEGY")
+    
+    # ✅ NEW: Advanced Context Settings
+    chat_context_relevance_threshold: float = Field(default=0.1, env="CHAT_CONTEXT_RELEVANCE_THRESHOLD")
+    chat_context_max_age_hours: int = Field(default=24, env="CHAT_CONTEXT_MAX_AGE_HOURS")
+    chat_context_cache_ttl_minutes: int = Field(default=30, env="CHAT_CONTEXT_CACHE_TTL_MINUTES")
     
     # ✅ NEW: Validation without defaults
     @validator('supabase_url')

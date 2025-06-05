@@ -92,6 +92,15 @@ def add_security_headers(response):
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
 
+# Replace the complex import and setup with simple one
+try:
+    from services.context_window_manager import SimpleContextManager
+    context_manager = SimpleContextManager()
+    logger.info("Simple Context Manager loaded")
+except Exception as e:
+    logger.warning(f"Context Manager not available: {e}")
+    context_manager = None
+
 # Basic route for health checks
 @app.route('/')
 def health_check():
@@ -420,26 +429,29 @@ def rag_document_status(document_id):
         logger.error(f"Error getting document status: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Main chat endpoint
+# Simplify the chat endpoint
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Process user message with conversation context"""
+    """Process user message with simple context"""
     
-    # ✅ ADD THIS: Start timing
     request_start_time = time.time()
     
     try:
         data = request.get_json(force=True, silent=True)
         user_message = data['message']
-        context = data.get('context', [])  # ✅ Accept context
+        context_history = data.get('context', [])
         
-        # Build conversation prompt with context
-        full_prompt = _build_contextual_prompt(user_message, context)
+        # ✅ SIMPLE: Build context if available
+        if context_manager and context_history:
+            llm_context = context_manager.build_context(context_history)
+            full_prompt = _build_simple_prompt(user_message, llm_context)
+        else:
+            full_prompt = user_message
         
         # Initialize AI response
         ai_response = "מצטער, לא הצלחתי לעבד את הבקשה"
         
-        # Process with enhanced RAG
+        # Process with RAG or Gemini
         if has_rag and enhanced_processor:
             import asyncio
             loop = asyncio.new_event_loop()
@@ -450,27 +462,28 @@ def chat():
             )
             ai_response = enhanced_result.get('answer', ai_response)
         else:
-            # Use Gemini with context
+            # Use Gemini
             model = genai.GenerativeModel("gemini-2.0-flash")
             gemini_response = model.generate_content(full_prompt)
             ai_response = gemini_response.text
         
-        # Prepare the response
+        # Simple response
         result = {
             "result": ai_response,
-            "processing_time": round(time.time() - request_start_time, 3),  # ✅ NOW WORKS
+            "processing_time": round(time.time() - request_start_time, 3),
             "rag_used": has_rag,
-            "rag_count": 0
+            "context_messages": len(llm_context) if context_manager and context_history else 0
         }
         
-        logger.info(f"Message processed successfully in {result['processing_time']}s")
+        logger.info(f"Message processed: {result['context_messages']} context messages, {result['processing_time']}s")
+        
         response = jsonify(result)
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
         return response
         
     except Exception as e:
         import traceback
-        logger.error(f"Unexpected error in chat endpoint: {str(e)}")
+        logger.error(f"Error in chat endpoint: {str(e)}")
         logger.error(traceback.format_exc())
         response = jsonify({
             "error": "Internal server error",
@@ -479,22 +492,21 @@ def chat():
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
         return response, 500
 
-def _build_contextual_prompt(user_message: str, context: List[Dict]) -> str:
-    """Build prompt with conversation context"""
+def _build_simple_prompt(user_message: str, context: List[Dict]) -> str:
+    """Build simple prompt with context"""
     
     if not context:
         return user_message
     
-    prompt_parts = ["Previous conversation context:"]
+    prompt_parts = ["Previous conversation:"]
     
     for msg in context:
         role = "User" if msg["role"] == "user" else "Assistant"
         prompt_parts.append(f"{role}: {msg['content']}")
     
     prompt_parts.extend([
-        "\nCurrent question:",
-        user_message,
-        "\nPlease respond considering the conversation context above."
+        f"\nCurrent question: {user_message}",
+        "\nPlease respond considering the conversation above."
     ])
     
     return "\n".join(prompt_parts)

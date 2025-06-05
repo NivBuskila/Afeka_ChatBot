@@ -45,80 +45,73 @@ async def ai_chat(
     ai_service: AIServiceClient = Depends(get_ai_service),
     chat_service: ChatService = Depends(get_chat_service)
 ) -> JSONResponse:
-    """
-    Proxy endpoint for AI chat functionality with proper context window management
-    """
+    """Process chat message with conversation context"""
     try:
         body = await request.json()
         
-        # Validate required fields
-        if not body.get("message"):
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Message field is required"}
-            )
-        
-        message = body["message"]
+        user_message = body.get("message", "")
         session_id = body.get("session_id")
         user_id = body.get("user_id")
         use_rag = body.get("use_rag", True)
         
-        logger.info(f"AI chat request: message_length={len(message)}, session_id={session_id}")
-        
-        if session_id and user_id:
-            try:
-                from uuid import UUID
-                session_uuid = UUID(session_id)
-                user_uuid = UUID(user_id)
-                
-                session_with_messages = await chat_service.get_session_with_messages(
-                    session_id=session_uuid, 
-                    user_id=user_uuid
-                )
-                
-                conversation_history = []
-                if session_with_messages and hasattr(session_with_messages, 'messages'):
-                    conversation_history = session_with_messages.messages
-                
-                result = await ai_service.chat_with_rag(
-                    message=message,
-                    session_id=session_id,
-                    conversation_history=conversation_history,
-                    use_rag=use_rag
-                )
-                
-                logger.info(f"AI chat processed with context: {len(conversation_history)} messages")
-                
-            except (ValueError, Exception) as e:
-                logger.warning(f"Session context retrieval failed: {e}, proceeding without context")
-                result = await ai_service.chat_with_rag(
-                    message=message,
-                    session_id=session_id,
-                    use_rag=use_rag
-                )
-        else:
-            result = await ai_service.chat_with_rag(
-                message=message,
-                session_id=session_id,
-                use_rag=use_rag
+        if not user_message.strip():
+            return JSONResponse(
+                content={"error": "Message cannot be empty"}, 
+                status_code=400
             )
         
-        return JSONResponse(content=result)
+        # ✅ FIX: Actually fetch conversation history from database
+        conversation_history = []
+        if session_id:
+            try:
+                # Get messages from the session using Supabase directly
+                supabase_client = get_supabase_client()
+                if supabase_client:
+                    result = supabase_client.table("messages")\
+                        .select("*")\
+                        .eq("conversation_id", session_id)\
+                        .order("created_at", desc=False)\
+                        .execute()
+                    
+                    if result.data:
+                        # Convert database messages to ChatMessage format
+                        for msg_data in result.data:
+                            # Handle both request and response messages
+                            if msg_data.get("request"):  # User message
+                                conversation_history.append(type('ChatMessage', (), {
+                                    'content': msg_data["request"],
+                                    'role': 'user',
+                                    'created_at': msg_data["created_at"]
+                                })())
+                            
+                            if msg_data.get("response"):  # Bot message
+                                conversation_history.append(type('ChatMessage', (), {
+                                    'content': msg_data["response"],
+                                    'role': 'assistant', 
+                                    'created_at': msg_data["created_at"]
+                                })())
+                        
+                        logger.info(f"Fetched {len(conversation_history)} messages for session {session_id}")
+                
+            except Exception as e:
+                logger.error(f"Error fetching conversation history: {e}")
+                conversation_history = []
         
-    except ServiceException as e:
-        logger.error(f"AI service error: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "error": "AI service temporarily unavailable",
-                "detail": str(e)
-            }
+        # Send to AI service with conversation history
+        ai_response = await ai_service.chat_with_rag(
+            message=user_message,
+            session_id=session_id,
+            conversation_history=conversation_history,
+            use_rag=use_rag
         )
+        
+        return JSONResponse(content=ai_response)
+        
     except Exception as e:
-        logger.error(f"Error in AI chat: {e}")
+        logger.error(f"Error in ai_chat: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"error": "Internal server error", "detail": str(e)}
+            content={"error": "Failed to process chat message", "details": str(e)},
+            status_code=500
         )
 
 @router.post("/ai/search")
@@ -898,4 +891,40 @@ async def delete_document(document_id: int) -> JSONResponse:
         
     except Exception as e:
         logger.error(f"Error deleting document: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ✅ SIMPLE: Context Management Endpoints only
+@router.get("/ai/context/stats")
+async def get_context_stats(ai_service: AIServiceClient = Depends(get_ai_service)):
+    """Get context management statistics"""
+    try:
+        stats = await ai_service.get_context_stats()
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting context stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/ai/context/clear/{session_id}")
+async def clear_session_context(
+    session_id: str,
+    ai_service: AIServiceClient = Depends(get_ai_service)
+):
+    """Clear context cache for specific session"""
+    try:
+        result = await ai_service.clear_session_context(session_id)
+        return result
+    except Exception as e:
+        logger.error(f"Error clearing session context: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/ai/context/clear-all")
+async def clear_all_context(
+    ai_service: AIServiceClient = Depends(get_ai_service)
+):
+    """Clear all context caches"""
+    try:
+        result = await ai_service.clear_all_context()
+        return result
+    except Exception as e:
+        logger.error(f"Error clearing all context: {e}")
         raise HTTPException(status_code=500, detail=str(e))
