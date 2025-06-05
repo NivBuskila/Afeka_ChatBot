@@ -32,7 +32,6 @@ def get_supabase_client():
         return None
 
 # Chat Sessions Endpoints
-
 @router.post("/chat_sessions")
 async def create_chat_session(request: Request) -> JSONResponse:
     """
