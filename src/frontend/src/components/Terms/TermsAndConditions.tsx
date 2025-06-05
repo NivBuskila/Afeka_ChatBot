@@ -9,7 +9,7 @@ const TermsAndConditions: React.FC = () => {
   const { i18n } = useTranslation();
   
   useEffect(() => {
-    // Load terms of use file based on language
+    // Load terms file based on language
     const termsFile = i18n.language === 'he' 
       ? '/terms-and-conditions.md' 
       : '/terms-and-conditions-en.md';
@@ -90,7 +90,7 @@ const TermsAndConditions: React.FC = () => {
 
 // Helper function for formatting markdown
 const formatMarkdown = (markdown: string): string => {
-  // Basic conversion of markdown syntax to HTML
+  // Basic markdown to HTML conversion
   let html = markdown
     // Headers
     .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold text-green-400 my-4">$1</h1>')

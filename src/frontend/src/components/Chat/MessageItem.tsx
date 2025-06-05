@@ -1,35 +1,41 @@
 import React from 'react';
 import { User, Bot } from 'lucide-react';
-import { Message } from './types';
+
+interface Message {
+  id: string;
+  type: 'user' | 'bot';
+  content: string;
+  timestamp: string;
+  sessionId?: string;
+}
 
 interface MessageItemProps {
   message: Message;
+  searchTerm?: string;
 }
 
-// Avatar component handles the message avatar display
-const MessageAvatar: React.FC<{ isUser: boolean }> = ({ isUser }) => (
-  isUser ? (
-    <User className="w-3 h-3 text-green-600 dark:text-green-400" />
-  ) : (
-    <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
-  )
-);
+// Function to highlight search term in text
+const highlightText = (text: string, searchTerm: string) => {
+  if (!searchTerm.trim()) return text;
+  
+  const parts = text.split(new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === searchTerm.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
 
-// Timestamp component for displaying message time
-const MessageTimestamp: React.FC<{ timestamp: string }> = ({ timestamp }) => (
-  <span className="text-xs text-green-700/70 dark:text-green-400/60">
-    {timestamp}
-  </span>
-);
-
-// Content component for the message text
-const MessageContent: React.FC<{ content: string }> = ({ content }) => (
-  <p className="text-sm text-gray-700 dark:text-gray-100">
-    {content}
-  </p>
-);
-
-const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+const MessageItem: React.FC<MessageItemProps> = ({ message, searchTerm = '' }) => {
   const isUser = message.type === 'user';
   
   return (
@@ -46,10 +52,18 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         } max-w-2xl`}
       >
         <div className="flex items-center gap-2 mb-1">
-          <MessageAvatar isUser={isUser} />
-          <MessageTimestamp timestamp={message.timestamp} />
+          {isUser ? (
+            <User className="w-3 h-3 text-green-600 dark:text-green-400" />
+          ) : (
+            <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
+          )}
+          <span className="text-xs text-green-700/70 dark:text-green-400/60">
+            {message.timestamp}
+          </span>
         </div>
-        <MessageContent content={message.content} />
+        <p className="text-sm text-gray-700 dark:text-gray-100">
+          {searchTerm ? highlightText(message.content, searchTerm) : message.content}
+        </p>
       </div>
     </div>
   );

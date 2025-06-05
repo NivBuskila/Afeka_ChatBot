@@ -12,7 +12,7 @@ export const translations: Translations = {
     en: 'Chatbot Preview'
   },
   'analytics': {
-    he: 'סטטיסטיקה',
+    he: 'אנליטיקס',
     en: 'Analytics'
   },
   'analytics.overview': {
@@ -48,18 +48,6 @@ export const translations: Translations = {
   'analytics.active.users': {
     he: 'משתמשים פעילים',
     en: 'Active Users'
-  },
-  'analytics.activeUsers': {
-    he: 'משתמשים פעילים',
-    en: 'Active Users'
-  },
-  'analytics.activeAdmins': {
-    he: 'מנהלים פעילים',
-    en: 'Active Administrators'
-  },
-  'analytics.totalAdmins': {
-    he: 'סך הכל מנהלים',
-    en: 'Total Administrators'
   },
   'analytics.daily.conversations': {
     he: 'שיחות יומיות',

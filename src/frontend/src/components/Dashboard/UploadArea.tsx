@@ -8,7 +8,7 @@ interface UploadAreaProps {
 }
 
 export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -41,18 +41,20 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload }) => {
           <Upload className="w-12 h-12 text-green-400 mb-4" />
           <p className="text-lg font-medium text-green-400 mb-2">
             {isDragActive
-              ? t('documents.dropHere')
-              : t('documents.uploadInstructions')}
+              ? (i18n.language === 'he' ? 'שחרר כאן' : 'Drop Here')
+              : (i18n.language === 'he' ? 'העלאת מסמכים' : 'Documents Upload')}
           </p>
           <p className="text-sm text-green-400/70">
-            {t('documents.supportedFormats')}
+            {i18n.language === 'he' 
+              ? 'פורמטים נתמכים: PDF, DOC, DOCX, XLS, XLSX, TXT' 
+              : 'Supported formats: PDF, DOC, DOCX, XLS, XLSX, TXT'}
           </p>
         </div>
       </div>
 
       <div className="mt-6">
         <h3 className="text-lg font-medium text-green-400 mb-4">
-          {t('documents.supportedTypes', 'Supported File Types')}
+          {i18n.language === 'he' ? 'סוגי קבצים נתמכים' : 'Supported File Types'}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'TXT'].map((type) => (

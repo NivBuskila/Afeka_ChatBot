@@ -10,12 +10,17 @@ export default {
       animation: {
         "spin-slow": "spin 20s linear infinite",
         "spin-reverse": "spin-reverse 15s linear infinite",
+        matrix: "matrix 20s linear infinite",
         blob: "blob 7s infinite",
       },
       keyframes: {
         "spin-reverse": {
           from: { transform: "rotate(360deg)" },
           to: { transform: "rotate(0deg)" },
+        },
+        matrix: {
+          "0%": { transform: "translateY(-100%)", opacity: "1" },
+          "100%": { transform: "translateY(1000%)", opacity: "0" },
         },
         blob: {
           "0%, 100%": { transform: "translate(0, 0) scale(1)" },
@@ -26,7 +31,5 @@ export default {
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/line-clamp'),
-  ],
+  plugins: [],
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, Edit, Trash2 } from 'lucide-react';
+import { Search, Edit, Trash2 } from 'lucide-react';
 import { translations } from '../translations';
 
 type Language = 'he' | 'en';
@@ -35,6 +35,19 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onDelete
 }) => {
   const t = (key: string) => translations[key]?.[language] || key;
+  const getFileType = (title: string, category: string): string => {
+    const mimeMap: Record<string, string> = {
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+      'application/pdf': 'PDF',
+      'text/plain': 'TXT',
+      'application/msword': 'DOC'
+    };
+    if (mimeMap[category]) {
+      return mimeMap[category];
+    }
+    const parts = title.split('.');
+    return parts.length > 1 ? parts.pop()!.toUpperCase() : category;
+  };
 
   return (
     <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
@@ -77,7 +90,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             {documents.map((doc) => (
               <tr key={doc.id} className="border-b border-green-500/10">
                 <td className="text-center py-3 px-4">{doc.title}</td>
-                <td className="text-center py-3 px-4">{doc.category}</td>
+                <td className="text-center py-3 px-4">{getFileType(doc.title, doc.category)}</td>
                 <td className="text-center py-3 px-4">{doc.uploadDate}</td>
                 <td className="text-center py-3 px-4">{doc.size}</td>
                 <td className="text-center py-3 px-4">

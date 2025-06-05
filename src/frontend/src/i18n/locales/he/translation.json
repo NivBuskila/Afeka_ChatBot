@@ -12,7 +12,13 @@
     "emailUpdateError": "שגיאה בעדכון כתובת הדואר האלקטרוני",
     "passwordResetEmailSent": "נשלח קישור לאיפוס סיסמה לכתובת הדואר האלקטרוני שלך",
     "passwordResetError": "שגיאה בשליחת קישור לאיפוס סיסמה",
-    "googleSignInError": "שגיאה בהתחברות באמצעות Google"
+    "googleSignInError": "שגיאה בהתחברות באמצעות Google",
+    "language": "שפה",
+    "language.he": "עברית",
+    "language.en": "אנגלית",
+    "theme": "ערכת נושא",
+    "theme.light": "בהיר",
+    "theme.dark": "כהה"
   },
   "resetPassword": {
     "title": "איפוס סיסמה",
@@ -33,8 +39,8 @@
     "totalAdmins": "סך הכל מנהלים",
     "totalDocuments": "סך הכל מסמכים",
     "activeDocuments": "מסמכים פעילים",
-    "activeUsers": "משתמשים אחרונים",
-    "activeAdmins": "מנהלים אחרונים",
+    "activeUsers": "משתמשים פעילים",
+    "activeAdmins": "מנהלים פעילים",
     "noUsers": "לא נמצאו משתמשים",
     "noAdmins": "לא נמצאו מנהלים"
   },
@@ -49,12 +55,81 @@
     "noAdmins": "אין מנהלים",
     "noDocuments": "אין מסמכים"
   },
-  "chat": {
-    "inputPlaceholder": "שאל כל שאלה...",
-    "sendMessage": "שלח הודעה"
-  },
   "general": {
     "noName": "ללא שם",
     "untitled": "ללא כותרת"
+  },
+  "users": {
+    "confirmDelete": "אישור מחיקת משתמש",
+    "deleteWarning": "פעולה זו תמחק את המשתמש לצמיתות ולא ניתן לשחזר אותה.",
+    "deleteConfirmText": "האם אתה בטוח שברצונך למחוק את המשתמש:",
+    "deleteSuccess": "המשתמש נמחק בהצלחה.",
+    "deleteError": "אירעה שגיאה במחיקת המשתמש."
+  },
+  "common": {
+    "update": "עדכון",
+    "cancel": "ביטול",
+    "logout": "התנתק",
+    "save": "שמור",
+    "delete": "מחק",
+    "edit": "ערוך"
+  },
+  "documents": {
+    "replaceInstructions": "בחר קובץ חדש כדי להחליף את המסמך הנוכחי:",
+    "updateSuccess": "המסמך עודכן בהצלחה",
+    "updateError": "אירעה שגיאה בעדכון המסמך",
+    "search": "חיפוש מסמכים",
+    "add": "הוסף מסמך",
+    "activeDocuments": "מסמכים פעילים"
+  },
+  "chat": {
+    "sidebar": {
+      "chat": "צ'אט",
+      "history": "היסטוריה",
+      "settings": "הגדרות"
+    },
+    "history": {
+      "title": "היסטוריית שיחות",
+      "search": "חיפוש שיחות",
+      "newChat": "שיחה חדשה",
+      "untitled": "שיחה ללא כותרת",
+      "noChats": "לא נמצאו שיחות. התחל שיחה חדשה!",
+      "noResults": "לא נמצאו תוצאות לחיפוש שלך",
+      "clearSearch": "נקה חיפוש",
+      "edit": "ערוך כותרת",
+      "delete": "מחק שיחה",
+      "confirmDelete": "למחוק שיחה?",
+      "confirmDeleteMessage": "פעולה זו אינה ניתנת לביטול. כל ההודעות בשיחה זו יימחקו לצמיתות.",
+      "searching": "מחפש...",
+      "foundResults": "נמצאו {{count}} תוצאות"
+    },
+    "welcomeMessage": "ברוכים הבאים ל-APEX - חווית הנדסה מקצועית של אפקה. איך אוכל לעזור לך?",
+    "startPrompt": "במה אני יכול לעזור?",
+    "untitledChat": "שיחה ללא כותרת",
+    "newChat": "שיחה חדשה",
+    "processing": "מעבד...",
+    "inputPlaceholder": "הקלד את ההודעה שלך כאן...",
+    "messageInput": "קלט הודעה",
+    "sendMessage": "שלח הודעה",
+    "errorProcessing": "מצטער, לא הצלחתי לעבד את הבקשה שלך.",
+    "errorRequest": "מצטער, אירעה שגיאה בעיבוד הבקשה שלך.",
+    "errorConnection": "מצטער, לא הצלחתי להתחבר לשרת. נסה שוב מאוחר יותר.",
+    "search": "חיפוש",
+    "searchMessages": "חפש בהודעות",
+    "previous": "הקודם",
+    "next": "הבא",
+    "close": "סגור",
+    "noActiveSession": "ברוך הבא לצ'אטבוט אפקה!",
+    "startNewChatPrompt": "כאן תוכלו לשאול שאלות לגבי תקנון הלימודים, נהלי הפקולטה, ומידע אחר שקשור ללימודים באפקה. התחילו שיחה חדשה כדי להתחיל!",
+    "showHistory": "הצג היסטוריה"
+  },
+  "admin": {
+    "sidebar": {
+      "dashboard": "דף הבית",
+      "users": "משתמשים",
+      "documents": "מסמכים",
+      "settings": "הגדרות",
+      "chatbotPreview": "תצוגה מקדימה של הצ'אטבוט"
+    }
   }
-} 
+}

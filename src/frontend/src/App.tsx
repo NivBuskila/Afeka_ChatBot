@@ -4,7 +4,6 @@ import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { supabase } from './config/supabase';
 import { useTranslation } from 'react-i18next';
 import './i18n/config';
-import { LanguageProvider } from './contexts/LanguageContext';
 
 import APEXSplashScreen from './components/SplashScreen/components/APEXSplashScreen';
 import APEXStaticLogin from './components/Login/APEXStaticLogin';
@@ -86,20 +85,18 @@ const App: React.FC = () => {
   };
 
   return (
-    <LanguageProvider>
-      <SessionContextProvider supabaseClient={supabase}>
-        <div className="h-screen w-screen bg-black text-white font-sans overflow-auto">
-          <Routes>
-            <Route path="/" element={renderAuthScreen()} />
-            <Route path="/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
-            <Route path="/chat" element={<ChatWindow onLogout={handleLogout} />} />
-            <Route path="/register" element={<APEXRegistration onRegistrationSuccess={handleRegistrationSuccess} onBackToLogin={() => navigate('/')} />} />
-            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-          </Routes>
-        </div>
-      </SessionContextProvider>
-    </LanguageProvider>
+    <SessionContextProvider supabaseClient={supabase}>
+      <div className="h-screen w-screen bg-black text-white font-sans overflow-auto">
+        <Routes>
+          <Route path="/" element={renderAuthScreen()} />
+          <Route path="/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
+          <Route path="/chat" element={<ChatWindow onLogout={handleLogout} />} />
+          <Route path="/register" element={<APEXRegistration onRegistrationSuccess={handleRegistrationSuccess} onBackToLogin={() => navigate('/')} />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Routes>
+      </div>
+    </SessionContextProvider>
   );
 };
 

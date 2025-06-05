@@ -1,162 +1,84 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FiSend } from 'react-icons/fi';
+import React, { useRef, useState, useEffect } from 'react';
+import { IoSend } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
 
-// Define the textarea resize hook locally to avoid import issues
-const useTextareaResize = (
-  textareaRef: React.RefObject<HTMLTextAreaElement>,
-  maxHeight: number = 150
-) => {
-  // Handle resizing the textarea
-  const handleResize = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    // Reset height to calculate the new scroll height
-    textarea.style.height = 'auto';
-    
-    // Set the new height based on scroll height (with max height limit)
-    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-    textarea.style.height = `${newHeight}px`;
-  }, [textareaRef, maxHeight]);
-
-  return { handleResize };
-};
-
-// Define props interface for TypeScript type checking to match existing usage
 interface ChatInputProps {
-  input: string;
-  setInput: (value: string) => void;
-  onSend: () => void;
-  isLoading: boolean;
+  onSend?: () => void;
+  isLoading?: boolean;
   isInitial?: boolean;
+  input?: string;
+  setInput?: (value: string) => void;
+  onSendMessage?: (message: string) => void;
+  isWaiting?: boolean;
+  placeholder?: string;
 }
 
-/**
- * ChatInput component that renders the message input field and send button
- * Follows SOLID principles with clear separation of concerns
- */
-const ChatInput: React.FC<ChatInputProps> = ({ 
-  input, 
-  setInput, 
-  onSend, 
-  isLoading,
-  isInitial = false 
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSend,
+  isLoading = false,
+  isInitial = false,
+  input,
+  setInput,
+  onSendMessage,
+  isWaiting = false,
+  placeholder,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const [localMessage, setLocalMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // Use custom hook for textarea resize when not in initial mode
-  const { handleResize } = useTextareaResize(textareaRef, 150);
+  // Determine if we're using props.input or internal state
+  const message = input !== undefined ? input : localMessage;
+  const updateMessage = setInput || setLocalMessage;
+  const handleSend = onSend || (() => onSendMessage && onSendMessage(message));
+  const isDisabled = isLoading || isWaiting;
   
-  // Auto-focus the input field when component mounts
+  // Auto-resize textarea based on content
   useEffect(() => {
-    if (textareaRef.current && !isInitial) {
-      textareaRef.current.focus();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '40px'; // Reset height
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 150)}px`;
     }
-  }, [isInitial]);
-
-  // Handle message input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    
-    // Only apply resize if using textarea (non-initial mode)
-    if (!isInitial && textareaRef.current) {
-      handleResize();
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate message is not empty or just whitespace
-    const trimmedMessage = input.trim();
-    if (!trimmedMessage || isLoading) {
-      return;
-    }
-    
-    // Send message
-    onSend();
-    
-    // Reset textarea height if not in initial mode
-    if (!isInitial && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-    
-    // Re-focus input after sending
-    setTimeout(() => {
-      if (textareaRef.current && !isInitial) {
-        textareaRef.current.focus();
-      }
-    }, 0);
-  };
-
-  // Handle Enter key (send message) 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  }, [message]);
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+      if (message.trim() && !isDisabled) {
+        handleSend();
+      }
     }
   };
 
-  // Use different UI for initial vs chat modes
-  if (isInitial) {
-    return (
-      <div className="relative max-w-4xl mx-auto">
-        <input
-          type="text"
-          value={input}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress}
-          placeholder={i18n.language === 'he' ? 'שאל כל שאלה...' : 'Ask anything...'}
-          disabled={isLoading}
-          className="w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg p-4 pr-12 border border-gray-200 dark:border-gray-700
-                     focus:outline-none focus:ring-2 focus:ring-green-500
-                     placeholder-gray-400 dark:placeholder-gray-500
-                     shadow-sm"
-        />
-        <button
-          onClick={onSend}
-          disabled={isLoading || !input.trim()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 
-                     hover:bg-gray-100 dark:hover:bg-gray-700
-                     rounded-lg transition-colors"
-          aria-label={t('chat.sendMessage') || "Send message"}
-        >
-          <FiSend className="w-5 h-5 text-green-700 dark:text-green-500" />
-        </button>
-      </div>
-    );
-  }
-
-  // Regular chat input with textarea
   return (
-    <div className="p-4 bg-gray-100 dark:bg-black/20 border-t border-gray-200 dark:border-green-500/10">
-      <div className="relative max-w-4xl mx-auto">
+    <div className={`w-full relative ${isInitial ? 'max-w-xl mx-auto' : ''}`}>
+      <div className="relative flex items-center">
         <textarea
           ref={textareaRef}
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyPress}
-          placeholder={i18n.language === 'he' ? 'שאל כל שאלה...' : 'Ask anything...'}
-          disabled={isLoading}
+          className="w-full py-2 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 pr-10 min-h-[40px] max-h-[150px] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600"
+          value={message}
+          onChange={(e) => updateMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder || t('Type your message...')}
+          disabled={isDisabled}
           rows={1}
-          className="w-full p-4 pr-12 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-700
-                   focus:outline-none focus:ring-2 focus:ring-green-500
-                   resize-none
-                   placeholder-gray-400 dark:placeholder-gray-500
-                   shadow-sm"
         />
         <button
-          onClick={onSend}
-          disabled={isLoading || !input.trim()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 
-                     hover:bg-gray-100 dark:hover:bg-gray-700
-                     rounded-lg transition-colors"
-          aria-label={t('chat.sendMessage') || "Send message"}
+          onClick={() => {
+            if (message.trim() && !isDisabled) {
+              handleSend();
+            }
+          }}
+          disabled={!message.trim() || isDisabled}
+          className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
+            !message.trim() || isDisabled 
+              ? 'text-gray-400 cursor-not-allowed' 
+              : 'text-green-500 hover:text-green-700 focus:outline-none'
+          } transition-colors`}
+          aria-label={t('Send message')}
         >
-          <FiSend className="w-5 h-5 text-green-700 dark:text-green-500" />
+          <IoSend size={20} />
         </button>
       </div>
     </div>

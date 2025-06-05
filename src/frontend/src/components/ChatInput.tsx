@@ -24,29 +24,16 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
     }
   }, []);
 
-  // Handle message input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-  };
-
   // Auto-resize textarea as content grows
-  const handleTextareaResize = () => {
+  useEffect(() => {
     const textarea = inputRef.current;
     if (textarea) {
       // Reset height to calculate new scroll height
-      textarea.style.height = 'auto';
-      
-      // Set new height based on scroll height (with max height cap)
+      textarea.style.height = '40px';
       const newHeight = Math.min(textarea.scrollHeight, 150);
       textarea.style.height = `${newHeight}px`;
     }
-  };
-
-  // Handle textarea input including auto-resize
-  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    handleInputChange(e);
-    handleTextareaResize();
-  };
+  }, [message]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,7 +51,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
     
     // Reset textarea height
     if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = '40px';
     }
     
     // Re-focus input after sending
@@ -93,12 +80,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
         <textarea
           ref={inputRef}
           value={message}
-          onChange={handleTextareaInput}
+          onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('chat.inputPlaceholder')}
           disabled={isLoading}
           rows={1}
-          className="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          className="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none min-h-[40px] max-h-[150px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white dark:border-gray-600"
           aria-label={t('chat.messageInput')}
         />
       </div>
@@ -109,7 +96,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
         className={`ml-2 p-3 rounded-full ${
           !message.trim() || isLoading
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
-            : 'bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700'
+            : 'bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700'
         } transition-colors`}
         aria-label={t('chat.sendMessage')}
       >

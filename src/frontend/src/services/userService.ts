@@ -36,12 +36,39 @@ export const userService = {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) throw error || new Error('No authenticated user');
     
-    // Check if user is admin
+    // Check if user has admin role in metadata
+    const isAdminInMetadata = user.user_metadata?.is_admin === true || 
+                              user.user_metadata?.role === 'admin';
+    
+    if (isAdminInMetadata) {
+      // If user should be admin in metadata, ensure they're also in admins table
+      try {
+        await supabase.rpc('promote_to_admin', { user_id: user.id });
+        console.log('User promoted to admin based on metadata');
+        return 'admin';
+      } catch (error) {
+        console.error('Error promoting user from metadata:', error);
+      }
+    }
+    
+    // Check if user is admin in admins table
     const { data: adminData } = await supabase
       .from('admins')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
+    
+    // Update user metadata if found in admins table
+    if (adminData && !isAdminInMetadata) {
+      try {
+        await supabase.auth.updateUser({
+          data: { is_admin: true }
+        });
+        console.log('Updated user metadata to reflect admin status');
+      } catch (error) {
+        console.error('Error updating user metadata:', error);
+      }
+    }
       
     return adminData ? 'admin' : 'user';
   },
@@ -189,91 +216,100 @@ export const userService = {
   },
 
   async signUp(email: string, password: string, isAdmin: boolean = false) {
-    // 1. Register user in auth service
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    console.log('Starting registration process...');
     
-    if (authError) {
-      // If user already registered, try to sign in to get ID
-      if (authError.message.includes('User already registered')) {
-        // Try signing in to get user details
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (signInError) throw signInError;
-        if (!signInData.user) throw new Error('Could not authenticate with existing user');
-        
-        // If admin promotion requested, use the RPC function
-        if (isAdmin) {
-          try {
-            const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
-              user_id: signInData.user.id
-            });
-            
-            if (promoteError) {
-              console.error('Error promoting user to admin:', promoteError);
-              // Continue despite error
-            } else {
-              console.log('User promoted to admin:', promoteResult);
-            }
-          } catch (adminError) {
-            console.error('Error in admin promotion RPC call:', adminError);
-          }
-        }
-        
-        return signInData;
-      }
-      
-      // Throw other errors
-      throw authError;
-    }
-    
-    if (!authData.user) throw new Error('User registration failed');
-    
-    // 2. Add user to users table
     try {
-      const { error: insertUserError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: email,
-          name: email.split('@')[0], // Default name from email
-          status: 'active'
+        // 1. Register user in auth service
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    is_admin: isAdmin,
+                    role: isAdmin ? 'admin' : 'user',
+                    name: email.split('@')[0]
+                }
+            }
         });
-
-      if (insertUserError) {
-        console.error('Error inserting user:', insertUserError);
-        throw insertUserError;
-      }
-      
-      // 3. If it's an admin, use the RPC function instead of direct insertion
-      if (isAdmin) {
-        try {
-          const { data: promoteResult, error: promoteError } = await supabase.rpc('promote_to_admin', {
-            user_id: authData.user.id
-          });
-          
-          if (promoteError) {
-            console.error('Error promoting user to admin:', promoteError);
-            // Continue despite error
-          } else {
-            console.log('User promoted to admin successfully:', promoteResult);
-          }
-        } catch (adminError) {
-          console.error('Error in admin promotion RPC call:', adminError);
-          // Continue despite error
+        
+        if (authError) {
+            console.error('Auth error:', authError);
+            throw authError;
         }
-      }
+        
+        if (!authData.user) {
+            console.error('No user data returned');
+            throw new Error('User registration failed - no user data');
+        }
+        
+        console.log('Auth registration successful');
+        
+        // 2. Check if user already exists in admin list
+        const { data: existingUser, error: checkError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+            
+        // If user doesn't exist in table yet, try creating manually
+        if (!existingUser && !checkError) {
+            console.log('User not found in users table, inserting manually');
+            
+            const { error: insertUserError } = await supabase
+                .from('users')
+                .insert({
+                    id: authData.user.id,
+                    email: email,
+                    name: email.split('@')[0],
+                    status: 'active',
+                    last_sign_in: new Date().toISOString(),
+                    preferred_language: 'he',
+                    timezone: 'Asia/Jerusalem'
+                });
+            
+            if (insertUserError) {
+                console.error('Error inserting user:', insertUserError);
+                // Don't delete user from Auth, rely on trigger to handle it on next login
+                console.warn('Continue despite error, auth user is still created');
+            } else {
+                console.log('User inserted into users table manually');
+            }
+        } else if (existingUser) {
+            console.log('User already exists in users table');
+        } else if (checkError) {
+            console.error('Error checking if user exists:', checkError);
+        }
+        
+        // 3. The code to add a user to the admins table if needed
+        if (isAdmin) {
+            // Check if the user is already in the admins table
+            const { data: existingAdmin, error: checkAdminError } = await supabase
+                .from('admins')
+                .select('id')
+                .eq('user_id', authData.user.id)
+                .maybeSingle();
+                
+            if (!existingAdmin && !checkAdminError) {
+                const { error: adminError } = await supabase
+                    .from('admins')
+                    .insert({ user_id: authData.user.id });
+                
+                if (adminError) {
+                    console.error('Error setting admin role:', adminError);
+                    // Don't throw here, user is still created as regular user
+                } else {
+                    console.log('Admin role set successfully');
+                }
+            } else if (existingAdmin) {
+                console.log('User is already an admin');
+            }
+        }
+        
+        return authData;
     } catch (error) {
-      console.error('Error in user creation:', error);
-      throw error;
+        console.error('Registration error:', error);
+        throw error;
     }
-    
-    return authData;
   },
 
   async getUserProfile(id: string) {
@@ -390,9 +426,9 @@ export const userService = {
         if (dataArray.length > 0) {
           console.log("Converted data to array:", dataArray);
           
-          // Separate regular users and admins by role field
-          const admins = dataArray.filter((user: any) => user.role === 'admin');
-          const regularUsers = dataArray.filter((user: any) => user.role !== 'admin');
+          // Separate regular users and admins by is_admin field
+          const admins = dataArray.filter((user: any) => user.is_admin === true);
+          const regularUsers = dataArray.filter((user: any) => user.is_admin !== true);
           
           console.log(`Converted data has ${regularUsers.length} users and ${admins.length} admins`);
           
@@ -402,9 +438,9 @@ export const userService = {
         return await this.fallbackGetDashboardUsers();
       }
       
-      // Separate regular users and admins by role field
-      const admins = usersData.filter((user: any) => user.role === 'admin');
-      const regularUsers = usersData.filter((user: any) => user.role !== 'admin');
+      // Separate regular users and admins by is_admin field
+      const admins = usersData.filter((user: any) => user.is_admin === true);
+      const regularUsers = usersData.filter((user: any) => user.is_admin !== true);
       
       console.log(`RPC returned ${regularUsers.length} users and ${admins.length} admins`);
       
@@ -440,10 +476,10 @@ export const userService = {
         // Even if there's an error, continue with the users we already have
       }
       
-      // Create a key of user IDs that are admins
+      // Create a set of user IDs that are admins
       const adminUserIds = new Set(adminsData?.map(admin => admin.user_id) || []);
       
-      // Filter users and add role field to each user
+      // Filter users and add is_admin field to each user
       const regularUsers = [];
       const admins = [];
       
@@ -453,17 +489,17 @@ export const userService = {
           // Find the corresponding admin details
           const adminInfo = adminsData?.find(admin => admin.user_id === user.id);
           
-          // Add the role field and other relevant fields
+          // Add the is_admin field and other relevant fields
           admins.push({
             ...user,
-            role: 'admin',
+            is_admin: true,
             department: adminInfo?.department || null
           });
         } else {
           // This is a regular user
           regularUsers.push({
             ...user,
-            role: 'user'
+            is_admin: false
           });
         }
       }

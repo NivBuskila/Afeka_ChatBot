@@ -10,10 +10,10 @@ export interface DashboardAnalytics {
   recentAdmins: any[];
 }
 
-// Helper function to count table rows
+// Helper function to count rows in a table
 async function getTableCount(tableName: string): Promise<number> {
   try {
-    // Try using count_rows function that bypasses RLS restrictions
+    // Try using count_rows function to bypass RLS limitations
     const { data, error } = await supabase.rpc('count_rows', {
       table_name: tableName
     });
@@ -33,7 +33,7 @@ async function getTableCount(tableName: string): Promise<number> {
   }
 }
 
-// Fallback function for counting rows using regular method
+// Backup function to count rows using regular method
 async function fallbackGetTableCount(tableName: string): Promise<number> {
   const { count, error } = await supabase
     .from(tableName)
@@ -62,7 +62,7 @@ export const analyticsService = {
     try {
       console.log("Starting getDashboardAnalytics...");
       
-      // Use the custom function to get users and admins
+      // Use the new function to get users and admins
       const { users: regularUsers, admins: recentAdmins } = await userService.getDashboardUsers();
       
       console.log(`Got users from userService: ${regularUsers?.length || 0} users, ${recentAdmins?.length || 0} admins`);
@@ -80,12 +80,12 @@ export const analyticsService = {
       
       console.log(`Got ${recentDocuments?.length || 0} recent documents`);
       
-      // Count rows in each table (sync with numbers from service)
+      // Count rows in each table (important to sync numbers from service)
       let totalDocuments = await getTableCount('documents');
-      let totalUsers = regularUsers.length + recentAdmins.length; // Total user count
+      let totalUsers = regularUsers.length + recentAdmins.length; // Total users
       let totalAdmins = recentAdmins.length; // Admin count
       
-      // If document count failed, try counting from the array
+      // If document count failed, try counting from array
       if (totalDocuments === 0 && recentDocuments) {
         totalDocuments = recentDocuments.length;
       }
@@ -97,7 +97,7 @@ export const analyticsService = {
         totalUsers,
         totalAdmins,
         recentDocuments: recentDocuments || [],
-        recentUsers: regularUsers || [], // Pass all users
+        recentUsers: regularUsers || [], // Pass all regular users
         recentAdmins: recentAdmins || [] // Pass all admins
       };
     } catch (error) {

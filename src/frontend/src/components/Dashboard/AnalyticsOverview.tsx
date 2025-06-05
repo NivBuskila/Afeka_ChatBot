@@ -4,7 +4,7 @@ import { BarChart3, Users, FileText, Clock, UserCog } from 'lucide-react';
 import type { Document } from '../../config/supabase';
 import { FaUsers, FaUserShield, FaFileAlt } from 'react-icons/fa';
 
-// Basic Spinner component if not exists in project
+// Create basic Spinner component if not in project
 const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {
   const sizeClasses = {
     sm: "w-4 h-4",
@@ -17,7 +17,7 @@ const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {
   );
 };
 
-// StatBox component
+// Create StatBox component
 interface StatBoxProps {
   title: string;
   value: string;
@@ -58,11 +58,6 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics,
   const { t } = useTranslation();
   
   console.log("Analytics data in AnalyticsOverview:", analytics);
-  console.log("Translations test:", {
-    totalAdmins: t('analytics.totalAdmins'),
-    activeAdmins: t('analytics.activeAdmins'),
-    users: t('analytics.users')
-  });
 
   // Check for empty or non-existent data
   const hasData = analytics && !isLoading;
@@ -108,7 +103,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics,
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-400/70">{t('סך מנהלים')}</p>
+                <p className="text-sm text-green-400/70">{t('analytics.totalAdmins')}</p>
                 <p className="text-2xl font-semibold mt-1 text-green-400">{totalAdmins}</p>
               </div>
               <div className="text-purple-500 bg-opacity-10 p-3 rounded-full">
@@ -174,7 +169,7 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics,
         {/* Recent admins */}
         <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
           <div className="border-b border-green-500/20 py-3 px-6">
-            <h3 className="text-lg font-semibold text-green-400">{t('מנהלים פעילים')}</h3>
+            <h3 className="text-lg font-semibold text-green-400">{t('analytics.activeAdmins')}</h3>
           </div>
           <div className="p-6 space-y-4">
             {hasAdmins ? (

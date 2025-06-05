@@ -20,27 +20,41 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
 
-  // Helper function to get a user-friendly file type
-  const getFriendlyFileType = (mimeType: string): string => {
-    const typeMap: { [key: string]: string } = {
-      'application/pdf': 'PDF',
-      'application/msword': 'DOC',
+  const getFileType = (type: string): string => {
+    const mimeMap: Record<string, string> = {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
-      'application/vnd.ms-excel': 'XLS',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
-      'application/vnd.ms-powerpoint': 'PPT',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+      'application/pdf': 'PDF',
       'text/plain': 'TXT',
-      'image/jpeg': 'JPEG',
-      'image/png': 'PNG',
-      // Add more mappings as needed
+      'application/msword': 'DOC'
     };
-
-    // Attempt to extract simple extension if '/' exists and no map entry found
-    const fallback = mimeType.includes('/') ? mimeType.split('/')[1].toUpperCase() : mimeType.toUpperCase();
-
-    const result = typeMap[mimeType.toLowerCase()] || fallback || 'Unknown';
-    return result;
+    
+    if (mimeMap[type]) {
+      return mimeMap[type];
+    }
+    
+    if (type.includes('/')) {
+      return type.split('/')[1];
+    }
+    
+    return type;
+  };
+  
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
   };
 
   const filteredDocuments = documents.filter(doc =>
@@ -81,58 +95,55 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             </tr>
           </thead>
           <tbody className="bg-black/20 divide-y divide-green-500/20">
-            {filteredDocuments.map((doc) => {
-              return (
-                <tr key={doc.id}>
-                  <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                    <div className={`flex items-center ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
-                      <FileText className="h-5 w-5 text-green-400/70" />
-                      <div className={i18n.language === 'en' ? 'ml-4' : 'mr-4'}>
-                        <div className="text-sm font-medium text-green-400">{doc.name}</div>
-                      </div>
+            {filteredDocuments.map((doc) => (
+              <tr key={doc.id}>
+                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+                  <div className={`flex items-center ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                    <FileText className="h-5 w-5 text-green-400/70" />
+                    <div className={i18n.language === 'en' ? 'ml-4' : 'mr-4'}>
+                      <div className="text-sm font-medium text-green-400">{doc.name}</div>
                     </div>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                    <div className="text-sm text-green-400/80">
-                      {/* Use the helper function to display the friendly file type */}
-                      {getFriendlyFileType(doc.type)}
-                    </div>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                    <div className="text-sm text-green-400/80">
-                      {(doc.size / 1024 / 1024).toFixed(2)} MB
-                    </div>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                    <div className="text-sm text-green-400/80">
-                      {new Date(doc.created_at).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                    <div className={`flex items-center ${i18n.language === 'en' ? 'space-x-4' : 'space-x-4 space-x-reverse'}`}>
-                      <button
-                        onClick={() => window.open(doc.url, '_blank')}
-                        className="text-green-400/80 hover:text-green-400"
-                      >
-                        <Download className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => onEdit(doc)}
-                        className="text-yellow-400/80 hover:text-yellow-400"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => onDelete(doc)}
-                        className="text-red-400/80 hover:text-red-400"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                  </div>
+                </td>
+                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+                  <div className="text-sm text-green-400/80">
+                    {getFileType(doc.type)}
+                  </div>
+                </td>
+                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+                  <div className="text-sm text-green-400/80">
+                    {(doc.size / 1024 / 1024).toFixed(2)} MB
+                  </div>
+                </td>
+                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+                  <div className="text-sm text-green-400/80">
+                    {new Date(doc.created_at).toLocaleDateString()}
+                  </div>
+                </td>
+                <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
+                  <div className={`flex items-center ${i18n.language === 'en' ? 'space-x-4' : 'space-x-4 space-x-reverse'}`}>
+                    <button
+                      onClick={() => downloadFile(doc.url, doc.name)}
+                      className="text-green-400/80 hover:text-green-400"
+                    >
+                      <Download className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => onEdit(doc)}
+                      className="text-yellow-400/80 hover:text-yellow-400"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(doc)}
+                      className="text-red-400/80 hover:text-red-400"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
