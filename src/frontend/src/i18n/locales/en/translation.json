@@ -129,7 +129,104 @@
       "users": "Users",
       "documents": "Documents",
       "settings": "Settings",
-      "chatbotPreview": "Chatbot Preview"
+      "chatbotPreview": "Chatbot Preview",
+      "analytics": "Analytics",
+      "overview": "Overview",
+      "administrators": "Administrators",
+      "knowledgeBase": "Knowledge Base",
+      "uploadDocuments": "Upload Documents",
+      "activeDocuments": "Active Documents"
     }
+  },
+  "rag": {
+    "management": "RAG Management",
+    "current": {
+      "profile": "Current Profile",
+      "performance": "Current Performance"
+    },
+    "available": {
+      "profiles": "Available Profiles"
+    },
+    "profile": {
+      "selector": "Profile Selector",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "performance": {
+      "monitor": "Performance Monitor"
+    },
+    "performanceMonitor": "Performance Monitor",
+    "configuration": {
+      "editor": "Configuration Editor"
+    },
+    "test": {
+      "center": "Test Center",
+      "query": "Test Query",
+      "placeholder": "Enter test query...",
+      "results": "Test Results"
+    },
+    "similarity": {
+      "threshold": "Similarity Threshold"
+    },
+    "max": {
+      "chunks": "Max Chunks"
+    },
+    "temperature": "Temperature",
+    "model": {
+      "name": "Model Name"
+    },
+    "response": {
+      "time": "Response Time",
+      "timeShort": "Response Time"
+    },
+    "accuracy": {
+      "score": "Accuracy Score"
+    },
+    "accuracyScore": "Accuracy Score",
+    "apply": {
+      "profile": "Apply Profile"
+    },
+    "run": {
+      "test": "Run Test"
+    },
+    "save": {
+      "configuration": "Save Configuration"
+    },
+    "overview": "Overview",
+    "main": {
+      "settings": "Main Settings"
+    },
+    "settings": "Settings",
+    "performance": "Performance",
+    "chunks": "Chunks",
+    "chunkSize": "Chunk Size",
+    "chunkOverlap": "Chunk Overlap",
+    "maxContext": "Max Context",
+    "semanticWeight": "Semantic Weight",
+    "focus": "Focus",
+    "accuracy": "Accuracy",
+    "switching": "Switching...",
+    "realtimeMonitor": "Real-time Performance Monitor",
+    "avgResponseTime": "Average Response Time",
+    "profilesComparison": "Profiles Comparison",
+    "profileName": "Profile Name",
+    "status": "Status",
+    "runningTest": "Running test...",
+    "query": "Query",
+    "answer": "Answer",
+    "sourcesFound": "Sources Found",
+    "loading": "Loading RAG data...",
+    "loadingShort": "Loading...",
+    "refresh": "Refresh",
+    "profileCharacteristics": "Profile Characteristics",
+    "configuration": "Advanced Configuration",
+    "currentProfileConfig": "Current Profile Configuration",
+    "expectedBehavior": "Expected Behavior",
+    "characteristics": "Characteristics",
+    "expectedSpeed": "Expected Speed",
+    "expectedQuality": "Expected Quality",
+    "bestFor": "Best For",
+    "tradeoffs": "Trade-offs",
+    "notAvailable": "Not Available"
   }
 }

@@ -20,7 +20,10 @@ import {
   Edit,
   Plus,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Brain,
+  Cpu,
+  TrendingUp
 } from 'lucide-react';
 import './AdminDashboard.css';
 import { translations } from './translations';
@@ -34,6 +37,7 @@ import { UploadArea } from './UploadArea';
 import { UploadModal } from './UploadModal';
 import { EditDocumentModal } from './EditDocumentModal';
 import { DeleteModal } from './DeleteModal';
+import { RAGManagement } from './RAG/RAGManagement';
 import { documentService } from '../../services/documentService';
 import { userService } from '../../services/userService';
 import { analyticsService, DashboardAnalytics } from '../../services/analyticsService';
@@ -195,6 +199,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       ]
     },
     {
+      id: 'rag',
+      title: t('rag.management'),
+      icon: <Brain className="w-5 h-5" />,
+      subItems: [
+        { id: 'overview', title: t('rag.overview'), icon: <Brain className="w-4 h-4" /> },
+        { id: 'profiles', title: t('rag.profile.selector'), icon: <Cpu className="w-4 h-4" /> },
+        { id: 'performance', title: t('rag.performanceMonitor'), icon: <TrendingUp className="w-4 h-4" /> },
+        { id: 'test', title: t('rag.test.center'), icon: <Search className="w-4 h-4" /> }
+      ]
+    },
+    {
       id: 'settings',
       title: t('admin.sidebar.settings'),
       icon: <Settings className="w-5 h-5" />
@@ -252,6 +267,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setActiveSubItem('overview');
     } else if (itemId === 'documents') {
       setActiveSubItem('active');
+    } else if (itemId === 'rag') {
+      setActiveSubItem('overview');
     } else {
       setActiveSubItem(null);
     }
@@ -757,6 +774,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             )}
           </div>
         );
+      case 'rag':
+        return (
+          <RAGManagement 
+            activeSubItem={activeSubItem}
+            language={language}
+            onRefresh={refreshData}
+          />
+        );
       case 'settings':
         return (
           <div className="p-6">
@@ -805,11 +830,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         activeItem={activeItem}
-        setActiveItem={handleItemClick}
+        setActiveItem={setActiveItem}
         activeSubItem={activeSubItem}
-        setActiveSubItem={(subItem) => subItem && handleSubItemClick(activeItem, subItem)}
+        setActiveSubItem={setActiveSubItem}
         language={language}
         onLogout={onLogout}
+        onItemClick={handleItemClick}
+        onSubItemClick={handleSubItemClick}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">

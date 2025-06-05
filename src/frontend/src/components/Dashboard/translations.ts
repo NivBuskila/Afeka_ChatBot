@@ -43,6 +43,26 @@ export const translations: Translations = {
     he: 'הגדרות',
     en: 'Settings'
   },
+  'rag.management': {
+    he: 'ניהול RAG',
+    en: 'RAG Management'
+  },
+  'rag.overview': {
+    he: 'סקירה כללית',
+    en: 'Overview'
+  },
+  'rag.profiles': {
+    he: 'פרופילים',
+    en: 'Profiles'
+  },
+  'rag.performance': {
+    he: 'ביצועים',
+    en: 'Performance'
+  },
+  'rag.test': {
+    he: 'בדיקות',
+    en: 'Test Center'
+  },
 
   // Analytics
   'analytics.active.users': {
@@ -244,5 +264,113 @@ export const translations: Translations = {
   'chatbot.demo.bot.response': {
     he: 'הספרייה פתוחה בימים א\'-ה\' בין השעות 08:00-20:00, ובימי ו\' בין השעות 08:00-13:00. בתקופת מבחנים יש שעות פתיחה מורחבות.',
     en: 'The library is open Sunday-Thursday from 08:00-20:00, and Friday from 08:00-13:00. During exam periods there are extended opening hours.'
+  },
+
+  // RAG Management
+  'rag.current.profile': {
+    he: 'פרופיל נוכחי',
+    en: 'Current Profile'
+  },
+  'rag.available.profiles': {
+    he: 'פרופילים זמינים',
+    en: 'Available Profiles'
+  },
+  'rag.profile.selector': {
+    he: 'בוחר פרופילים',
+    en: 'Profile Selector'
+  },
+  'rag.performance.monitor': {
+    he: 'מוניטור ביצועים',
+    en: 'Performance Monitor'
+  },
+  'rag.configuration.editor': {
+    he: 'עורך תצורה',
+    en: 'Configuration Editor'
+  },
+  'rag.test.center': {
+    he: 'מרכז בדיקות',
+    en: 'Test Center'
+  },
+  'rag.profile.description': {
+    he: 'תיאור הפרופיל',
+    en: 'Profile Description'
+  },
+  'rag.similarity.threshold': {
+    he: 'סף דמיון',
+    en: 'Similarity Threshold'
+  },
+  'rag.max.chunks': {
+    he: 'מקסימום צ\'אנקים',
+    en: 'Max Chunks'
+  },
+  'rag.temperature': {
+    he: 'טמפרטורה',
+    en: 'Temperature'
+  },
+  'rag.model.name': {
+    he: 'שם המודל',
+    en: 'Model Name'
+  },
+  'rag.response.time': {
+    he: 'זמן תגובה (ms)',
+    en: 'Response Time (ms)'
+  },
+  'rag.accuracy.score': {
+    he: 'ציון דיוק',
+    en: 'Accuracy Score'
+  },
+  'rag.apply.profile': {
+    he: 'החל פרופיל',
+    en: 'Apply Profile'
+  },
+  'rag.test.query': {
+    he: 'שאילתת בדיקה',
+    en: 'Test Query'
+  },
+  'rag.run.test': {
+    he: 'הרץ בדיקה',
+    en: 'Run Test'
+  },
+  'rag.save.configuration': {
+    he: 'שמור הגדרות',
+    en: 'Save Configuration'
+  },
+  'rag.profile.active': {
+    he: 'פעיל',
+    en: 'Active'
+  },
+  'rag.profile.inactive': {
+    he: 'לא פעיל',
+    en: 'Inactive'
+  },
+  'rag.overview': {
+    he: 'סקירה כללית',
+    en: 'Overview'
+  },
+
+  // Additional general translations
+  'Refresh': {
+    he: 'רענן',
+    en: 'Refresh'
+  },
+  'loading': {
+    he: 'טוען...',
+    en: 'Loading...'
+  },
+  'Hebrew': {
+    he: 'עברית',
+    en: 'Hebrew'
+  },
+  'English': {
+    he: 'אנגלית',
+    en: 'English'
+  },
+  'Cancel': {
+    he: 'ביטול',
+    en: 'Cancel'
+  },
+  'Delete': {
+    he: 'מחק',
+    en: 'Delete'
   }
 }; 

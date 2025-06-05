@@ -45,7 +45,7 @@ from app.config.settings import settings
 from api.vector_management import router as vector_router
 
 # Import RAG router
-from api.rag import router as rag_router
+from app.api.routes.rag import router as rag_router
 
 # --- NEW IMPORTS FOR CHAT SERVICE ---
 from app.services.chat_service import ChatService
@@ -103,7 +103,7 @@ if os.environ.get("ENV", "development") == "production":
 app.include_router(vector_router)
 
 # Include RAG router
-app.include_router(rag_router)
+app.include_router(rag_router, prefix="/api/rag")
 
 # Request timing middleware
 @app.middleware("http")

@@ -269,8 +269,8 @@ def get_maximum_accuracy_profile() -> RAGConfig:
     config = RAGConfig()
     
     # 🎯 הגדרות חיפוש אגרסיביות מקסימליות
-    config.search.SIMILARITY_THRESHOLD = 0.08    # סף נמוך ביותר אפשרי
-    config.search.HIGH_QUALITY_THRESHOLD = 0.4   # נמוך מאוד
+    config.search.SIMILARITY_THRESHOLD = 0.8     # סף גבוה יותר לאיכות מקסימלית
+    config.search.HIGH_QUALITY_THRESHOLD = 0.85  # גבוה יותר
     config.search.MAX_CHUNKS_RETRIEVED = 60      # מקסימום צ'אנקים אפשרי
     config.search.MAX_CHUNKS_FOR_CONTEXT = 50    # מקסימום בקונטקסט
     

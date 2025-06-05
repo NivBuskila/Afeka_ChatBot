@@ -129,7 +129,104 @@
       "users": "משתמשים",
       "documents": "מסמכים",
       "settings": "הגדרות",
-      "chatbotPreview": "תצוגה מקדימה של הצ'אטבוט"
+      "chatbotPreview": "תצוגה מקדימה של הצ'אטבוט",
+      "analytics": "אנליטיקס",
+      "overview": "סקירה כללית",
+      "administrators": "מנהלים",
+      "knowledgeBase": "בסיס הידע",
+      "uploadDocuments": "העלאת מסמכים",
+      "activeDocuments": "מסמכים פעילים"
     }
+  },
+  "rag": {
+    "management": "ניהול RAG",
+    "current": {
+      "profile": "פרופיל נוכחי",
+      "performance": "ביצועים נוכחיים"
+    },
+    "available": {
+      "profiles": "פרופילים זמינים"
+    },
+    "profile": {
+      "selector": "בחירת פרופיל",
+      "active": "פעיל",
+      "inactive": "לא פעיל"
+    },
+    "performance": {
+      "monitor": "מוניטור ביצועים"
+    },
+    "performanceMonitor": "מוניטור ביצועים",
+    "configuration": {
+      "editor": "עורך תצורה"
+    },
+    "test": {
+      "center": "מרכז בדיקות",
+      "query": "שאילתת בדיקה",
+      "placeholder": "הכנס שאילתה לבדיקה...",
+      "results": "תוצאות הבדיקה"
+    },
+    "similarity": {
+      "threshold": "סף דמיון"
+    },
+    "max": {
+      "chunks": "צ'אנקים מקסימליים"
+    },
+    "temperature": "טמפרטורה",
+    "model": {
+      "name": "שם המודל"
+    },
+    "response": {
+      "time": "זמן תגובה",
+      "timeShort": "זמן תגובה"
+    },
+    "accuracy": {
+      "score": "ציון דיוק"
+    },
+    "accuracyScore": "ציון דיוק",
+    "apply": {
+      "profile": "החל פרופיל"
+    },
+    "run": {
+      "test": "הרץ בדיקה"
+    },
+    "save": {
+      "configuration": "שמור הגדרות"
+    },
+    "overview": "סקירה כללית",
+    "main": {
+      "settings": "הגדרות מרכזיות"
+    },
+    "settings": "הגדרות",
+    "performance": "ביצועים",
+    "chunks": "צ'אנקים",
+    "chunkSize": "גודל צ'אנק",
+    "chunkOverlap": "חפיפת צ'אנקים",
+    "maxContext": "קונטקסט מקסימלי",
+    "semanticWeight": "משקל סמנטי",
+    "focus": "מיקוד",
+    "accuracy": "דיוק",
+    "switching": "מחליף...",
+    "realtimeMonitor": "מוניטור ביצועים בזמן אמת",
+    "avgResponseTime": "זמן תגובה ממוצע",
+    "profilesComparison": "השוואת פרופילים",
+    "profileName": "שם פרופיל",
+    "status": "סטטוס",
+    "runningTest": "מריץ בדיקה...",
+    "query": "שאילתה",
+    "answer": "תשובה",
+    "sourcesFound": "מקורות נמצאו",
+    "loading": "טוען נתוני RAG...",
+    "loadingShort": "טוען...",
+    "refresh": "רענן",
+    "profileCharacteristics": "מאפיינים",
+    "configuration": "קונפיגורציה מתקדמת",
+    "currentProfileConfig": "קונפיגורציה פרופיל נוכחי",
+    "expectedBehavior": "התנהגות צפויה",
+    "characteristics": "מאפיינים",
+    "expectedSpeed": "מהירות צפויה",
+    "expectedQuality": "איכות צפויה",
+    "bestFor": "מתאים עבור",
+    "tradeoffs": "איזונים",
+    "notAvailable": "לא זמין"
   }
 }

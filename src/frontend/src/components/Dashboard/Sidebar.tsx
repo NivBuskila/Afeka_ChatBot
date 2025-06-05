@@ -10,7 +10,11 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Brain,
+  Cpu,
+  TrendingUp,
+  Search
 } from 'lucide-react';
 import { translations } from './translations';
 
@@ -36,6 +40,8 @@ interface SidebarProps {
   setActiveSubItem: (value: string | null) => void;
   language: Language;
   onLogout: () => void;
+  onItemClick: (itemId: string) => void;
+  onSubItemClick: (itemId: string, subItemId: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,7 +52,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeSubItem,
   setActiveSubItem,
   language,
-  onLogout
+  onLogout,
+  onItemClick,
+  onSubItemClick
 }) => {
   const t = (key: string) => translations[key]?.[language] || key;
 
@@ -76,6 +84,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
+      id: 'rag',
+      title: t('rag.management'),
+      icon: <Brain className="w-5 h-5" />,
+      subItems: [
+        { id: 'overview', title: t('rag.overview'), icon: <Brain className="w-4 h-4" /> },
+        { id: 'profiles', title: t('rag.profiles'), icon: <Cpu className="w-4 h-4" /> },
+        { id: 'performance', title: t('rag.performance'), icon: <TrendingUp className="w-4 h-4" /> },
+        { id: 'test', title: t('rag.test'), icon: <Search className="w-4 h-4" /> }
+      ]
+    },
+    {
       id: 'settings',
       title: t('settings'),
       icon: <Settings className="w-5 h-5" />
@@ -83,13 +102,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const handleItemClick = (itemId: string) => {
-    setActiveItem(itemId);
-    setActiveSubItem(null);
+    onItemClick(itemId);
   };
 
   const handleSubItemClick = (itemId: string, subItemId: string) => {
-    setActiveItem(itemId);
-    setActiveSubItem(subItemId);
+    onSubItemClick(itemId, subItemId);
   };
 
   return (
