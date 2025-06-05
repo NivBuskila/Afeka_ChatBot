@@ -15,7 +15,7 @@ if __name__ == "__main__":
     from app.config import settings
     
     uvicorn.run(
-        "main:app",
+        "main_test:app",
         host=settings.host,
         port=settings.port,
         reload=settings.reload,

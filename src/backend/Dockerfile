@@ -32,7 +32,7 @@ LABEL version="1.0"
 LABEL description="Backend API service for Afeka College Regulations ChatBot"
 
 # Set working directory
-WORKDIR /app
+WORKDIR /app/backend
 
 # Install curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -47,15 +47,14 @@ COPY --from=build /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application files
-COPY --chown=appuser:appuser src/backend /app/backend
-COPY --chown=appuser:appuser requirements.txt /app/backend/requirements.txt
+COPY --chown=appuser:appuser . .
 
 # Create data directory and set permissions
 RUN mkdir -p /app/backend/data && \
     chown -R appuser:appuser /app/backend
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONDONTWRITEBYTECODE=1 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
@@ -69,5 +68,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Start application using Uvicorn with module path
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Start application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
