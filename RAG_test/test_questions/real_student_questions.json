@@ -1,0 +1,264 @@
+{
+  "name": "Real Student Questions",
+  "description": "30 שאלות שמדמות פניות אמיתיות של סטודנטים במכללת אפקה",
+  "author": "Afeka Student Services Team",
+  "created": "2025-01-05",
+  "questions": [
+    {
+      "id": 1,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "כמה שנים לוקח ללמוד הנדסה במכללה?",
+      "expected_section": "2.1",
+      "expected_content": "משך לימודי הנדסה",
+      "difficulty": "easy"
+    },
+    {
+      "id": 2,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "מה זה אומר שאני סטודנט 'על תנאי'?",
+      "expected_section": "1.5.2",
+      "expected_content": "הגדרת מעמד על תנאי",
+      "difficulty": "easy"
+    },
+    {
+      "id": 3,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "איך יודעים אם יש חובת נוכחות בקורס?",
+      "expected_section": "3.2.8",
+      "expected_content": "חובת נוכחות",
+      "difficulty": "easy"
+    },
+    {
+      "id": 4,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "מה הציון המינימלי כדי לעבור קורס?",
+      "expected_section": "9.3",
+      "expected_content": "ציון עובר",
+      "difficulty": "easy"
+    },
+    {
+      "id": 5,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "כמה זמן יש לי לסיים את התואר?",
+      "expected_section": "multiple",
+      "expected_content": "משך מקסימלי לסיום לימודים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 6,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "מה ההבדל בין קורס חובה לקורס בחירה?",
+      "expected_section": "multiple",
+      "expected_content": "סוגי קורסים",
+      "difficulty": "easy"
+    },
+    {
+      "id": 7,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "איך מחושב הממוצע שלי?",
+      "expected_section": "9.1",
+      "expected_content": "חישוב ציון ממוצע",
+      "difficulty": "medium"
+    },
+    {
+      "id": 8,
+      "category": "שאלות לימודיות בסיסיות",
+      "question": "מתי אקבל את התעודה שלי?",
+      "expected_section": "13.2",
+      "expected_content": "הוצאת תעודה",
+      "difficulty": "easy"
+    },
+    {
+      "id": 9,
+      "category": "שאלות פטורים והכרה בלימודים",
+      "question": "אני הנדסאי, איך אני יכול לקבל פטורים?",
+      "expected_section": "multiple",
+      "expected_content": "פטורים עבור הנדסאים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 10,
+      "category": "שאלות פטורים והכרה בלימודים",
+      "question": "כמה פטורים אני יכול לקבל מקסימום?",
+      "expected_section": "multiple",
+      "expected_content": "מקסימום פטורים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 11,
+      "category": "שאלות פטורים והכרה בלימודים",
+      "question": "למדתי באוניברסיטה אחרת, מה התהליך להכרה?",
+      "expected_section": "multiple",
+      "expected_content": "הכרה בלימודים קודמים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 12,
+      "category": "שאלות פטורים והכרה בלימודים",
+      "question": "כמה זמן יש לי להגיש בקשה לפטורים?",
+      "expected_section": "multiple",
+      "expected_content": "מועדי הגשת בקשות פטור",
+      "difficulty": "medium"
+    },
+    {
+      "id": 13,
+      "category": "שאלות פטורים והכרה בלימודים",
+      "question": "אם אני בעל תואר קודם, כמה פטורים אני יכול לקבל?",
+      "expected_section": "multiple",
+      "expected_content": "פטורים לבעלי תואר",
+      "difficulty": "medium"
+    },
+    {
+      "id": 14,
+      "category": "שאלות מעבר בין שנים והרחקות",
+      "question": "נכשלתי ב-3 קורסים, מה המשמעות?",
+      "expected_section": "11.5",
+      "expected_content": "השלכות כישלון",
+      "difficulty": "medium"
+    },
+    {
+      "id": 15,
+      "category": "שאלות מעבר בין שנים והרחקות",
+      "question": "איך אני יכול לעבור מ'על תנאי' ל'מן המניין'?",
+      "expected_section": "1.5.2",
+      "expected_content": "מעבר ממעמד על תנאי",
+      "difficulty": "medium"
+    },
+    {
+      "id": 16,
+      "category": "שאלות מעבר בין שנים והרחקות",
+      "question": "מה קורה אם אני נכשל באותו קורס 3 פעמים?",
+      "expected_section": "11.5",
+      "expected_content": "חזרה על קורס מספר פעמים",
+      "difficulty": "hard"
+    },
+    {
+      "id": 17,
+      "category": "שאלות מעבר בין שנים והרחקות",
+      "question": "רוצה לעבור בין תוכניות לימוד, איך עושים את זה?",
+      "expected_section": "10.1",
+      "expected_content": "מעבר בין תוכניות",
+      "difficulty": "medium"
+    },
+    {
+      "id": 18,
+      "category": "שאלות מעבר בין שנים והרחקות",
+      "question": "מה זה אומר 'התיישנות לימודים'?",
+      "expected_section": "multiple",
+      "expected_content": "התיישנות לימודים",
+      "difficulty": "hard"
+    },
+    {
+      "id": 19,
+      "category": "שאלות אנגלית ותקנים",
+      "question": "מה הציון שאני צריך באנגלית כדי לקבל פטור?",
+      "expected_section": "6.2.7.4",
+      "expected_content": "פטור מלימודי אנגלית",
+      "difficulty": "medium"
+    },
+    {
+      "id": 20,
+      "category": "שאלות אנגלית ותקנים",
+      "question": "עד מתי אני חייב לסיים את לימודי האנגלית?",
+      "expected_section": "multiple",
+      "expected_content": "מועדי סיום אנגלית",
+      "difficulty": "medium"
+    },
+    {
+      "id": 21,
+      "category": "שאלות אנגלית ותקנים",
+      "question": "כמה קורסים באנגלית אני חייב ללמוד?",
+      "expected_section": "multiple",
+      "expected_content": "מספר קורסי אנגלית נדרשים",
+      "difficulty": "medium"
+    },
+    {
+      "id": 22,
+      "category": "שאלות משמעת ועבירות",
+      "question": "חנתי במקום לא מותר, מה הקנס?",
+      "expected_section": "65.1",
+      "expected_content": "קנסות חנייה",
+      "difficulty": "easy"
+    },
+    {
+      "id": 23,
+      "category": "שאלות משמעת ועבירות",
+      "question": "איך אני יכול לערער על עונש שקיבלתי?",
+      "expected_section": "multiple",
+      "expected_content": "הליך ערעור",
+      "difficulty": "medium"
+    },
+    {
+      "id": 24,
+      "category": "שאלות משמעת ועבירות",
+      "question": "מה קורה אם יתפסו אותי מעתיק בבחינה?",
+      "expected_section": "multiple",
+      "expected_content": "עונש על העתקה",
+      "difficulty": "medium"
+    },
+    {
+      "id": 25,
+      "category": "שאלות משמעת ועבירות",
+      "question": "מי יכול להגיש נגדי תלונת משמעת?",
+      "expected_section": "multiple",
+      "expected_content": "זכות הגשת תלונה",
+      "difficulty": "medium"
+    },
+    {
+      "id": 26,
+      "category": "שאלות משמעת ועבירות",
+      "question": "האם אני יכול להיות מיוצג בדיון משמעת?",
+      "expected_section": "multiple",
+      "expected_content": "זכות לייצוג",
+      "difficulty": "medium"
+    },
+    {
+      "id": 27,
+      "category": "שאלות מעשיות והליכים",
+      "question": "איך אני מבטל או מוסיף קורס?",
+      "expected_section": "multiple",
+      "expected_content": "הליכי רישום והסרת קורסים",
+      "difficulty": "easy"
+    },
+    {
+      "id": 28,
+      "category": "שאלות מעשיות והליכים",
+      "question": "מה קורה אם אני צריך לעזוב ללימודים לתקופה?",
+      "expected_section": "multiple",
+      "expected_content": "הפסקת לימודים זמנית",
+      "difficulty": "medium"
+    },
+    {
+      "id": 29,
+      "category": "שאלות מעשיות והליכים",
+      "question": "שכחתי להירשם לקורס בזמן, עדיין אפשר?",
+      "expected_section": "multiple",
+      "expected_content": "רישום מאוחר",
+      "difficulty": "medium"
+    },
+    {
+      "id": 30,
+      "category": "שאלות מעשיות והליכים",
+      "question": "יש לי טלפון חכם בבחינה, זה מותר?",
+      "expected_section": "5.8",
+      "expected_content": "שימוש בטלפונים סלולריים",
+      "difficulty": "easy"
+    }
+  ],
+  "statistics": {
+    "total_questions": 30,
+    "difficulty_distribution": {
+      "easy": 8,
+      "medium": 18,
+      "hard": 4
+    },
+    "category_distribution": {
+      "שאלות לימודיות בסיסיות": 8,
+      "שאלות פטורים והכרה בלימודים": 5,
+      "שאלות מעבר בין שנים והרחקות": 5,
+      "שאלות אנגלית ותקנים": 3,
+      "שאלות משמעת ועבירות": 5,
+      "שאלות מעשיות והליכים": 4
+    }
+  }
+} 
