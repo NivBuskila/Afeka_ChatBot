@@ -158,6 +158,163 @@ def get_debug_profile() -> RAGConfig:
     return config
 
 
+# Profile 6: Enhanced Testing - Based on chunking analysis (AGGRESSIVE)
+def get_enhanced_testing_profile() -> RAGConfig:
+    """
+    פרופיל משופר אגרסיבי לבדיקה בהתבסס על ניתוח ממצאים
+    מתקן בעיות chunking strategy ושיפור זיהוי סעיפים קשורים
+    ** UPDATED BASED ON 66.7% FAILURE ANALYSIS **
+    """
+    config = RAGConfig()
+    
+    # 🚨 פרמטרים אגרסיביים מהניתוח החדש
+    config.search.SIMILARITY_THRESHOLD = 0.15  # הנמכה דרמטית מ-0.2 ל-0.15!
+    config.search.HIGH_QUALITY_THRESHOLD = 0.5  # הנמכה גם כאן
+    config.search.MAX_CHUNKS_RETRIEVED = 40   # הגדלה מ-30 ל-40 לפי הממצאים
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 25 # הגדלה מ-20 ל-25 לטיפול בסעיפים מפוצלים
+    
+    # 🔧 שיפור אגרסיבי של Chunking Strategy
+    config.chunk.DEFAULT_CHUNK_SIZE = 600     # קטן יותר מ-800 לזיהוי סעיפים בודדים
+    config.chunk.DEFAULT_CHUNK_OVERLAP = 300  # overlap גבוה מאוד מ-200 ל-300
+    config.chunk.TARGET_TOKENS_PER_CHUNK = 120  # פחות טוקנים מ-160 ל-120
+    
+    # 🎯 שיפור חיפוש semantic עם דגש על keyword
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.7   # הנמכה מ-0.85 ל-0.7
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.3    # הגדלה מ-0.15 ל-0.3 לזיהוי מספרי סעיפים
+    
+    # 📊 הגדלת קונטקסט מקסימלית
+    config.context.MAX_CONTEXT_TOKENS = 15000    # הגדלה מ-12000 ל-15000
+    config.context.RESERVED_TOKENS_FOR_RESPONSE = 4000  # מ-3000 ל-4000
+    config.context.CONTEXT_OVERLAP_TOKENS = 200  # הגדלה מ-100 ל-200
+    
+    # 🎯 הגדרות LLM מותאמות לדיוק מקסימלי
+    config.llm.TEMPERATURE = 0.02  # הנמכה מ-0.05 ל-0.02
+    config.llm.MAX_OUTPUT_TOKENS = 5000  # הגדלה מ-4000 ל-5000
+    
+    # 🔍 הגדרות ביצועים עם זמנים גמישים יותר
+    config.optimization.ENABLE_DETAILED_LOGGING = True
+    config.performance.LOG_SEARCH_ANALYTICS = True
+    config.performance.LOG_PERFORMANCE_METRICS = True
+    config.performance.TARGET_SEARCH_TIME_MS = 5000  # הגדלה מ-3000 ל-5000
+    config.performance.TARGET_GENERATION_TIME_MS = 8000  # הגדלה מ-5000 ל-8000
+    
+    # ⏱️ timeouts מותאמים לעיבוד מורכב מאוד
+    config.search.SEARCH_TIMEOUT_SECONDS = 120  # הגדלה מ-90 ל-120
+    config.llm.GENERATION_TIMEOUT_SECONDS = 240  # הגדלה מ-180 ל-240
+    
+    # 🎛️ הגדרות נוספות לשיפור חיפוש
+    config.search.USE_QUERY_EXPANSION = True  # הוספה
+    config.search.ENABLE_FUZZY_MATCHING = True  # הוספה
+    config.optimization.ENABLE_CHUNK_RERANKING = True  # הוספה
+    
+    return config
+
+
+# Profile 7: Optimized Testing - Based on comprehensive bug analysis
+def get_optimized_testing_profile() -> RAGConfig:
+    """
+    פרופיל מותאם על בסיס ניתוח שגיאות מקיף ובדיקה ידנית
+    מתקן בעיות טכניות ומשפר ביצועים לקבלת 90%+ דיוק
+    ** CREATED BASED ON DETAILED 73.3% ANALYSIS **
+    """
+    config = RAGConfig()
+    
+    # 🎯 הגדרות חיפוש מותאמות לניתוח החדש
+    config.search.SIMILARITY_THRESHOLD = 0.12   # נמוך מאוד לתפוס גם סעיפים קשים
+    config.search.HIGH_QUALITY_THRESHOLD = 0.6   # סף איכות סביר
+    config.search.MAX_CHUNKS_RETRIEVED = 25      # הורדה מ-40 ל-25 לשיפור מהירות
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 20    # הורדה מ-25 ל-20 לאיזון
+    
+    # 🔧 תיקון chunking לזיהוי סעיפים חסרים (6.2.8, 32.1, 16.1)
+    config.chunk.DEFAULT_CHUNK_SIZE = 700        # גדלות אופטימלית
+    config.chunk.DEFAULT_CHUNK_OVERLAP = 350     # overlap גבוה מאוד (50%)
+    config.chunk.TARGET_TOKENS_PER_CHUNK = 140   # טוקנים מותאמים
+    
+    # 📈 שיפור איזון semantic/keyword לחיפוש מספרי סעיפים
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.65  # פחות semantic
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.35   # יותר keyword לסעיפים
+    
+    # 📊 קונטקסט מאוזן לביצועים וגמישות
+    config.context.MAX_CONTEXT_TOKENS = 12000    # הורדה מ-15000 לשיפור מהירות
+    config.context.RESERVED_TOKENS_FOR_RESPONSE = 3500  # מאוזן
+    config.context.CONTEXT_OVERLAP_TOKENS = 250  # overlap גבוה
+    
+    # 🎯 LLM מאוזן לדיוק ומהירות
+    config.llm.TEMPERATURE = 0.03                # מאוד נמוך לעקביות
+    config.llm.MAX_OUTPUT_TOKENS = 4000          # הורדה מ-5000 לשיפור מהירות
+    
+    # ⚡ ביצועים מותאמים - מטרה: מתחת ל-3 שניות
+    config.performance.TARGET_SEARCH_TIME_MS = 2000   # הורדה מ-5000
+    config.performance.TARGET_GENERATION_TIME_MS = 4000  # הורדה מ-8000
+    
+    # 🔍 לוגים מפורטים לניטור איכות
+    config.optimization.ENABLE_DETAILED_LOGGING = True
+    config.performance.LOG_SEARCH_ANALYTICS = True
+    config.performance.LOG_PERFORMANCE_METRICS = True
+    
+    # 🚀 אופטימיזציות נוספות
+    config.search.SEARCH_TIMEOUT_SECONDS = 15   # timeout מאוזן
+    config.llm.GENERATION_TIMEOUT_SECONDS = 30   # timeout מאוזן
+    
+    return config
+
+
+# Profile 8: Maximum Accuracy - No performance compromises
+def get_maximum_accuracy_profile() -> RAGConfig:
+    """
+    פרופיל לדיוק מקסימלי ללא התחשבות במהירות
+    מבוסס על ביצועי שיא של 96.7% - מטרה 98-100%
+    ** EXTREME ACCURACY MODE - NO PERFORMANCE LIMITS **
+    """
+    config = RAGConfig()
+    
+    # 🎯 הגדרות חיפוש אגרסיביות מקסימליות
+    config.search.SIMILARITY_THRESHOLD = 0.08    # סף נמוך ביותר אפשרי
+    config.search.HIGH_QUALITY_THRESHOLD = 0.4   # נמוך מאוד
+    config.search.MAX_CHUNKS_RETRIEVED = 60      # מקסימום צ'אנקים אפשרי
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 50    # מקסימום בקונטקסט
+    
+    # 🔧 Chunking אופטימלי לכיסוי מקסימלי
+    config.chunk.DEFAULT_CHUNK_SIZE = 800        # גדלות מאוזנת
+    config.chunk.DEFAULT_CHUNK_OVERLAP = 400     # 50% overlap מקסימלי
+    config.chunk.TARGET_TOKENS_PER_CHUNK = 160   # טוקנים מפורטים
+    
+    # 📈 איזון לטובת semantic (זיהוי מושגים עמוק)
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.75  # דגש על semantic
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.25   # keyword משלים
+    
+    # 📊 קונטקסט מקסימלי - אפס פשרות
+    config.context.MAX_CONTEXT_TOKENS = 20000    # מקסימום גבוה
+    config.context.RESERVED_TOKENS_FOR_RESPONSE = 6000  # תשובות מפורטות
+    config.context.CONTEXT_OVERLAP_TOKENS = 500  # overlap גבוה מאוד
+    
+    # 🎯 LLM לדיוק מוחלט
+    config.llm.TEMPERATURE = 0.01                # כמעט דטרמיניסטי לחלוטין
+    config.llm.MAX_OUTPUT_TOKENS = 6000          # תשובות מקיפות
+    config.llm.TOP_P = 0.9                       # דיוק גבוה
+    
+    # ⚡ ביצועים - מהירות לא רלוונטית
+    config.performance.TARGET_SEARCH_TIME_MS = 10000   # 10 שניות - לא משנה
+    config.performance.TARGET_GENERATION_TIME_MS = 15000  # 15 שניות - לא משנה
+    
+    # 🔍 כל האופטימיזציות האפשריות
+    config.optimization.ENABLE_DETAILED_LOGGING = True
+    config.performance.LOG_SEARCH_ANALYTICS = True
+    config.performance.LOG_PERFORMANCE_METRICS = True
+    config.optimization.ENABLE_CHUNK_RERANKING = True
+    
+    # 🚀 timeouts גבוהים לעיבוד מורכב
+    config.search.SEARCH_TIMEOUT_SECONDS = 300   # 5 דקות
+    config.llm.GENERATION_TIMEOUT_SECONDS = 600  # 10 דקות
+    
+    # 🎛️ הגדרות מתקדמות לדיוק מקסימלי
+    config.search.USE_QUERY_EXPANSION = True     # הרחבת חיפוש
+    config.search.ENABLE_FUZZY_MATCHING = True   # התאמה מעורפלת
+    config.context.ENABLE_CONTEXT_RERANKING = True  # דירוג מחדש של קונטקסט
+    
+    return config
+
+
 # Dictionary of all profiles
 PROFILES = {
     "high_quality": get_high_quality_profile,
@@ -165,6 +322,9 @@ PROFILES = {
     "balanced": get_balanced_profile,
     "improved": get_improved_profile,
     "debug": get_debug_profile,
+    "enhanced_testing": get_enhanced_testing_profile,
+    "optimized_testing": get_optimized_testing_profile,
+    "maximum_accuracy": get_maximum_accuracy_profile,
 }
 
 
@@ -185,6 +345,9 @@ def list_profiles() -> Dict[str, str]:
         "balanced": "Balanced - improved settings based on analysis",
         "improved": "Optimized for missing sections - very low threshold, small chunks",
         "debug": "Debug and development - detailed logs, low thresholds",
+        "enhanced_testing": "Enhanced Testing (AGGRESSIVE) - Based on 66.7% failure analysis",
+        "optimized_testing": "Optimized Testing - Balanced performance & accuracy (73.3% analysis)",
+        "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
     }
 
 

@@ -716,16 +716,49 @@ This script allows you to:
 - Test the current configuration
 - List all available profiles
 
+#### Available Profiles
+
+1. **Enhanced Testing (AGGRESSIVE)** ⭐ **[פעיל כברירת מחדל במערכת]**
+
+   - Based on 66.7% failure analysis - AGGRESSIVE PARAMETERS
+   - Similarity threshold: 0.15 (extremely low for maximum coverage)
+   - Max chunks: 40 (increased from 30)
+   - Max context chunks: 25 (increased for complex sections)
+   - Chunk size: 600 (smaller for precise section detection)
+   - High overlap: 300 tokens (maximum continuity)
+   - Semantic/Keyword balance: 0.7/0.3 (better section number detection)
+   - Max context: 15,000 tokens (increased for comprehensive answers)
+   - Temperature: 0.02 (maximum accuracy)
+
+2. **High Quality** - Maximum accuracy, slower performance
+3. **Fast** - Quick responses, good quality
+4. **Balanced** - Good balance between speed and accuracy
+5. **Improved** - Optimized for missing sections
+6. **Debug** - Development and testing with detailed logs
+
 ### Testing Scripts
 
 Located in `RAG_test/`:
 
 ```bash
-# Run comprehensive RAG system tests
+# Run comprehensive RAG system tests with profile and question set selection
 python RAG_test/test_runner.py
 
 # Quick debugging and profile comparison
 python RAG_test/debug_rag.py
 ```
 
-Test results are saved in `RAG_test/results/` with detailed reports and analytics.
+The test runner now includes:
+
+- **Profile Selection**: Choose which RAG configuration to test
+- **Question Set Selection**: Choose from multiple test question sets:
+  - Basic RAG Test Set (30 mixed questions)
+  - Detailed Accuracy Test Set (30 comprehensive accuracy questions)
+- **Comprehensive Reports**: Detailed analysis with profile information
+- **Chunking Analysis**: Specific insights into chunk selection and scoring
+
+Test results are saved in `RAG_test/results/` with:
+
+- Detailed text reports with profile and question set information
+- JSON raw data for further analysis
+- Chunk analysis for debugging retrieval issues

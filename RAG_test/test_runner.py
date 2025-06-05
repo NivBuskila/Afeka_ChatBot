@@ -29,8 +29,8 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 try:
-    from src.ai.services.rag_service import RAGService
     from app.config.settings import settings
+    # לא נייבא את RAGService כאן - נעשה זאת בפונקציית האתחול
 except ImportError as e:
     print(f"שגיאה בייבוא מודולים: {e}")
     print("וודא שאתה מריץ את הסקריפט מהתיקייה הראשית של הפרויקט")
@@ -42,7 +42,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('RAG_test/results/test_debug.log', encoding='utf-8')
+        logging.FileHandler('results/test_debug.log', encoding='utf-8')
     ]
 )
 
@@ -51,16 +51,75 @@ logger = logging.getLogger(__name__)
 class RAGTester:
     """מחלקה לבדיקת מערכת RAG"""
     
-    def __init__(self):
+    def __init__(self, auto_select=True):
         self.rag_service = None
         self.test_results = []
         self.start_time = None
         self.end_time = None
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.selected_question_set = None
+        self.selected_profile = None
+        self.multiple_sets_mode = False
+        self.all_question_sets = []
         
-        # בחירת סט שאלות
-        self.questions = self.select_question_set()
+        if auto_select:
+            # בחירת פרופיל
+            self.selected_profile = self.select_rag_profile()
+            
+            # בחירת סט שאלות
+            self.questions = self.select_question_set()
+        else:
+            self.questions = []
+    
+    def select_rag_profile(self) -> str:
+        """בחירת פרופיל RAG לבדיקה"""
+        try:
+            from src.ai.config.rag_config_profiles import list_profiles
+            
+            profiles_info = list_profiles()
+            
+            print("\n🔧 Available RAG Profiles:")
+            print("=" * 50)
+            
+            # הצגת הפרופילים הזמינים
+            profile_list = list(profiles_info.items())
+            for i, (profile_name, description) in enumerate(profile_list, 1):
+                print(f"{i}. {profile_name.replace('_', ' ').title()}")
+                print(f"   📝 {description}")
+                print()
+            
+            # בחירת המשתמש
+            while True:
+                try:
+                    choice = input(f"Please select a RAG profile (1-{len(profile_list)}): ").strip()
+                    
+                    if choice.lower() in ['quit', 'exit', 'q']:
+                        print("👋 Exiting...")
+                        sys.exit(0)
+                    
+                    choice_num = int(choice)
+                    if 1 <= choice_num <= len(profile_list):
+                        selected_profile_name = profile_list[choice_num - 1][0]
+                        selected_profile_desc = profile_list[choice_num - 1][1]
+                        
+                        print(f"\n✅ Selected Profile: {selected_profile_name.replace('_', ' ').title()}")
+                        print(f"📝 {selected_profile_desc}")
+                        print()
+                        
+                        return selected_profile_name
+                    else:
+                        print(f"❌ Please enter a number between 1 and {len(profile_list)}")
+                        
+                except ValueError:
+                    print("❌ Please enter a valid number")
+                except KeyboardInterrupt:
+                    print("\n👋 Exiting...")
+                    sys.exit(0)
+                    
+        except ImportError as e:
+            print(f"⚠️  Could not load profiles: {e}")
+            print("🔄 Using default profile...")
+            return "balanced"
     
     def select_question_set(self) -> List[Dict[str, Any]]:
         """בחירת סט שאלות לבדיקה"""
@@ -107,26 +166,58 @@ class RAGTester:
         if not available_sets:
             raise ValueError("No valid question sets found")
         
+        # הוספת אופציה לכל הסטים
+        print(f"{len(available_sets) + 1}. 🔄 ALL QUESTION SETS IN SEQUENCE")
+        print(f"   📝 Run all question sets one after another")
+        total_questions = sum(s['question_count'] for s in available_sets)
+        print(f"   📊 {total_questions} questions total")
+        print()
+        
         # בחירת המשתמש
         while True:
             try:
-                choice = input(f"Please select a question set (1-{len(available_sets)}): ").strip()
+                choice = input(f"Please select a question set (1-{len(available_sets) + 1}): ").strip()
                 
                 if choice.lower() in ['quit', 'exit', 'q']:
                     print("👋 Exiting...")
                     sys.exit(0)
                 
                 choice_num = int(choice)
-                if 1 <= choice_num <= len(available_sets):
+                
+                # אופציה של כל הסטים
+                if choice_num == len(available_sets) + 1:
+                    self.selected_question_set = "All Question Sets Combined"
+                    self.multiple_sets_mode = True
+                    self.all_question_sets = available_sets
+                    
+                    print(f"\n✅ Selected: ALL QUESTION SETS")
+                    print(f"📊 Will run {len(available_sets)} sets with {total_questions} total questions")
+                    print(f"🔄 Sequence: {' → '.join([s['name'] for s in available_sets])}")
+                    
+                    # איחוד כל השאלות
+                    all_questions = []
+                    for set_info in available_sets:
+                        for question in set_info['data']['questions']:
+                            # הוספת מידע על הסט מהנושא
+                            question_with_set = question.copy()
+                            question_with_set['source_set'] = set_info['name']
+                            question_with_set['set_index'] = set_info['index']
+                            all_questions.append(question_with_set)
+                    
+                    return all_questions
+                
+                # בחירת סט יחיד
+                elif 1 <= choice_num <= len(available_sets):
                     selected_set = available_sets[choice_num - 1]
                     self.selected_question_set = selected_set['name']
+                    self.multiple_sets_mode = False
                     
                     print(f"\n✅ Selected: {selected_set['name']}")
                     print(f"📊 Loading {selected_set['question_count']} questions...")
                     
                     return selected_set['data']['questions']
                 else:
-                    print(f"❌ Please enter a number between 1 and {len(available_sets)}")
+                    print(f"❌ Please enter a number between 1 and {len(available_sets) + 1}")
                     
             except ValueError:
                 print("❌ Please enter a valid number")
@@ -137,10 +228,33 @@ class RAGTester:
     async def initialize_services(self):
         """אתחול שירותים"""
         try:
-            logger.info("מאתחל שירותי RAG...")
-            # 🎯 שימוש בפרופיל מרכזי - ללא hard-coding!
-            self.rag_service = RAGService()  # יטען את הפרופיל המרכזי אוטומטית
-            logger.info("שירותים אותחלו בהצלחה")
+            logger.info(f"מאתחל שירותי RAG עם פרופיל: {self.selected_profile}...")
+            
+            # טעינת הפרופיל שנבחר
+            from src.ai.config.rag_config_profiles import get_profile
+            profile_config = get_profile(self.selected_profile)
+            
+            # מחיקת מודולים שכבר נטענו
+            import sys
+            modules_to_clear = [
+                'src.ai.config.rag_config',
+                'src.ai.services.rag_service',
+                'src.ai.config.current_profile'
+            ]
+            for module in modules_to_clear:
+                if module in sys.modules:
+                    del sys.modules[module]
+            
+            # יצירת RAGService עם הפרופיל שנבחר ישירות
+            from src.ai.services.rag_service import RAGService
+            self.rag_service = RAGService(config_profile=self.selected_profile)
+            
+            # וידוא שהפרופיל נטען
+            logger.info(f"✅ שירותים אותחלו בהצלחה עם פרופיל: {self.selected_profile}")
+            logger.info(f"🎯 הגדרות נטענו: threshold={profile_config.search.SIMILARITY_THRESHOLD}, chunks={profile_config.search.MAX_CHUNKS_RETRIEVED}")
+            logger.info(f"🔍 מקסימלי צ'אנקים בקונטקסט: {profile_config.search.MAX_CHUNKS_FOR_CONTEXT}")
+            logger.info(f"📊 גודל צ'אנק: {profile_config.chunk.DEFAULT_CHUNK_SIZE}, overlap: {profile_config.chunk.DEFAULT_CHUNK_OVERLAP}")
+            
         except Exception as e:
             logger.error(f"שגיאה באתחול שירותים: {e}")
             raise
@@ -150,8 +264,10 @@ class RAGTester:
         return {
             "timestamp": self.timestamp,
             "selected_question_set": self.selected_question_set,
+            "selected_profile": self.selected_profile,
             "total_questions_in_set": len(self.questions),
             "rag_settings": {
+                "profile_used": self.selected_profile,
                 "max_context_tokens": getattr(self.rag_service, 'max_context_tokens', 'N/A'),
                 "similarity_threshold": getattr(self.rag_service, 'similarity_threshold', 'N/A'),
                 "max_chunks": getattr(self.rag_service, 'max_chunks', 'N/A'),
@@ -238,8 +354,10 @@ class RAGTester:
     
     def assess_accuracy(self, question_data: Dict[str, Any], rag_result: Dict[str, Any], chunks_info: List[Dict]) -> Dict[str, Any]:
         """הערכת דיוק התשובה"""
-        answer = rag_result.get('answer', '').lower()
-        expected_section = question_data['expected_section'].lower()
+        answer = rag_result.get('answer', '') or ''
+        answer = answer.lower() if answer else ''
+        expected_section = question_data.get('expected_section', '') or ''
+        expected_section = expected_section.lower() if expected_section else ''
         
         # בדיקה אם הסעיף הנכון נמצא
         correct_section = False
@@ -248,7 +366,8 @@ class RAGTester:
             # בדיקה גם בצ'אנקים
             if not correct_section:
                 for chunk in chunks_info:
-                    if expected_section in chunk['section_detected'].lower():
+                    section_detected = chunk.get('section_detected', '') or ''
+                    if section_detected and expected_section in section_detected.lower():
                         correct_section = True
                         break
         elif expected_section == 'multiple':
@@ -331,6 +450,17 @@ class RAGTester:
             if result.get('accuracy_assessment', {}).get('overall_success', False):
                 categories_stats[category]['correct'] += 1
         
+        # סטטיסטיקות לפי סט שאלות (אם רץ על כל הסטים)
+        sets_stats = {}
+        if self.multiple_sets_mode:
+            for result in successful_tests:
+                source_set = result.get('source_set', 'לא זוהה')
+                if source_set not in sets_stats:
+                    sets_stats[source_set] = {'total': 0, 'correct': 0}
+                sets_stats[source_set]['total'] += 1
+                if result.get('accuracy_assessment', {}).get('overall_success', False):
+                    sets_stats[source_set]['correct'] += 1
+        
         return {
             "total_questions": total_questions,
             "correct_answers": correct_answers,
@@ -341,7 +471,9 @@ class RAGTester:
             "error_rate": (wrong_answers / total_questions) * 100,
             "avg_response_time_ms": round(avg_response_time, 2),
             "categories_stats": categories_stats,
-            "test_duration_seconds": (self.end_time - self.start_time).total_seconds()
+            "sets_stats": sets_stats if self.multiple_sets_mode else {},
+            "test_duration_seconds": (self.end_time - self.start_time).total_seconds(),
+            "multiple_sets_mode": self.multiple_sets_mode
         }
     
     def generate_recommendations(self, stats: Dict[str, Any]) -> List[str]:
@@ -420,6 +552,7 @@ class RAGTester:
 📅 תאריך: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}
 ⏱️ משך בדיקה: {stats.get('test_duration_seconds', 0):.1f} שניות
 🔧 גרסת מערכת: v2.1.3
+🎛️ פרופיל RAG: {self.selected_profile.replace('_', ' ').title()}
 📋 סט שאלות: {self.selected_question_set}
 🔢 מספר שאלות: {len(self.questions)}
 
@@ -446,6 +579,17 @@ class RAGTester:
         for category, cat_stats in stats.get('categories_stats', {}).items():
             success_rate = (cat_stats['correct'] / cat_stats['total']) * 100 if cat_stats['total'] > 0 else 0
             report += f"\n🔹 {category}: {cat_stats['correct']}/{cat_stats['total']} ({success_rate:.1f}%)"
+        
+        # סטטיסטיקות לפי סט שאלות (אם זה multiple sets mode)
+        if stats.get('multiple_sets_mode', False) and stats.get('sets_stats'):
+            report += f"""
+
+📊 ביצועים לפי סט שאלות:
+----------------------------------------"""
+            sets_stats = stats.get('sets_stats', {})
+            for set_name, set_stats in sets_stats.items():
+                success_rate = (set_stats['correct'] / set_stats['total']) * 100 if set_stats['total'] > 0 else 0
+                report += f"\n🔸 {set_name}: {set_stats['correct']}/{set_stats['total']} ({success_rate:.1f}%)"
         
         report += f"""
 

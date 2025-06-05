@@ -12,8 +12,8 @@ import sys
 import os
 from pathlib import Path
 
-# Add project root to path for src imports (go up 3 levels: scripts -> ai -> src -> project_root)
-project_root = Path(__file__).parent.parent.parent.parent
+# Add project root to path for src imports
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Add backend to path for app imports

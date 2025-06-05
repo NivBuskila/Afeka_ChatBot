@@ -13,7 +13,7 @@ import os
 from typing import Optional
 
 # הפרופיל הנוכחי - זה המקום היחיד שמגדיר את הפרופיל!
-CURRENT_PROFILE = "improved"
+CURRENT_PROFILE = "enhanced_testing"
 
 # אפשרות לגובר את הפרופיל דרך משתנה סביבה
 ENVIRONMENT_PROFILE = os.getenv("RAG_PROFILE")
