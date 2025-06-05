@@ -8,6 +8,31 @@ import sys
 from pathlib import Path
 import dotenv
 from flask_cors import CORS  # הוספת ייבוא של flask_cors
+from typing import List, Dict
+
+# ✅ STANDARDIZED: Load environment from project root
+project_root = Path(__file__).parent.parent.parent
+env_file = project_root / ".env"
+
+if env_file.exists():
+    dotenv.load_dotenv(env_file, override=True)
+    print(f"✅ AI Service loaded environment from: {env_file}")
+else:
+    print(f"⚠️  Environment file not found: {env_file}")
+    # Try legacy loading as fallback
+    dotenv.load_dotenv(override=True)
+
+# ✅ STANDARDIZED: Environment variable handling
+def get_required_env(var_name: str, default: str = None) -> str:
+    """Get required environment variable with proper error handling"""
+    value = os.environ.get(var_name, default)
+    if not value:
+        raise ValueError(f"Required environment variable {var_name} not found")
+    return value
+
+def get_optional_env(var_name: str, default: str = None) -> str:
+    """Get optional environment variable with default"""
+    return os.environ.get(var_name, default)
 
 # הוספת הנתיב לתיקיית backend כדי לאפשר גישה למודולים של RAG
 backend_path = Path(__file__).parent.parent / "backend"
@@ -25,20 +50,22 @@ try:
     # Initialize document processors
     doc_processor = DocumentProcessor()
     enhanced_processor = EnhancedProcessor()
+    print(f"✅ RAG modules loaded successfully")
 except ImportError as e:
-    logging.warning(f"RAG modules could not be imported: {e}")
+    print(f"⚠️  RAG modules could not be imported: {e}")
+    print(f"💡 AI service will run in basic mode without RAG")
     has_rag = False
     enhanced_processor = None
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG if get_optional_env('DEBUG', 'False').lower() == 'true' else logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # Initialize Gemini API
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GEMINI_API_KEY = get_required_env('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not found in environment variables, using default")
     GEMINI_API_KEY = 'AIzaSyBBw-VlqWekqnd_vPXCS7LSuKfrkbOro7s'
@@ -51,9 +78,9 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Get environment settings
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-API_RATE_LIMIT = int(os.environ.get('API_RATE_LIMIT', '60'))  # Requests per minute per IP
-MAX_MESSAGE_LENGTH = int(os.environ.get('MAX_MESSAGE_LENGTH', '2000'))  # Maximum length of input message
+DEBUG = get_optional_env('DEBUG', 'False').lower() == 'true'
+API_RATE_LIMIT = int(get_optional_env('API_RATE_LIMIT', '60'))  # Requests per minute per IP
+MAX_MESSAGE_LENGTH = int(get_optional_env('MAX_MESSAGE_LENGTH', '2000'))  # Maximum length of input message
 
 # Add security headers to all responses
 @app.after_request
@@ -68,11 +95,18 @@ def add_security_headers(response):
 # Basic route for health checks
 @app.route('/')
 def health_check():
-    """Basic health check endpoint"""
+    """Enhanced health check endpoint"""
     return jsonify({
-        "status": "ok", 
+        "status": "ok",
         "service": "ai-service",
-        "rag_support": has_rag
+        "version": "1.0.0",
+        "rag_support": has_rag,
+        "environment": {
+            "debug": DEBUG,
+            "supabase_connected": bool(get_required_env('SUPABASE_URL') and get_required_env('SUPABASE_KEY')),
+            "gemini_configured": bool(GEMINI_API_KEY)
+        },
+        "timestamp": time.time()
     })
 
 # RAG endpoints
@@ -389,106 +423,44 @@ def rag_document_status(document_id):
 # Main chat endpoint
 @app.route('/chat', methods=['POST'])
 def chat():
-    """
-    Process user message with Gemini API
-    """
+    """Process user message with conversation context"""
+    
+    # ✅ ADD THIS: Start timing
     request_start_time = time.time()
     
     try:
-        # Log raw request for debugging
-        logger.info(f"Request content type: {request.content_type}")
-        
-        # Get raw data and decode manually if needed
-        try:
-            # Try parsing as JSON first
-            data = request.get_json(force=True, silent=True)
-            if not data and request.data:
-                # If JSON parsing failed, try manual decoding
-                raw_data = request.data.decode('utf-8', errors='replace')
-                logger.info(f"Raw data (length {len(raw_data)}): {raw_data[:100]}...")
-                import json
-                data = json.loads(raw_data)
-        except Exception as json_err:
-            logger.error(f"JSON parsing error: {str(json_err)}")
-            # If JSON parsing failed completely, check raw data
-            data = {}
-            if request.data:
-                logger.info(f"Raw request data (bytes): {request.data[:100]}")
-        
-        if not data or 'message' not in data:
-            logger.warning("Invalid request: missing message field")
-            response = jsonify({
-                "error": "Message field is required"
-            })
-            response.headers['Content-Type'] = 'application/json; charset=utf-8'
-            return response, 400
-            
+        data = request.get_json(force=True, silent=True)
         user_message = data['message']
-        logger.info(f"User message type: {type(user_message)}")
+        context = data.get('context', [])  # ✅ Accept context
         
-        # Ensure message is properly decoded if it's bytes
-        if isinstance(user_message, bytes):
-            user_message = user_message.decode('utf-8', errors='replace')
+        # Build conversation prompt with context
+        full_prompt = _build_contextual_prompt(user_message, context)
         
-        # Validate message length
-        if not user_message or len(user_message) > MAX_MESSAGE_LENGTH:
-            logger.warning(f"Message too long: {len(user_message)} chars (max: {MAX_MESSAGE_LENGTH})")
-            response = jsonify({
-                "error": f"Message too long (max {MAX_MESSAGE_LENGTH} characters)"
-            })
-            response.headers['Content-Type'] = 'application/json; charset=utf-8'
-            return response, 400
-                
-        logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
+        # Initialize AI response
+        ai_response = "מצטער, לא הצלחתי לעבד את הבקשה"
         
-        # Use enhanced RAG if available
-        ai_response = "מצטער, אירעה שגיאה בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר."
-        rag_used = False
-        rag_count = 0
-        
-        if has_rag and enhanced_processor and ('use_rag' not in data or data.get('use_rag', True)):
-            try:
-                logger.info("Using enhanced RAG system for response generation")
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                # Use the enhanced search and answer function
-                enhanced_result = loop.run_until_complete(
-                    enhanced_processor.search_and_answer(user_message, max_results=3)
-                )
-                
-                ai_response = enhanced_result.get('answer', ai_response)
-                rag_used = True
-                rag_count = len(enhanced_result.get('sources', []))
-                logger.info(f"Enhanced RAG generated response with {rag_count} sources")
-                
-            except Exception as rag_err:
-                logger.error(f"Error using enhanced RAG: {str(rag_err)}")
-                # Fallback to regular Gemini without RAG
-                try:
-                    model = genai.GenerativeModel("gemini-2.0-flash")
-                    gemini_response = model.generate_content(user_message)
-                    ai_response = gemini_response.text
-                    logger.info("Fallback to basic Gemini response")
-                except Exception as gemini_error:
-                    logger.error(f"Gemini fallback also failed: {str(gemini_error)}")
+        # Process with enhanced RAG
+        if has_rag and enhanced_processor:
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            enhanced_result = loop.run_until_complete(
+                enhanced_processor.search_and_answer(full_prompt, max_results=3)
+            )
+            ai_response = enhanced_result.get('answer', ai_response)
         else:
-            # Use basic Gemini without RAG
-            try:
-                model = genai.GenerativeModel("gemini-2.0-flash")
-                gemini_response = model.generate_content(user_message)
-                ai_response = gemini_response.text
-                logger.info("Using basic Gemini response (no RAG)")
-            except Exception as gemini_error:
-                logger.error(f"Gemini API error: {str(gemini_error)}")
+            # Use Gemini with context
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            gemini_response = model.generate_content(full_prompt)
+            ai_response = gemini_response.text
         
         # Prepare the response
         result = {
             "result": ai_response,
-            "processing_time": round(time.time() - request_start_time, 3),
-            "rag_used": rag_used,
-            "rag_count": rag_count
+            "processing_time": round(time.time() - request_start_time, 3),  # ✅ NOW WORKS
+            "rag_used": has_rag,
+            "rag_count": 0
         }
         
         logger.info(f"Message processed successfully in {result['processing_time']}s")
@@ -507,19 +479,41 @@ def chat():
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
         return response, 500
 
+def _build_contextual_prompt(user_message: str, context: List[Dict]) -> str:
+    """Build prompt with conversation context"""
+    
+    if not context:
+        return user_message
+    
+    prompt_parts = ["Previous conversation context:"]
+    
+    for msg in context:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        prompt_parts.append(f"{role}: {msg['content']}")
+    
+    prompt_parts.extend([
+        "\nCurrent question:",
+        user_message,
+        "\nPlease respond considering the conversation context above."
+    ])
+    
+    return "\n".join(prompt_parts)
+
 if __name__ == '__main__':
     # Set up server start time for uptime tracking
     app.start_time = time.time()
     
-    # Get port from environment variable or use default
-    port = int(os.environ.get('PORT', 5000))
+    # Get port from environment variable
+    port = int(get_optional_env('AI_PORT', '5000'))
     
     # Run the Flask app
-    logger.info(f"Starting AI service on port {port}")
-    logger.info(f"RAG support: {'Enabled' if has_rag else 'Disabled'}")
+    logger.info(f"🚀 Starting AI service on port {port}")
+    logger.info(f"🔧 RAG support: {'Enabled' if has_rag else 'Disabled'}")
+    logger.info(f"🔧 Debug mode: {DEBUG}")
+    
     app.run(
-        host='0.0.0.0', 
-        port=port, 
+        host='0.0.0.0',
+        port=port,
         debug=DEBUG,
         threaded=True
     ) 

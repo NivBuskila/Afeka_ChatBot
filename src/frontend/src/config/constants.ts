@@ -6,8 +6,13 @@ export const CHAT_CONFIG = {
   } as const;
 
 export const API_CONFIG = {
-  CHAT_ENDPOINT: 'http://localhost:5000/api/chat',
-  DOCUMENTS_ENDPOINT: 'http://localhost:5000/api/documents',
-  HEALTH_ENDPOINT: 'http://localhost:5000/api/health',
+  // Route through backend proxy endpoints (port 8000)
+  CHAT_ENDPOINT: 'http://localhost:8000/api/proxy/ai/chat',
+  SEARCH_ENDPOINT: 'http://localhost:8000/api/proxy/ai/search',
+  HYBRID_SEARCH_ENDPOINT: 'http://localhost:8000/api/proxy/ai/search/hybrid',
+  ENHANCED_SEARCH_ENDPOINT: 'http://localhost:8000/api/proxy/ai/search/enhanced',
+  DOCUMENTS_ENDPOINT: 'http://localhost:8000/api/proxy/documents',
+  HEALTH_ENDPOINT: 'http://localhost:8000/api/proxy/ai/health',
+  RAG_STATS_ENDPOINT: 'http://localhost:8000/api/proxy/ai/stats',
   DEFAULT_TIMEOUT: 30000,
 } as const;

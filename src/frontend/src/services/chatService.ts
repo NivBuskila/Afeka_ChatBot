@@ -417,6 +417,57 @@ const chatService = {
       console.error('Exception deleting chat session:', error);
       return false;
     }
+  },
+
+  /**
+   * Sends a chat message to the backend
+   * @param message The message content
+   * @param sessionId The chat session ID
+   * @param userId The user ID
+   * @returns The chat response
+   */
+  sendChatMessage: async (
+    message: string,
+    sessionId?: string,
+    userId?: string
+  ): Promise<ChatResponse> => {
+    try {
+      const payload = {
+        message: message.trim(),
+        use_rag: true,
+        ...(sessionId && { session_id: sessionId }),
+        ...(userId && { user_id: userId })
+      };
+
+      console.log('Sending chat message with payload:', payload);
+
+      const response = await fetch(`${BACKEND_URL}/api/proxy/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Chat API response:', data);
+
+      return {
+        response: data.response || data.result || 'No response received',
+        processing_time: data.processing_time || 0,
+        rag_used: data.rag_used || false,
+        rag_count: data.rag_count || 0,
+        session_id: data.session_id || sessionId,
+        error: data.error
+      };
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+      throw error;
+    }
   }
 };
 

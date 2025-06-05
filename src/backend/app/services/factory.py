@@ -6,7 +6,7 @@ from app.repositories.factory import RepositoryFactory
 from .chat_service import ChatService
 from .document_service import DocumentService
 from .user_service import UserService
-from .ai_service import AIService
+from .ai_service import AIServiceClient
 
 
 class ServiceFactory:
@@ -14,7 +14,36 @@ class ServiceFactory:
     
     def __init__(self, repository_factory: RepositoryFactory):
         self.repo_factory = repository_factory
-        self._ai_service = None
+        self._ai_service: Optional[AIServiceClient] = None
+        self._chat_service: Optional[ChatService] = None
+        self._document_service: Optional[DocumentService] = None
+        self._user_service: Optional[UserService] = None
+    
+    @property
+    def ai_service(self) -> AIServiceClient:
+        """AI service property for dependency injection"""
+        return self.get_ai_service()
+    
+    @property
+    def chat_service(self) -> ChatService:
+        """Chat service property for dependency injection"""
+        if not self._chat_service:
+            self._chat_service = self.create_chat_service()
+        return self._chat_service
+    
+    @property
+    def document_service(self) -> DocumentService:
+        """Document service property for dependency injection"""
+        if not self._document_service:
+            self._document_service = self.create_document_service()
+        return self._document_service
+    
+    @property
+    def user_service(self) -> UserService:
+        """User service property for dependency injection"""
+        if not self._user_service:
+            self._user_service = self.create_user_service()
+        return self._user_service
     
     def create_chat_service(self) -> ChatService:
         """Create ChatService instance"""
@@ -37,11 +66,22 @@ class ServiceFactory:
             user_repository=self.repo_factory.create_user_repository()
         )
     
-    def get_ai_service(self) -> AIService:
-        """Get AI service instance (singleton)"""
+    def get_ai_service(self) -> AIServiceClient:
+        """Get AI service client instance (singleton)"""
         if not self._ai_service:
-            self._ai_service = AIService()
+            self._ai_service = AIServiceClient()
         return self._ai_service
+    
+    def reset_ai_service(self):
+        """Reset AI service instance (useful for testing)"""
+        self._ai_service = None
+    
+    def reset_all_services(self):
+        """Reset all service instances (useful for testing)"""
+        self._ai_service = None
+        self._chat_service = None
+        self._document_service = None
+        self._user_service = None
 
 
 # Global factory instance
@@ -60,3 +100,11 @@ def init_service_factory(repository_factory: RepositoryFactory) -> ServiceFactor
     global service_factory
     service_factory = ServiceFactory(repository_factory)
     return service_factory
+
+
+def reset_service_factory():
+    """Reset the global service factory (for testing)"""
+    global service_factory
+    if service_factory:
+        service_factory.reset_all_services()
+    service_factory = None

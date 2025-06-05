@@ -2,41 +2,48 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
-  // Load env vars from the parent directory (.env file)
-  const env = loadEnv(mode, '../../', '')
+  // ✅ FIXED: Correct path back to project root (src/frontend -> Apex/Afeka_ChatBot)
+  const env = loadEnv(mode, '../../', '')  // Back to original working path
   
   // Use env vars to check if we should skip TypeScript checks
   const skipTypeCheck = process.env.VITE_SKIP_TS_CHECK === 'true'
 
   return {
     plugins: [react()],
-    // Expose specific environment variables to the frontend
+    
+    // ✅ FIXED: Use original variable names that actually get loaded
     define: {
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.SUPABASE_URL),
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.SUPABASE_URL),           // Not env.VITE_SUPABASE_URL
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY), // Not env.VITE_SUPABASE_ANON_KEY
     },
-    // Disable type checking in build process when indicated
+    
+    // Build configuration
     build: {
-      // Skip type checking when env var is set
       typescript: {
         ignoreBuildErrors: skipTypeCheck
       }
     },
+    
     server: {
-      // Allow connections from outside
       host: '0.0.0.0',
-      // Accept connections on any network interface
       cors: true,
-      // Add proxy configuration for API requests
+      // Proxy API requests to backend (port 8000)
       proxy: {
         '/api': {
-          target: 'http://localhost:5000',
+          target: 'http://localhost:8000',
           changeOrigin: true,
-          secure: false
-        },
-        '/chat': {
-          target: 'http://localhost:5000',
-          changeOrigin: true
+          secure: false,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('Proxy error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log('Sending Request to the Target:', req.method, req.url);
+            });
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
+              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            });
+          },
         }
       }
     }

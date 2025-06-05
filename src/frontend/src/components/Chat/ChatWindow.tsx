@@ -421,24 +421,72 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   // Helper function to process bot response
   const processBotResponse = async (userMessage: Message, sessionId: string, userId: string) => {
     try {
-      // Call backend API
+      // ✅ ENHANCED: Prepare request payload with context information
+      const requestPayload = {
+        message: userMessage.content,
+        session_id: sessionId,    // ✅ ADD: Send session ID for context retrieval  
+        user_id: userId,          // ✅ ADD: Send user ID for context retrieval
+        use_rag: true            // ✅ ADD: Enable RAG functionality
+      };
+
+      console.log('Sending chat request with context:', {
+        message_length: userMessage.content.length,
+        session_id: sessionId,
+        user_id: userId,
+        endpoint: API_CONFIG.CHAT_ENDPOINT
+      });
+
+      // Call backend API with context information
       const response = await fetch(API_CONFIG.CHAT_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify(requestPayload),  // ✅ ENHANCED: Send full payload
         signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
       });
 
       let botContent = '';
+      let responseData: any = {};
       
       if (response.ok) {
-        const data = await response.json();
-        console.log('API response:', data);
-        botContent = data.message || data.result || data.response || data.answer || "Sorry, I couldn't process your request.";
+        responseData = await response.json();
+        console.log('API response:', responseData);
+        
+        // ✅ ENHANCED: Handle different response formats
+        botContent = responseData.response || 
+                     responseData.result || 
+                     responseData.answer || 
+                     responseData.message || 
+                     "Sorry, I couldn't process your request.";
+                     
+        // ✅ ADD: Log context usage information
+        if (responseData.rag_used) {
+          console.log(`✅ RAG was used, found ${responseData.rag_count || 0} relevant documents`);
+        }
+        
+        if (responseData.processing_time) {
+          console.log(`⏱️ Processing time: ${responseData.processing_time}s`);
+        }
+        
+        // ✅ ADD: Check for errors in successful response
+        if (responseData.error) {
+          console.warn('API returned error in successful response:', responseData.error);
+          botContent = `מצטער, השירות זמנית לא זמין. אנא נסה שוב מאוחר יותר.\nSorry, the service is temporarily unavailable. Please try again later.`;
+        }
       } else {
-        botContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
+        console.error('API request failed:', response.status, response.statusText);
+        
+        // ✅ ENHANCED: Better error handling based on status
+        if (response.status === 503) {
+          botContent = 'השירות זמנית לא זמין. אנא נסה שוב מאוחר יותר.';
+        } else if (response.status === 429) {
+          botContent = 'יותר מדי בקשות. אנא המתן רגע ונסה שוב.';
+        } else if (response.status >= 500) {
+          botContent = 'שגיאת שרת פנימית. אנא נסה שוב מאוחר יותר.';
+        } else {
+          botContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
+        }
       }
       
       // Create bot reply
@@ -462,17 +510,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       
       console.log('Bot message saved successfully:', savedMessage?.id);
       
+      // ✅ ENHANCED: Update session timestamp
+      try {
+        if (activeSession) {
+          await chatService.updateChatSession(sessionId, {
+            updated_at: new Date().toISOString()
+          });
+        }
+      } catch (updateError) {
+        console.warn('Could not update session timestamp:', updateError);
+      }
+      
       // Reload the session to get the latest messages
       await loadSessionMessages(sessionId);
     } catch (error) {
       console.error('Exception while processing bot response:', error);
       
-      // בדיקה אם השגיאה היא timeout
+      // ✅ ENHANCED: Better error categorization
       let errorContent;
       if (error instanceof DOMException && error.name === 'TimeoutError') {
         errorContent = 'השאלה שלך מורכבת ודורשת זמן עיבוד ארוך יותר. אנא נסה שוב או פצל את השאלה לחלקים קטנים יותר.';
+        console.log('⏱️ Request timed out after', API_CONFIG.DEFAULT_TIMEOUT / 1000, 'seconds');
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorContent = 'בעיית חיבור לשרת. אנא בדוק את החיבור לאינטרנט ונסה שוב.';
+        console.log('🌐 Network connection error');
       } else {
         errorContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
+        console.log('❌ Unknown error:', error);
       }
       
       const botReply: Message = {

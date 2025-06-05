@@ -1,7 +1,7 @@
 # app/services/auth_service.py
 """Authentication service implementation"""
 
-from typing import Optional, Dict, Any
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from app.services.base import BaseService

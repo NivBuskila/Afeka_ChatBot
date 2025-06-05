@@ -8,7 +8,7 @@ from app.services.base import BaseService
 from app.repositories.chat_repository import ChatSessionRepository, ChatMessageRepository
 from app.repositories.user_repository import UserRepository
 from app.domain.chat import ChatSession, ChatMessage
-from app.services.ai_service import AIService
+from app.services.ai_service import AIServiceClient
 from app.core.exceptions import ServiceException
 
 
@@ -20,7 +20,7 @@ class ChatService(BaseService):
         session_repository: ChatSessionRepository,
         message_repository: ChatMessageRepository,
         user_repository: UserRepository,
-        ai_service: AIService
+        ai_service: AIServiceClient
     ):
         super().__init__()
         self.session_repo = session_repository

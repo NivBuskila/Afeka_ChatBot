@@ -1,27 +1,65 @@
 # app/config.py
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, validator
 from typing import Optional, List
 import os
 import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Try to load .env file from multiple locations
-env_locations = [
-    Path('.env'),  # Current directory
-    Path('../.env'),  # Parent directory
-    Path('../../.env'),  # Two levels up
-]
+# ✅ STANDARDIZED: Load .env from project root
+project_root = Path(__file__).parent.parent.parent.parent  # Go up to project root
+env_file = project_root / ".env"
 
-for env_path in env_locations:
-    if env_path.exists():
-        load_dotenv(env_path, override=True)
-        break
+if env_file.exists():
+    load_dotenv(env_file, override=True)
+    print(f"✅ Loaded environment from: {env_file}")
+else:
+    print(f"⚠️  Environment file not found: {env_file}")
+
+class AIServiceConfig:
+    """AI Service configuration settings"""
+    
+    def __init__(self, settings_instance):
+        self.base_url: str = settings_instance.ai_service_url
+        self.timeout: int = settings_instance.ai_service_timeout
+        self.max_retries: int = settings_instance.ai_service_max_retries
+        self.retry_delay: float = settings_instance.ai_service_retry_delay
+        self.connection_timeout: int = settings_instance.ai_service_connection_timeout
+        self.read_timeout: int = settings_instance.ai_service_read_timeout
+        self.enable_health_check: bool = settings_instance.ai_service_enable_health_check
+        self.health_check_interval: int = settings_instance.ai_service_health_check_interval
+        
+    @property
+    def chat_endpoint(self) -> str:
+        return f"{self.base_url}/chat"
+    
+    @property
+    def search_endpoint(self) -> str:
+        return f"{self.base_url}/rag/search"
+    
+    @property
+    def hybrid_search_endpoint(self) -> str:
+        return f"{self.base_url}/rag/search/hybrid"
+    
+    @property
+    def enhanced_search_endpoint(self) -> str:
+        return f"{self.base_url}/rag/enhanced_search"
+    
+    @property
+    def stats_endpoint(self) -> str:
+        return f"{self.base_url}/rag/stats"
+    
+    @property
+    def health_endpoint(self) -> str:
+        return f"{self.base_url}/"
+    
+    def document_reprocess_endpoint(self, document_id: int) -> str:
+        return f"{self.base_url}/rag/document/{document_id}/reprocess"
 
 
 class Settings(BaseSettings):
-    """Application settings with validation"""
+    """Application settings with validation and standardized environment variables"""
     
     # Application
     app_name: str = "Afeka ChatBot API"
@@ -37,12 +75,12 @@ class Settings(BaseSettings):
     
     # Server
     port: int = Field(default=8000, env="PORT")
-    host: str = "0.0.0.0"
-    reload: bool = True
+    host: str = Field(default="0.0.0.0", env="HOST")
+    reload: bool = Field(default=True, env="RELOAD")
     
-    # CORS - Handle both string and list formats
+    # CORS
     allowed_origins: str | List[str] = Field(
-        default="http://localhost:5173,http://localhost:80,http://localhost,http://frontend:3000,http://frontend,http://192.168.56.1:5173,http://172.16.16.179:5173,http://172.20.224.1:5173",
+        default="http://localhost:5173,http://localhost:80,http://localhost",
         env="ALLOWED_ORIGINS"
     )
     
@@ -52,76 +90,89 @@ class Settings(BaseSettings):
         env="INTERNAL_API_KEY"
     )
     
-    api_key_header_name: str = "X-API-Key"
-
-
     # Rate Limiting
     api_rate_limit: int = Field(default=100, env="API_RATE_LIMIT")
     
-    # Database - Support multiple possible environment variable names
-    supabase_url: Optional[str] = Field(default=None, env="SUPABASE_URL")
-    supabase_key: Optional[str] = Field(default=None, env="SUPABASE_KEY")
-    supabase_service_key: Optional[str] = Field(default=None, env="SUPABASE_SERVICE_KEY")
+    # ✅ STANDARDIZED: Unified Supabase Configuration
+    supabase_url: str = Field(env="SUPABASE_URL")
+    supabase_key: str = Field(env="SUPABASE_KEY")  # Main key for backend
     supabase_anon_key: Optional[str] = Field(default=None, env="SUPABASE_ANON_KEY")
+    supabase_service_key: Optional[str] = Field(default=None, env="SUPABASE_SERVICE_KEY")
     
-    # AI Service
-    ai_service_url: str = Field(
-        default="http://localhost:5000",
-        env="AI_SERVICE_URL"
-    )
+    # ✅ STANDARDIZED: AI Service Configuration
+    ai_service_url: str = Field(default="http://localhost:5000", env="AI_SERVICE_URL")
+    ai_service_timeout: int = Field(default=30, env="AI_SERVICE_TIMEOUT")
+    ai_service_connection_timeout: int = Field(default=5, env="AI_SERVICE_CONNECTION_TIMEOUT")
+    ai_service_read_timeout: int = Field(default=25, env="AI_SERVICE_READ_TIMEOUT")
+    ai_service_max_retries: int = Field(default=3, env="AI_SERVICE_MAX_RETRIES")
+    ai_service_retry_delay: float = Field(default=1.0, env="AI_SERVICE_RETRY_DELAY")
+    ai_service_enable_health_check: bool = Field(default=True, env="AI_SERVICE_ENABLE_HEALTH_CHECK")
+    ai_service_health_check_interval: int = Field(default=60, env="AI_SERVICE_HEALTH_CHECK_INTERVAL")
     
-    # Trusted Hosts (for production)
-    allowed_hosts: str | List[str] = Field(
-        default="localhost",
-        env="ALLOWED_HOSTS"
-    )
+    # Trusted Hosts
+    allowed_hosts: str | List[str] = Field(default="localhost", env="ALLOWED_HOSTS")
+    
+    # ✅ STANDARDIZED: Context Window Configuration
+    chat_context_window_size: int = Field(default=10, env="CHAT_CONTEXT_WINDOW_SIZE")
+    chat_max_context_tokens: int = Field(default=4000, env="CHAT_MAX_CONTEXT_TOKENS")
+    chat_context_enabled: bool = Field(default=True, env="CHAT_CONTEXT_ENABLED")
+    chat_context_strategy: str = Field(default="recent", env="CHAT_CONTEXT_STRATEGY")
+    
+    # ✅ NEW: Validation without defaults
+    @validator('supabase_url')
+    def validate_supabase_url(cls, v):
+        if not v:
+            raise ValueError('SUPABASE_URL is required')
+        return v
+    
+    @validator('supabase_key')
+    def validate_supabase_key(cls, v):
+        if not v:
+            raise ValueError('SUPABASE_KEY is required')
+        return v
     
     @property
     def allowed_origins_list(self) -> List[str]:
-        """Get allowed origins as a list"""
         if isinstance(self.allowed_origins, str):
-            return [origin.strip() for origin in self.allowed_origins.split(",")]
+            return [origin.strip() for origin in self.allowed_origins.split(',')]
         return self.allowed_origins
     
     @property
     def allowed_hosts_list(self) -> List[str]:
-        """Get allowed hosts as a list"""
         if isinstance(self.allowed_hosts, str):
-            return [host.strip() for host in self.allowed_hosts.split(",")]
+            return [host.strip() for host in self.allowed_hosts.split(',')]
         return self.allowed_hosts
     
     @property
-    def get_supabase_key_value(self) -> Optional[str]:
-        """Get the actual Supabase key, trying all possible options"""
-        return self.supabase_key or self.supabase_service_key or self.supabase_anon_key
-        
-
+    def get_supabase_key_value(self) -> str:
+        """Get the primary Supabase key for backend operations"""
+        return self.supabase_service_key or self.supabase_key
+    
+    @property
+    def ai_service_config(self) -> AIServiceConfig:
+        """Get AI service configuration object"""
+        return AIServiceConfig(self)
+    
     @property
     def is_production(self) -> bool:
-        """Check if running in production"""
-        return self.environment.lower() == "production"
+        return self.environment.lower() in ["production", "prod"]
     
     @property
     def is_development(self) -> bool:
-        """Check if running in development"""
-        return self.environment.lower() == "development"
+        return self.environment.lower() in ["development", "dev"]
     
     class Config:
         env_file = ".env"
         case_sensitive = False
-        
-        # Allow extra fields for forward compatibility
         extra = "allow"
-        
-        # Pydantic v2 config
         env_file_encoding = 'utf-8'
 
-
-# Create a singleton instance
+# ✅ GLOBAL: Create settings instance
 settings = Settings()
 
-# Debug logging
-import logging
-logger = logging.getLogger(__name__)
-logger.info(f"Loaded settings - Supabase URL: {settings.supabase_url is not None}")
-logger.info(f"Loaded settings - Supabase key available: {settings.get_supabase_key_value is not None}")
+# ✅ VALIDATION: Print configuration status
+print(f"🔧 Backend Configuration Loaded:")
+print(f"   Environment: {settings.environment}")
+print(f"   Supabase URL: {settings.supabase_url}")
+print(f"   AI Service URL: {settings.ai_service_url}")
+print(f"   Context Window Size: {settings.chat_context_window_size}")

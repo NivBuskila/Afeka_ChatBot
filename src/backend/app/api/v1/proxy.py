@@ -1,7 +1,7 @@
 # app/api/v1/proxy.py
-"""Proxy endpoints for direct Supabase operations"""
+"""Proxy endpoints for direct Supabase operations and AI service integration"""
 
-from fastapi import APIRouter, Request, HTTPException, status
+from fastapi import APIRouter, Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -10,6 +10,10 @@ import uuid
 import time
 import logging
 from app.config import settings
+from app.dependencies import get_ai_service, get_chat_service
+from app.services.ai_service import AIServiceClient
+from app.services.chat_service import ChatService
+from app.core.exceptions import ServiceException
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +35,355 @@ def get_supabase_client():
     except:
         return None
 
-# Chat Sessions Endpoints
+# ========================
+# AI SERVICE ENDPOINTS
+# ========================
+
+@router.post("/ai/chat")
+async def ai_chat(
+    request: Request,
+    ai_service: AIServiceClient = Depends(get_ai_service),
+    chat_service: ChatService = Depends(get_chat_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for AI chat functionality with proper context window management
+    """
+    try:
+        body = await request.json()
+        
+        # Validate required fields
+        if not body.get("message"):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Message field is required"}
+            )
+        
+        message = body["message"]
+        session_id = body.get("session_id")
+        user_id = body.get("user_id")
+        use_rag = body.get("use_rag", True)
+        
+        logger.info(f"AI chat request: message_length={len(message)}, session_id={session_id}")
+        
+        if session_id and user_id:
+            try:
+                from uuid import UUID
+                session_uuid = UUID(session_id)
+                user_uuid = UUID(user_id)
+                
+                session_with_messages = await chat_service.get_session_with_messages(
+                    session_id=session_uuid, 
+                    user_id=user_uuid
+                )
+                
+                conversation_history = []
+                if session_with_messages and hasattr(session_with_messages, 'messages'):
+                    conversation_history = session_with_messages.messages
+                
+                result = await ai_service.chat_with_rag(
+                    message=message,
+                    session_id=session_id,
+                    conversation_history=conversation_history,
+                    use_rag=use_rag
+                )
+                
+                logger.info(f"AI chat processed with context: {len(conversation_history)} messages")
+                
+            except (ValueError, Exception) as e:
+                logger.warning(f"Session context retrieval failed: {e}, proceeding without context")
+                result = await ai_service.chat_with_rag(
+                    message=message,
+                    session_id=session_id,
+                    use_rag=use_rag
+                )
+        else:
+            result = await ai_service.chat_with_rag(
+                message=message,
+                session_id=session_id,
+                use_rag=use_rag
+            )
+        
+        return JSONResponse(content=result)
+        
+    except ServiceException as e:
+        logger.error(f"AI service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "AI service temporarily unavailable",
+                "detail": str(e)
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error in AI chat: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.post("/ai/search")
+async def ai_semantic_search(
+    request: Request,
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for AI semantic search
+    Maps to AI service /rag/search
+    """
+    try:
+        body = await request.json()
+        
+        if not body.get("query"):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Query field is required"}
+            )
+        
+        query = body["query"]
+        limit = body.get("limit")  # Let AI service use defaults if not provided
+        threshold = body.get("threshold")  # Let AI service use defaults if not provided
+        
+        logger.info(f"AI semantic search: query_length={len(query)}")
+        
+        results = await ai_service.semantic_search(
+            query=query,
+            limit=limit,
+            threshold=threshold
+        )
+        
+        return JSONResponse(content={
+            "query": query,
+            "results": results,
+            "count": len(results)
+        })
+        
+    except ServiceException as e:
+        logger.error(f"AI search service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Search service temporarily unavailable", "detail": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error in AI search: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.post("/ai/search/hybrid")
+async def ai_hybrid_search(
+    request: Request,
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for AI hybrid search
+    Maps to AI service /rag/search/hybrid
+    """
+    try:
+        body = await request.json()
+        
+        if not body.get("query"):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Query field is required"}
+            )
+        
+        query = body["query"]
+        limit = body.get("limit")
+        threshold = body.get("threshold")
+        
+        logger.info(f"AI hybrid search: query_length={len(query)}")
+        
+        results = await ai_service.hybrid_search(
+            query=query,
+            limit=limit,
+            threshold=threshold
+        )
+        
+        return JSONResponse(content={
+            "query": query,
+            "results": results,
+            "count": len(results)
+        })
+        
+    except ServiceException as e:
+        logger.error(f"AI hybrid search service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Hybrid search service temporarily unavailable", "detail": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error in AI hybrid search: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.post("/ai/search/enhanced")
+async def ai_enhanced_search(
+    request: Request,
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for AI enhanced search
+    Maps to AI service /rag/enhanced_search
+    """
+    try:
+        body = await request.json()
+        
+        if not body.get("query"):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Query field is required"}
+            )
+        
+        query = body["query"]
+        max_results = body.get("max_results")
+        include_context = body.get("include_context", True)
+        
+        logger.info(f"AI enhanced search: query_length={len(query)}")
+        
+        result = await ai_service.enhanced_search(
+            query=query,
+            max_results=max_results,
+            include_context=include_context
+        )
+        
+        return JSONResponse(content=result)
+        
+    except ServiceException as e:
+        logger.error(f"AI enhanced search service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Enhanced search service temporarily unavailable", "detail": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error in AI enhanced search: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.get("/ai/stats")
+async def ai_rag_stats(
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for AI/RAG statistics
+    Maps to AI service /rag/stats
+    """
+    try:
+        logger.info("Fetching AI/RAG statistics")
+        
+        result = await ai_service.get_rag_stats()
+        
+        return JSONResponse(content=result)
+        
+    except ServiceException as e:
+        logger.error(f"AI stats service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Stats service temporarily unavailable", "detail": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error fetching AI stats: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.post("/ai/documents/{document_id}/reprocess")
+async def ai_reprocess_document(
+    document_id: int,
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for document reprocessing
+    Maps to AI service /rag/document/{document_id}/reprocess
+    """
+    try:
+        logger.info(f"Triggering document reprocessing: document_id={document_id}")
+        
+        result = await ai_service.reprocess_document(document_id)
+        
+        return JSONResponse(content=result)
+        
+    except ServiceException as e:
+        logger.error(f"AI document reprocess service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Document reprocessing service temporarily unavailable", "detail": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error reprocessing document: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.get("/ai/documents/{document_id}/status")
+async def ai_document_status(
+    document_id: int,
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for document processing status
+    Maps to AI service /rag/document/{document_id}
+    """
+    try:
+        logger.info(f"Fetching document status: document_id={document_id}")
+        
+        result = await ai_service.get_document_status(document_id)
+        
+        return JSONResponse(content=result)
+        
+    except ServiceException as e:
+        logger.error(f"AI document status service error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Document status service temporarily unavailable", "detail": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error fetching document status: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
+
+@router.get("/ai/health")
+async def ai_health_check(
+    ai_service: AIServiceClient = Depends(get_ai_service)
+) -> JSONResponse:
+    """
+    Proxy endpoint for AI service health check
+    Maps to AI service /
+    """
+    try:
+        result = await ai_service.health_check()
+        
+        if result.get("status") == "healthy":
+            return JSONResponse(content=result)
+        else:
+            return JSONResponse(
+                status_code=503,
+                content=result
+            )
+        
+    except Exception as e:
+        logger.error(f"Error checking AI service health: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+
+# ========================
+# EXISTING ENDPOINTS (Updated to use AI service where relevant)
+# ========================
+
 @router.post("/chat_sessions")
 async def create_chat_session(request: Request) -> JSONResponse:
     """
@@ -198,110 +550,144 @@ async def update_chat_session(session_id: str, request: Request) -> JSONResponse
         
     except Exception as e:
         logger.error(f"Error updating chat session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content={"success": False, "error": str(e)})
 
 @router.delete("/chat_session/{session_id}")
 async def delete_chat_session(session_id: str) -> JSONResponse:
-    """Delete a chat session and all its messages"""
+    """Delete a chat session"""
     supabase_client = get_supabase_client()
     if not supabase_client:
         return JSONResponse(content={"success": True})
     
     try:
-        # Delete messages first
-        supabase_client.table("messages").delete().eq("conversation_id", session_id).execute()
+        # Delete from database
+        supabase_client.table("chat_sessions").delete().eq("id", session_id).execute()
         
-        # Delete conversation if exists
+        # Also delete messages
+        try:
+            supabase_client.table("messages").delete().eq("conversation_id", session_id).execute()
+        except Exception as msg_err:
+            logger.warning(f"Error deleting messages: {msg_err}")
+            
+        # Delete conversation record
         try:
             supabase_client.table("conversations").delete().eq("conversation_id", session_id).execute()
-        except:
-            pass
-        
-        # Delete session
-        supabase_client.table("chat_sessions").delete().eq("id", session_id).execute()
+        except Exception as conv_err:
+            logger.warning(f"Error deleting conversation: {conv_err}")
         
         return JSONResponse(content={"success": True})
         
     except Exception as e:
         logger.error(f"Error deleting chat session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content={"success": False, "error": str(e)})
 
 @router.get("/search_chat_sessions")
 async def search_chat_sessions(user_id: str, search_term: str) -> JSONResponse:
-    """Search chat sessions by title or message content"""
+    """Search user's chat sessions by content"""
     supabase_client = get_supabase_client()
     if not supabase_client:
         return JSONResponse(content=[])
     
     try:
+        logger.info(f"Searching chat sessions for user: {user_id}, term: {search_term}")
+        
         # Search in session titles
-        title_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).ilike("title", f"%{search_term}%").execute()
+        sessions_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).ilike("title", f"%{search_term}%").execute()
+        sessions = sessions_result.data or []
         
         # Search in messages
-        message_result = supabase_client.table("messages").select("conversation_id").eq("user_id", user_id).or_(f"request.ilike.%{search_term}%,response.ilike.%{search_term}%").execute()
-        
-        # Get unique session IDs from messages
-        session_ids = []
-        if message_result.data:
-            session_ids = list(set([msg.get("conversation_id") for msg in message_result.data]))
+        messages_result = supabase_client.table("messages").select("conversation_id").eq("user_id", user_id).ilike("request", f"%{search_term}%").execute()
+        message_sessions = [msg["conversation_id"] for msg in messages_result.data or []]
         
         # Get sessions from message matches
-        content_match_sessions = []
-        if session_ids:
-            content_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).in_("id", session_ids).execute()
-            content_match_sessions = content_result.data or []
+        for session_id in message_sessions:
+            try:
+                session_result = supabase_client.table("chat_sessions").select("*").eq("id", session_id).single().execute()
+                if session_result.data and session_result.data not in sessions:
+                    sessions.append(session_result.data)
+            except:
+                continue
         
-        # Combine and deduplicate
-        all_sessions = (title_result.data or []) + content_match_sessions
-        unique_sessions = {}
-        for session in all_sessions:
-            if session.get("id") not in unique_sessions:
-                unique_sessions[session.get("id")] = session
-        
-        result = list(unique_sessions.values())
-        result.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
-        
-        return JSONResponse(content=result)
+        return JSONResponse(content=sessions)
         
     except Exception as e:
         logger.error(f"Error searching chat sessions: {e}")
         return JSONResponse(content=[])
 
-# Messages Endpoints
-
 @router.post("/messages")
 async def create_message(request: Request) -> JSONResponse:
     """Create a new message"""
     supabase_client = get_supabase_client()
-    if not supabase_client:
-        body = await request.json()
-        mock_id = body.get('id', f"mock-{int(time.time())}")
-        return JSONResponse(content=[{
-            "id": mock_id,
-            "conversation_id": body.get('conversation_id', 'unknown'),
-            "created_at": body.get('created_at', datetime.now().isoformat()),
-            "message_text": body.get('message_text', '')
-        }])
     
     try:
         body = await request.json()
-        logger.info(f"Creating message for conversation: {body.get('conversation_id', 'unknown')}")
         
-        result = supabase_client.table("messages").insert(body).execute()
-        return JSONResponse(content=result.data)
+        # Validate required fields
+        required_fields = ['conversation_id', 'user_id', 'request']
+        missing_fields = [field for field in required_fields if not body.get(field)]
+        
+        if missing_fields:
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Missing required fields: {', '.join(missing_fields)}"}
+            )
+        
+        # Generate ID if not provided
+        if 'message_id' not in body and 'id' not in body:
+            import random
+            body['message_id'] = int(time.time() * 1000) * 1000 + random.randint(0, 999)
+        
+        # Ensure created_at
+        if 'created_at' not in body:
+            body['created_at'] = datetime.now().isoformat()
+        
+        # Clean and prepare data
+        cleaned_body = {}
+        for key, value in body.items():
+            if value is not None and value != "" and key != "":
+                if key in ['request_payload', 'response_payload', 'metadata'] and isinstance(value, dict):
+                    cleaned_body[key] = json.dumps(value)
+                else:
+                    cleaned_body[key] = value
+        
+        # Ensure IDs are strings
+        if 'conversation_id' in cleaned_body:
+            cleaned_body['conversation_id'] = str(cleaned_body['conversation_id'])
+        if 'user_id' in cleaned_body:
+            cleaned_body['user_id'] = str(cleaned_body['user_id'])
+        
+        if not supabase_client:
+            # Return mock response
+            return JSONResponse(content={
+                "id": cleaned_body.get('message_id', 'unknown'),
+                "created_at": cleaned_body.get('created_at'),
+                "conversation_id": cleaned_body.get('conversation_id'),
+                "user_id": cleaned_body.get('user_id')
+            })
+        
+        # Insert into database
+        result = supabase_client.table("messages").insert(cleaned_body).execute()
+        
+        if hasattr(result, 'data') and result.data:
+            return JSONResponse(content=result.data[0])
+        else:
+            return JSONResponse(content={
+                "id": cleaned_body.get('message_id', 'unknown'),
+                "created_at": cleaned_body.get('created_at'),
+                "conversation_id": cleaned_body.get('conversation_id'),
+                "user_id": cleaned_body.get('user_id')
+            })
         
     except Exception as e:
-        logger.error(f"Error creating message: {e}")
-        # Return mock response
-        body = await request.json()
-        return JSONResponse(content=[{
-            "id": f"mock-{int(time.time())}",
-            "created_at": datetime.now().isoformat()
-        }])
+        logger.error(f"Error creating message: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
 
 @router.put("/message")
 async def update_message(request: Request) -> JSONResponse:
-    """Add a message with custom ID"""
+    """Update an existing message"""
     supabase_client = get_supabase_client()
     
     try:
@@ -418,7 +804,7 @@ async def get_messages_schema() -> JSONResponse:
         logger.error(f"Error getting messages schema: {e}")
         return JSONResponse(content={"columns": list(dummy_schema.keys())})
 
-# Documents Endpoints
+# Documents Endpoints (Enhanced with AI service integration)
 
 @router.get("/documents")
 async def get_documents() -> JSONResponse:
