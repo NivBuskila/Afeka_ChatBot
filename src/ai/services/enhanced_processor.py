@@ -10,17 +10,6 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import sys
 
-# ✅ REMOVED: Unnecessary backend path injection and problematic import
-# The following lines are causing the warning and aren't needed:
-# backend_path = Path(__file__).parent.parent
-# sys.path.insert(0, str(backend_path))
-# try:
-#     from core.database import get_supabase_client
-#     has_supabase = True
-# except ImportError as e:
-#     logging.warning(f"Could not import Supabase modules: {e}")
-#     has_supabase = False
-
 import google.generativeai as genai
 from supabase import create_client, Client
 
