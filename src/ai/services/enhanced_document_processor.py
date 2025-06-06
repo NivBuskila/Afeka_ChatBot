@@ -14,7 +14,7 @@ backend_path = Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
 try:
-    from app.core.database import get_supabase_client
+    from ..core.database import get_supabase_client
     import google.generativeai as genai
     import os
     has_supabase = True

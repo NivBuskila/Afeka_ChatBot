@@ -143,8 +143,15 @@ class AIServiceClient(BaseService):
             "context": context_messages
         }
         
+        # ✅ DEBUG: Log the request
+        self.logger.info(f"🔍 Sending to AI service: {self.ai_config.chat_endpoint}")
+        self.logger.info(f"🔍 Payload: {json.dumps(payload, ensure_ascii=False)[:200]}...")
+        
         try:
             result = await self._make_request("POST", self.ai_config.chat_endpoint, payload)
+            
+            # ✅ DEBUG: Log the response
+            self.logger.info(f"🔍 AI service response: {json.dumps(result, ensure_ascii=False)[:200]}...")
             
             return {
                 "response": result.get("result", "No response received"),

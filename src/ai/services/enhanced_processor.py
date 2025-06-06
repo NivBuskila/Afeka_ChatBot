@@ -10,16 +10,16 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import sys
 
-# הוספת הנתיב לתיקיית backend
-backend_path = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_path))
-
-try:
-    from app.core.database import get_supabase_client
-    has_supabase = True
-except ImportError as e:
-    logging.warning(f"Could not import Supabase modules: {e}")
-    has_supabase = False
+# ✅ REMOVED: Unnecessary backend path injection and problematic import
+# The following lines are causing the warning and aren't needed:
+# backend_path = Path(__file__).parent.parent
+# sys.path.insert(0, str(backend_path))
+# try:
+#     from core.database import get_supabase_client
+#     has_supabase = True
+# except ImportError as e:
+#     logging.warning(f"Could not import Supabase modules: {e}")
+#     has_supabase = False
 
 import google.generativeai as genai
 from supabase import create_client, Client
@@ -30,6 +30,7 @@ class EnhancedProcessor:
     """מעבד מסמכים משודרג פשוט"""
     
     def __init__(self):
+        # ✅ This direct client creation works fine and is what's actually being used
         self.supabase: Client = create_client(
             os.getenv("SUPABASE_URL"),
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
