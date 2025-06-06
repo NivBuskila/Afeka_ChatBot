@@ -227,6 +227,24 @@
     "expectedQuality": "Expected Quality",
     "bestFor": "Best For",
     "tradeoffs": "Trade-offs",
-    "notAvailable": "Not Available"
+    "notAvailable": "Not Available",
+    "create": {
+      "profile": "Create New Profile",
+      "new": {
+        "profile": "Create New Profile"
+      }
+    },
+    "profileFormName": "Profile Name",
+    "profileFormDescription": "Description",
+    "profileFormNamePlaceholder": "Enter profile name...",
+    "profileFormDescriptionPlaceholder": "Profile description...",
+    "configurationSettings": "Configuration Settings",
+    "focusPlaceholder": "What does this profile focus on...",
+    "bestForPlaceholder": "Best suited for...",
+    "expectedSpeedPlaceholder": "Fast/Medium/Slow...",
+    "expectedQualityPlaceholder": "High/Medium/Basic...",
+    "tradeoffsPlaceholder": "What are the trade-offs of this profile...",
+    "cancel": "Cancel",
+    "creating": "Creating..."
   }
 }

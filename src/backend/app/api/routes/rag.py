@@ -13,8 +13,13 @@ if str(ai_services_path) not in sys.path:
 
 # Import from relative paths - fix for different execution contexts
 try:
-    from src.ai.config.current_profile import get_current_profile, set_current_profile, get_available_profiles
-    from src.ai.config.rag_config_profiles import get_profile
+    from src.ai.config.current_profile import get_current_profile, set_current_profile
+    from src.ai.config.rag_config_profiles import get_profile, save_new_profile, delete_profile
+    
+    # Define get_available_profiles as our fresh function
+    def get_available_profiles():
+        return _get_fresh_available_profiles()
+        
 except ImportError:
     # Try alternative import paths
     import sys
@@ -22,8 +27,13 @@ except ImportError:
     ai_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'ai')
     sys.path.insert(0, ai_path)
     try:
-        from config.current_profile import get_current_profile, set_current_profile, get_available_profiles
-        from config.rag_config_profiles import get_profile
+        from config.current_profile import get_current_profile, set_current_profile
+        from config.rag_config_profiles import get_profile, save_new_profile, delete_profile
+        
+        # Define get_available_profiles as our fresh function
+        def get_available_profiles():
+            return _get_fresh_available_profiles()
+            
     except ImportError:
         # Fallback functions if AI modules are not available
         def get_current_profile():
@@ -31,18 +41,46 @@ except ImportError:
         def set_current_profile(profile_name):
             pass
         def get_available_profiles():
-            return {
-                "enhanced_testing": "Enhanced Testing",
-                "high_quality": "High Quality",
-                "balanced": "Balanced",
-                "fast": "Fast",
-                "improved": "Improved",
-                "debug": "Debug"
-            }
+            return _get_fresh_available_profiles()
+        def save_new_profile(profile_id, profile_data):
+            pass
+        def delete_profile(profile_id):
+            return False
         get_profile = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["RAG Management"])
+
+def _get_fresh_available_profiles():
+    """Get fresh list of available profiles including dynamically created ones"""
+    logger.info("_get_fresh_available_profiles called")
+    
+    # Force reload of the modules to get fresh data
+    try:
+        import importlib
+        import sys
+        
+        # Reload the modules if they're already loaded
+        if 'src.ai.config.rag_config_profiles' in sys.modules:
+            importlib.reload(sys.modules['src.ai.config.rag_config_profiles'])
+            logger.info("Reloaded rag_config_profiles module")
+        
+        if 'src.ai.config.current_profile' in sys.modules:
+            importlib.reload(sys.modules['src.ai.config.current_profile'])
+            logger.info("Reloaded current_profile module")
+            
+    except Exception as reload_error:
+        logger.warning(f"Could not reload modules: {reload_error}")
+    
+    # Try to import the new list_profiles function that filters hidden profiles
+    try:
+        from src.ai.config.rag_config_profiles import list_profiles
+        available = list_profiles()  # This already filters hidden profiles
+        logger.info(f"Available profiles (filtered): {list(available.keys())}")
+        return available
+    except ImportError as e:
+        logger.error(f"Could not import list_profiles: {e}")
+        raise HTTPException(status_code=500, detail="Could not load profile configurations")
 
 def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
     """
@@ -54,7 +92,7 @@ def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
             "similarityThreshold": 0.4,
             "maxChunks": 20,
             "temperature": 0.1,
-            "modelName": "gemini-pro",
+            "modelName": "gemini-2.0-flash",
             "chunkSize": 2000,
             "chunkOverlap": 200,
             "maxContextTokens": 8000
@@ -67,7 +105,7 @@ def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
             "maxChunks": actual_config.search.MAX_CHUNKS_RETRIEVED,
             "maxChunksForContext": actual_config.search.MAX_CHUNKS_FOR_CONTEXT,
             "temperature": actual_config.llm.TEMPERATURE,
-            "modelName": "gemini-pro",  # כרגע קבוע
+            "modelName": "gemini-2.0-flash",  # כרגע קבוע
             "chunkSize": actual_config.chunk.DEFAULT_CHUNK_SIZE,
             "chunkOverlap": actual_config.chunk.DEFAULT_CHUNK_OVERLAP,
             "maxContextTokens": actual_config.context.MAX_CONTEXT_TOKENS,
@@ -81,7 +119,7 @@ def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
             "similarityThreshold": 0.4,
             "maxChunks": 20,
             "temperature": 0.1,
-            "modelName": "gemini-pro",
+            "modelName": "gemini-2.0-flash",
             "chunkSize": 2000,
             "chunkOverlap": 200,
             "maxContextTokens": 8000
@@ -99,7 +137,23 @@ def get_profile_characteristics(profile_id: str, config: Dict[str, Any], languag
         "tradeoffs": ""
     }
     
-    # ניתוח מאפיינים לפי הקונפיגורציה האמיתית
+    # בדיקה אם זה פרופיל דינמי עם מאפיינים שמורים
+    try:
+        from src.ai.config.rag_config_profiles import load_dynamic_profiles
+        dynamic_profiles = load_dynamic_profiles()
+        
+        if profile_id in dynamic_profiles:
+            saved_characteristics = dynamic_profiles[profile_id].get('characteristics', {})
+            logger.debug(f"Loading saved characteristics for {profile_id}: {saved_characteristics}")
+            if saved_characteristics and any(saved_characteristics.values()):
+                # אם יש מאפיינים שמורים, השתמש בהם במקום ליצור חדשים
+                characteristics.update(saved_characteristics)
+                logger.debug(f"Updated characteristics for {profile_id}: {characteristics}")
+                return characteristics
+    except Exception as e:
+        logger.warning(f"Could not load dynamic profile characteristics for {profile_id}: {e}")
+    
+    # ניתוח מאפיינים לפי הקונפיגורציה האמיתית (רק לפרופילים סטטיים)
     similarity_threshold = config.get("similarityThreshold", 0.4)
     max_chunks = config.get("maxChunks", 20)
     temperature = config.get("temperature", 0.1)
@@ -268,6 +322,7 @@ async def get_rag_profiles(language: str = "he"):
     try:
         current_profile_id = get_current_profile()
         available_profiles = get_available_profiles()
+        logger.debug(f"Available profiles from get_available_profiles(): {list(available_profiles.keys())}")
         
         profiles_data = []
         for profile_id, description in available_profiles.items():
@@ -278,12 +333,18 @@ async def get_rag_profiles(language: str = "he"):
                 # Get characteristics based on language
                 characteristics = get_profile_characteristics(profile_id, real_config, language)
                 
+                # Check if this is a custom (deletable) profile
+                built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
+                                   "enhanced_testing", "optimized_testing", "maximum_accuracy"}
+                is_custom = profile_id not in built_in_profiles
+                
                 # Create profile data
                 profile_data = {
                     "id": profile_id,
                     "name": profile_id.replace('_', ' ').title(),
                     "description": description,
                     "isActive": profile_id == current_profile_id,
+                    "isCustom": is_custom,
                     "config": real_config,
                     "characteristics": characteristics
                 }
@@ -402,4 +463,175 @@ async def test_rag_query(request: Dict[str, Any]):
         raise http_exc
     except Exception as e:
         logger.exception(f"Error testing RAG query: {e}")
-        raise HTTPException(status_code=500, detail="Error processing RAG test query") 
+        raise HTTPException(status_code=500, detail="Error processing RAG test query")
+
+@router.post("/profiles")
+async def create_rag_profile(request: Dict[str, Any]):
+    """Create a new RAG profile"""
+    try:
+        profile_id = request.get("id", "").strip()
+        profile_name = request.get("name", "").strip()
+        profile_description = request.get("description", "").strip()
+        profile_config = request.get("config", {})
+        profile_characteristics = request.get("characteristics", {})
+        
+        if not profile_id or not profile_name:
+            raise HTTPException(status_code=400, detail="Profile ID and name are required")
+        
+        # Check if profile already exists
+        available_profiles = get_available_profiles()
+        if profile_id in available_profiles:
+            raise HTTPException(status_code=400, detail=f"Profile '{profile_id}' already exists")
+        
+        # Validate configuration values
+        required_config_fields = [
+            "similarityThreshold", "maxChunks", "temperature", "modelName"
+        ]
+        for field in required_config_fields:
+            if field not in profile_config:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Missing required configuration field: {field}"
+                )
+        
+        # Create the profile data for saving
+        profile_data = {
+            "id": profile_id,
+            "name": profile_name,
+            "description": profile_description,
+            "config": profile_config,
+            "characteristics": profile_characteristics,
+            "isActive": False
+        }
+        
+        # Save the profile using the new function
+        try:
+            save_new_profile(profile_id, profile_data)
+            logger.info(f"Successfully saved custom profile: {profile_id}")
+            
+            # Create full profile object for response
+            created_profile = {
+                "id": profile_id,
+                "name": profile_name,
+                "description": profile_description,
+                "isActive": False,
+                "isCustom": True,
+                "config": profile_config,
+                "characteristics": profile_characteristics
+            }
+            
+            return JSONResponse(
+                content={
+                    "message": f"Successfully created profile: {profile_name}",
+                    "profile": created_profile
+                }
+            )
+            
+        except Exception as save_error:
+            logger.error(f"Error saving profile: {save_error}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Error saving profile: {str(save_error)}"
+            )
+            
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.exception(f"Error creating RAG profile: {e}")
+        raise HTTPException(status_code=500, detail="Error creating RAG profile")
+
+@router.delete("/profiles/{profile_id}")
+async def delete_rag_profile(profile_id: str, force: bool = False):
+    """Delete a RAG profile - both custom and built-in"""
+    try:
+        # Check if profile exists
+        available_profiles = get_available_profiles()
+        if profile_id not in available_profiles:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Profile '{profile_id}' not found"
+            )
+        
+        # Check if trying to delete current active profile
+        current_profile = get_current_profile()
+        if profile_id == current_profile:
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot delete the currently active profile. Please switch to another profile first."
+            )
+        
+        # Check if it's a custom or built-in profile
+        try:
+            from src.ai.config.rag_config_profiles import load_dynamic_profiles
+            dynamic_profiles = load_dynamic_profiles()
+            is_custom_profile = profile_id in dynamic_profiles
+        except Exception as e:
+            logger.warning(f"Could not check profile type: {e}")
+            is_custom_profile = False
+        
+        # For built-in profiles, require force=true
+        if not is_custom_profile and not force:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Profile '{profile_id}' is a built-in profile. Use force=true to delete built-in profiles."
+            )
+        
+        # Attempt to delete the profile
+        if is_custom_profile:
+            # Delete custom profile normally
+            success = delete_profile(profile_id)
+            profile_type = "custom"
+        else:
+            # For built-in profiles, we'll hide them by adding to hidden list
+            from src.ai.config.rag_config_profiles import hide_builtin_profile
+            success = hide_builtin_profile(profile_id)
+            profile_type = "built-in"
+        
+        if success:
+            logger.info(f"Successfully deleted {profile_type} profile: {profile_id}")
+            return JSONResponse(
+                content={
+                    "message": f"Successfully deleted {profile_type} profile: {profile_id}",
+                    "deletedProfile": profile_id,
+                    "profileType": profile_type
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to delete {profile_type} profile"
+            )
+            
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.exception(f"Error deleting RAG profile {profile_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting profile: {profile_id}")
+
+@router.post("/profiles/{profile_id}/restore")
+async def restore_rag_profile(profile_id: str):
+    """Restore a hidden built-in profile"""
+    try:
+        from src.ai.config.rag_config_profiles import restore_builtin_profile
+        
+        success = restore_builtin_profile(profile_id)
+        
+        if success:
+            logger.info(f"Successfully restored built-in profile: {profile_id}")
+            return JSONResponse(
+                content={
+                    "message": f"Successfully restored built-in profile: {profile_id}",
+                    "restoredProfile": profile_id
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Profile '{profile_id}' was not hidden or does not exist"
+            )
+            
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.exception(f"Error restoring RAG profile {profile_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error restoring profile: {profile_id}") 

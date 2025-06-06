@@ -2,70 +2,106 @@
 # -*- coding: utf-8 -*-
 
 """
-Central Profile Management
-=========================
+מערכת ניהול פרופיל נוכחי עבור RAG
+====================================
 
-This file manages the current active profile for the entire RAG system.
-All components (UI, tests, services) will use the same profile.
+מערכת זו מנהלת את הפרופיל הפעיל כרגע עבור מערכת RAG.
+הפרופיל נשמר בקובץ נפרד ונטען בכל פעם מחדש.
 """
 
 import os
-from typing import Optional
+import json
+from pathlib import Path
+from typing import Dict, Optional
 
-# הפרופיל הנוכחי - זה המקום היחיד שמגדיר את הפרופיל!
-CURRENT_PROFILE = "enhanced_testing"
-
-# אפשרות לגובר את הפרופיל דרך משתנה סביבה
-ENVIRONMENT_PROFILE = os.getenv("RAG_PROFILE")
+# נתיב לקובץ הפרופיל הנוכחי
+CONFIG_DIR = Path(__file__).parent
+CURRENT_PROFILE_FILE = CONFIG_DIR / "current_profile.json"
+DYNAMIC_PROFILES_FILE = CONFIG_DIR / "dynamic_profiles.json"
 
 def get_current_profile() -> str:
-    """
-    מחזיר את הפרופיל הנוכחי.
-    בסדר עדיפות:
-    1. משתנה סביבה RAG_PROFILE
-    2. הגדרה קבועה CURRENT_PROFILE
-    """
-    return ENVIRONMENT_PROFILE or CURRENT_PROFILE
+    """מחזיר את הפרופיל הנוכחי"""
+    try:
+        if CURRENT_PROFILE_FILE.exists():
+            with open(CURRENT_PROFILE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get("current_profile", "enhanced_testing")
+        else:
+            # יצירת קובץ ברירת מחדל
+            set_current_profile("enhanced_testing")
+            return "enhanced_testing"
+    except Exception as e:
+        print(f"Error loading current profile: {e}")
+        return "enhanced_testing"
 
 def set_current_profile(profile_name: str) -> None:
-    """
-    מגדיר פרופיל חדש לכל המערכת.
-    השינוי יחול על כל הרכיבים החדשים שיאותחלו.
-    """
-    global CURRENT_PROFILE
-    CURRENT_PROFILE = profile_name
-    print(f"🔧 פרופיל RAG עודכן ל: {profile_name}")
-
-def get_available_profiles() -> dict:
-    """מחזיר רשימת פרופילים זמינים"""
+    """מגדיר פרופיל נוכחי"""
     try:
-        from .rag_config_profiles import list_profiles
-        return list_profiles()
-    except ImportError:
-        return {
-            "improved": "Optimized for missing sections",
-            "balanced": "Balanced performance and quality", 
-            "high_quality": "Maximum quality",
-            "fast": "Maximum speed",
-            "debug": "Debug and development"
-        }
+        data = {"current_profile": profile_name}
+        with open(CURRENT_PROFILE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"✅ Set current profile to: {profile_name}")
+    except Exception as e:
+        print(f"Error setting current profile: {e}")
 
-def print_current_config():
-    """מדפיס את הקונפיגורציה הנוכחית"""
-    current = get_current_profile()
-    profiles = get_available_profiles()
+def get_available_profiles() -> Dict[str, str]:
+    """מחזיר רשימה של כל הפרופילים הזמינים"""
+    # פרופילים סטטיים מובנים
+    static_profiles = {
+        "high_quality": "Maximum quality - high accuracy, lower speed",
+        "fast": "Maximum speed - good performance, reasonable quality", 
+        "balanced": "Balanced - improved settings based on analysis",
+        "improved": "Optimized for missing sections - very low threshold, small chunks",
+        "debug": "Debug and development - detailed logs, low thresholds",
+        "enhanced_testing": "Enhanced Testing (AGGRESSIVE) - Based on 66.7% failure analysis",
+        "optimized_testing": "Optimized Testing - Balanced performance & accuracy (73.3% analysis)",
+        "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
+    }
     
-    print("=" * 50)
-    print("🎯 RAG System Configuration")
-    print("=" * 50)
-    print(f"✅ Current Profile: {current}")
-    print(f"📋 Description: {profiles.get(current, 'Unknown profile')}")
-    print()
-    print("📋 Available Profiles:")
-    for name, desc in profiles.items():
-        marker = "👉" if name == current else "  "
-        print(f"{marker} {name}: {desc}")
-    print("=" * 50)
+    # טעינת פרופילים דינמיים מהקובץ
+    dynamic_profiles = {}
+    try:
+        if DYNAMIC_PROFILES_FILE.exists():
+            with open(DYNAMIC_PROFILES_FILE, 'r', encoding='utf-8') as f:
+                dynamic_data = json.load(f)
+                for profile_id, profile_data in dynamic_data.items():
+                    description = profile_data.get('description', f'Custom profile: {profile_id}')
+                    dynamic_profiles[profile_id] = description
+    except Exception as e:
+        print(f"Error loading dynamic profiles: {e}")
+    
+    # שילוב הפרופילים
+    all_profiles = {**static_profiles, **dynamic_profiles}
+    
+    print(f"Available profiles: {list(all_profiles.keys())}")
+    return all_profiles
+
+def refresh_profiles():
+    """מרענן את רשימת הפרופילים הזמינים"""
+    # יבוא מחדש של מודול הפרופילים לטעינת שינויים
+    try:
+        import importlib
+        import sys
+        
+        # רענון מודול הפרופילים
+        if 'src.ai.config.rag_config_profiles' in sys.modules:
+            importlib.reload(sys.modules['src.ai.config.rag_config_profiles'])
+        elif 'config.rag_config_profiles' in sys.modules:
+            importlib.reload(sys.modules['config.rag_config_profiles'])
+            
+        print("✅ Refreshed profiles module")
+    except Exception as e:
+        print(f"Warning: Could not refresh profiles module: {e}")
 
 if __name__ == "__main__":
-    print_current_config() 
+    print("🔧 RAG Profile Management")
+    print("=" * 50)
+    
+    current = get_current_profile()
+    print(f"Current profile: {current}")
+    
+    profiles = get_available_profiles()
+    print(f"\nAvailable profiles ({len(profiles)}):")
+    for name, desc in profiles.items():
+        status = "🟢 ACTIVE" if name == current else "⚪"
+        print(f"  {status} {name}: {desc}") 

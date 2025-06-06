@@ -7,6 +7,7 @@ export interface RAGProfile {
   name: string;
   description: string;
   isActive: boolean;
+  isCustom?: boolean;
   config: {
     similarityThreshold: number;
     maxChunks: number;
@@ -130,6 +131,48 @@ export class RAGService {
 
     if (!response.ok) {
       throw new Error(`Failed to test query: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  async createProfile(profileData: Partial<RAGProfile>): Promise<RAGProfile> {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw new Error('Not authenticated');
+
+    const response = await fetch(`${API_BASE_URL}/api/rag/profiles`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${data.session.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(profileData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create profile: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.profile; // Return the profile object from the response
+  }
+
+  async deleteProfile(profileId: string, force: boolean = false): Promise<any> {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw new Error('Not authenticated');
+
+    const url = `${API_BASE_URL}/api/rag/profiles/${profileId}${force ? '?force=true' : ''}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${data.session.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete profile: ${errorText}`);
     }
 
     return await response.json();

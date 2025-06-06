@@ -10,9 +10,11 @@ Each profile is tailored for different types of usage or performance.
 """
 
 from dataclasses import dataclass, replace
-from typing import Dict, Any
+from typing import Dict, Any, List
 import sys
 import os
+import json
+from pathlib import Path
 
 # הוספת נתיב לטעינת config
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +26,124 @@ except ImportError:
     # ניסיון יחסי
     from .rag_config import rag_config, RAGConfig
 
+# נתיב לקובץ הפרופילים הדינמיים
+DYNAMIC_PROFILES_FILE = Path(current_dir) / "dynamic_profiles.json"
+
+# Global dictionary to store descriptions for dynamically created profiles
+DYNAMIC_PROFILE_DESCRIPTIONS = {}
+
+def load_dynamic_profiles() -> Dict[str, Any]:
+    """טוען פרופילים דינמיים מקובץ JSON"""
+    if not DYNAMIC_PROFILES_FILE.exists():
+        return {}
+    
+    try:
+        with open(DYNAMIC_PROFILES_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading dynamic profiles: {e}")
+        return {}
+
+def save_dynamic_profiles(profiles_data: Dict[str, Any]) -> None:
+    """שומר פרופילים דינמיים לקובץ JSON"""
+    try:
+        with open(DYNAMIC_PROFILES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(profiles_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving dynamic profiles: {e}")
+
+def load_hidden_profiles() -> List[str]:
+    """טוען רשימת פרופילים מובנים מוסתרים"""
+    hidden_file = Path(current_dir) / "hidden_profiles.json"
+    try:
+        if hidden_file.exists():
+            with open(hidden_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('hidden_profiles', [])
+        return []
+    except Exception as e:
+        print(f"Error loading hidden profiles: {e}")
+        return []
+
+def save_hidden_profiles(hidden_list: List[str]) -> None:
+    """שומר רשימת פרופילים מובנים מוסתרים"""
+    hidden_file = Path(current_dir) / "hidden_profiles.json"
+    try:
+        data = {'hidden_profiles': hidden_list}
+        with open(hidden_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving hidden profiles: {e}")
+
+def hide_builtin_profile(profile_id: str) -> bool:
+    """מסתיר פרופיל מובנה מהרשימה הזמינה"""
+    try:
+        # וודא שזה פרופיל מובנה
+        built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
+                            "enhanced_testing", "optimized_testing", "maximum_accuracy"}
+        
+        if profile_id not in built_in_profiles:
+            return False  # לא פרופיל מובנה
+        
+        # טען רשימת מוסתרים נוכחית
+        hidden_profiles = load_hidden_profiles()
+        
+        # הוסף לרשימה אם לא קיים
+        if profile_id not in hidden_profiles:
+            hidden_profiles.append(profile_id)
+            save_hidden_profiles(hidden_profiles)
+        
+        return True
+    except Exception as e:
+        print(f"Error hiding built-in profile {profile_id}: {e}")
+        return False
+
+def restore_builtin_profile(profile_id: str) -> bool:
+    """משחזר פרופיל מובנה מוסתר"""
+    try:
+        hidden_profiles = load_hidden_profiles()
+        
+        if profile_id in hidden_profiles:
+            hidden_profiles.remove(profile_id)
+            save_hidden_profiles(hidden_profiles)
+            return True
+        
+        return False  # לא היה מוסתר
+    except Exception as e:
+        print(f"Error restoring built-in profile {profile_id}: {e}")
+        return False
+
+def create_profile_from_data(profile_data: Dict[str, Any]) -> RAGConfig:
+    """יוצר RAGConfig מנתוני פרופיל שמורים"""
+    config = RAGConfig()
+    
+    # Apply configuration from saved data
+    config_data = profile_data.get('config', {})
+    
+    config.search.SIMILARITY_THRESHOLD = float(config_data.get("similarityThreshold", 0.4))
+    config.search.MAX_CHUNKS_RETRIEVED = int(config_data.get("maxChunks", 15))
+    config.search.MAX_CHUNKS_FOR_CONTEXT = int(config_data.get("maxChunks", 15))
+    config.llm.TEMPERATURE = float(config_data.get("temperature", 0.1))
+    config.llm.MODEL_NAME = config_data.get("modelName", "gemini-2.0-flash")
+    
+    # Optional advanced configurations
+    if "chunkSize" in config_data:
+        config.chunk.DEFAULT_CHUNK_SIZE = int(config_data["chunkSize"])
+    if "chunkOverlap" in config_data:
+        config.chunk.DEFAULT_CHUNK_OVERLAP = int(config_data["chunkOverlap"])
+    if "maxContextTokens" in config_data:
+        config.context.MAX_CONTEXT_TOKENS = int(config_data["maxContextTokens"])
+    if "targetTokensPerChunk" in config_data:
+        config.chunk.TARGET_TOKENS_PER_CHUNK = int(config_data["targetTokensPerChunk"])
+    if "hybridSemanticWeight" in config_data:
+        config.search.HYBRID_SEMANTIC_WEIGHT = float(config_data["hybridSemanticWeight"])
+    if "hybridKeywordWeight" in config_data:
+        config.search.HYBRID_KEYWORD_WEIGHT = float(config_data["hybridKeywordWeight"])
+    
+    return config
+
+# טען פרופילים דינמיים בעת האתחול
+dynamic_profiles_data = load_dynamic_profiles()
 
 # Profile 1: Maximum quality (for high accuracy)
 def get_high_quality_profile() -> RAGConfig:
@@ -315,7 +435,7 @@ def get_maximum_accuracy_profile() -> RAGConfig:
     return config
 
 
-# Dictionary of all profiles
+# Dictionary of all profiles - חייב להיות לפני הטעינה הדינמית
 PROFILES = {
     "high_quality": get_high_quality_profile,
     "fast": get_fast_profile,
@@ -327,6 +447,58 @@ PROFILES = {
     "maximum_accuracy": get_maximum_accuracy_profile,
 }
 
+# טוען פרופילים דינמיים מהקובץ ומוסיף אותם ל-PROFILES
+for profile_id, profile_data in dynamic_profiles_data.items():
+    if profile_id not in PROFILES:  # רק אם לא קיים כבר
+        PROFILES[profile_id] = lambda data=profile_data: create_profile_from_data(data)
+        DYNAMIC_PROFILE_DESCRIPTIONS[profile_id] = profile_data.get('description', f'Custom profile: {profile_id}')
+
+def save_new_profile(profile_id: str, profile_data: Dict[str, Any]) -> None:
+    """שומר פרופיל חדש לקובץ ומוסיף לזיכרון"""
+    # Load existing profiles
+    existing_profiles = load_dynamic_profiles()
+    
+    # Add new profile
+    existing_profiles[profile_id] = profile_data
+    
+    # Save to file
+    save_dynamic_profiles(existing_profiles)
+    
+    # Add to memory
+    PROFILES[profile_id] = lambda: create_profile_from_data(profile_data)
+    DYNAMIC_PROFILE_DESCRIPTIONS[profile_id] = profile_data.get('description', f'Custom profile: {profile_id}')
+
+def delete_profile(profile_id: str) -> bool:
+    """מוחק פרופיל (רק פרופילים דינמיים)"""
+    # ודא שזה לא פרופיל מובנה
+    built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
+                        "enhanced_testing", "optimized_testing", "maximum_accuracy"}
+    
+    if profile_id in built_in_profiles:
+        return False  # לא ניתן למחוק פרופילים מובנים
+    
+    # Load existing profiles
+    existing_profiles = load_dynamic_profiles()
+    
+    if profile_id in existing_profiles:
+        # Remove from file
+        del existing_profiles[profile_id]
+        save_dynamic_profiles(existing_profiles)
+        
+        # Remove from memory
+        if profile_id in PROFILES:
+            del PROFILES[profile_id]
+        if profile_id in DYNAMIC_PROFILE_DESCRIPTIONS:
+            del DYNAMIC_PROFILE_DESCRIPTIONS[profile_id]
+        
+        return True
+    
+    return False
+
+def update_dynamic_profile_description(profile_id: str, description: str) -> None:
+    """Update the description for a dynamically created profile"""
+    global DYNAMIC_PROFILE_DESCRIPTIONS
+    DYNAMIC_PROFILE_DESCRIPTIONS[profile_id] = description
 
 def get_profile(profile_name: str) -> RAGConfig:
     """Returns profile by name"""
@@ -338,8 +510,12 @@ def get_profile(profile_name: str) -> RAGConfig:
 
 
 def list_profiles() -> Dict[str, str]:
-    """Returns list of profiles with descriptions"""
-    return {
+    """Returns list of profiles with descriptions (excluding hidden profiles)"""
+    # Load hidden profiles list
+    hidden_profiles = load_hidden_profiles()
+    
+    # Static profile descriptions
+    static_profiles = {
         "high_quality": "Maximum quality - high accuracy, lower speed",
         "fast": "Maximum speed - good performance, reasonable quality",
         "balanced": "Balanced - improved settings based on analysis",
@@ -349,6 +525,24 @@ def list_profiles() -> Dict[str, str]:
         "optimized_testing": "Optimized Testing - Balanced performance & accuracy (73.3% analysis)",
         "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
     }
+    
+    # Filter out hidden built-in profiles
+    visible_static_profiles = {
+        profile_id: description 
+        for profile_id, description in static_profiles.items() 
+        if profile_id not in hidden_profiles
+    }
+    
+    # Add dynamically created profiles
+    dynamic_profiles = {}
+    for profile_id in PROFILES.keys():
+        if profile_id not in static_profiles:
+            # Use stored description if available, otherwise generic description
+            description = DYNAMIC_PROFILE_DESCRIPTIONS.get(profile_id, f"Custom profile: {profile_id}")
+            dynamic_profiles[profile_id] = description
+    
+    # Combine visible static and dynamic profiles
+    return {**visible_static_profiles, **dynamic_profiles}
 
 
 def compare_profiles(profile1_name: str, profile2_name: str) -> Dict[str, Any]:

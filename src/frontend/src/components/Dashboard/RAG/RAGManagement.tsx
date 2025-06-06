@@ -24,6 +24,9 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const [testResult, setTestResult] = useState<RAGTestResult | null>(null);
   const [isRunningTest, setIsRunningTest] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [isDeletingProfile, setIsDeletingProfile] = useState<string | null>(null);
 
   const fetchProfiles = async () => {
     try {
@@ -187,8 +190,72 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     </div>
   );
 
+  const handleCreateProfile = async (profileData: Partial<RAGProfile>) => {
+    setIsCreatingProfile(true);
+    setError(null);
+    try {
+      const newProfile = await ragService.createProfile(profileData);
+      console.log('Successfully created profile:', newProfile);
+      setShowCreateProfile(false);
+      await fetchProfiles(); // רענון הרשימה
+    } catch (error) {
+      console.error('Error creating profile:', error);
+      setError('Failed to create profile');
+    } finally {
+      setIsCreatingProfile(false);
+    }
+  };
+
+  const handleDeleteProfile = async (profileId: string, profileName: string, isCustom: boolean = true) => {
+    // הודעת אישור מותאמת לסוג הפרופיל
+    const profileType = isCustom ? 'מותאם אישית' : 'מובנה';
+    const confirmMessage = isCustom 
+      ? `האם אתה בטוח שברצונך למחוק את הפרופיל המותאם אישית "${profileName}"?`
+      : `האם אתה בטוח שברצונך למחוק את הפרופיל המובנה "${profileName}"?\n\nזה יסתיר את הפרופיל מהרשימה. ניתן יהיה לשחזר אותו בעתיד.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsDeletingProfile(profileId);
+    setError(null);
+    try {
+      // עבור פרופילים מובנים, נשלח force=true
+      await ragService.deleteProfile(profileId, !isCustom);
+      console.log(`Successfully deleted ${profileType} profile:`, profileId);
+      await fetchProfiles(); // רענון הרשימה
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      setError(`Failed to delete profile: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsDeletingProfile(null);
+    }
+  };
+
   const renderProfiles = () => (
     <div className="space-y-6">
+      {/* כפתור יצירת פרופיל חדש */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-green-400">{t('rag.available.profiles') || 'פרופילים זמינים'}</h3>
+        <button
+          onClick={() => setShowCreateProfile(true)}
+          className="bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors flex items-center space-x-2"
+        >
+          <span>+</span>
+          <span>{t('rag.create.profile') || 'צור פרופיל חדש'}</span>
+        </button>
+      </div>
+
+      {/* מודאל יצירת פרופיל */}
+      {showCreateProfile && (
+        <CreateProfileModal
+          language={language}
+          onSubmit={handleCreateProfile}
+          onCancel={() => setShowCreateProfile(false)}
+          isCreating={isCreatingProfile}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {profiles.map((profile) => (
           <div
@@ -245,15 +312,31 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
               </div>
             </div>
 
-            {!profile.isActive && (
-              <button
-                onClick={() => handleProfileChange(profile.id)}
-                disabled={loading}
-                className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors disabled:opacity-50"
-              >
-{loading ? (t('rag.switching') || 'מחליף...') : t('rag.apply.profile')}
-              </button>
-            )}
+            <div className="flex space-x-2">
+              {!profile.isActive && (
+                <button
+                  onClick={() => handleProfileChange(profile.id)}
+                  disabled={loading}
+                  className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors disabled:opacity-50"
+                >
+                  {loading ? (t('rag.switching') || 'מחליף...') : t('rag.apply.profile')}
+                </button>
+              )}
+              {!profile.isActive && (
+                <button
+                  onClick={() => handleDeleteProfile(profile.id, profile.name, profile.isCustom || false)}
+                  disabled={isDeletingProfile === profile.id}
+                  className={`font-medium py-2 px-4 rounded-lg border transition-colors disabled:opacity-50 ${
+                    profile.isCustom 
+                      ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400 border-red-500/30' 
+                      : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border-orange-500/30'
+                  }`}
+                  title={profile.isCustom ? (t('rag.delete.profile') || 'מחק פרופיל') : (t('rag.hide.profile') || 'הסתר פרופיל')}
+                >
+                  {isDeletingProfile === profile.id ? '...' : (profile.isCustom ? '🗑️' : '👁️‍🗨️')}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -479,6 +562,314 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       )}
       
       {renderContent()}
+    </div>
+  );
+};
+
+// קומפוננט ליצירת פרופיל חדש
+interface CreateProfileModalProps {
+  language: Language;
+  onSubmit: (profileData: Partial<RAGProfile>) => void;
+  onCancel: () => void;
+  isCreating: boolean;
+}
+
+const CreateProfileModal: React.FC<CreateProfileModalProps> = ({
+  language,
+  onSubmit,
+  onCancel,
+  isCreating
+}) => {
+  const { t } = useTranslation();
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    config: {
+      similarityThreshold: 0.4,
+      maxChunks: 15,
+      temperature: 0.1,
+      modelName: 'gemini-2.0-flash',
+      chunkSize: 1500,
+      chunkOverlap: 200,
+      maxContextTokens: 8000,
+      targetTokensPerChunk: 300,
+      hybridSemanticWeight: 0.7,
+      hybridKeywordWeight: 0.3
+    },
+    characteristics: {
+      focus: '',
+      expectedSpeed: '',
+      expectedQuality: '',
+      bestFor: '',
+      tradeoffs: ''
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    onSubmit({
+      id: formData.name.toLowerCase().replace(/\s+/g, '_'),
+      name: formData.name,
+      description: formData.description,
+      config: formData.config,
+      characteristics: formData.characteristics,
+      isActive: false
+    });
+  };
+
+  const handleConfigChange = (key: string, value: number | string) => {
+    setFormData(prev => ({
+      ...prev,
+      config: {
+        ...prev.config,
+        [key]: value
+      }
+    }));
+  };
+
+  const handleCharacteristicChange = (key: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      characteristics: {
+        ...prev.characteristics,
+        [key]: value
+      }
+    }));
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-black/80 backdrop-blur-lg rounded-lg border border-green-500/30 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-green-400">
+              {t('rag.create.new.profile') || 'יצירת פרופיל חדש'}
+            </h3>
+            <button
+              onClick={onCancel}
+              className="text-green-400/70 hover:text-green-400 text-xl"
+            >
+              ✕
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* פרטי פרופיל בסיסיים */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-green-400 mb-2">
+                  {t('rag.profileFormName') || 'שם הפרופיל'}
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-2 bg-black/50 border border-green-500/30 rounded-lg text-green-300 placeholder-green-400/50 focus:border-green-500/50 focus:outline-none"
+                  placeholder={t('rag.profileFormNamePlaceholder') || 'הכנס שם לפרופיל...'}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-green-400 mb-2">
+                  {t('rag.profileFormDescription') || 'תיאור'}
+                </label>
+                <input
+                  type="text"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-2 bg-black/50 border border-green-500/30 rounded-lg text-green-300 placeholder-green-400/50 focus:border-green-500/50 focus:outline-none"
+                  placeholder={t('rag.profileFormDescriptionPlaceholder') || 'תיאור הפרופיל...'}
+                />
+              </div>
+            </div>
+
+            {/* הגדרות קונפיגורציה */}
+            <div className="bg-black/30 rounded-lg p-4 border border-green-500/20">
+              <h4 className="text-lg font-medium text-green-400 mb-4">
+                {t('rag.configurationSettings') || 'הגדרות קונפיגורציה'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.similarity.threshold') || 'סף דמיון'} (0.0-1.0)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={formData.config.similarityThreshold}
+                    onChange={(e) => handleConfigChange('similarityThreshold', parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.max.chunks') || 'צ\'אנקים מקסימליים'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={formData.config.maxChunks}
+                    onChange={(e) => handleConfigChange('maxChunks', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.temperature') || 'טמפרטורה'} (0.0-1.0)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={formData.config.temperature}
+                    onChange={(e) => handleConfigChange('temperature', parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.chunkSize') || 'גודל צ\'אנק'}
+                  </label>
+                  <input
+                    type="number"
+                    min="500"
+                    max="5000"
+                    value={formData.config.chunkSize}
+                    onChange={(e) => handleConfigChange('chunkSize', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.chunkOverlap') || 'חפיפת צ\'אנקים'}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={formData.config.chunkOverlap}
+                    onChange={(e) => handleConfigChange('chunkOverlap', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.maxContext') || 'קונטקסט מקסימלי'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1000"
+                    max="20000"
+                    value={formData.config.maxContextTokens}
+                    onChange={(e) => handleConfigChange('maxContextTokens', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* מאפיינים */}
+            <div className="bg-black/30 rounded-lg p-4 border border-green-500/20">
+              <h4 className="text-lg font-medium text-green-400 mb-4">
+                {t('rag.characteristics') || 'מאפיינים'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.focus') || 'מיקוד'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.characteristics.focus}
+                    onChange={(e) => handleCharacteristicChange('focus', e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                    placeholder={t('rag.focusPlaceholder') || 'על מה הפרופיל מתמקד...'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.bestFor') || 'הכי טוב עבור'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.characteristics.bestFor}
+                    onChange={(e) => handleCharacteristicChange('bestFor', e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                    placeholder={t('rag.bestForPlaceholder') || 'מתאים ביותר עבור...'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.expectedSpeed') || 'מהירות צפויה'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.characteristics.expectedSpeed}
+                    onChange={(e) => handleCharacteristicChange('expectedSpeed', e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                    placeholder={t('rag.expectedSpeedPlaceholder') || 'מהיר/בינוני/איטי...'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-green-400/70 mb-2">
+                    {t('rag.expectedQuality') || 'איכות צפויה'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.characteristics.expectedQuality}
+                    onChange={(e) => handleCharacteristicChange('expectedQuality', e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                    placeholder={t('rag.expectedQualityPlaceholder') || 'גבוה/בינוני/בסיסי...'}
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm text-green-400/70 mb-2">
+                  {t('rag.tradeoffs') || 'פשרות'}
+                </label>
+                <textarea
+                  value={formData.characteristics.tradeoffs}
+                  onChange={(e) => handleCharacteristicChange('tradeoffs', e.target.value)}
+                  className="w-full px-3 py-2 bg-black/50 border border-green-500/30 rounded text-green-300 focus:border-green-500/50 focus:outline-none"
+                  placeholder={t('rag.tradeoffsPlaceholder') || 'מה הפשרות בפרופיל הזה...'}
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* כפתורי פעולה */}
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-6 py-2 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/10 transition-colors"
+              >
+                {t('rag.cancel') || 'ביטול'}
+              </button>
+              <button
+                type="submit"
+                disabled={isCreating || !formData.name.trim()}
+                className="px-6 py-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                {isCreating ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-spin" />
+                    <span>{t('rag.creating') || 'יוצר...'}</span>
+                  </>
+                ) : (
+                  <span>{t('rag.create.profile') || 'צור פרופיל'}</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }; 

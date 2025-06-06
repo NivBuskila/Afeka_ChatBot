@@ -227,6 +227,24 @@
     "expectedQuality": "איכות צפויה",
     "bestFor": "מתאים עבור",
     "tradeoffs": "איזונים",
-    "notAvailable": "לא זמין"
+    "notAvailable": "לא זמין",
+    "create": {
+      "profile": "צור פרופיל חדש",
+      "new": {
+        "profile": "יצירת פרופיל חדש"
+      }
+    },
+    "profileFormName": "שם הפרופיל",
+    "profileFormDescription": "תיאור",
+    "profileFormNamePlaceholder": "הכנס שם לפרופיל...",
+    "profileFormDescriptionPlaceholder": "תיאור הפרופיל...",
+    "configurationSettings": "הגדרות קונפיגורציה",
+    "focusPlaceholder": "על מה הפרופיל מתמקד...",
+    "bestForPlaceholder": "מתאים ביותר עבור...",
+    "expectedSpeedPlaceholder": "מהיר/בינוני/איטי...",
+    "expectedQualityPlaceholder": "גבוה/בינוני/בסיסי...",
+    "tradeoffsPlaceholder": "מה הפשרות בפרופיל הזה...",
+    "cancel": "ביטול",
+    "creating": "יוצר..."
   }
 }
