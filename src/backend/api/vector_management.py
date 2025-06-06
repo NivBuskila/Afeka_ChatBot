@@ -7,8 +7,8 @@ import logging
 from pathlib import Path
 
 from src.ai.services.document_processor import DocumentProcessor
-from app.core.auth import get_current_user
-from app.core.database import get_supabase_client
+from src.backend.app.core.auth import get_current_user
+from src.backend.app.core.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ async def process_document_background(document_id: int, file_path: str):
         
         # Update document status to failed
         try:
-            from app.core.database import get_supabase_client
+            from src.backend.app.core.database import get_supabase_client
             supabase = get_supabase_client()
             if supabase:
                 supabase.table("documents").update({

@@ -46,7 +46,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     setError(null);
     try {
       const result = await ragService.activateProfile(profileId);
-      console.log('Successfully switched to profile:', result);
+      console.log('Successfully switched to profile:', result.activeProfile);
       
       // Reload profiles to get updated status
       await fetchProfiles();

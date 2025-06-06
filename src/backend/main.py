@@ -39,18 +39,18 @@ from datetime import datetime
 import uuid
 import asyncio
 import threading
-from app.config.settings import settings
+from src.backend.app.config.settings import settings
 
 # Import vector management router
-from api.vector_management import router as vector_router
+from src.backend.api.vector_management import router as vector_router
 
 # Import RAG router
-from app.api.routes.rag import router as rag_router
+from src.backend.app.api.routes.rag import router as rag_router
 
 # --- NEW IMPORTS FOR CHAT SERVICE ---
-from app.services.chat_service import ChatService
-from app.core.interfaces import IChatService
-from app.domain.models import ChatRequest as ChatRequestModel, ChatMessageHistoryItem # Renamed to avoid conflict with FastAPI's Request
+from src.backend.app.services.chat_service import ChatService
+from src.backend.app.core.interfaces import IChatService
+from src.backend.app.domain.models import ChatRequest as ChatRequestModel, ChatMessageHistoryItem # Renamed to avoid conflict with FastAPI's Request
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

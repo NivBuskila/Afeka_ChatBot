@@ -135,7 +135,8 @@ class RAGService:
                     'semantic', 
                     len(results),
                     results[0]['similarity_score'] if results else 0.0,
-                    response_time
+                    response_time,
+                    document_id=document_id
                 )
             
             logger.info(f"Semantic search completed: {len(results)} results in {response_time}ms")
@@ -181,7 +182,8 @@ class RAGService:
                     'hybrid', 
                     len(results),
                     results[0]['combined_score'] if results else 0.0,
-                    response_time
+                    response_time,
+                    document_id=document_id
                 )
             
             logger.info(f"Hybrid search completed: {len(results)} results in {response_time}ms")
@@ -496,24 +498,42 @@ class RAGService:
         search_type: str, 
         results_count: int,
         top_score: float, 
-        response_time_ms: int
+        response_time_ms: int,
+        document_id: Optional[int] = None
     ):
-        """רושם analytics של חיפוש"""
+        """רושם נתוני חיפוש לטבלת analytics"""
         try:
-            # רק אם analytics מופעל בconfig
-            if not self.performance_config.LOG_SEARCH_ANALYTICS:
-                return
-                
-            self.supabase.rpc(self.db_config.ANALYTICS_FUNCTION, {
-                'query_text': query,
-                'search_type': search_type,
-                'results_found': results_count,
-                'top_result_score': top_score,
-                'user_id_param': None,  # נוסיף user tracking מאוחר יותר
-                'response_time_ms': response_time_ms
-            }).execute()
+            analytics_data = {
+                "query_text": query,
+                "search_type": search_type,
+                "results_count": results_count,
+                "top_score": top_score,
+                "response_time_ms": response_time_ms,
+                "config_profile": get_current_profile() if 'get_current_profile' in locals() else 'default',
+            }
+
+            # The document_id is currently an integer and causes a UUID error in the RPC.
+            # Temporarily removing it from the log until the DB schema is fixed.
+            # if document_id is not None:
+            #     analytics_data["document_id"] = document_id
+
+            response = self.supabase.rpc(
+                self.db_config.LOG_ANALYTICS_FUNCTION, 
+                analytics_data
+            ).execute()
+            
+            # Check for errors in the response
+            if hasattr(response, 'error') and response.error:
+                logger.warning(f"Failed to log search analytics: {response.error.message}")
+            elif isinstance(response, dict) and response.get('error'):
+                 logger.warning(f"Failed to log search analytics: {response.get('error')}")
+
         except Exception as e:
-            logger.warning(f"Failed to log search analytics: {e}")
+            # Handle cases where `response` might not be a standard object
+            if "postgrest.exceptions.APIError" in str(type(e)):
+                 logger.warning(f"Failed to log search analytics: {e.message}")
+            else:
+                 logger.warning(f"Failed to log search analytics: {e}")
     
     async def get_search_statistics(self, days_back: int = 30) -> Dict[str, Any]:
         """מחזיר סטטיסטיקות חיפוש"""

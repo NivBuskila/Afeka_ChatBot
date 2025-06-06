@@ -343,9 +343,9 @@ export const translations: Translations = {
     he: 'לא פעיל',
     en: 'Inactive'
   },
-  'rag.overview': {
-    he: 'סקירה כללית',
-    en: 'Overview'
+  'rag.status.inactive': {
+    he: 'לא פעיל',
+    en: 'Inactive'
   },
 
   // Additional general translations
@@ -372,5 +372,9 @@ export const translations: Translations = {
   'Delete': {
     he: 'מחק',
     en: 'Delete'
+  },
+  'general.search': {
+    he: 'חיפוש...',
+    en: 'Search...'
   }
 }; 

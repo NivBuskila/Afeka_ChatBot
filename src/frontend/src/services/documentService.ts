@@ -151,12 +151,16 @@ export const documentService = {
       const data = await response.json();
       console.log(`Processing status response for document ${documentId}:`, data);
       
-      // Ensure the status is a string and has a valid value
+      // Normalize status field for frontend components
       if (data && !data.status) {
-        console.warn(`Document ${documentId} status is missing or invalid:`, data);
-        // If we have chunk_count but no status, assume it's completed
-        if (data.chunk_count > 0) {
-          data.status = 'completed';
+        if (data.processing_status) {
+          data.status = data.processing_status;
+        } else {
+          console.warn(`Document ${documentId} status field is missing.`, data);
+          // If we have chunk_count but no status, assume it's completed as a fallback
+          if (data.chunk_count > 0) {
+            data.status = 'completed';
+          }
         }
       }
       

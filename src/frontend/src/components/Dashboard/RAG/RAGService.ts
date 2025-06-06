@@ -76,7 +76,7 @@ export class RAGService {
     return result.profiles;
   }
 
-  async activateProfile(profileId: string): Promise<void> {
+  async activateProfile(profileId: string): Promise<any> {
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw new Error('Not authenticated');
 
@@ -91,6 +91,9 @@ export class RAGService {
     if (!response.ok) {
       throw new Error(`Failed to activate profile: ${response.statusText}`);
     }
+    
+    // Return the JSON response from the server
+    return await response.json();
   }
 
   async getCurrentProfile(): Promise<string> {
