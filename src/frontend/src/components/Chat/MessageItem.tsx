@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Bot } from 'lucide-react';
+import { User, Bot, BookOpen, Brain, MessageCircle } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -7,6 +7,13 @@ interface Message {
   content: string;
   timestamp: string;
   sessionId?: string;
+  sourceInfo?: {
+    type: string;
+    description: string;
+    sourcesCount: number;
+    chunksCount: number;
+    sources: string[];
+  };
 }
 
 interface MessageItemProps {
@@ -32,6 +39,54 @@ const highlightText = (text: string, searchTerm: string) => {
         )
       )}
     </>
+  );
+};
+
+// Function to get source indicator
+const getSourceIndicator = (sourceInfo?: Message['sourceInfo']) => {
+  if (!sourceInfo) return null;
+
+  const { type, description, sourcesCount, chunksCount } = sourceInfo;
+
+  let icon, bgColor, textColor, borderColor;
+
+  switch (type) {
+    case 'rag':
+      icon = <BookOpen className="w-3 h-3" />;
+      bgColor = 'bg-blue-50 dark:bg-blue-900/20';
+      textColor = 'text-blue-700 dark:text-blue-300';
+      borderColor = 'border-blue-200 dark:border-blue-700';
+      break;
+    case 'llm':
+      icon = <Brain className="w-3 h-3" />;
+      bgColor = 'bg-purple-50 dark:bg-purple-900/20';
+      textColor = 'text-purple-700 dark:text-purple-300';
+      borderColor = 'border-purple-200 dark:border-purple-700';
+      break;
+    case 'conversation':
+      icon = <MessageCircle className="w-3 h-3" />;
+      bgColor = 'bg-orange-50 dark:bg-orange-900/20';
+      textColor = 'text-orange-700 dark:text-orange-300';
+      borderColor = 'border-orange-200 dark:border-orange-700';
+      break;
+    default:
+      return null;
+  }
+
+  return (
+    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${bgColor} ${textColor} ${borderColor} mt-2`}>
+      {icon}
+      <span className="font-medium">
+        {type === 'rag' && `📚 ${sourcesCount} מקורות`}
+        {type === 'llm' && '🧠 תשובה כללית'}
+        {type === 'conversation' && '💬 שיחה'}
+      </span>
+      {description && (
+        <span className="text-xs opacity-75 mr-1">
+          • {description}
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -64,6 +119,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, searchTerm = '' }) =
         <p className="text-sm text-gray-700 dark:text-gray-100">
           {searchTerm ? highlightText(message.content, searchTerm) : message.content}
         </p>
+        
+        {/* Source indicator for bot messages */}
+        {!isUser && message.sourceInfo && (
+          <div className="mt-2">
+            {getSourceIndicator(message.sourceInfo)}
+          </div>
+        )}
       </div>
     </div>
   );

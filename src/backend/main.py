@@ -10,6 +10,7 @@ uvicorn src.backend.main:app --reload
 """
 import os
 import sys
+from datetime import datetime
 
 # Add project root to path for imports
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -279,21 +280,50 @@ async def health_check():
     supabase_status = "connected" if supabase_client else "disconnected"
     return {"status": "ok", "supabase": supabase_status}
 
-# Singleton instance of ChatService
+# Singleton instance of ChatService with profile awareness
 _chat_service_instance = None
+_current_profile_cache = None
 
 def get_chat_service() -> IChatService:
     """
     Return a singleton instance of ChatService.
-    This ensures the RAG service is initialized only once and reused across requests.
+    Recreates the instance if the RAG profile has changed to ensure 
+    the chatbot uses the same RAG configuration as RAG Management.
     """
-    global _chat_service_instance
+    global _chat_service_instance, _current_profile_cache
     
-    if _chat_service_instance is None:
-        logger.info("Initializing ChatService singleton instance")
-        _chat_service_instance = ChatService()
-    
-    return _chat_service_instance
+    try:
+        # Check current profile from the central profile system
+        from src.ai.config.current_profile import get_current_profile
+        current_profile = get_current_profile()
+        
+        # If profile changed or no instance exists, create new one
+        if (_chat_service_instance is None or 
+            _current_profile_cache != current_profile):
+            
+            if _current_profile_cache and _current_profile_cache != current_profile:
+                logger.info(f"🔄 RAG Profile changed from '{_current_profile_cache}' to '{current_profile}' - recreating ChatService")
+            else:
+                logger.info(f"🎯 Initializing ChatService with RAG profile: '{current_profile}'")
+            
+            # Clear old instance
+            _chat_service_instance = None
+            
+            # Create new instance (will load the current profile automatically)
+            _chat_service_instance = ChatService()
+            _current_profile_cache = current_profile
+            
+            logger.info(f"✅ ChatService recreated successfully with profile: '{current_profile}'")
+        
+        return _chat_service_instance
+        
+    except Exception as e:
+        logger.error(f"Error checking profile or creating ChatService: {e}")
+        # Fallback to existing instance or create new one
+        if _chat_service_instance is None:
+            logger.info("Creating fallback ChatService instance")
+            _chat_service_instance = ChatService()
+        return _chat_service_instance
 
 # --- MODIFIED /api/chat ENDPOINT ---
 @app.post("/api/chat")
@@ -355,6 +385,40 @@ async def chat(
             content={"error": "Internal server error processing chat request"}, 
             headers={"Content-Type": "application/json; charset=utf-8"}
         )
+
+@app.post("/api/chat/refresh")
+async def refresh_chat_service():
+    """
+    Manually refresh the ChatService to pick up new RAG profile changes.
+    Useful for immediate profile switching without waiting for next chat request.
+    """
+    global _chat_service_instance, _current_profile_cache
+    
+    try:
+        from src.ai.config.current_profile import get_current_profile
+        current_profile = get_current_profile()
+        
+        logger.info(f"🔄 Manually refreshing ChatService with profile: '{current_profile}'")
+        
+        # Force recreation
+        _chat_service_instance = None
+        _current_profile_cache = None
+        
+        # Create new instance
+        new_service = get_chat_service()
+        
+        return JSONResponse(
+            content={
+                "message": "ChatService refreshed successfully",
+                "activeProfile": current_profile,
+                "timestamp": datetime.now().isoformat()
+            },
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error refreshing ChatService: {e}")
+        raise HTTPException(status_code=500, detail=f"Error refreshing ChatService: {str(e)}")
 
 @app.get("/api/documents")
 async def get_documents():

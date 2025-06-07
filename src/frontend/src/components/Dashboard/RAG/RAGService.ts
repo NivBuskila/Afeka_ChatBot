@@ -93,7 +93,32 @@ export class RAGService {
       throw new Error(`Failed to activate profile: ${response.statusText}`);
     }
     
-    // Return the JSON response from the server
+    const result = await response.json();
+    
+    // Refresh ChatService to pick up the new profile immediately
+    try {
+      console.log('🔄 Refreshing ChatService to use new RAG profile...');
+      await this.refreshChatService();
+      console.log('✅ ChatService refreshed successfully');
+    } catch (error) {
+      console.warn('⚠️ Failed to refresh ChatService, but profile was activated:', error);
+    }
+    
+    return result;
+  }
+
+  async refreshChatService(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/chat/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to refresh ChatService: ${response.statusText}`);
+    }
+
     return await response.json();
   }
 

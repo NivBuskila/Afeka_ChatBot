@@ -16,6 +16,13 @@ interface Message {
   content: string;
   timestamp: string;
   sessionId?: string;
+  sourceInfo?: {
+    type: string;
+    description: string;
+    sourcesCount: number;
+    chunksCount: number;
+    sources: string[];
+  };
 }
 
 interface ChatWindowProps {
@@ -123,42 +130,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         console.log(`Successfully loaded ${session.messages.length} messages`);
         console.log("First message structure example:", JSON.stringify(session.messages[0]));
         
-        // המר את ההודעות למבנה הנכון עבור ממשק המשתמש
-        const formattedMessages = session.messages.map((msg: any) => {
-          // קביעת תוכן ההודעה - יכול להיות ב-content, request או response
-          let messageContent = '';
-          let isBot = !!msg.is_bot;
+        const formattedMessages: Message[] = session.messages.map((msg: any) => {
+          const isBot = msg.response !== null && msg.response !== undefined;
+          const content = isBot ? msg.response : msg.request;
           
-          // בדיקה אם יש לנו הודעת משתמש/בוט לפי שדות request/response
-          if (msg.request && msg.request.trim() !== '') {
-            messageContent = msg.request;
-            isBot = false;
-          } else if (msg.response && msg.response.trim() !== '') {
-            messageContent = msg.response;
-            isBot = true;
-          } else if (msg.content) {
-            messageContent = msg.content;
-          } else if (msg.message_text) {
-            messageContent = msg.message_text;
-          } else if (msg.text) {
-            messageContent = msg.text;
+          // Extract sourceInfo from metadata if it exists
+          let sourceInfo = undefined;
+          if (isBot && msg.metadata) {
+            try {
+              // Handle case where metadata is a JSON string
+              const metadata = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
+              if (metadata && metadata.sourceInfo) {
+                sourceInfo = metadata.sourceInfo;
+              }
+            } catch (error) {
+              console.warn('Failed to parse metadata:', error);
+            }
           }
           
-          // יצירת מזהה ייחודי אם חסר
-          const messageId = msg.id || msg.message_id || `msg-${Date.now()}`;
-          
-          console.log(`Message ${messageId} content source:`, 
-                      msg.request ? 'request' : 
-                      msg.response ? 'response' : 
-                      msg.content ? 'content' : 'other',
-                      "is_bot:", isBot);
+          console.log(`Message ${msg.message_id} content source: ${isBot ? 'response' : 'request'} is_bot: ${isBot}`);
           
           return {
-            id: messageId,
-            type: (isBot ? 'bot' : 'user') as 'bot' | 'user',
-            content: messageContent,
+            id: msg.message_id.toString(),
+            type: isBot ? 'bot' : 'user',
+            content: content || '',
             timestamp: new Date(msg.created_at).toLocaleTimeString(),
-            sessionId: msg.chat_session_id || msg.conversation_id || sessionId
+            sessionId: sessionId,
+            sourceInfo: sourceInfo
           };
         });
         
@@ -204,41 +202,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         
         if (session.messages && session.messages.length > 0) {
           // המר את ההודעות למבנה הנכון עבור ממשק המשתמש
-          const formattedMessages = session.messages.map((msg: any) => {
-            // קביעת תוכן ההודעה - יכול להיות ב-content, request או response
-            let messageContent = '';
-            let isBot = !!msg.is_bot;
+          const formattedMessages: Message[] = session.messages.map((msg: any) => {
+            const isBot = msg.response !== null && msg.response !== undefined;
+            const content = isBot ? msg.response : msg.request;
             
-            // בדיקה אם יש לנו הודעת משתמש/בוט לפי שדות request/response
-            if (msg.request && msg.request.trim() !== '') {
-              messageContent = msg.request;
-              isBot = false;
-            } else if (msg.response && msg.response.trim() !== '') {
-              messageContent = msg.response;
-              isBot = true;
-            } else if (msg.content) {
-              messageContent = msg.content;
-            } else if (msg.message_text) {
-              messageContent = msg.message_text;
-            } else if (msg.text) {
-              messageContent = msg.text;
+            // Extract sourceInfo from metadata if it exists
+            let sourceInfo = undefined;
+            if (isBot && msg.metadata) {
+              try {
+                // Handle case where metadata is a JSON string
+                const metadata = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
+                if (metadata && metadata.sourceInfo) {
+                  sourceInfo = metadata.sourceInfo;
+                }
+              } catch (error) {
+                console.warn('Failed to parse metadata:', error);
+              }
             }
             
-            // יצירת מזהה ייחודי אם חסר
-            const messageId = msg.id || msg.message_id || `msg-${Date.now()}`;
-            
-            console.log(`Message ${messageId} content source:`, 
-                        msg.request ? 'request' : 
-                        msg.response ? 'response' : 
-                        msg.content ? 'content' : 'other',
-                        "is_bot:", isBot);
+            console.log(`Message ${msg.message_id} content source: ${isBot ? 'response' : 'request'} is_bot: ${isBot}`);
             
             return {
-              id: messageId,
-              type: (isBot ? 'bot' : 'user') as 'bot' | 'user',
-              content: messageContent,
+              id: msg.message_id.toString(),
+              type: isBot ? 'bot' : 'user',
+              content: content || '',
               timestamp: new Date(msg.created_at).toLocaleTimeString(),
-              sessionId: msg.chat_session_id || msg.conversation_id || sessionId
+              sessionId: sessionId,
+              sourceInfo: sourceInfo
             };
           });
           
@@ -437,6 +427,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       // });
 
       // Call backend API
+      console.log(`🕐 Sending chat request with timeout: ${API_CONFIG.DEFAULT_TIMEOUT}ms`);
       const response = await fetch(API_CONFIG.CHAT_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -451,22 +442,37 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       });
 
       let botContent = '';
+      let sourceInfo = null;
       
       if (response.ok) {
         const data = await response.json();
-        // console.log('API response:', data);
+        console.log('✅ API response received:', data);
         botContent = data.result || data.response || data.answer || t('chat.errorProcessing') || "Sorry, I couldn't process your request.";
+        
+        // Extract source information
+        if (data.source_type) {
+          sourceInfo = {
+            type: data.source_type,
+            description: data.source_description,
+            sourcesCount: data.sources_count,
+            chunksCount: data.chunks_count,
+            sources: data.sources
+          };
+          console.log('📊 Source info:', sourceInfo);
+        }
       } else {
+        console.error('❌ API response error:', response.status, response.statusText);
         botContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
       }
       
-      // Create bot reply
+      // Create bot reply with source information
       const botReply: Message = {
         id: `bot-${Date.now().toString()}`,
         type: 'bot',
         content: botContent,
         timestamp: new Date().toLocaleTimeString(),
-        sessionId: sessionId
+        sessionId: sessionId,
+        sourceInfo: sourceInfo // Add source info to message
       };
       
       setMessages(prev => [...prev, botReply]);
@@ -476,7 +482,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         user_id: userId, // Ensure userId is passed correctly
         chat_session_id: sessionId,
         content: botContent, // Ensure botContent has a value
-        is_bot: true
+        is_bot: true,
+        metadata: sourceInfo ? { sourceInfo } : undefined // Save source info in metadata
       });
       
       // if (savedMessage) {
@@ -487,7 +494,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       
       await loadSessionMessages(sessionId);
     } catch (error) {
-      // console.error('Exception while processing bot response:', error);
+      console.error('❌ Exception while processing bot response:', error);
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        console.error('⏰ Request timed out - RAG processing took too long');
+      }
       const errorContent = t('chat.errorRequest') || 'Sorry, I encountered an error while processing your request.';
       const botReply: Message = {
         id: `error-${Date.now().toString()}`,

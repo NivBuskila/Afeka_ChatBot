@@ -7,6 +7,13 @@ interface Message {
   content: string;
   timestamp: string;
   sessionId?: string;
+  sourceInfo?: {
+    type: string;
+    description: string;
+    sourcesCount: number;
+    chunksCount: number;
+    sources: string[];
+  };
 }
 
 interface MessageListProps {

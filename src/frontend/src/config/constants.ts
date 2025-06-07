@@ -12,5 +12,5 @@ export const API_CONFIG = {
   CHAT_ENDPOINT: `${BACKEND_URL}/api/chat`,
   DOCUMENTS_ENDPOINT: `${BACKEND_URL}/api/documents`,
   HEALTH_ENDPOINT: `${BACKEND_URL}/api/health`,
-  DEFAULT_TIMEOUT: 5000,
+  DEFAULT_TIMEOUT: 20000, // Increased to 20 seconds for RAG processing
 } as const;

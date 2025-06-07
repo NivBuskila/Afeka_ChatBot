@@ -122,7 +122,11 @@ class ChatService(IChatService):
                 logger.info("Using regular LLM for personal conversation question")
                 response_content = await self.conversation_chain.apredict(input=user_message)
                 logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
-                return {"response": response_content}
+                return {
+                    "response": response_content,
+                    "source_type": "conversation",
+                    "source_description": "תשובה מבוססת על השיחה הנוכחית"
+                }
             
             # For all other questions, try RAG service first
             if self.rag_service:
@@ -146,7 +150,14 @@ class ChatService(IChatService):
                         sources_count = len(rag_response.get("sources", []))
                         chunks_count = len(rag_response.get("chunks_selected", []))
                         logger.info(f"🎯 RAG service found {sources_count} sources, {chunks_count} chunks - using RAG response")
-                        return {"response": rag_response["answer"], "sources": rag_response.get("sources", [])}
+                        return {
+                            "response": rag_response["answer"], 
+                            "sources": rag_response.get("sources", []),
+                            "source_type": "rag",
+                            "source_description": f"תשובה מבוססת על {sources_count} מקורות מהתקנונים",
+                            "chunks_count": chunks_count,
+                            "sources_count": sources_count
+                        }
                     else:
                         # RAG didn't find relevant information, fall back to regular LLM
                         logger.info("❌ RAG service didn't find relevant sources/chunks, falling back to regular LLM")
@@ -159,7 +170,11 @@ class ChatService(IChatService):
             
             logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
             
-            return {"response": response_content}
+            return {
+                "response": response_content,
+                "source_type": "llm",
+                "source_description": "תשובה כללית (לא נמצא מידע רלוונטי בתקנונים)"
+            }
 
         except Exception as e:
             logger.error(f"Error during LangChain (Gemini) conversation prediction: {e}", exc_info=True)

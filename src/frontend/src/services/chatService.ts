@@ -15,6 +15,7 @@ export interface Message {
   content: string;
   created_at: string;
   is_bot: boolean;
+  metadata?: any;
   // Alternative column names that might be used in the database
   message_content?: string;
   message_text?: string;
@@ -270,6 +271,11 @@ const chatService = {
           messageData.status = 'completed';
         }
         
+        // Add metadata if provided and schema supports it
+        if (message.metadata && columns.includes('metadata')) {
+          messageData.metadata = message.metadata;
+        }
+        
         console.log('Inserting message with adapted schema:', messageData);
         
         try {
@@ -290,7 +296,8 @@ const chatService = {
             chat_session_id: message.chat_session_id,
             content: message.content,
             created_at: insertResponse.data.created_at || new Date().toISOString(),
-            is_bot: message.is_bot
+            is_bot: message.is_bot,
+            metadata: message.metadata
           };
           
           return normalizedMessage;

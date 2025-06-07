@@ -24,6 +24,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const [testResult, setTestResult] = useState<RAGTestResult | null>(null);
   const [isRunningTest, setIsRunningTest] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showCreateProfile, setShowCreateProfile] = useState(false);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   const [isDeletingProfile, setIsDeletingProfile] = useState<string | null>(null);
@@ -47,12 +48,26 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const handleProfileChange = async (profileId: string) => {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       const result = await ragService.activateProfile(profileId);
       console.log('Successfully switched to profile:', result.activeProfile);
       
+      // Show success message
+      const profileName = profiles.find(p => p.id === profileId)?.name || profileId;
+      setSuccessMessage(`✅ פרופיל הוחלף ל-"${profileName}" והצ'אטבוט עודכן בהצלחה!`);
+      console.log(`✅ Profile switched to "${profileName}" and ChatService refreshed`);
+      
       // Reload profiles to get updated status
       await fetchProfiles();
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+      
+      // Optional: Show a temporary success notification
+      if (onRefresh) {
+        onRefresh(); // This can trigger a parent component refresh if needed
+      }
       
     } catch (error) {
       console.error('Error switching profile:', error);
@@ -555,6 +570,19 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
           <button
             onClick={() => setError(null)}
             className="mr-auto text-red-400 hover:text-red-300"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      
+      {successMessage && (
+        <div className="mb-6 bg-green-500/20 border border-green-500/30 rounded-lg p-4 flex items-center">
+          <Check className="w-5 h-5 text-green-400 mr-3" />
+          <span className="text-green-400">{successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="mr-auto text-green-400 hover:text-green-300"
           >
             ✕
           </button>
