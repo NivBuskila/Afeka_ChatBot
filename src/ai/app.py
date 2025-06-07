@@ -9,6 +9,7 @@ from pathlib import Path
 import dotenv
 from flask_cors import CORS
 from typing import List, Dict
+import asyncio
 
 # ✅ STANDARDIZED: Load environment from project root
 project_root = Path(__file__).parent.parent.parent
