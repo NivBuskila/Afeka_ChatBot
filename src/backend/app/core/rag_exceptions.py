@@ -80,6 +80,22 @@ class SearchException(RAGException):
         self.search_type = search_type
 
 
+class VectorSearchException(SearchException):
+    """Exception raised during vector search operations"""
+    
+    def __init__(
+        self, 
+        message: str, 
+        query: Optional[str] = None,
+        query_embedding_dimension: Optional[int] = None,
+        similarity_threshold: Optional[float] = None,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(message, query, "vector_search", details)
+        self.query_embedding_dimension = query_embedding_dimension
+        self.similarity_threshold = similarity_threshold
+
+
 class ValidationError(RAGException):
     """Exception for validation errors in RAG operations"""
     
@@ -124,12 +140,13 @@ def log_rag_exception(logger, exception: RAGException, context: Optional[Dict[st
     logger.error("RAG exception", extra=log_data)
 
 
-# Export minimal set for Phase 1
+# Export minimal set for Phase 1 + Phase 2
 __all__ = [
     "RAGException",
     "DocumentProcessingException", 
     "EmbeddingException",
     "SearchException",
+    "VectorSearchException",
     "ValidationError",
     "create_detailed_error_response",
     "log_rag_exception"
