@@ -1,5 +1,8 @@
 {
   "hidden_profiles": [
-    "fast"
+    "fast",
+    "balanced",
+    "improved",
+    "high_quality"
   ]
 }

@@ -4,4 +4,4 @@ ALTER TABLE public.document_chunks
   ADD COLUMN IF NOT EXISTS section TEXT;
  
 ALTER TABLE public.documents
-  ADD COLUMN IF NOT EXISTS processing_note TEXT; 
+  ADD COLUMN IF NOT EXISTS processing_notes TEXT; 

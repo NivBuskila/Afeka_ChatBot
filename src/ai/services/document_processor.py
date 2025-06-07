@@ -448,6 +448,26 @@ class DocumentProcessor:
         except Exception as e:
             logger.error(f"Exception updating document status for ID {document_id} to {status}: {e}", exc_info=True)
 
+    async def _update_document_content(self, document_id: int, raw_chunks: List[Any]):
+        """עדכון תוכן המסמך במסד הנתונים"""
+        logger.info(f"Updating document content for document ID {document_id}")
+        try:
+            # Combine all chunk texts into the full document content
+            full_content = "\n\n".join([chunk.page_content for chunk in raw_chunks])
+            
+            update_data = {"content": full_content}
+            
+            response = self.supabase.table(self.db_config.DOCUMENTS_TABLE).update(update_data).eq("id", document_id).execute()
+            
+            if hasattr(response, 'data') and response.data:
+                logger.debug(f"Successfully updated content for document ID {document_id}. Content length: {len(full_content)}")
+            elif hasattr(response, 'error') and response.error is not None:
+                logger.error(f"Supabase error updating content for document ID {document_id}: Code: {response.error.code}, Message: {response.error.message}")
+            else:
+                logger.warning(f"Unknown Supabase response when updating content for document ID {document_id}: {response}")
+        except Exception as e:
+            logger.error(f"Exception updating document content for ID {document_id}: {e}", exc_info=True)
+
     async def delete_document_and_all_chunks(self, document_id: int) -> Dict[str, Any]:
         """
         Deletes a document and all its associated chunks from both old and new tables.
