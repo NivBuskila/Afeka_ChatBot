@@ -128,14 +128,20 @@ def add_security_headers(response):
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
 
-# ✅ FIXED: Context manager import
+# ✅ ENHANCED: Context manager import section (around line 135)
 try:
-    from services.context_window_manager import SimpleContextManager
-    context_manager = SimpleContextManager()
-    logger.info("✅ Simple Context Manager loaded")
+    from services.enhanced_context_manager import AdvancedContextManager
+    context_manager = AdvancedContextManager()
+    logger.info("✅ Advanced Context Manager loaded")
 except Exception as e:
-    logger.warning(f"⚠️ Context Manager not available: {e}")
-    context_manager = None
+    logger.warning(f"⚠️ Advanced Context Manager not available, using simple fallback: {e}")
+    try:
+        from services.context_window_manager import SimpleContextManager
+        context_manager = SimpleContextManager()
+        logger.info("✅ Simple Context Manager loaded as fallback")
+    except Exception as e2:
+        logger.warning(f"⚠️ No Context Manager available: {e2}")
+        context_manager = None
 
 # ✅ ENHANCED: Health check with comprehensive status
 @app.route('/')
@@ -341,15 +347,16 @@ def rag_stats():
         logger.error(f"Error getting RAG stats: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# ✅ Basic chat endpoint (working even without full RAG)
+# Replace the entire chat function with the enhanced version
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Basic chat endpoint with Gemini"""
+    """Enhanced chat endpoint with advanced context management and RAG integration"""
     try:
         start_time = time.time()
         data = request.get_json(force=True)
         message = data.get('message', '')
-        context = data.get('context', [])  # Accept context from backend
+        context = data.get('context', [])
+        session_id = data.get('session_id')  # NEW: Session tracking
         use_rag = data.get('use_rag', True)
         
         if not message.strip():
@@ -357,51 +364,217 @@ def chat():
         
         if len(message) > MAX_MESSAGE_LENGTH:
             return jsonify({"error": f"Message too long (max {MAX_MESSAGE_LENGTH} characters)"}), 400
+
+        # Use Advanced Context Manager if available
+        if not context_manager:
+            return _simple_chat_fallback(message, context)
         
-        # Build enhanced prompt with context if provided
-        if context and len(context) > 0:
-            context_text = "\n".join([
-                f"הודעה קודמת ({msg.get('role', 'user')}): {msg.get('content', '')[:200]}..."
-                for msg in context[-5:]  # Last 5 messages
-            ])
+        # Get RAG results if available and requested
+        rag_results = []
+        if use_rag and has_rag and enhanced_processor:
+            try:
+                async def get_rag_results():
+                    return await enhanced_processor.search(message, max_results=5)
+                
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(asyncio.run, get_rag_results())
+                            rag_results = future.result()
+                    else:
+                        rag_results = loop.run_until_complete(get_rag_results())
+                except RuntimeError:
+                    rag_results = asyncio.run(get_rag_results())
+                
+                if not isinstance(rag_results, list):
+                    rag_results = []
+                    
+                logger.info(f"✅ Retrieved {len(rag_results)} RAG results for context")
+                
+            except Exception as e:
+                logger.warning(f"⚠️ RAG search failed, continuing without: {e}")
+                rag_results = []
+
+        # Build advanced context
+        try:
+            async def build_advanced_context():
+                return await context_manager.build_context_with_rag(
+                    conversation_history=context,
+                    rag_results=rag_results,
+                    current_query=message,
+                    session_id=session_id
+                )
             
-            prompt = f"""
-הקשר השיחה:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, build_advanced_context())
+                        advanced_context = future.result()
+                else:
+                    advanced_context = loop.run_until_complete(build_advanced_context())
+            except RuntimeError:
+                advanced_context = asyncio.run(build_advanced_context())
+                
+        except Exception as e:
+            logger.error(f"❌ Advanced context building failed: {e}")
+            # Fallback to simple context
+            advanced_context = {
+                'rag_context': {'text': '', 'sources': []},
+                'conversation_context': {'messages': context[-5:]},
+                'context_quality_score': 0.3
+            }
+
+        # Build enhanced prompt with advanced context
+        prompt = _build_enhanced_prompt(message, advanced_context)
+        
+        # Generate response with Gemini
+        try:
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            response = model.generate_content(prompt)
+            answer = response.text
+        except Exception as e:
+            logger.error(f"❌ Gemini generation failed: {e}")
+            answer = "אני מצטער, אירעה שגיאה בעיבוד הבקשה. אנא נסה שוב."
+
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        # Prepare enhanced response
+        enhanced_response = {
+            "result": answer,
+            "processing_time": processing_time,
+            "rag_used": len(rag_results) > 0,
+            "context_messages": len(advanced_context.get('conversation_context', {}).get('messages', [])),
+            "rag_sources": advanced_context.get('rag_context', {}).get('sources', []),
+            "context_quality_score": advanced_context.get('context_quality_score', 0),
+            "token_usage": advanced_context.get('token_usage', {}),
+            "source": "gemini-enhanced"
+        }
+
+        # Store conversation memory
+        if session_id and context_manager:
+            try:
+                async def store_memory():
+                    return await context_manager.manage_conversation_memory(
+                        session_id=session_id,
+                        new_message={'content': message, 'role': 'user', 'timestamp': time.time()},
+                        response=enhanced_response
+                    )
+                
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            executor.submit(asyncio.run, store_memory())
+                    else:
+                        loop.run_until_complete(store_memory())
+                except RuntimeError:
+                    asyncio.run(store_memory())
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to store conversation memory: {e}")
+
+        return jsonify(enhanced_response)
+        
+    except Exception as e:
+        logger.error(f"❌ Error in enhanced chat: {str(e)}")
+        return jsonify({
+            "result": "אני מצטער, אירעה שגיאה בעיבוד הבקשה. אנא נסה שוב.",
+            "processing_time": int((time.time() - start_time) * 1000) if 'start_time' in locals() else 0,
+            "rag_used": False,
+            "context_messages": 0,
+            "error": str(e)
+        }), 500
+
+# Add these helper functions at the end of the file
+def _build_enhanced_prompt(user_message: str, advanced_context: Dict) -> str:
+    """Build enhanced prompt with advanced context integration"""
+    
+    rag_context = advanced_context.get('rag_context', {})
+    conversation_context = advanced_context.get('conversation_context', {})
+    
+    # Base system prompt
+    system_prompt = """אתה עוזר AI מתקדם של מכללת אפקה. 
+אתה עונה בעברית בצורה מקצועית, מדויקת ומועילה.
+השתמש במידע שסופק לך וציין מקורות כשרלוונטי."""
+    
+    # Add RAG context if available
+    rag_section = ""
+    if rag_context.get('text'):
+        rag_section = f"""
+📚 מידע רלוונטי מתקנוני המכללה:
+{rag_context['text']}
+
+"""
+    
+    # Add conversation context if available
+    conversation_section = ""
+    if conversation_context.get('messages'):
+        recent_messages = conversation_context['messages'][-3:]
+        conv_text = "\n".join([
+            f"👤 {msg.get('content', '')}" if msg.get('role') == 'user' 
+            else f"🤖 {msg.get('content', '')}"
+            for msg in recent_messages
+        ])
+        conversation_section = f"""
+💬 הקשר השיחה האחרון:
+{conv_text}
+
+"""
+    
+    # Build final prompt
+    prompt = f"""{system_prompt}
+
+{rag_section}{conversation_section}🎯 שאלה נוכחית: {user_message}
+
+הנחיות:
+- ענה בעברית בלבד
+- השתמש במידע שסופק אם רלוונטי
+- אם המידע חלקי, ציין זאת
+- הוסף הפניות לסעיפים אם יש מקורות
+- שמור על טון מקצועי ואקדמי"""
+
+    return prompt
+
+
+def _simple_chat_fallback(message: str, context: List[Dict]) -> Dict:
+    """Simple fallback for when advanced context is not available"""
+    try:
+        if context:
+            context_text = "\n".join([
+                f"הודעה קודמת: {msg.get('content', '')[:200]}..."
+                for msg in context[-3:]
+            ])
+            prompt = f"""הקשר השיחה:
 {context_text}
 
-אתה עוזר AI של מכללת אפקה. ענה בעברית בצורה מועילת ומקצועית על בסיס ההקשר.
+אתה עוזר AI של מכללת אפקה. ענה בעברית בצורה מועילה ומקצועית.
 
-שאלה: {message}
-"""
+שאלה: {message}"""
         else:
-            prompt = f"""
-אתה עוזר AI של מכללת אפקה. ענה בעברית בצורה מועילת ומקצועית.
-
-שאלה: {message}
-"""
+            prompt = f"אתה עוזר AI של מכללת אפקה. ענה בעברית בצורה מועילה ומקצועית.\n\nשאלה: {message}"
         
-        # Use Gemini for basic chat
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         
-        processing_time = int((time.time() - start_time) * 1000)
-        
-        # ✅ FIX: Return the format backend expects
         return jsonify({
-            "result": response.text,  # Changed from "answer" to "result"
-            "processing_time": processing_time,  # Added processing time
-            "rag_used": use_rag and has_rag,  # Changed from "has_rag" to "rag_used"
-            "context_messages": len(context),  # Added context count
-            "source": "gemini-basic"  # Keep for debugging
+            "result": response.text,
+            "processing_time": 1000,
+            "rag_used": False,
+            "context_messages": len(context),
+            "source": "gemini-simple-fallback"
         })
         
     except Exception as e:
-        logger.error(f"Error in chat: {str(e)}")
+        logger.error(f"❌ Simple fallback failed: {e}")
         return jsonify({
             "result": "אני מצטער, אירעה שגיאה בעיבוד הבקשה. אנא נסה שוב.",
             "processing_time": 0,
             "rag_used": False,
-            "context_messages": 0,
             "error": str(e)
         }), 500
     
