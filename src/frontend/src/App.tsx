@@ -20,14 +20,68 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
   const { i18n } = useTranslation();
+
+  // בדיקה ראשונית של session קיים כאשר האפליקציה נטענת
+  useEffect(() => {
+    const checkInitialAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking session:', error);
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        if (session && session.user) {
+          // בדיקה אם המשתמש הוא admin
+          const { data: adminData } = await supabase
+            .from('admins')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          const isAdminUser = !!adminData;
+          setIsLoggedIn(true);
+          setIsAdmin(isAdminUser);
+          setIsLanding(false); // דילוג על splash screen אם המשתמש כבר מחובר
+          
+          console.log('מצא session קיים:', { userId: session.user.id, isAdmin: isAdminUser });
+          
+          // נווט אוטומטית לנתיב הנכון
+          if (isAdminUser) {
+            navigate('/dashboard');
+          } else {
+            navigate('/chat');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking initial auth:', error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkInitialAuth();
+  }, [navigate]);
 
   useEffect(() => {
     // Set initial language direction
     document.documentElement.dir = i18n.language === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
+
+  // אם עדיין בודק auth, מציג loading
+  if (isCheckingAuth) {
+    return (
+      <div className="h-screen w-screen bg-black text-white font-sans flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
 
   const handleSplashComplete = () => {
     setIsLanding(false);

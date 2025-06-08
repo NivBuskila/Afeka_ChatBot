@@ -44,7 +44,18 @@ import { RAGManagement } from './RAG/RAGManagement';
 import { documentService } from '../../services/documentService';
 import { userService } from '../../services/userService';
 import { analyticsService, DashboardAnalytics } from '../../services/analyticsService';
-import type { Document } from '../../config/supabase';
+// import type { Document } from '../../config/supabase';
+
+// Local Document interface for AdminDashboard
+interface Document {
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
 import { supabase } from '../../config/supabase';
 import i18n from 'i18next';
 import { cacheService } from '../../services/cacheService';
@@ -97,7 +108,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     recentUsers: [],
     recentAdmins: []
   });
-  const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [language, setLanguage] = useState<Language>(i18n.language as Language);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const navigate = useNavigate();
@@ -120,7 +132,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        setLoading(true);
+        setIsRefreshing(true);
         console.log("Fetching dashboard analytics...");
         
         // Get analytics data from service
@@ -132,7 +144,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       } catch (error) {
         console.error('Error fetching analytics:', error);
       } finally {
-        setLoading(false);
+        setIsRefreshing(false);
       }
     };
 
@@ -164,7 +176,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
-        setLoading(false);
+        setIsInitialLoading(false);
       }
     };
 
@@ -242,7 +254,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // Manual data refresh function
   const refreshData = async () => {
-    setLoading(true);
+    setIsRefreshing(true);
     try {
       console.log('Refreshing dashboard data...');
       const [docs, analyticsData] = await Promise.all([
@@ -267,7 +279,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -471,7 +483,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleUpdateDocument = async (document: Document, file: File) => {
     try {
-      setLoading(true);
+      setIsRefreshing(true);
       
       // First delete the old file from storage
       const storagePathMatch = document.url.match(/\/documents\/([^\/]+)$/); 
@@ -545,14 +557,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       console.error('Error updating document:', error);
       alert(t('documents.updateError') || 'Error updating document');
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   const handleDelete = async () => {
     try {
       // First set loading status
-      setLoading(true);
+      setIsRefreshing(true);
       
       // Delete the document
       await documentService.deleteDocument(selectedDocument!.id);
@@ -580,7 +592,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       console.error('Error deleting document:', error);
       alert(t('admin.documents.deleteError'));
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -591,7 +603,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleDeleteUserConfirm = async () => {
     try {
-      setLoading(true);
+      setIsRefreshing(true);
       
       // Delete user via user service
       await userService.deleteUser(selectedUser.id);
@@ -608,7 +620,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       console.error('Error deleting user:', error);
       alert(t('admin.users.deleteError'));
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -753,7 +765,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {t('Refresh')}
                 </button>
               </div>
-              <AnalyticsOverview analytics={analytics} loading={loading} />
+              <AnalyticsOverview analytics={analytics} isLoading={isRefreshing} />
             </div>
           );
         }
@@ -891,7 +903,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  if (loading) {
+  if (isInitialLoading) {
     return <div>{t('loading')}</div>;
   }
 
