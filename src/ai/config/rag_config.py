@@ -21,7 +21,7 @@ class SearchConfig:
     """הגדרות חיפוש במערכת RAG"""
     
     # ספי דמיון לחיפוש
-    SIMILARITY_THRESHOLD: float = 0.55  # סף דמיון מינימלי לכל הצ'אנקים
+    SIMILARITY_THRESHOLD: float = 0.3  # סף דמיון מינימלי לכל הצ'אנקים (lowered for better results)
     HIGH_QUALITY_THRESHOLD: float = 0.75  # סף לתוצאות איכותיות גבוהות
     LOW_QUALITY_THRESHOLD: float = 0.40  # סף מינימלי לתוצאות חלשות
     
@@ -139,10 +139,11 @@ class DatabaseConfig:
     ANALYTICS_TABLE: str = "search_analytics"
     
     # שמות פונקציות RPC
-    SEMANTIC_SEARCH_FUNCTION: str = "advanced_semantic_search"
-    HYBRID_SEARCH_FUNCTION: str = "hybrid_search"
+    SEMANTIC_SEARCH_FUNCTION: str = "match_documents_semantic"  # Changed to working function
+    HYBRID_SEARCH_FUNCTION: str = "hybrid_search_documents"
     CONTEXTUAL_SEARCH_FUNCTION: str = "contextual_search"
     ANALYTICS_FUNCTION: str = "log_search_analytics"
+    LOG_ANALYTICS_FUNCTION: str = "log_search_analytics"  # Added missing field
     
     # הגדרות Connection Pool
     MAX_CONNECTIONS: int = 20

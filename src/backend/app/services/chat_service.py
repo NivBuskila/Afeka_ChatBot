@@ -133,23 +133,20 @@ class ChatService(IChatService):
                         search_method="hybrid"
                     )
                     
-                    # Check if RAG found relevant results
-                    # בדיקה מעודכנת - יש לבדוק גם chunks_selected וגם sources
-                    has_sources = rag_response.get("sources") and len(rag_response["sources"]) > 0
-                    has_chunks = rag_response.get("chunks_selected") and len(rag_response["chunks_selected"]) > 0
-                    
-                    if has_sources or has_chunks:
-                        # RAG found relevant information
+                    # 🎯 שונה: תמיד משתמש ב-RAG כמו Test Center, גם אם אין מקורות מספיק טובים
+                    # כדי להתנהג בדיוק כמו Test Center
+                    if rag_response and rag_response.get("answer"):
+                        # RAG generated an answer, use it (even if no perfect sources found)
                         self.memory.chat_memory.add_user_message(user_message)
                         self.memory.chat_memory.add_ai_message(rag_response["answer"])
                         
                         sources_count = len(rag_response.get("sources", []))
                         chunks_count = len(rag_response.get("chunks_selected", []))
-                        logger.info(f"🎯 RAG service found {sources_count} sources, {chunks_count} chunks - using RAG response")
+                        logger.info(f"🎯 RAG service generated answer with {sources_count} sources, {chunks_count} chunks - using RAG response (Test Center behavior)")
                         return {"response": rag_response["answer"], "sources": rag_response.get("sources", [])}
                     else:
-                        # RAG didn't find relevant information, fall back to regular LLM
-                        logger.info("❌ RAG service didn't find relevant sources/chunks, falling back to regular LLM")
+                        # RAG didn't generate any answer at all, fall back to regular LLM
+                        logger.info("❌ RAG service didn't generate any answer, falling back to regular LLM")
                 except Exception as e:
                     logger.error(f"Error using RAG service: {e}. Falling back to regular LLM.")
             

@@ -120,8 +120,8 @@ class RAGService:
             
             response = self.supabase.rpc(self.db_config.SEMANTIC_SEARCH_FUNCTION, {
                 'query_embedding': query_embedding,
-                'similarity_threshold': self.search_config.SIMILARITY_THRESHOLD,
-                'max_results': max_results,
+                'match_threshold': self.search_config.SIMILARITY_THRESHOLD,
+                'match_count': max_results,
                 'target_document_id': document_id
             }).execute()
             
@@ -166,8 +166,8 @@ class RAGService:
             response = self.supabase.rpc(self.db_config.HYBRID_SEARCH_FUNCTION, {
                 'query_text': query,
                 'query_embedding': query_embedding,
-                'similarity_threshold': self.search_config.SIMILARITY_THRESHOLD,
-                'max_results': self.search_config.MAX_CHUNKS_RETRIEVED,
+                'match_threshold': self.search_config.SIMILARITY_THRESHOLD,
+                'match_count': self.search_config.MAX_CHUNKS_RETRIEVED,
                 'target_document_id': document_id,
                 'semantic_weight': semantic_weight,
                 'keyword_weight': keyword_weight
@@ -266,8 +266,8 @@ class RAGService:
                 'query_embedding': combined_embedding,
                 'semantic_weight': 0.9,  # דגש על חיפוש סמנטי
                 'keyword_weight': 0.1,
-                'similarity_threshold': 0.25,  # סף נמוך מאוד לסעיפים
-                'max_results': self.search_config.MAX_RESULTS_EXTENDED
+                'match_threshold': 0.25,  # סף נמוך מאוד לסעיפים
+                'match_count': self.search_config.MAX_RESULTS_EXTENDED
             }).execute()
             
             results = response.data or []

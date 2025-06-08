@@ -25,14 +25,14 @@ def get_current_profile() -> str:
         if CURRENT_PROFILE_FILE.exists():
             with open(CURRENT_PROFILE_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data.get("current_profile", "enhanced_testing")
+                return data.get("current_profile", "improved")
         else:
             # יצירת קובץ ברירת מחדל
-            set_current_profile("enhanced_testing")
-            return "enhanced_testing"
+            set_current_profile("improved")
+            return "improved"
     except Exception as e:
         print(f"Error loading current profile: {e}")
-        return "enhanced_testing"
+        return "improved"
 
 def set_current_profile(profile_name: str) -> None:
     """מגדיר פרופיל נוכחי"""

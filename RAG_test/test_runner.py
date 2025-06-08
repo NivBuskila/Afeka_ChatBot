@@ -37,12 +37,16 @@ except ImportError as e:
     sys.exit(1)
 
 # הגדרת לוגינג
+# יצירת תיקיית results אם לא קיימת
+results_dir = current_dir / 'results'
+results_dir.mkdir(exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('results/test_debug.log', encoding='utf-8')
+        logging.FileHandler(results_dir / 'test_debug.log', encoding='utf-8')
     ]
 )
 
