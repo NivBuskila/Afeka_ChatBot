@@ -60,7 +60,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           value={message}
           onChange={(e) => updateMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder || (t('Type your message...') as string)}
+          placeholder={placeholder || t('chat.inputPlaceholder')}
           disabled={isDisabled}
           rows={1}
         />
@@ -76,7 +76,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               ? 'text-gray-400 cursor-not-allowed' 
               : 'text-green-500 hover:text-green-700 focus:outline-none'
           } transition-colors`}
-          aria-label={t('Send message')}
+          aria-label={t('chat.sendMessage')}
         >
           <Send size={20} />
         </button>
