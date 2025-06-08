@@ -1,6 +1,7 @@
 import logging
 import json
 import sys
+import os
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
 from pathlib import Path
@@ -35,22 +36,26 @@ class ChatService(IChatService):
     def __init__(self):
         self.llm = None
         self.conversation_chain = None
+        
+        # 🎯 Cache חכם עבור RAGService
         self.rag_service = None
+        self.current_profile_cache = None
+        self.profile_file_mtime = None
+        
+        # נתיב לקובץ הפרופיל
+        try:
+            ai_config_path = Path(__file__).parent.parent.parent.parent / "ai" / "config"
+            self.profile_file_path = ai_config_path / "current_profile.json"
+            logger.info(f"📁 Profile file path: {self.profile_file_path}")
+        except Exception as e:
+            logger.warning(f"Could not determine profile file path: {e}")
+            self.profile_file_path = None
         
         if not settings.GEMINI_API_KEY:
             logger.error("GEMINI_API_KEY not found in settings. LangChain/Gemini functionalities will be disabled.")
             return
 
         try:
-            # Initialize RAG service
-            try:
-                # 🎯 שימוש בפרופיל מרכזי - ללא hard-coding!
-                self.rag_service = RAGService()  # יטען את הפרופיל המרכזי אוטומטית
-                logger.info("✅ RAG service initialized successfully with central profile")
-            except Exception as e:
-                logger.error(f"Error initializing RAG service: {e}")
-                self.rag_service = None
-
             self.llm = ChatGoogleGenerativeAI(
                 google_api_key=settings.GEMINI_API_KEY,
                 model=settings.GEMINI_MODEL_NAME,
@@ -83,6 +88,59 @@ class ChatService(IChatService):
             logger.error(f"Error initializing LangChain components with Gemini: {e}", exc_info=True)
             self.llm = None
             self.conversation_chain = None
+
+    def _get_current_rag_service(self) -> Optional[RAGService]:
+        """מחזיר RAGService עם cache חכם שבודק שינויים בפרופיל"""
+        try:
+            # בדיקה אם קובץ הפרופיל קיים ומה זמן השינוי שלו
+            profile_changed = False
+            current_mtime = None
+            
+            if self.profile_file_path and self.profile_file_path.exists():
+                current_mtime = self.profile_file_path.stat().st_mtime
+                
+                # בדיקה אם הקובץ השתנה
+                if self.profile_file_mtime != current_mtime:
+                    profile_changed = True
+                    logger.info(f"🔄 Profile file changed (mtime: {current_mtime} vs cached: {self.profile_file_mtime})")
+            else:
+                # אין קובץ פרופיל - נשתמש בברירת מחדל
+                if self.rag_service is None:
+                    profile_changed = True
+                    logger.info("📁 No profile file found - will create default RAG service")
+            
+            # אם אין לנו cache או שהפרופיל השתנה - יצירה חדשה
+            if self.rag_service is None or profile_changed:
+                logger.info("🆕 Creating new RAG service...")
+                
+                # יצירת RAGService חדש
+                self.rag_service = RAGService()
+                
+                # עדכון cache
+                if current_mtime:
+                    self.profile_file_mtime = current_mtime
+                
+                # שמירת הפרופיל הנוכחי לcache
+                try:
+                    from src.ai.config.current_profile import get_current_profile
+                    self.current_profile_cache = get_current_profile()
+                    logger.info(f"✅ Created fresh RAG service with profile: {self.current_profile_cache}")
+                except Exception as e:
+                    logger.warning(f"Could not get current profile: {e}")
+                    self.current_profile_cache = "unknown"
+                    
+            else:
+                logger.debug(f"📋 Using cached RAG service with profile: {self.current_profile_cache}")
+            
+            return self.rag_service
+            
+        except Exception as e:
+            logger.error(f"Error getting RAG service: {e}")
+            # במקרה של שגיאה, אם יש לנו instance קיים - נשתמש בו
+            if self.rag_service is not None:
+                logger.warning("Using existing RAG service instance despite error")
+                return self.rag_service
+            return None
 
     async def process_chat_message(
         self, 
@@ -124,11 +182,14 @@ class ChatService(IChatService):
                 logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
                 return {"response": response_content}
             
+            # 🎯 קבלת RAGService עם cache חכם
+            rag_service = self._get_current_rag_service()
+            
             # For all other questions, try RAG service first
-            if self.rag_service:
-                logger.info("Trying RAG service first for potential document question")
+            if rag_service:
+                logger.info(f"Using RAG service with profile: {self.current_profile_cache}")
                 try:
-                    rag_response = await self.rag_service.generate_answer(
+                    rag_response = await rag_service.generate_answer(
                         query=user_message,
                         search_method="hybrid"
                     )
