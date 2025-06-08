@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { IoSend } from 'react-icons/io5';
+import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface ChatInputProps {
@@ -60,7 +60,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           value={message}
           onChange={(e) => updateMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder || t('Type your message...')}
+          placeholder={placeholder || (t('Type your message...') as string)}
           disabled={isDisabled}
           rows={1}
         />
@@ -78,7 +78,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           } transition-colors`}
           aria-label={t('Send message')}
         >
-          <IoSend size={20} />
+          <Send size={20} />
         </button>
       </div>
     </div>

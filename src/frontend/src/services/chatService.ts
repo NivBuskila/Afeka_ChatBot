@@ -1,9 +1,24 @@
 import { supabase } from '../config/supabase';
-import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 
 // Get the backend URL from environment
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+// Helper function to replace axios with native fetch
+const apiRequest = async (url: string, options: RequestInit = {}) => {
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
 /**
  * Types for chat functionality
@@ -73,15 +88,18 @@ const chatService = {
       console.log('Session input data:', sessionInput);
       
       // Create the chat session through the backend
-      const response = await axios.post(`${BACKEND_URL}/api/proxy/chat_sessions`, sessionInput);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions`, {
+        method: 'POST',
+        body: JSON.stringify(sessionInput)
+      });
       
-      if (!response.data || response.data.length === 0) {
+      if (!response || response.length === 0) {
         console.error('No data returned from chat session creation');
         return null;
       }
 
-      console.log('Chat session created successfully:', response.data[0]);
-      return response.data[0] as ChatSession;
+      console.log('Chat session created successfully:', response[0]);
+      return response[0] as ChatSession;
     } catch (error) {
       console.error('Exception in createChatSession:', error);
       return null;
@@ -96,16 +114,17 @@ const chatService = {
   fetchAllChatSessions: async (userId: string): Promise<ChatSession[]> => {
     try {
       // Fetch chat sessions through the backend proxy endpoint
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions`, {
-        params: { user_id: userId }
-      });
+      const url = new URL(`${BACKEND_URL}/api/proxy/chat_sessions`);
+      url.searchParams.append('user_id', userId);
+      
+      const response = await apiRequest(url.toString());
 
-      if (!response.data) {
+      if (!response) {
         console.error('Error fetching chat sessions');
         return [];
       }
 
-      return response.data as ChatSession[];
+      return response as ChatSession[];
     } catch (error) {
       console.error('Exception fetching chat sessions:', error);
       return [];
@@ -131,14 +150,14 @@ const chatService = {
     try {
       console.log('Fetching chat session with ID:', sessionId);
       
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
       
-      if (!response.data) {
+      if (!response) {
         console.error('No session data found for ID:', sessionId);
         return null;
       }
 
-      return response.data as ChatSession;
+      return response as ChatSession;
     } catch (error) {
       console.error('Error fetching chat session:', error);
       return null;
@@ -168,20 +187,23 @@ const chatService = {
         created_at: new Date().toISOString()
       };
       
-      const response = await axios.post(`${BACKEND_URL}/api/proxy/messages`, messageObj);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/messages`, {
+        method: 'POST',
+        body: JSON.stringify(messageObj)
+      });
 
-      if (!response.data || response.data.length === 0) {
+      if (!response || response.length === 0) {
         console.error('No data returned from message creation');
         return null;
       }
 
       // Process to standardize the message object
       return {
-        id: response.data[0].message_id || response.data[0].id,
+        id: response[0].message_id || response[0].id,
         user_id: userId,
           chat_session_id: sessionId,
         content: message,
-        created_at: response.data[0].created_at,
+        created_at: response[0].created_at,
         is_bot: isBot
       };
     } catch (error) {
@@ -209,19 +231,19 @@ const chatService = {
 
       try {
         // Get messages schema to understand the column structure
-        const response = await axios.get(`${BACKEND_URL}/api/proxy/messages_schema`);
+        const response = await apiRequest(`${BACKEND_URL}/api/proxy/messages_schema`);
         
-        if (!response.data || !response.data.columns) {
+        if (!response || !response.columns) {
           console.error('Failed to get messages schema');
         return null;
       }
 
-        const columns = response.data.columns;
+        const columns = response.columns;
         console.log('Available columns in messages table:', columns);
         
         // Determine which fields to use based on the schema
         const hasPrimaryKey = columns.includes('message_id');
-        const hasConversationId = columns.includes('conversation_id');
+        // const hasConversationId = columns.includes('conversation_id');
         const hasRequest = columns.includes('request');
         const hasResponse = columns.includes('response');
         
@@ -234,7 +256,7 @@ const chatService = {
           const numericId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
           messageData.message_id = numericId;
         } else {
-          messageData.id = uuidv4();
+          messageData.id = crypto.randomUUID();
         }
         
         // Set the user ID
@@ -274,22 +296,25 @@ const chatService = {
         
         try {
           // Insert the message using the backend proxy endpoint
-          const insertResponse = await axios.put(`${BACKEND_URL}/api/proxy/message`, messageData);
+          const insertResponse = await apiRequest(`${BACKEND_URL}/api/proxy/message`, {
+            method: 'PUT',
+            body: JSON.stringify(messageData)
+          });
           
-          console.log('Message inserted successfully:', insertResponse.data);
+          console.log('Message inserted successfully:', insertResponse);
           
-          if (!insertResponse.data) {
+          if (!insertResponse) {
             console.error('Error adding message via backend proxy: No data returned');
           return null;
         }
         
         // Create a normalized message object to return
         const normalizedMessage: Message = {
-            id: insertResponse.data.message_id?.toString() || insertResponse.data.id,
+            id: insertResponse.message_id?.toString() || insertResponse.id,
             user_id: message.user_id,
             chat_session_id: message.chat_session_id,
             content: message.content,
-            created_at: insertResponse.data.created_at || new Date().toISOString(),
+            created_at: insertResponse.created_at || new Date().toISOString(),
             is_bot: message.is_bot
           };
           
@@ -352,10 +377,13 @@ const chatService = {
       }
       
       // Update the chat session through the backend proxy endpoint
-      const response = await axios.patch(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`, updateData);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updateData)
+      });
       
-      if (!response.data || response.data.success !== true) {
-        console.error('Error updating chat session:', response.data?.error || 'Unknown error');
+      if (!response || response.success !== true) {
+        console.error('Error updating chat session:', response?.error || 'Unknown error');
         return false;
       }
 
@@ -379,19 +407,18 @@ const chatService = {
       }
 
       // Search chat sessions through the backend proxy endpoint
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/search_chat_sessions`, {
-        params: {
-          user_id: userId,
-          search_term: searchTerm
-        }
-      });
+      const url = new URL(`${BACKEND_URL}/api/proxy/search_chat_sessions`);
+      url.searchParams.append('user_id', userId);
+      url.searchParams.append('search_term', searchTerm);
+      
+      const response = await apiRequest(url.toString());
 
-      if (!response.data) {
+      if (!response) {
         console.error('Error searching chat sessions');
         return [];
       }
 
-      return response.data as ChatSession[];
+      return response as ChatSession[];
     } catch (error) {
       console.error('Exception searching chat sessions:', error);
       return [];
@@ -406,10 +433,12 @@ const chatService = {
   deleteChatSession: async (sessionId: string): Promise<boolean> => {
     try {
       // Delete the chat session through the backend proxy endpoint
-      const response = await axios.delete(`${BACKEND_URL}/api/proxy/chat_session/${sessionId}`);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_session/${sessionId}`, {
+        method: 'DELETE'
+      });
       
-      if (!response.data || response.data.success !== true) {
-        console.error('Error deleting chat session:', response.data?.error || 'Unknown error');
+      if (!response || response.success !== true) {
+        console.error('Error deleting chat session:', response?.error || 'Unknown error');
         return false;
       }
 

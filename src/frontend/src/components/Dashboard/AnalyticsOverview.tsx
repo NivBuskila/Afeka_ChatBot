@@ -2,7 +2,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Users, FileText, Clock, UserCog } from 'lucide-react';
 import type { Document } from '../../config/supabase';
-import { FaUsers, FaUserShield, FaFileAlt } from 'react-icons/fa';
 
 // Create basic Spinner component if not in project
 const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {

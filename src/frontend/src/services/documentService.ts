@@ -1,9 +1,25 @@
 import { supabase, Database } from '../config/supabase';
 import { cacheService } from './cacheService';
-import axios from 'axios';
 
 // Get the backend URL from environment
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+// Helper function to replace axios with native fetch
+const apiRequest = async (url: string, options: RequestInit = {}) => {
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
 type Document = Database['public']['Tables']['documents']['Row'];
 type DocumentInsert = Database['public']['Tables']['documents']['Insert'];
@@ -18,11 +34,11 @@ export const documentService = {
     const cacheBuster = isCacheStale ? `?cache=${Date.now()}` : '';
     
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/documents${cacheBuster}`);
-      if (!response.data) {
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents${cacheBuster}`);
+      if (!response) {
         throw new Error('No data returned from documents request');
       }
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error fetching documents:', error);
       throw error;
@@ -31,11 +47,11 @@ export const documentService = {
 
   async getDocumentById(id: number) {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/documents/${id}`);
-      if (!response.data) {
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents/${id}`);
+      if (!response) {
         throw new Error('No document found');
       }
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error fetching document:', error);
       throw error;
@@ -53,12 +69,15 @@ export const documentService = {
         user_id: user?.id
       };
       
-      const response = await axios.post(`${BACKEND_URL}/api/proxy/documents`, documentData);
-      if (!response.data) {
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents`, {
+        method: 'POST',
+        body: JSON.stringify(documentData)
+      });
+      if (!response) {
         throw new Error('Failed to create document');
       }
       
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error creating document:', error);
       throw error;
@@ -86,15 +105,21 @@ export const documentService = {
         throw new Error('User not authenticated or session expired');
       }
 
-      const response = await axios.delete(`${BACKEND_URL}/api/vector/document/${id}`, {
+      const response = await fetch(`${BACKEND_URL}/api/vector/document/${id}`, {
+        method: 'DELETE',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         }
       });
-      if (response.status !== 200 && response.status !== 204 && (!response.data || response.data.success === false)) {
-        throw new Error(response.data?.message || 'Failed to delete document');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || 'Failed to delete document');
       }
-      return response.data || { success: true, message: "Document deleted successfully" };
+      
+      const data = await response.json().catch(() => ({ success: true, message: "Document deleted successfully" }));
+      return data;
     } catch (error) {
       console.error('Error deleting document:', error);
       throw error;

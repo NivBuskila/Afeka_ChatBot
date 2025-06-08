@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiSend } from 'react-icons/fi';
+import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Define props interface for TypeScript type checking
@@ -82,7 +82,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('chat.inputPlaceholder')}
+          placeholder={t('chat.inputPlaceholder') as string}
           disabled={isLoading}
           rows={1}
           className="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none min-h-[40px] max-h-[150px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white dark:border-gray-600"
@@ -100,7 +100,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
         } transition-colors`}
         aria-label={t('chat.sendMessage')}
       >
-        <FiSend className="w-5 h-5" />
+        <Send className="w-5 h-5" />
       </button>
     </form>
   );
