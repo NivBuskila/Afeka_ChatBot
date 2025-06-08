@@ -832,58 +832,45 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         )}
       </div>
 
-      {/* Settings Panel - Combine both theme settings and user settings */}
+      {/* Settings Panel - Clean & Minimal with Green Accent */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{i18n.language === 'he' ? 'הגדרות משתמש' : 'User Settings'}</h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-black rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-gray-800">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-800">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                    {i18n.language === 'he' ? 'הגדרות' : 'Settings'}
+                  </h2>
+                  <p className="text-sm text-slate-500 dark:text-gray-400">
+                    {i18n.language === 'he' ? 'התאמה אישית' : 'Customize'}
+                  </p>
+                </div>
+              </div>
               <button 
                 onClick={() => setShowSettings(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors"
               >
-                <X className="h-6 w-6" />
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             
-            <div className="p-5 space-y-6">
-              {/* Theme Toggle */}
-              <div className="flex flex-col space-y-2">
-                <label className="text-lg font-medium text-gray-900 dark:text-white">
-                  {i18n.language === 'he' ? 'ערכת נושא' : 'Theme'}
-                </label>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`flex items-center justify-center p-2 rounded-md ${
-                      theme === 'light' 
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                    </svg>
-                    <span className="ml-2">{i18n.language === 'he' ? 'בהיר' : 'Light'}</span>
-                  </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`flex items-center justify-center p-2 rounded-md ${
-                      theme === 'dark' 
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                    </svg>
-                    <span className="ml-2">{i18n.language === 'he' ? 'כהה' : 'Dark'}</span>
-                  </button>
-                </div>
-              </div>
-              
-              {/* User Settings */}
-              <UserSettings onClose={() => setShowSettings(false)} />
+            {/* Content */}
+            <div className="p-6">
+              <UserSettings 
+                onClose={() => setShowSettings(false)} 
+                theme={theme}
+                onThemeChange={setTheme}
+              />
             </div>
           </div>
         </div>
