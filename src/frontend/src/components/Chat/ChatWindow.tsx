@@ -20,9 +20,10 @@ interface Message {
 
 interface ChatWindowProps {
   onLogout: () => void;
+  theme?: 'dark' | 'light';
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout, theme: parentTheme }) => {
   const { t, i18n } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -35,7 +36,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   // UI state
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const theme = parentTheme || 'dark'; // Use parent theme or fallback to dark
   const [hasStarted, setHasStarted] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -52,14 +53,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const [searchResults, setSearchResults] = useState<number[]>([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
 
-  // Set theme
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
+  // Theme is now managed by parent component
 
   // Load user chat sessions
   useEffect(() => {
@@ -869,7 +863,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               <UserSettings 
                 onClose={() => setShowSettings(false)} 
                 theme={theme}
-                onThemeChange={setTheme}
+                onThemeChange={() => {}} // Theme is controlled by parent
               />
             </div>
           </div>

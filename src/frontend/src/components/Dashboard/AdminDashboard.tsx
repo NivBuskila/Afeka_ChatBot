@@ -23,7 +23,10 @@ import {
   AlertTriangle,
   Brain,
   Cpu,
-  TrendingUp
+  TrendingUp,
+  Sun,
+  Moon,
+  Globe
 } from 'lucide-react';
 import './AdminDashboard.css';
 import { translations } from './translations';
@@ -96,6 +99,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   });
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<Language>(i18n.language as Language);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('chatbot');
 
@@ -104,6 +108,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
     i18n.changeLanguage(language);
   }, [language, i18n]);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -607,15 +619,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     document.documentElement.dir = newLanguage === 'he' ? 'rtl' : 'ltr';
   };
 
+  const handleThemeChange = (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+  };
+
   const renderContent = () => {
     switch (activeItem) {
       case 'chatbot':
         return (
           <div className="p-6">
-            <h2 className="text-2xl font-bold text-green-400 mb-4">{t('admin.sidebar.chatbotPreview')}</h2>
-            <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-4 h-[calc(100vh-200px)] overflow-hidden">
+            <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-4">{t('admin.sidebar.chatbotPreview')}</h2>
+            <div className="bg-gray-100/30 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300/20 dark:border-green-500/20 p-4 h-[calc(100vh-200px)] overflow-hidden">
               <div className="h-full relative">
-                <ChatWindow onLogout={onLogout} />
+                <ChatWindow onLogout={onLogout} theme={theme} />
               </div>
             </div>
           </div>
@@ -631,7 +647,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           return (
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-green-400">
+                <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {t('admin.sidebar.users')}
                 </h2>
                 <button
@@ -641,9 +657,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {t('Refresh')}
                 </button>
               </div>
-              <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
-                <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">
+              <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
+                <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
+                  <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
                     {t('analytics.users')} ({regularUsers.length})
                   </h3>
                 </div>
@@ -652,18 +668,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     regularUsers.map((user, index) => (
                       <div key={user.id || index} className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-green-400">{user.email || user.name || 'Unknown User'}</p>
-                          <p className="text-sm text-green-400/50">
+                          <p className="font-medium text-gray-800 dark:text-green-400">{user.email || user.name || 'Unknown User'}</p>
+                          <p className="text-sm text-gray-600 dark:text-green-400/50">
                             {user.created_at ? new Date(user.created_at).toLocaleDateString() : ''}
                           </p>
                         </div>
                         <div className="flex items-center">
-                          <span className="text-sm text-green-400/70 mr-4">
+                          <span className="text-sm text-gray-600 dark:text-green-400/70 mr-4">
                             user
                           </span>
                           <button
                             onClick={() => handleDeleteUser(user)}
-                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
+                            className="p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100/20 dark:hover:bg-red-500/20 rounded-full transition-colors"
                             title={t('users.delete') || 'Delete user'}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -672,7 +688,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       </div>
                     ))
                   ) : (
-                    <p className="text-green-400/70">{t('analytics.noUsers')}</p>
+                    <p className="text-gray-600 dark:text-green-400/70">{t('analytics.noUsers')}</p>
                   )}
                 </div>
               </div>
@@ -683,7 +699,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           return (
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-green-400">
+                <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {t('admin.sidebar.administrators')}
                 </h2>
                 <button
@@ -693,9 +709,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {t('Refresh')}
                 </button>
               </div>
-              <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20">
-                <div className="border-b border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-400">
+              <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
+                <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
+                  <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
                     {t('analytics.activeAdmins')} ({analytics.recentAdmins.length})
                   </h3>
                 </div>
@@ -704,18 +720,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     analytics.recentAdmins.map((admin, index) => (
                       <div key={admin.id || index} className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-green-400">{admin.email || admin.name || 'Unknown Admin'}</p>
-                          <p className="text-sm text-green-400/50">
+                          <p className="font-medium text-gray-800 dark:text-green-400">{admin.email || admin.name || 'Unknown Admin'}</p>
+                          <p className="text-sm text-gray-600 dark:text-green-400/50">
                             {admin.created_at ? new Date(admin.created_at).toLocaleDateString() : ''}
                           </p>
                         </div>
-                        <span className="text-sm text-green-400/70">
+                        <span className="text-sm text-gray-600 dark:text-green-400/70">
                           admin {admin.department ? `(${admin.department})` : ''}
                         </span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-green-400/70">{t('analytics.noAdmins')}</p>
+                    <p className="text-gray-600 dark:text-green-400/70">{t('analytics.noAdmins')}</p>
                   )}
                 </div>
               </div>
@@ -727,7 +743,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           return (
             <div>
               <div className="flex justify-between items-center mb-6 px-6 pt-6">
-                <h2 className="text-2xl font-bold text-green-400">
+                <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {t('analytics.overview')}
                 </h2>
                 <button
@@ -745,7 +761,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         return (
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-green-400">
+              <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {activeSubItem === 'upload' 
                   ? (i18n.language === 'he' ? 'העלאת מסמכים' : 'Upload Documents') 
                   : (i18n.language === 'he' ? 'מסמכים פעילים' : 'Active Documents')}
@@ -785,31 +801,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       case 'settings':
         return (
           <div className="p-6">
-            <h2 className="text-2xl font-bold text-green-400 mb-6">{t('admin.sidebar.settings')}</h2>
-            <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-green-400 mb-2">{t('settings.language')}</h3>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => handleLanguageChange('he')}
-                    className={`px-4 py-2 rounded-lg border transition-colors ${
-                      language === 'he'
-                        ? 'bg-green-500/20 border-green-500/30 text-green-400'
-                        : 'bg-black/50 border-green-500/30 text-green-400/70 hover:bg-green-500/10'
-                    }`}
-                  >
-                    {t('Hebrew')}
-                  </button>
-                  <button
-                    onClick={() => handleLanguageChange('en')}
-                    className={`px-4 py-2 rounded-lg border transition-colors ${
-                      language === 'en'
-                        ? 'bg-green-500/20 border-green-500/30 text-green-400'
-                        : 'bg-black/50 border-green-500/30 text-green-400/70 hover:bg-green-500/10'
-                    }`}
-                  >
-                    {t('English')}
-                  </button>
+            <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-6">{t('admin.sidebar.settings')}</h2>
+            <div className="bg-gray-100/30 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300/20 dark:border-green-500/20 p-6 space-y-8">
+              
+              {/* Theme Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                    {theme === 'dark' ? (
+                      <Moon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <Sun className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-green-400">
+                    {i18n.language === 'he' ? 'ערכת נושא' : 'Theme'}
+                  </h3>
+                </div>
+
+                <div className="relative">
+                  <div className="flex p-1 bg-gray-200/50 dark:bg-black/50 rounded-xl border border-gray-300/30 dark:border-green-500/30">
+                    <button
+                      onClick={() => handleThemeChange('light')}
+                      className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30'
+                          : 'text-gray-600 dark:text-green-400/70 hover:text-gray-800 dark:hover:text-green-400 hover:bg-gray-100/20 dark:hover:bg-green-500/10'
+                      }`}
+                    >
+                      <Sun className="w-4 h-4 mr-2" />
+                      {i18n.language === 'he' ? 'בהיר' : 'Light'}
+                    </button>
+                    <button
+                      onClick={() => handleThemeChange('dark')}
+                      className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === 'dark'
+                          ? 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30'
+                          : 'text-gray-600 dark:text-green-400/70 hover:text-gray-800 dark:hover:text-green-400 hover:bg-gray-100/20 dark:hover:bg-green-500/10'
+                      }`}
+                    >
+                      <Moon className="w-4 h-4 mr-2" />
+                      {i18n.language === 'he' ? 'כהה' : 'Dark'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Language Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-green-400">
+                    {i18n.language === 'he' ? 'שפה' : 'Language'}
+                  </h3>
+                </div>
+
+                <div className="relative">
+                  <div className="flex p-1 bg-gray-200/50 dark:bg-black/50 rounded-xl border border-gray-300/30 dark:border-green-500/30">
+                    <button
+                      onClick={() => handleLanguageChange('he')}
+                      className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        language === 'he'
+                          ? 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30'
+                          : 'text-gray-600 dark:text-green-400/70 hover:text-gray-800 dark:hover:text-green-400 hover:bg-gray-100/20 dark:hover:bg-green-500/10'
+                      }`}
+                    >
+                      עברית
+                    </button>
+                    <button
+                      onClick={() => handleLanguageChange('en')}
+                      className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        language === 'en'
+                          ? 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30'
+                          : 'text-gray-600 dark:text-green-400/70 hover:text-gray-800 dark:hover:text-green-400 hover:bg-gray-100/20 dark:hover:bg-green-500/10'
+                      }`}
+                    >
+                      English
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -825,7 +896,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }
 
   return (
-    <div className="flex h-screen bg-black text-white">
+    <div className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
       <Sidebar
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
@@ -842,7 +913,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar language={language} />
         
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-black p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-white dark:bg-black p-6 transition-colors duration-300">
           {renderContent()}
         </main>
       </div>

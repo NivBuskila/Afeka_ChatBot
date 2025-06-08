@@ -110,22 +110,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`bg-black/50 backdrop-blur-lg border-r border-green-500/20 transition-all duration-300 ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
+    <div className={`bg-gray-100/50 dark:bg-black/50 backdrop-blur-lg border-r border-gray-300/20 dark:border-green-500/20 transition-all duration-300 ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
       <div className="p-4 flex items-center justify-between">
         {!isSidebarCollapsed && (
           <div className="flex items-center space-x-2">
-            <LayoutDashboard className="w-6 h-6 text-green-400" />
-            <span className="text-xl font-bold text-green-400">{t('nav.apex.admin')}</span>
+            <LayoutDashboard className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <span className="text-xl font-bold text-green-600 dark:text-green-400">{t('nav.apex.admin')}</span>
           </div>
         )}
         <button
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="p-2 hover:bg-green-500/10 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-200/20 dark:hover:bg-green-500/10 rounded-lg transition-colors"
         >
           {isSidebarCollapsed ? (
-            <ChevronRight className="w-5 h-5 text-green-400" />
+            <ChevronRight className="w-5 h-5 text-green-600 dark:text-green-400" />
           ) : (
-            <ChevronLeft className="w-5 h-5 text-green-400" />
+            <ChevronLeft className="w-5 h-5 text-green-600 dark:text-green-400" />
           )}
         </button>
       </div>
@@ -137,8 +137,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => handleItemClick(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-2 transition-colors ${
                 activeItem === item.id
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'text-green-400/70 hover:bg-green-500/10'
+                  ? 'bg-green-500/20 text-green-600 dark:text-green-400'
+                  : 'text-gray-600 dark:text-green-400/70 hover:bg-gray-200/20 dark:hover:bg-green-500/10'
               }`}
             >
               {item.icon}
@@ -152,8 +152,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => handleSubItemClick(item.id, subItem.id)}
                     className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
                       activeSubItem === subItem.id
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'text-green-400/70 hover:bg-green-500/10'
+                        ? 'bg-green-500/20 text-green-600 dark:text-green-400'
+                        : 'text-gray-600 dark:text-green-400/70 hover:bg-gray-200/20 dark:hover:bg-green-500/10'
                     }`}
                   >
                     {subItem.icon}
@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-2 text-red-500 dark:text-red-400 hover:bg-red-100/20 dark:hover:bg-red-500/10 rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5" />
           {!isSidebarCollapsed && <span>{t('nav.logout')}</span>}
