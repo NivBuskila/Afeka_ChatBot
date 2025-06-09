@@ -122,10 +122,15 @@ class ChatService(IChatService):
                     from src.ai.config.current_profile import get_current_profile
                     current_profile = get_current_profile()
                     self.current_profile_cache = current_profile
+                    
+                    # יצירת RAG service חדש
+                    from src.ai.services.rag_service import RAGService
+                    self.rag_service = RAGService()
                     logger.debug(f"✅ RAG service ready with profile: {self.current_profile_cache}")
                 except Exception as e:
-                    logger.warning(f"Could not get current profile: {e}")
+                    logger.warning(f"Could not get current profile or create RAG service: {e}")
                     self.current_profile_cache = "unknown"
+                    self.rag_service = None
                     
             else:
                 logger.debug(f"📋 Using cached RAG service with profile: {self.current_profile_cache}")
@@ -160,27 +165,29 @@ class ChatService(IChatService):
             logger.debug(f"Rehydrating memory with {len(history)} messages from provided history for Gemini.")
             self.memory.clear()
             for msg in history:
-                if msg.get('user_message'):
-                    self.memory.chat_memory.add_user_message(msg['user_message'])
-                if msg.get('assistant_message'):
-                    self.memory.chat_memory.add_ai_message(msg['assistant_message'])
+                if msg.type == 'user':
+                    self.memory.chat_memory.add_user_message(msg.content)
+                elif msg.type == 'bot':
+                    self.memory.chat_memory.add_ai_message(msg.content)
             logger.debug(f"Memory after rehydration for Gemini: {self.memory.chat_memory.messages}")
         else:
             logger.debug("No history provided and memory is empty. Starting fresh conversation.")
         
-        # Detect if this is a personal conversation vs information request
-        conversation_prompts = ["how are you", "what's your name", "tell me about yourself", "who are you", "how do you feel"]
-        is_conversation_question = any(prompt in user_message.lower() for prompt in conversation_prompts)
+        # Detect if this is a personal conversation vs information request (including conversation history questions)
+        is_conversation_question = self._is_conversation_question(user_message)
         
-        logger.debug(f"Question analysis: conversation={is_conversation_question}")
+        logger.info(f"📝 Question analysis for '{user_message}': conversation={is_conversation_question}")
         
-        # Handle conversation questions with direct LLM
         if is_conversation_question:
-            logger.debug("Using regular LLM for personal conversation question")
-            response_content = self.llm.invoke(user_message).content
-            logger.debug(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
-            self.memory.chat_memory.add_user_message(user_message)
-            self.memory.chat_memory.add_ai_message(response_content)
+            logger.info(f"🗣️ Treating as conversation question: '{user_message}'")
+        else:
+            logger.info(f"📚 Treating as information request (will use RAG): '{user_message}'")
+        
+        # Handle conversation questions with LangChain conversation chain (includes memory)
+        if is_conversation_question:
+            logger.debug("Using LangChain conversation chain for personal conversation question")
+            response_content = self.conversation_chain.predict(input=user_message)
+            logger.debug(f"LangChain conversation chain - AI response: {response_content[:100]}...")
             
             return {
                 "response": response_content,
@@ -189,20 +196,31 @@ class ChatService(IChatService):
             }
         
         # For information requests, use RAG
+        rag_service = self._get_current_rag_service()
         logger.debug(f"Using RAG service with profile: {self.current_profile_cache}")
         
         try:
             # Get RAG response
-            rag_response = self.rag_service.answer_question(user_message)
+            if rag_service:
+                logger.info(f"🔍 Calling RAG service for question: '{user_message}'")
+                rag_response = await rag_service.generate_answer(user_message, search_method="hybrid")
+                logger.info(f"📋 RAG response received: {rag_response is not None}")
+                if rag_response:
+                    logger.info(f"📋 RAG response keys: {list(rag_response.keys()) if isinstance(rag_response, dict) else 'Not a dict'}")
+            else:
+                logger.warning("⚠️ RAG service not available")
+                rag_response = None
             
             if rag_response and rag_response.get("answer"):
                 sources_count = len(rag_response.get("sources", []))
-                chunks_count = len([chunk for source in rag_response.get("sources", []) for chunk in source.get("chunks", [])])
+                chunks_count = len(rag_response.get("chunks_selected", []))
+                
+                logger.info(f"📊 RAG answer found: sources={sources_count}, chunks={chunks_count}")
                 
                 if sources_count > 0:
                     logger.info(f"🎯 RAG generated answer with {sources_count} sources, {chunks_count} chunks")
                     
-                    # Update memory
+                    # Update memory to preserve conversation context
                     self.memory.chat_memory.add_user_message(user_message)
                     self.memory.chat_memory.add_ai_message(rag_response["answer"])
                     
@@ -211,16 +229,18 @@ class ChatService(IChatService):
                         "sources": rag_response.get("sources", []),
                         "chunks": chunks_count
                     }
-            
-            logger.debug("❌ RAG service didn't generate answer, falling back to regular LLM")
+                else:
+                    logger.info("📊 RAG found answer but no sources, falling back")
+            else:
+                logger.info("❌ RAG service didn't generate answer or answer is empty, falling back to regular LLM")
             
         except Exception as e:
             logger.warning(f"⚠️  RAG service error: {e}")
             logger.debug("Using regular LLM as fallback")
         
-        # Fallback to regular LLM
-        response_content = self.llm.invoke(user_message).content
-        logger.debug(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
+        # Fallback to LangChain conversation chain (preserves memory)
+        response_content = self.conversation_chain.predict(input=user_message)
+        logger.debug(f"LangChain conversation chain fallback - AI response: {response_content[:100]}...")
         
         return {
             "response": response_content,
@@ -229,18 +249,33 @@ class ChatService(IChatService):
         }
     
     def _is_conversation_question(self, message: str) -> bool:
-        """Determine if a message is asking about information from previous conversation"""
-        message = message.lower()
-        conversation_indicators = [
+        """Determine if a message is asking about information from previous conversation or general chat"""
+        message = message.lower().strip()
+        
+        # Very specific conversation questions only
+        # Questions about personal information from conversation history
+        personal_info_questions = [
             "איך קוראים לי", "מה השם שלי", "איך קוראים לי?", "מה השם שלי?",
-            "מי אני", "איך קוראים לי?", "מה השם", "מה שמי",
+            "מי אני", "מה השם", "מה שמי", "קוראים לי",
             "what is my name", "what's my name", "who am i"
         ]
         
-        # Check if the message is asking about personal information from conversation
-        for indicator in conversation_indicators:
-            if indicator in message:
+        # Simple greetings and personal questions
+        simple_greetings = [
+            "שלום", "היי", "hello", "hi",
+            "מה שלומך", "איך אתה", "how are you"
+        ]
+        
+        # Check for exact matches or very close matches
+        for indicator in personal_info_questions:
+            if message == indicator or message == indicator + "?":
                 return True
         
+        # Check for simple greetings
+        for greeting in simple_greetings:
+            if message == greeting or message == greeting + "?":
+                return True
+                
+        # Only return True for very obvious conversation questions
         return False
     

@@ -47,6 +47,9 @@ from src.backend.api.vector_management import router as vector_router
 # Import RAG router
 from src.backend.app.api.routes.rag import router as rag_router
 
+# Import title generation router
+from src.backend.app.api.routes.title_generation import router as title_router
+
 # --- NEW IMPORTS FOR CHAT SERVICE ---
 from src.backend.app.services.chat_service import ChatService
 from src.backend.app.core.interfaces import IChatService
@@ -101,6 +104,9 @@ app.include_router(vector_router)
 
 # Include RAG router
 app.include_router(rag_router, prefix="/api/rag")
+
+# Include title generation router
+app.include_router(title_router)
 
 # Request timing middleware
 @app.middleware("http")
