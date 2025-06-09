@@ -160,10 +160,13 @@ class ChatService(IChatService):
         logger.debug(f"Processing message for user_id: {user_id} with LangChain (Gemini).")
         logger.debug(f"Incoming user_message: {user_message}")
         
+        # Always clear memory at the start of each conversation to ensure session isolation
+        logger.debug("Clearing memory to ensure fresh conversation context")
+        self.memory.clear()
+        
         # Rehydrate memory with provided history if available
         if history and len(history) > 0:
             logger.debug(f"Rehydrating memory with {len(history)} messages from provided history for Gemini.")
-            self.memory.clear()
             for msg in history:
                 if msg.type == 'user':
                     self.memory.chat_memory.add_user_message(msg.content)
@@ -171,7 +174,7 @@ class ChatService(IChatService):
                     self.memory.chat_memory.add_ai_message(msg.content)
             logger.debug(f"Memory after rehydration for Gemini: {self.memory.chat_memory.messages}")
         else:
-            logger.debug("No history provided and memory is empty. Starting fresh conversation.")
+            logger.debug("No history provided - starting fresh conversation.")
         
         # Detect if this is a personal conversation vs information request (including conversation history questions)
         is_conversation_question = self._is_conversation_question(user_message)
