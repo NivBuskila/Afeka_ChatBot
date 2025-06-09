@@ -33,10 +33,6 @@
     }
   }
   
-  .animate-matrix {
-    animation: matrix 20s linear infinite;
-  }
-  
   .animate-spin-reverse {
     animation: spin-reverse 15s linear infinite;
   }
