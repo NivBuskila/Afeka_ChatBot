@@ -35,8 +35,9 @@ logger = logging.getLogger(__name__)
 # Initialize Gemini API
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
-    logger.warning("GEMINI_API_KEY not found in environment variables, using default")
-    GEMINI_API_KEY = 'AIzaSyBBw-VlqWekqnd_vPXCS7LSuKfrkbOro7s'
+    logger.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.")
+    raise ValueError("GEMINI_API_KEY environment variable is required but not found")
+
 # שימוש ב-configure במקום ביצירת מופע Client
 genai.configure(api_key=GEMINI_API_KEY)
 

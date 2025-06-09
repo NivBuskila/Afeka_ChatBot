@@ -56,11 +56,11 @@ from src.backend.app.domain.models import ChatRequest as ChatRequestModel, ChatM
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Debug log for Gemini API key
+# Print debug info if needed
 if settings.GEMINI_API_KEY:
-    logger.info("Gemini API key found and configured successfully")
+    logger.info("✅ Gemini API key configured successfully")
 else:
-    logger.warning("GEMINI_API_KEY not found in settings. Ensure it is set in the .env file.")
+    logger.warning("⚠️  GEMINI_API_KEY not found. Ensure it is set in the .env file.")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -72,31 +72,29 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# Define allowed origins for CORS
+# Set CORS origins
 ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS", 
-    "http://localhost:5173,http://localhost:80,http://localhost,http://frontend:3000,http://frontend,http://192.168.56.1:5173,http://172.16.16.179:5173,http://172.20.224.1:5173"
+    "http://localhost:5173,http://localhost:3000,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000"
 ).split(",")
 
-logger.info(f"Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
+# Only log CORS configuration in debug mode
+if settings.ENVIRONMENT == "development":
+    logger.debug(f"🌐 Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
-    max_age=600  # 10 minutes cache for preflight requests
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Add trusted host middleware for production
+# Security middleware
 if os.environ.get("ENV", "development") == "production":
     ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
-    app.add_middleware(
-        TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS
-    )
-    logger.info(f"Added TrustedHostMiddleware with hosts: {ALLOWED_HOSTS}")
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+    logger.info(f"🔒 Security: TrustedHostMiddleware enabled for production")
 
 # Include vector management router
 app.include_router(vector_router)
@@ -165,35 +163,25 @@ async def rate_limit_middleware(request: Request, call_next):
     return response
 
 # Initialize Supabase client
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")
+
+# Validate Supabase configuration
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logger.error("❌ Missing Supabase configuration. Check SUPABASE_URL and SUPABASE_KEY environment variables.")
+    raise ValueError("Supabase configuration is required")
+
+# Initialize Supabase client  
 try:
-    SUPABASE_URL = os.environ.get("SUPABASE_URL")
-    SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")  # Try SUPABASE_SERVICE_KEY if SUPABASE_KEY not found
-
-    logger.info(f"SUPABASE_URL exists: {SUPABASE_URL is not None}")
-    logger.info(f"SUPABASE_KEY exists: {SUPABASE_KEY is not None}")
-    
-    # Print the values for debugging (Be sure to remove/redact in production)
-    logger.info(f"SUPABASE_URL value first 20 chars: {SUPABASE_URL[:20] if SUPABASE_URL else 'None'}")
-    logger.info(f"AI_SERVICE_URL from env: {os.environ.get('AI_SERVICE_URL')}")
-
-    if SUPABASE_URL and SUPABASE_KEY:
-        try:
-            # הסרת פרמטר ה-proxy שגורם לשגיאה
-            supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-            logger.info("Supabase client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Supabase client: {e}")
-            supabase_client = None
-    else:
-        logger.warning("SUPABASE_KEY or SUPABASE_URL not set, Supabase features will not work")
-        supabase_client = None
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    logger.info("✅ Supabase client initialized successfully")
 except Exception as e:
-    logger.error(f"Failed to initialize Supabase client: {e}")
-    supabase_client = None
+    logger.error(f"❌ Failed to initialize Supabase client: {e}")
+    raise
 
-# AI Service configuration
-AI_SERVICE_URL = "http://localhost:5000"  # Force localhost for local development
-logger.info(f"AI service URL set to: {AI_SERVICE_URL}")
+# Set AI Service URL
+AI_SERVICE_URL = os.environ.get("AI_SERVICE_URL", "http://localhost:5000")
+logger.debug(f"🤖 AI service configured at: {AI_SERVICE_URL}")
 
 # Security - API key for internal API calls
 API_KEY_NAME = "X-API-Key"
@@ -267,7 +255,7 @@ async def root():
 async def health_check():
     """Health check endpoint for monitoring"""
     # Also check Supabase connection
-    supabase_status = "connected" if supabase_client else "disconnected"
+    supabase_status = "connected" if supabase else "disconnected"
     return {"status": "ok", "supabase": supabase_status}
 
 # Singleton instance of ChatService
@@ -415,7 +403,7 @@ async def get_documents():
     Returns a list of documents with their metadata
     """
     try:
-        if not supabase_client:
+        if not supabase:
             logger.warning("Supabase connection not available - returning mock data")
             # Return mock data instead of failing when Supabase is not available
             return [
@@ -443,13 +431,13 @@ async def get_documents():
             ]
         
         # Query documents from Supabase
-        response = supabase_client.table('documents').select('*').execute()
+        response = supabase.table('documents').select('*').execute()
         
         if hasattr(response, 'data'):
-            logger.info(f"Retrieved {len(response.data)} documents from Supabase")
+            logger.debug(f"📊 Retrieved {len(response.data)} documents from database")
             return response.data
         else:
-            logger.warning("No data returned from Supabase query")
+            logger.warning("❌ No data returned from Supabase query")
             return []
             
     except Exception as e:
@@ -491,7 +479,7 @@ async def get_document(document_id: str):
             
         doc_id = int(document_id)
         
-        if not supabase_client:
+        if not supabase:
             logger.warning(f"Supabase connection not available - returning mock data for document ID {doc_id}")
             # Return mock data for the specific document ID
             mock_documents = {
@@ -531,7 +519,7 @@ async def get_document(document_id: str):
                 }
         
         # Query the specific document
-        response = supabase_client.table('documents').select('*').eq('id', doc_id).execute()
+        response = supabase.table('documents').select('*').eq('id', doc_id).execute()
         
         if not response.data or len(response.data) == 0:
             logger.warning(f"Document with ID {doc_id} not found")
@@ -546,7 +534,7 @@ async def get_document(document_id: str):
                 "note": "This is a mock document because the original was not found"
             }
             
-        logger.info(f"Retrieved document with ID {doc_id}")
+        logger.debug(f"📄 Retrieved document with ID {doc_id}")
         return response.data[0]
         
     except HTTPException as he:
@@ -586,7 +574,7 @@ async def create_document(document: Document, api_key: str = Depends(api_key_hea
         )
         
     try:
-        if not supabase_client:
+        if not supabase:
             raise HTTPException(status_code=503, detail="Supabase connection not available")
             
         # Validate document length
@@ -597,12 +585,12 @@ async def create_document(document: Document, api_key: str = Depends(api_key_hea
         doc_data = document.model_dump()
         doc_data["created_at"] = "now()"
         
-        response = supabase_client.table('documents').insert(doc_data).execute()
+        response = supabase.table('documents').insert(doc_data).execute()
             
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create document")
             
-        logger.info(f"Created new document: {document.title}")
+        logger.info(f"📝 Created new document: {document.title}")
         return {"success": True, "id": response.data[0]["id"], "message": "Document created successfully"}
             
     except HTTPException:
@@ -631,26 +619,25 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.post("/api/proxy/chat_sessions")
 async def proxy_create_chat_session(request: Request):
     """Proxy endpoint for creating chat sessions"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         body = await request.json()
-        logger.info(f"Creating chat session for user: {body.get('user_id', 'unknown')}")
+        logger.debug(f"💬 Creating chat session for user: {body.get('user_id', 'unknown')}")
         
         # Check if chat_sessions table exists
         try:
-            test_query = supabase_client.table("chat_sessions").select("count").limit(1).execute()
-            logger.info("chat_sessions table exists, proceeding with insert")
+            test_query = supabase.table("chat_sessions").select("count").limit(1).execute()
             
             # Proceed with normal insert
-            result = supabase_client.table("chat_sessions").insert(body).execute()
+            result = supabase.table("chat_sessions").insert(body).execute()
             
             # Also create a corresponding conversation record if conversations table exists
             try:
                 if result.data:
                     # Check if conversations table exists
-                    conversation_test = supabase_client.table("conversations").select("count").limit(1).execute()
+                    conversation_test = supabase.table("conversations").select("count").limit(1).execute()
                     
                     conversation_data = {
                         "conversation_id": result.data[0]["id"],
@@ -661,7 +648,7 @@ async def proxy_create_chat_session(request: Request):
                         "is_active": True
                     }
                     
-                    supabase_client.table("conversations").insert(conversation_data).execute()
+                    supabase.table("conversations").insert(conversation_data).execute()
             except Exception as conv_err:
                 logger.warning(f"Couldn't create conversation record: {conv_err}")
                 
@@ -698,27 +685,26 @@ async def proxy_create_chat_session(request: Request):
 @app.get("/api/proxy/chat_sessions")
 async def proxy_get_chat_sessions(user_id: str, request: Request):
     """Proxy endpoint for getting chat sessions"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
-        logger.info(f"Fetching chat sessions for user: {user_id}")
+        logger.debug(f"📋 Fetching chat sessions for user: {user_id}")
         
         # First check if the chat_sessions table exists
         try:
             # Try to get table info or do a minimal query
-            test_query = supabase_client.table("chat_sessions").select("count").limit(1).execute()
-            logger.info("chat_sessions table exists, proceeding with query")
+            test_query = supabase.table("chat_sessions").select("count").limit(1).execute()
         except Exception as table_err:
             # Table likely doesn't exist - return empty array instead of error
             logger.warning(f"chat_sessions table may not exist: {table_err}")
-            logger.info("Returning empty array instead of error")
+            logger.debug("❌ Returning empty array due to missing table")
             return JSONResponse(content=[])
         
         # Execute the actual query
         try:
-            result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).order("updated_at", desc=True).execute()
-            logger.info(f"Query successful, found {len(result.data) if hasattr(result, 'data') else 0} sessions")
+            result = supabase.table("chat_sessions").select("*").eq("user_id", user_id).order("updated_at", desc=True).execute()
+            logger.debug(f"📊 Found {len(result.data) if hasattr(result, 'data') else 0} chat sessions")
             return JSONResponse(content=result.data)
         except Exception as query_err:
             logger.error(f"Query execution error: {query_err}")
@@ -732,15 +718,15 @@ async def proxy_get_chat_sessions(user_id: str, request: Request):
 @app.get("/api/proxy/chat_sessions/{session_id}")
 async def proxy_get_chat_session(session_id: str, request: Request):
     """Proxy endpoint for getting a specific chat session"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
-        logger.info(f"Fetching chat session with ID: {session_id}")
+        logger.debug(f"🔍 Fetching chat session with ID: {session_id}")
         
         # Check if tables exist first
         try:
-            test_query = supabase_client.table("chat_sessions").select("count").limit(1).execute()
+            test_query = supabase.table("chat_sessions").select("count").limit(1).execute()
         except Exception as table_err:
             logger.warning(f"chat_sessions table may not exist: {table_err}")
             # Return empty session with messages array
@@ -748,7 +734,7 @@ async def proxy_get_chat_session(session_id: str, request: Request):
             
         # Get the session
         try:
-            session_result = supabase_client.table("chat_sessions").select("*").eq("id", session_id).single().execute()
+            session_result = supabase.table("chat_sessions").select("*").eq("id", session_id).single().execute()
             
             if not session_result.data:
                 logger.warning(f"Chat session with ID {session_id} not found")
@@ -756,7 +742,7 @@ async def proxy_get_chat_session(session_id: str, request: Request):
                 
             # Check if messages table exists
             try:
-                messages_result = supabase_client.table("messages").select("*").eq("conversation_id", session_id).order("created_at").execute()
+                messages_result = supabase.table("messages").select("*").eq("conversation_id", session_id).order("created_at").execute()
                 messages = messages_result.data or []
             except Exception as msg_err:
                 logger.warning(f"messages table may not exist: {msg_err}")
@@ -779,20 +765,19 @@ async def proxy_get_chat_session(session_id: str, request: Request):
 @app.post("/api/proxy/messages")
 async def proxy_create_message(request: Request):
     """Proxy endpoint for creating messages"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         body = await request.json()
-        logger.info(f"Creating message for conversation: {body.get('conversation_id', 'unknown')}")
+        logger.debug(f"💬 Creating message for conversation: {body.get('conversation_id', 'unknown')}")
         
         # Check if messages table exists
         try:
-            test_query = supabase_client.table("messages").select("count").limit(1).execute()
-            logger.info("messages table exists, proceeding with insert")
+            test_query = supabase.table("messages").select("count").limit(1).execute()
             
             # Proceed with normal insert
-            result = supabase_client.table("messages").insert(body).execute()
+            result = supabase.table("messages").insert(body).execute()
             return JSONResponse(content=result.data)
         except Exception as table_err:
             logger.warning(f"messages table may not exist: {table_err}")
@@ -804,7 +789,7 @@ async def proxy_create_message(request: Request):
                 "created_at": body.get('created_at', datetime.now().isoformat()),
                 "message_text": body.get('message_text', '')
             }]
-            logger.info(f"Returning mock message response with ID: {mock_id}")
+            logger.debug(f"🎭 Returning mock message response with ID: {mock_id}")
             return JSONResponse(content=mock_response)
     except Exception as e:
         logger.error(f"Error proxying message creation: {e}")
@@ -819,11 +804,11 @@ async def proxy_create_message(request: Request):
 @app.get("/api/proxy/documents")
 async def proxy_get_documents(request: Request):
     """Proxy endpoint for retrieving documents"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
-        result = supabase_client.table("documents").select("*").order("created_at", desc=True).execute()
+        result = supabase.table("documents").select("*").order("created_at", desc=True).execute()
         return JSONResponse(content=result.data)
     except Exception as e:
         logger.error(f"Error proxying documents retrieval: {e}")
@@ -832,11 +817,11 @@ async def proxy_get_documents(request: Request):
 @app.get("/api/proxy/documents/{document_id}")
 async def proxy_get_document(document_id: int, request: Request):
     """Proxy endpoint for retrieving a specific document"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
-        result = supabase_client.table("documents").select("*").eq("id", document_id).single().execute()
+        result = supabase.table("documents").select("*").eq("id", document_id).single().execute()
         if not result.data:
             raise HTTPException(status_code=404, detail="Document not found")
         return JSONResponse(content=result.data)
@@ -847,14 +832,14 @@ async def proxy_get_document(document_id: int, request: Request):
 @app.post("/api/proxy/documents")
 async def proxy_create_document(request: Request):
     """Proxy endpoint for creating documents"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         body = await request.json()
         # Use RPC function if it exists, otherwise fall back to direct insert
         try:
-            result = supabase_client.rpc("create_document", {
+            result = supabase.rpc("create_document", {
                 "name": body.get("name"),
                 "type": body.get("type"),
                 "size": body.get("size"),
@@ -864,13 +849,13 @@ async def proxy_create_document(request: Request):
             
             # Get the newly created document
             if result.data:
-                doc_result = supabase_client.table("documents").select("*").eq("id", result.data).single().execute()
+                doc_result = supabase.table("documents").select("*").eq("id", result.data).single().execute()
                 return JSONResponse(content=doc_result.data)
             else:
                 raise HTTPException(status_code=500, detail="Document creation failed")
         except Exception as rpc_err:
             logger.warning(f"RPC method failed, falling back to direct insert: {rpc_err}")
-            result = supabase_client.table("documents").insert(body).execute()
+            result = supabase.table("documents").insert(body).execute()
             return JSONResponse(content=result.data[0] if result.data else None)
     except Exception as e:
         logger.error(f"Error proxying document creation: {e}")
@@ -879,12 +864,12 @@ async def proxy_create_document(request: Request):
 @app.delete("/api/proxy/documents/{document_id}")
 async def proxy_delete_document(document_id: int, request: Request):
     """Proxy endpoint for deleting documents"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         # Get document info before deletion - use safer approach that won't fail if no results
-        doc_result = supabase_client.table("documents").select("*").eq("id", document_id).execute()
+        doc_result = supabase.table("documents").select("*").eq("id", document_id).execute()
         if not doc_result.data or len(doc_result.data) == 0:
             # Document already deleted or doesn't exist - return success
             return JSONResponse(content={"success": True, "message": "Document not found or already deleted"})
@@ -893,7 +878,7 @@ async def proxy_delete_document(document_id: int, request: Request):
         # יש embeddings ללא chunks מקושרים
         try:
             # Get chunk IDs first
-            chunk_result = supabase_client.table("document_chunks").select("id, embedding_id").eq("document_id", document_id).execute()
+            chunk_result = supabase.table("document_chunks").select("id, embedding_id").eq("document_id", document_id).execute()
             
             if chunk_result.data and len(chunk_result.data) > 0:
                 # Extract embedding IDs
@@ -903,16 +888,16 @@ async def proxy_delete_document(document_id: int, request: Request):
                 if embedding_ids:
                     logger.info(f"Deleting {len(embedding_ids)} embeddings for document {document_id}")
                     for embedding_id in embedding_ids:
-                        supabase_client.table("embeddings").delete().eq("id", embedding_id).execute()
+                        supabase.table("embeddings").delete().eq("id", embedding_id).execute()
             
             # Delete document chunks
             logger.info(f"Deleting document chunks for document {document_id}")
-            supabase_client.table("document_chunks").delete().eq("document_id", document_id).execute()
+            supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
         except Exception as chunks_err:
             logger.warning(f"Error deleting document chunks or embeddings: {chunks_err}")
             
         # Delete from database
-        result = supabase_client.table("documents").delete().eq("id", document_id).execute()
+        result = supabase.table("documents").delete().eq("id", document_id).execute()
         
         # Try to delete from storage if URL exists
         if doc_result.data and len(doc_result.data) > 0 and doc_result.data[0].get("url"):
@@ -925,7 +910,7 @@ async def proxy_delete_document(document_id: int, request: Request):
                 filename = parts[-1].split("?")[0]
                 
                 # Try to delete the file - silently fail if it doesn't work
-                supabase_client.storage.from_("documents").remove([filename])
+                supabase.storage.from_("documents").remove([filename])
             except Exception as storage_err:
                 logger.warning(f"Failed to delete file from storage: {storage_err}")
                 
@@ -940,7 +925,7 @@ async def proxy_delete_document(document_id: int, request: Request):
 @app.patch("/api/proxy/chat_session/{session_id}")
 async def proxy_update_chat_session(session_id: str, request: Request):
     """Proxy endpoint for updating a chat session"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
@@ -950,7 +935,7 @@ async def proxy_update_chat_session(session_id: str, request: Request):
         if 'updated_at' not in body:
             body['updated_at'] = datetime.now().isoformat()
             
-        result = supabase_client.table("chat_sessions").update(body).eq("id", session_id).execute()
+        result = supabase.table("chat_sessions").update(body).eq("id", session_id).execute()
         
         # Also update conversation if it exists
         try:
@@ -961,7 +946,7 @@ async def proxy_update_chat_session(session_id: str, request: Request):
             if 'title' in body:
                 conversation_update['title'] = body['title']
                 
-            supabase_client.table("conversations").update(conversation_update).eq("conversation_id", session_id).execute()
+            supabase.table("conversations").update(conversation_update).eq("conversation_id", session_id).execute()
         except Exception as conv_err:
             logger.warning(f"Error updating conversation: {conv_err}")
         
@@ -978,12 +963,12 @@ async def proxy_update_chat_sessions_plural(session_id: str, request: Request):
 @app.get("/api/proxy/messages_schema")
 async def proxy_get_messages_schema(request: Request):
     """Proxy endpoint for getting the message table schema"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         # Get a single message to determine schema
-        result = supabase_client.table("messages").select("*").limit(1).execute()
+        result = supabase.table("messages").select("*").limit(1).execute()
         
         if not result.data or len(result.data) == 0:
             # Create a dummy message with all possible fields
@@ -1020,7 +1005,7 @@ async def proxy_get_messages_schema(request: Request):
 @app.put("/api/proxy/message")
 async def proxy_update_message(request: Request):
     """Proxy endpoint for adding a message with custom ID"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
@@ -1088,7 +1073,7 @@ async def proxy_update_message(request: Request):
         
         try:
             # נסה להוסיף את ההודעה לטבלה
-            result = supabase_client.table("messages").insert(cleaned_body).execute()
+            result = supabase.table("messages").insert(cleaned_body).execute()
             
             if hasattr(result, 'data') and result.data:
                 logger.info(f"Message insert success, returned data: {str(result.data)[:200]}...")
@@ -1133,15 +1118,15 @@ async def proxy_update_message(request: Request):
 @app.get("/api/proxy/search_chat_sessions")
 async def proxy_search_chat_sessions(user_id: str, search_term: str, request: Request):
     """Proxy endpoint for searching chat sessions"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         # First search for chat sessions with matching titles
-        title_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).ilike("title", f"%{search_term}%").execute()
+        title_result = supabase.table("chat_sessions").select("*").eq("user_id", user_id).ilike("title", f"%{search_term}%").execute()
         
         # Then search for messages with matching content in request or response fields
-        message_result = supabase_client.table("messages").select("conversation_id").eq("user_id", user_id).or_(f"request.ilike.%{search_term}%,response.ilike.%{search_term}%").execute()
+        message_result = supabase.table("messages").select("conversation_id").eq("user_id", user_id).or_(f"request.ilike.%{search_term}%,response.ilike.%{search_term}%").execute()
         
         # Get unique session IDs from message matches
         session_ids = []
@@ -1151,7 +1136,7 @@ async def proxy_search_chat_sessions(user_id: str, search_term: str, request: Re
         # If we have matching session IDs from messages, fetch those sessions
         content_match_sessions = []
         if session_ids:
-            content_result = supabase_client.table("chat_sessions").select("*").eq("user_id", user_id).in_("id", session_ids).execute()
+            content_result = supabase.table("chat_sessions").select("*").eq("user_id", user_id).in_("id", session_ids).execute()
             content_match_sessions = content_result.data or []
         
         # Combine and deduplicate results
@@ -1175,21 +1160,21 @@ async def proxy_search_chat_sessions(user_id: str, search_term: str, request: Re
 @app.delete("/api/proxy/chat_session/{session_id}")
 async def proxy_delete_chat_session(session_id: str, request: Request):
     """Proxy endpoint for deleting a chat session"""
-    if not supabase_client:
+    if not supabase:
         raise HTTPException(status_code=503, detail="Supabase connection not available")
     
     try:
         # First delete all messages in the session
-        messages_result = supabase_client.table("messages").delete().eq("conversation_id", session_id).execute()
+        messages_result = supabase.table("messages").delete().eq("conversation_id", session_id).execute()
         
         # Delete the conversation record if it exists
         try:
-            conversation_result = supabase_client.table("conversations").delete().eq("conversation_id", session_id).execute()
+            conversation_result = supabase.table("conversations").delete().eq("conversation_id", session_id).execute()
         except Exception as conv_err:
             logger.warning(f"Error deleting conversation: {conv_err}")
         
         # Then delete the session itself
-        session_result = supabase_client.table("chat_sessions").delete().eq("id", session_id).execute()
+        session_result = supabase.table("chat_sessions").delete().eq("id", session_id).execute()
         
         return JSONResponse(content={"success": True})
     except Exception as e:

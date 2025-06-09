@@ -13,24 +13,28 @@ logger = logging.getLogger(__name__)
 class SupabaseMessageRepository(IMessageRepository):
     """Supabase implementation of message repository."""
     
-    def __init__(self, client):
-        """Initialize with Supabase client."""
-        self.client = client
+    def __init__(self):
+        from ..core.database import get_supabase_client
+        self.supabase = get_supabase_client()
         self.table_name = "messages"
-        logger.info(f"Initialized SupabaseMessageRepository with table: {self.table_name}")
+        logger.debug(f"💬 MessageRepository initialized with table: {self.table_name}")
     
-    async def create_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new message."""
+    async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new message"""
+        logger.debug(f"Creating message for conversation: {data.get('conversation_id', 'unknown')}")
+        
         try:
-            logger.info(f"Creating message for conversation: {data.get('conversation_id', 'unknown')}")
+            # Check if messages table exists - minimal check
+            test_query = self.supabase.table(self.table_name).select("count").limit(1).execute()
             
-            # Try to verify if messages table exists
-            try:
-                test_query = self.client.table(self.table_name).select("count").limit(1).execute()
-                logger.info("Messages table exists, proceeding with insert")
-            except Exception as table_err:
-                logger.warning(f"Messages table may not exist: {table_err}")
-                # Return a mock successful response with an ID
+            # Proceed with normal insert
+            result = self.supabase.table(self.table_name).insert(data).execute()
+            
+            if result.data and len(result.data) > 0:
+                logger.debug(f"✅ Created message with ID: {result.data[0].get('id') or result.data[0].get('message_id')}")
+                return result.data[0]
+            else:
+                # Return a mock response if no data returned but no error
                 mock_id = data.get('id', f"mock-{int(time.time())}")
                 mock_response = {
                     "id": mock_id,
@@ -38,165 +42,87 @@ class SupabaseMessageRepository(IMessageRepository):
                     "created_at": data.get('created_at', datetime.now().isoformat()),
                     "message_text": data.get('message_text', '')
                 }
-                logger.info(f"Returning mock message response with ID: {mock_id}")
+                logger.debug(f"🎭 Returning mock message response with ID: {mock_id}")
                 return mock_response
-            
-            # Clean up data for insertion
-            cleaned_data = self._clean_data_for_insert(data)
-            
-            # Add created_at if not present
-            if 'created_at' not in cleaned_data:
-                cleaned_data['created_at'] = datetime.now().isoformat()
-                
-            # Create message ID if not provided
-            if 'message_id' not in cleaned_data and 'id' not in cleaned_data:
-                # Generate timestamp-based numeric ID
-                message_id = int(time.time() * 1000) * 1000 + random.randint(0, 999)
-                cleaned_data['message_id'] = message_id
-            
-            # Execute the insert
-            result = self.client.table(self.table_name).insert(cleaned_data).execute()
-            
-            # Check if insert was successful
-            if hasattr(result, 'data') and result.data:
-                logger.info(f"Successfully created message with ID: {result.data[0].get('id') or result.data[0].get('message_id')}")
-                return result.data[0]
-            else:
-                # If no data returned, return the cleaned data we tried to insert
-                logger.warning("No data returned from message creation, returning input data")
-                response_data = {
-                    "id": cleaned_data.get('message_id', cleaned_data.get('id', 'unknown')),
-                    "created_at": cleaned_data.get('created_at', datetime.now().isoformat()),
-                    "conversation_id": cleaned_data.get('conversation_id', ""),
-                    "user_id": cleaned_data.get('user_id', "")
-                }
-                return response_data
                 
         except Exception as e:
-            logger.error(f"Error creating message: {e}")
-            
-            # Handle duplicate key errors specifically
-            error_str = str(e).lower()
-            if "duplicate" in error_str or "unique constraint" in error_str:
-                raise RepositoryError("Message ID already exists", status_code=409)
-                
-            # For other errors, generate a mock response
-            mock_id = data.get('id', f"mock-{int(time.time())}")
+            logger.error(f"❌ Error creating message: {e}")
+            # Return a mock response on error to prevent app crash
+            mock_id = f"mock-{int(time.time())}"
             return {
                 "id": mock_id,
-                "conversation_id": data.get('conversation_id', 'unknown'),
                 "created_at": datetime.now().isoformat(),
-                "message_text": data.get('message_text', '')
+                "error": str(e)
             }
     
-    async def get_messages(self, conversation_id: str) -> List[Dict[str, Any]]:
-        """Get all messages for a conversation."""
+    async def get_by_conversation(self, conversation_id: str) -> List[Dict[str, Any]]:
+        """Get all messages for a conversation"""
+        logger.debug(f"Fetching messages for conversation: {conversation_id}")
+        
         try:
-            logger.info(f"Fetching messages for conversation: {conversation_id}")
+            # Check if messages table exists - minimal check
+            test_query = self.supabase.table(self.table_name).select("count").limit(1).execute()
             
-            # Check if messages table exists
-            try:
-                test_query = self.client.table(self.table_name).select("count").limit(1).execute()
-                logger.info("Messages table exists, proceeding with query")
-            except Exception as table_err:
-                logger.warning(f"Messages table may not exist: {table_err}")
-                return []
+            # Execute the actual query
+            result = self.supabase.table(self.table_name).select("*").eq("conversation_id", conversation_id).order("created_at").execute()
             
-            # Execute the query
-            result = self.client.table(self.table_name).select("*").eq("conversation_id", conversation_id).order("created_at").execute()
-            
-            # Check if query was successful
-            if hasattr(result, 'data') and result.data:
-                logger.info(f"Found {len(result.data)} messages for conversation: {conversation_id}")
+            if result.data:
+                logger.debug(f"📊 Found {len(result.data)} messages for conversation: {conversation_id}")
                 return result.data
             else:
-                logger.info(f"No messages found for conversation: {conversation_id}")
+                logger.debug(f"No messages found for conversation: {conversation_id}")
                 return []
                 
         except Exception as e:
-            logger.error(f"Error fetching messages for conversation {conversation_id}: {e}")
+            logger.error(f"❌ Error fetching messages: {e}")
             return []
     
-    async def update_message(self, message_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a message."""
+    async def update(self, message_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a message"""
+        logger.debug(f"Updating message with ID: {message_id}")
+        
         try:
-            logger.info(f"Updating message with ID: {message_id}")
-            
-            # Clean up data for update
-            cleaned_data = self._clean_data_for_insert(data)
-            
-            # Execute the update
-            result = self.client.table(self.table_name).update(cleaned_data).eq("id", message_id).execute()
-            
-            # Check if update was successful
-            if hasattr(result, 'data') and result.data:
-                logger.info(f"Successfully updated message: {message_id}")
+            result = self.supabase.table(self.table_name).update(data).eq("id", message_id).execute()
+            if result.data and len(result.data) > 0:
+                logger.debug(f"✅ Successfully updated message: {message_id}")
                 return result.data[0]
             else:
-                logger.warning(f"Update returned no data for message: {message_id}")
-                return {"id": message_id, **cleaned_data}
-                
+                raise ValueError(f"Message {message_id} not found or update failed")
         except Exception as e:
-            logger.error(f"Error updating message {message_id}: {e}")
-            raise RepositoryError(f"Failed to update message: {e}", status_code=500)
+            logger.error(f"❌ Error updating message: {e}")
+            raise
     
-    async def delete_message(self, message_id: str) -> bool:
-        """Delete a message."""
+    async def delete(self, message_id: str) -> bool:
+        """Delete a message"""
+        logger.debug(f"Deleting message with ID: {message_id}")
+        
         try:
-            logger.info(f"Deleting message with ID: {message_id}")
-            
-            # Execute the delete
-            result = self.client.table(self.table_name).delete().eq("id", message_id).execute()
-            
-            logger.info(f"Successfully deleted message: {message_id}")
+            result = self.supabase.table(self.table_name).delete().eq("id", message_id).execute()
+            logger.debug(f"✅ Successfully deleted message: {message_id}")
             return True
-                
         except Exception as e:
-            logger.error(f"Error deleting message {message_id}: {e}")
-            raise RepositoryError(f"Failed to delete message: {e}", status_code=500)
+            logger.error(f"❌ Error deleting message: {e}")
+            return False
     
-    async def get_message_schema(self) -> List[str]:
-        """Get message table schema (column names)."""
+    async def get_schema(self) -> Dict[str, Any]:
+        """Get the message table schema"""
+        logger.debug("Fetching message table schema")
+        
         try:
-            logger.info("Fetching message table schema")
+            # Get a single message to determine schema
+            result = self.supabase.table(self.table_name).select("*").limit(1).execute()
             
-            # Try to get a single message to determine schema
-            result = self.client.table(self.table_name).select("*").limit(1).execute()
-            
-            if not hasattr(result, 'data') or len(result.data) == 0:
-                # Create a dummy message with all possible fields
-                dummy_schema = {
-                    "message_id": 0,
-                    "conversation_id": "",
-                    "user_id": "",
-                    "request": "",
-                    "response": "",
-                    "created_at": "",
-                    "status": "",
-                    "status_updated_at": "",
-                    "error_message": "",
-                    "request_type": "",
-                    "request_payload": {},
-                    "response_payload": {},
-                    "status_code": 0,
-                    "processing_start_time": "",
-                    "processing_end_time": "",
-                    "processing_time_ms": 0,
-                    "is_sensitive": False,
-                    "metadata": {},
-                    "chat_session_id": ""
-                }
-                return list(dummy_schema.keys())
-            
-            # Return the column names
-            columns = list(result.data[0].keys())
-            return columns
+            if result.data and len(result.data) > 0:
+                # Return the column names from the first row
+                return {"columns": list(result.data[0].keys())}
+            else:
+                # Return a default schema if no messages exist
+                return {"columns": ["id", "conversation_id", "user_id", "message_text", "created_at"]}
                 
         except Exception as e:
-            logger.error(f"Error fetching message schema: {e}")
-            
-            # Return common column names as fallback
-            return ["id", "conversation_id", "user_id", "message", "created_at"]
+            logger.error(f"❌ Error fetching schema: {e}")
+            # Return basic schema on error
+            return {"columns": ["id", "conversation_id", "user_id", "message_text", "created_at"]}
     
     def _clean_data_for_insert(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Clean and prepare data for insertion or update."""

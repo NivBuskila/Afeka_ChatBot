@@ -13,7 +13,7 @@ from pathlib import Path
 import dotenv
 import argparse
 
-# Configure logging
+# Configure logging with more focused output
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -41,21 +41,20 @@ except ImportError:
 
 async def process_pending_document(document_id: int, processor: DocumentProcessor):
     """עיבוד מסמך במצב pending"""
-    logger.info(f"Processing document {document_id}")
+    logger.info(f"📄 Processing document {document_id}")
     
     try:
         # Get document URL
         doc_result = processor.supabase.table("documents").select("*").eq("id", document_id).execute()
         
         if not doc_result.data:
-            logger.error(f"Document {document_id} not found")
+            logger.error(f"❌ Document {document_id} not found")
             return False
         
         document = doc_result.data[0]
         document_url = document["url"]
         document_name = document["name"]
-        logger.info(f"Processing document {document_id}: {document_name}")
-        logger.info(f"Document URL: {document_url}")
+        logger.info(f"📝 Processing: {document_name}")
         
         # Create a temporary file with the document content
         import tempfile
@@ -71,8 +70,11 @@ async def process_pending_document(document_id: int, processor: DocumentProcesso
         # Process the document
         result = await processor.process_document(document_id, temp_file_path)
         
-        # Log the result
-        logger.info(f"Processing result: {result}")
+        # Log only if there was an issue
+        if not result:
+            logger.error(f"❌ Failed to process document {document_id}")
+        else:
+            logger.info(f"✅ Successfully processed document {document_id}")
         
         # Clean up
         try:
@@ -84,8 +86,8 @@ async def process_pending_document(document_id: int, processor: DocumentProcesso
             
     except Exception as e:
         import traceback
-        logger.error(f"Error processing document: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"❌ Error processing document {document_id}: {str(e)}")
+        logger.debug(traceback.format_exc())
         return False
 
 async def find_and_process_pending_documents():
@@ -96,11 +98,12 @@ async def find_and_process_pending_documents():
     result = processor.supabase.table("documents").select("id").eq("processing_status", "pending").execute()
     
     if not result.data:
-        logger.info("No pending documents found")
+        # Log at DEBUG level to avoid spam when no documents are pending
+        logger.debug("No pending documents found")
         return 0
     
     pending_docs = result.data
-    logger.info(f"Found {len(pending_docs)} pending documents")
+    logger.info(f"📋 Found {len(pending_docs)} pending documents to process")
     
     # Process each document
     processed_count = 0
@@ -110,34 +113,43 @@ async def find_and_process_pending_documents():
         if success:
             processed_count += 1
     
+    if processed_count > 0:
+        logger.info(f"✅ Successfully processed {processed_count}/{len(pending_docs)} documents")
+    
     return processed_count
 
 async def run_processor(interval: int, single_run: bool = False):
     """הפעלת המעבד באופן מחזורי"""
     try:
         if single_run:
-            logger.info("Running in single-run mode")
+            logger.info("🔄 Running in single-run mode")
             await find_and_process_pending_documents()
             return
             
-        logger.info(f"Starting automatic document processor (interval: {interval} seconds)")
+        logger.info(f"🚀 Starting automatic document processor (checking every {interval} seconds)")
+        cycle_count = 0
         
         while True:
             try:
+                cycle_count += 1
                 count = await find_and_process_pending_documents()
-                if count > 0:
-                    logger.info(f"Processed {count} documents")
-            except Exception as e:
-                logger.error(f"Error in processing cycle: {str(e)}")
                 
-            # Wait for next cycle
-            logger.info(f"Waiting {interval} seconds until next check")
+                # Only log successful cycles with processed documents, or every 10 cycles for heartbeat
+                if count > 0:
+                    logger.info(f"📊 Cycle #{cycle_count}: Processed {count} documents")
+                elif cycle_count % 10 == 0:
+                    logger.debug(f"💓 Heartbeat: Cycle #{cycle_count} - system running normally")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error in processing cycle #{cycle_count}: {str(e)}")
+                
+            # Wait for next cycle - no need to log every wait
             await asyncio.sleep(interval)
             
     except KeyboardInterrupt:
-        logger.info("Processor stopped by user")
+        logger.info("⏹️  Document processor stopped by user")
     except Exception as e:
-        logger.error(f"Unhandled error: {str(e)}")
+        logger.error(f"💥 Unhandled error: {str(e)}")
 
 if __name__ == "__main__":
     # Parse command line arguments

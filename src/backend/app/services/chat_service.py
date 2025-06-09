@@ -46,7 +46,7 @@ class ChatService(IChatService):
         try:
             ai_config_path = Path(__file__).parent.parent.parent.parent / "ai" / "config"
             self.profile_file_path = ai_config_path / "current_profile.json"
-            logger.info(f"📁 Profile file path: {self.profile_file_path}")
+            logger.debug(f"📁 Profile file path: {self.profile_file_path}")
         except Exception as e:
             logger.warning(f"Could not determine profile file path: {e}")
             self.profile_file_path = None
@@ -81,8 +81,8 @@ class ChatService(IChatService):
                 memory=self.memory,
                 verbose=settings.LANGCHAIN_VERBOSE 
             )
-            logger.info("ChatService initialized successfully with LangChain and Google Gemini.")
-            logger.info(f"Using Gemini model: {settings.GEMINI_MODEL_NAME}, Temperature: {settings.GEMINI_TEMPERATURE}, Max Tokens: {settings.GEMINI_MAX_TOKENS}, History Window: {settings.LANGCHAIN_HISTORY_K}")
+            logger.info("✅ ChatService initialized with LangChain and Google Gemini")
+            logger.debug(f"🤖 Using model: {settings.GEMINI_MODEL_NAME}, temp: {settings.GEMINI_TEMPERATURE}, tokens: {settings.GEMINI_MAX_TOKENS}, history: {settings.LANGCHAIN_HISTORY_K}")
 
         except Exception as e:
             logger.error(f"Error initializing LangChain components with Gemini: {e}", exc_info=True)
@@ -102,20 +102,16 @@ class ChatService(IChatService):
                 # בדיקה אם הקובץ השתנה
                 if self.profile_file_mtime != current_mtime:
                     profile_changed = True
-                    logger.info(f"🔄 Profile file changed (mtime: {current_mtime} vs cached: {self.profile_file_mtime})")
+                    logger.debug(f"🔄 Profile updated (mtime: {current_mtime} vs cached: {self.profile_file_mtime})")
             else:
                 # אין קובץ פרופיל - נשתמש בברירת מחדל
                 if self.rag_service is None:
                     profile_changed = True
-                    logger.info("📁 No profile file found - will create default RAG service")
+                    logger.debug("📁 No profile file found - using default RAG service")
             
             # אם אין לנו cache או שהפרופיל השתנה - יצירה חדשה
             if self.rag_service is None or profile_changed:
-                logger.info("🆕 Creating new RAG service...")
-                
-                # יצירת RAGService חדש - DISABLED
-                # self.rag_service = RAGService()
-                self.rag_service = None  # Temporarily disabled
+                logger.debug("🆕 Creating new RAG service...")
                 
                 # עדכון cache
                 if current_mtime:
@@ -123,10 +119,10 @@ class ChatService(IChatService):
                 
                 # שמירת הפרופיל הנוכחי לcache
                 try:
-                    # from src.ai.config.current_profile import get_current_profile
-                    # self.current_profile_cache = get_current_profile()
-                    self.current_profile_cache = "gemini_only"  # Temporarily disabled
-                    logger.info(f"✅ Created fresh RAG service with profile: {self.current_profile_cache}")
+                    from src.ai.config.current_profile import get_current_profile
+                    current_profile = get_current_profile()
+                    self.current_profile_cache = current_profile
+                    logger.debug(f"✅ RAG service ready with profile: {self.current_profile_cache}")
                 except Exception as e:
                     logger.warning(f"Could not get current profile: {e}")
                     self.current_profile_cache = "unknown"
@@ -159,71 +155,78 @@ class ChatService(IChatService):
         logger.debug(f"Processing message for user_id: {user_id} with LangChain (Gemini).")
         logger.debug(f"Incoming user_message: {user_message}")
         
-        if history:
-            logger.info(f"Rehydrating memory with {len(history)} messages from provided history for Gemini.")
+        # Rehydrate memory with provided history if available
+        if history and len(history) > 0:
+            logger.debug(f"Rehydrating memory with {len(history)} messages from provided history for Gemini.")
             self.memory.clear()
-            for item in history:
-                if item.type == 'user':
-                    self.memory.chat_memory.add_user_message(item.content)
-                elif item.type == 'bot' or item.type == 'ai':
-                    self.memory.chat_memory.add_ai_message(item.content)
+            for msg in history:
+                if msg.get('user_message'):
+                    self.memory.chat_memory.add_user_message(msg['user_message'])
+                if msg.get('assistant_message'):
+                    self.memory.chat_memory.add_ai_message(msg['assistant_message'])
             logger.debug(f"Memory after rehydration for Gemini: {self.memory.chat_memory.messages}")
-        elif not self.memory.chat_memory.messages:
+        else:
             logger.debug("No history provided and memory is empty. Starting fresh conversation.")
-
+        
+        # Detect if this is a personal conversation vs information request
+        conversation_prompts = ["how are you", "what's your name", "tell me about yourself", "who are you", "how do you feel"]
+        is_conversation_question = any(prompt in user_message.lower() for prompt in conversation_prompts)
+        
+        logger.debug(f"Question analysis: conversation={is_conversation_question}")
+        
+        # Handle conversation questions with direct LLM
+        if is_conversation_question:
+            logger.debug("Using regular LLM for personal conversation question")
+            response_content = self.llm.invoke(user_message).content
+            logger.debug(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
+            self.memory.chat_memory.add_user_message(user_message)
+            self.memory.chat_memory.add_ai_message(response_content)
+            
+            return {
+                "response": response_content,
+                "sources": [],
+                "chunks": 0
+            }
+        
+        # For information requests, use RAG
+        logger.debug(f"Using RAG service with profile: {self.current_profile_cache}")
+        
         try:
-            # Check if this is a personal conversation question
-            is_conversation_question = self._is_conversation_question(user_message)
+            # Get RAG response
+            rag_response = self.rag_service.answer_question(user_message)
             
-            logger.info(f"Question analysis: conversation={is_conversation_question}")
-            
-            # For personal conversation questions, use regular LLM directly
-            if is_conversation_question:
-                logger.info("Using regular LLM for personal conversation question")
-                response_content = await self.conversation_chain.apredict(input=user_message)
-                logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
-                return {"response": response_content}
-            
-            # 🎯 קבלת RAGService עם cache חכם
-            rag_service = self._get_current_rag_service()
-            
-            # For all other questions, try RAG service first
-            if rag_service:
-                logger.info(f"Using RAG service with profile: {self.current_profile_cache}")
-                try:
-                    rag_response = await rag_service.generate_answer(
-                        query=user_message,
-                        search_method="hybrid"
-                    )
+            if rag_response and rag_response.get("answer"):
+                sources_count = len(rag_response.get("sources", []))
+                chunks_count = len([chunk for source in rag_response.get("sources", []) for chunk in source.get("chunks", [])])
+                
+                if sources_count > 0:
+                    logger.info(f"🎯 RAG generated answer with {sources_count} sources, {chunks_count} chunks")
                     
-                    # 🎯 שונה: תמיד משתמש ב-RAG כמו Test Center, גם אם אין מקורות מספיק טובים
-                    # כדי להתנהג בדיוק כמו Test Center
-                    if rag_response and rag_response.get("answer"):
-                        # RAG generated an answer, use it (even if no perfect sources found)
-                        self.memory.chat_memory.add_user_message(user_message)
-                        self.memory.chat_memory.add_ai_message(rag_response["answer"])
-                        
-                        sources_count = len(rag_response.get("sources", []))
-                        chunks_count = len(rag_response.get("chunks_selected", []))
-                        logger.info(f"🎯 RAG service generated answer with {sources_count} sources, {chunks_count} chunks - using RAG response (Test Center behavior)")
-                        return {"response": rag_response["answer"], "sources": rag_response.get("sources", [])}
-                    else:
-                        # RAG didn't generate any answer at all, fall back to regular LLM
-                        logger.info("❌ RAG service didn't generate any answer, falling back to regular LLM")
-                except Exception as e:
-                    logger.error(f"Error using RAG service: {e}. Falling back to regular LLM.")
+                    # Update memory
+                    self.memory.chat_memory.add_user_message(user_message)
+                    self.memory.chat_memory.add_ai_message(rag_response["answer"])
+                    
+                    return {
+                        "response": rag_response["answer"],
+                        "sources": rag_response.get("sources", []),
+                        "chunks": chunks_count
+                    }
             
-            # Fallback to regular LLM (no RAG service or RAG didn't find relevant results)
-            logger.info("Using regular LLM as fallback")
-            response_content = await self.conversation_chain.apredict(input=user_message)
+            logger.debug("❌ RAG service didn't generate answer, falling back to regular LLM")
             
-            logger.info(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
-            
-            return {"response": response_content}
-
         except Exception as e:
-            logger.error(f"Error during LangChain (Gemini) conversation prediction: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Error processing message with AI (Gemini): {e}")
+            logger.warning(f"⚠️  RAG service error: {e}")
+            logger.debug("Using regular LLM as fallback")
+        
+        # Fallback to regular LLM
+        response_content = self.llm.invoke(user_message).content
+        logger.debug(f"LangChain (Gemini) - AI response: {response_content[:100]}...")
+        
+        return {
+            "response": response_content,
+            "sources": [],
+            "chunks": 0
+        }
     
     def _is_conversation_question(self, message: str) -> bool:
         """Determine if a message is asking about information from previous conversation"""

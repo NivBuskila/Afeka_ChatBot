@@ -9,6 +9,12 @@ logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
+# Validate JWT_SECRET on module load
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    logger.error("JWT_SECRET not found in environment variables. Please set it in your .env file.")
+    raise ValueError("JWT_SECRET environment variable is required but not found")
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
     """
     Get current authenticated user from JWT token
@@ -35,7 +41,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         try:
             payload = jwt.decode(
                 token, 
-                os.getenv("JWT_SECRET", "dev-secret"), 
+                JWT_SECRET, 
                 algorithms=["HS256"],
                 # Add leeway for slight clock differences if that becomes an issue
                 # leeway=10 

@@ -24,7 +24,7 @@ class SupabaseDocumentRepository(IDocumentRepository):
             response = self.client.table(self.table_name).select('*').order('created_at', desc=True).execute()
             
             if hasattr(response, 'data') and isinstance(response.data, list):
-                logger.info(f"Retrieved {len(response.data)} documents")
+                logger.debug(f"📊 Retrieved {len(response.data)} documents from database")
                 return response.data
             else:
                 logger.warning("No data or unexpected response format from Supabase")
@@ -40,7 +40,7 @@ class SupabaseDocumentRepository(IDocumentRepository):
             response = self.client.table(self.table_name).select('*').eq('id', doc_id).single().execute()
             
             if hasattr(response, 'data') and response.data:
-                logger.info(f"Retrieved document {doc_id}")
+                logger.debug(f"📄 Retrieved document {doc_id}")
                 return response.data
             else:
                 logger.warning(f"Document with ID {doc_id} not found")
@@ -68,7 +68,7 @@ class SupabaseDocumentRepository(IDocumentRepository):
             
             if hasattr(response, 'data') and response.data and len(response.data) > 0:
                 new_id = response.data[0].get('id')
-                logger.info(f"Created document '{document.title}' with ID {new_id}")
+                logger.info(f"📝 Created document '{document.title}' with ID {new_id}")
                 return response.data[0]
             else:
                 logger.error("Failed to create document: No data returned")
@@ -95,7 +95,7 @@ class SupabaseDocumentRepository(IDocumentRepository):
             response = self.client.table(self.table_name).update(update_data).eq('id', doc_id).execute()
             
             if hasattr(response, 'data') and response.data and len(response.data) > 0:
-                logger.info(f"Updated document with ID {doc_id}")
+                logger.debug(f"📝 Updated document with ID {doc_id}")
                 return response.data[0]
             else:
                 logger.error(f"Failed to update document {doc_id}: No data returned")
@@ -116,7 +116,7 @@ class SupabaseDocumentRepository(IDocumentRepository):
             response = self.client.table(self.table_name).delete().eq('id', doc_id).execute()
             
             if hasattr(response, 'data'):
-                logger.info(f"Deleted document with ID {doc_id}")
+                logger.info(f"🗑️ Deleted document with ID {doc_id}")
                 return True
             else:
                 logger.error(f"Failed to delete document {doc_id}")
@@ -146,7 +146,7 @@ class SupabaseDocumentRepository(IDocumentRepository):
             response = query.execute()
             
             if hasattr(response, 'data') and isinstance(response.data, list):
-                logger.info(f"Search found {len(response.data)} documents matching '{search_term}'")
+                logger.debug(f"🔍 Search found {len(response.data)} documents matching '{search_term}'")
                 return response.data
             else:
                 logger.warning(f"No search results found for '{search_term}'")

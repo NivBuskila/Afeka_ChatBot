@@ -11,22 +11,26 @@ type Database = any;
 // 3. When specifically required for real-time subscriptions
 console.log('Initializing Supabase client...');
 
-// If running in browser, use import.meta.env
-// Otherwise, fallback to process.env (for SSR/Node.js environments)
+// Get Supabase configuration from environment variables
 // @ts-ignore - Ignore TypeScript warning for import.meta.env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cqvicgimmzrffvarlokq.supabase.co';
-// Use environment variables with fallback for local development
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 // @ts-ignore - Ignore TypeScript warning for import.meta.env
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxdmljZ2ltbXpyZmZ2YXJsb2txIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyNDE0MjgsImV4cCI6MjA2MjgxNzQyOH0.TBCN4icU22HJGHK6ka2_cQjA9tBQ-t3IMCPDstBdaUM';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Log the configuration
+// Log the configuration (safe logging - only showing URL and partial key)
 console.log('Supabase Configuration:');
-console.log('  - URL:', supabaseUrl);
-console.log('  - ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : 'Not set');
+console.log('  - URL:', supabaseUrl || 'NOT SET');
+console.log('  - ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : 'NOT SET');
 
 // Ensure we have the required values
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('ERROR: Missing Supabase environment variables');
+  const errorMessage = `Missing required Supabase environment variables:
+    ${!supabaseUrl ? '❌ VITE_SUPABASE_URL' : '✅ VITE_SUPABASE_URL'}
+    ${!supabaseAnonKey ? '❌ VITE_SUPABASE_ANON_KEY' : '✅ VITE_SUPABASE_ANON_KEY'}
+  
+  Please check your .env file and ensure these variables are set.`;
+  
+  console.error(errorMessage);
   throw new Error('Missing required Supabase configuration. Check your environment variables.');
 }
 

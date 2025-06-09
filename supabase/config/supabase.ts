@@ -1,10 +1,22 @@
+// @ts-ignore - Import may not be available in all environments
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cqvicgimmzrffvarlokq.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxdmljZ2ltbXpyZmZ2YXJsb2txIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyNDE0MjgsImV4cCI6MjA2MjgxNzQyOH0.TBCN4icU22HJGHK6ka2_cQjA9tBQ-t3IMCPDstBdaUM';
+// Get Supabase configuration from environment variables only
+// @ts-ignore - Ignore TypeScript warning for import.meta.env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+// @ts-ignore - Ignore TypeScript warning for import.meta.env
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Validate required environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  const errorMessage = `Missing required Supabase environment variables:
+    ${!supabaseUrl ? '❌ VITE_SUPABASE_URL' : '✅ VITE_SUPABASE_URL'}
+    ${!supabaseAnonKey ? '❌ VITE_SUPABASE_ANON_KEY' : '✅ VITE_SUPABASE_ANON_KEY'}
+  
+  Please check your .env file and ensure these variables are set.`;
+  
+  console.error(errorMessage);
+  throw new Error('Missing required Supabase configuration. Check your environment variables.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

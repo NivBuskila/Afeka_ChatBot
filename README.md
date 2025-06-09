@@ -415,11 +415,9 @@ docker-compose down -v
 
 ## Supabase Configuration
 
-The application is configured to connect to Supabase at:
+The application is configured to connect to your Supabase project.
 
-```
-https://cqvicgimmzrffvarlokq.supabase.co
-```
+**⚠️ Security Note**: Supabase URL and keys are configured through environment variables in `.env` files. Never hardcode these values in your source code.
 
 ### Existing Tables
 
