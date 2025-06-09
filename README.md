@@ -527,7 +527,6 @@ This guide will help you set up the Afeka ChatBot project on your local machine 
    ```
    SUPABASE_URL=your_supabase_url
    SUPABASE_KEY=your_supabase_key
-   OPENAI_API_KEY=your_openai_api_key
    ```
 
 #### Frontend Setup
@@ -631,7 +630,7 @@ Make sure you have `pytest` and other necessary libraries installed globally. If
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install pytest sentence-transformers langchain langchain-openai langchain_experimental langchain-google-genai python-dotenv
+python -m pip install pytest sentence-transformers langchain langchain_experimental langchain-google-genai python-dotenv
 ```
 
 _(Adjust the list of packages as needed based on your project's specific test dependencies and any `ImportError` messages you see)._

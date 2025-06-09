@@ -14,8 +14,8 @@ if str(backend_dir) not in sys.path:
 from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
-from src.ai.services.rag_service import RAGService  # Import the new RAG service
-from src.ai.services.document_processor import DocumentProcessor  # Import from ai/services
+# from src.ai.services.rag_service import RAGService  # Import the new RAG service - DISABLED
+# from src.ai.services.document_processor import DocumentProcessor  # Import from ai/services - DISABLED
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferWindowMemory
@@ -89,7 +89,7 @@ class ChatService(IChatService):
             self.llm = None
             self.conversation_chain = None
 
-    def _get_current_rag_service(self) -> Optional[RAGService]:
+    def _get_current_rag_service(self) -> Optional[Any]:
         """מחזיר RAGService עם cache חכם שבודק שינויים בפרופיל"""
         try:
             # בדיקה אם קובץ הפרופיל קיים ומה זמן השינוי שלו
@@ -113,8 +113,9 @@ class ChatService(IChatService):
             if self.rag_service is None or profile_changed:
                 logger.info("🆕 Creating new RAG service...")
                 
-                # יצירת RAGService חדש
-                self.rag_service = RAGService()
+                # יצירת RAGService חדש - DISABLED
+                # self.rag_service = RAGService()
+                self.rag_service = None  # Temporarily disabled
                 
                 # עדכון cache
                 if current_mtime:
@@ -122,8 +123,9 @@ class ChatService(IChatService):
                 
                 # שמירת הפרופיל הנוכחי לcache
                 try:
-                    from src.ai.config.current_profile import get_current_profile
-                    self.current_profile_cache = get_current_profile()
+                    # from src.ai.config.current_profile import get_current_profile
+                    # self.current_profile_cache = get_current_profile()
+                    self.current_profile_cache = "gemini_only"  # Temporarily disabled
                     logger.info(f"✅ Created fresh RAG service with profile: {self.current_profile_cache}")
                 except Exception as e:
                     logger.warning(f"Could not get current profile: {e}")

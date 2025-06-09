@@ -56,12 +56,11 @@ from src.backend.app.domain.models import ChatRequest as ChatRequestModel, ChatM
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Temporary debug log for OPENAI_API_KEY
-logger.info(f"Attempting to load OPENAI_API_KEY. Key found: {'YES' if settings.OPENAI_API_KEY else 'NO'}")
-if settings.OPENAI_API_KEY:
-    logger.info(f"OPENAI_API_KEY (in main.py) starts with: {settings.OPENAI_API_KEY[:5]}... and ends with: ...{settings.OPENAI_API_KEY[-5:]}")
+# Debug log for Gemini API key
+if settings.GEMINI_API_KEY:
+    logger.info("Gemini API key found and configured successfully")
 else:
-    logger.warning("OPENAI_API_KEY not found in settings when checking from main.py. Ensure it is set in the .env file in the backend directory.")
+    logger.warning("GEMINI_API_KEY not found in settings. Ensure it is set in the .env file.")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -243,17 +242,9 @@ async def startup_event():
     if settings.GEMINI_API_KEY:
         import google.generativeai as genai
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        logger.info("Google Generative AI API key configured.")
+        logger.info("Google Generative AI API key configured successfully.")
     else:
         logger.warning("GEMINI_API_KEY not found. Gemini features will be limited.")
-    
-    # Initialize OpenAI API key if available
-    if settings.OPENAI_API_KEY:
-        import openai
-        openai.api_key = settings.OPENAI_API_KEY
-        logger.info("OpenAI API key configured.")
-    else:
-        logger.warning("OPENAI_API_KEY not found. OpenAI features will be limited.")
     
     # Start document processor thread
     auto_processor_thread = threading.Thread(target=run_document_processor, daemon=True)
@@ -354,6 +345,66 @@ async def chat(
             # Provide a more generic error to the client for non-HTTP exceptions
             content={"error": "Internal server error processing chat request"}, 
             headers={"Content-Type": "application/json; charset=utf-8"}
+        )
+
+# --- NEW DEMO CHAT ENDPOINT (NO AUTH REQUIRED) ---
+@app.post("/api/chat/demo")
+async def chat_demo(request: Dict[str, Any]):
+    """
+    Demo chat endpoint that uses RAG directly without authentication.
+    This is for users not logged in who want to test the system.
+    """
+    try:
+        query = request.get("query", "").strip()
+        
+        if not query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        logger.info(f"Received demo chat request: {query[:50]}...")
+        
+        # Import RAGService here to avoid circular imports
+        try:
+            from src.ai.services.rag_service import RAGService
+            
+            # Create RAG service with current profile
+            rag_service = RAGService()
+            
+            # Run the query through RAG - same as Test Center
+            result = await rag_service.generate_answer(query, search_method="hybrid")
+            
+            # Return in the format expected by Chat Preview
+            return JSONResponse(
+                content={
+                    "answer": result.get("answer", "No answer generated"),
+                    "response": result.get("answer", "No answer generated"), # Both formats for compatibility
+                    "responseTime": result.get("response_time_ms", 0),
+                    "sourcesFound": len(result.get("sources", [])),
+                    "chunks": len(result.get("chunks_selected", [])),
+                    "searchMethod": result.get("search_method", "hybrid")
+                }
+            )
+            
+        except ImportError as import_err:
+            logger.error(f"Could not import RAGService for demo: {import_err}")
+            # Fallback to simple Gemini response
+            return JSONResponse(
+                content={
+                    "answer": "שלום! מצטער, שירות ה-RAG אינו זמין כרגע. האם תוכל לנסח את שאלתך שוב?",
+                    "response": "שלום! מצטער, שירות ה-RAG אינו זמין כרגע. האם תוכל לנסח את שאלתך שוב?"
+                }
+            )
+            
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.exception(f"Error in demo chat endpoint: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "answer": "מצטער, אירעה שגיאה במערכת. אנא נסה שוב.",
+                "response": "מצטער, אירעה שגיאה במערכת. אנא נסה שוב."
+            }
         )
 
 @app.get("/api/documents")

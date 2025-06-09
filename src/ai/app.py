@@ -16,19 +16,14 @@ sys.path.insert(0, str(backend_path))
 # טעינת משתני סביבה
 dotenv.load_dotenv(override=True)
 
-# ייבוא מודולי RAG
-try:
-    from .services.document_processor import DocumentProcessor
-    from app.core.database import get_supabase_client
-    from .services.enhanced_processor import EnhancedProcessor
-    has_rag = True
-    # Initialize document processors
-    doc_processor = DocumentProcessor()
-    enhanced_processor = EnhancedProcessor()
-except ImportError as e:
-    logging.warning(f"RAG modules could not be imported: {e}")
-    has_rag = False
-    enhanced_processor = None
+# ייבוא מודולי RAG - השבתה זמנית עד תיקון הבעיות
+# הצ'אט יעבוד עם Gemini לבד ללא RAG
+has_rag = False
+enhanced_processor = None
+get_supabase_client = None
+doc_processor = None
+
+logging.warning("RAG modules disabled - chat will use Gemini without document search")
 
 # Configure logging
 logging.basicConfig(

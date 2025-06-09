@@ -35,17 +35,11 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(default=os.environ.get("SUPABASE_URL", ""))
     SUPABASE_KEY: str = Field(default=os.environ.get("SUPABASE_KEY", ""))
     
-    # OpenAI API Key Configuration
-    OPENAI_API_KEY: Optional[str] = Field(default=os.environ.get("OPENAI_API_KEY"))
-
     # Google Gemini API Key Configuration
     GEMINI_API_KEY: Optional[str] = Field(default=os.environ.get("GEMINI_API_KEY"))
     
-    # OpenAI & LangChain Model Configuration
-    OPENAI_TEMPERATURE: float = Field(default=0.7, description="Sampling temperature for OpenAI model")
-    OPENAI_MODEL_NAME: str = Field(default="gpt-3.5-turbo", description="Default OpenAI model name")
+    # Gemini & LangChain Model Configuration
     CHAT_HISTORY_WINDOW_SIZE: int = Field(default=10, description="Number of past messages to keep in memory for context")
-    OPENAI_SYSTEM_PROMPT: str = Field(default="You are a helpful assistant.", description="System prompt for the OpenAI model")
     LANGCHAIN_VERBOSE: bool = Field(default=True, description="Enable verbose logging for LangChain")
     
     # Gemini & LangChain Model Configuration
