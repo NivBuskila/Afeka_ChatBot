@@ -659,16 +659,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           
           return (
             <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
+              <div className="mb-6">
                 <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {t('admin.sidebar.users')}
                 </h2>
-                <button
-                  onClick={refreshData}
-                  className="bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors"
-                >
-                  {t('Refresh')}
-                </button>
               </div>
               <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
                 <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
@@ -711,16 +705,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         else if (activeSubItem === 'admins') {
           return (
             <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
+              <div className="mb-6">
                 <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {t('admin.sidebar.administrators')}
                 </h2>
-                <button
-                  onClick={refreshData}
-                  className="bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors"
-                >
-                  {t('Refresh')}
-                </button>
               </div>
               <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
                 <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
@@ -755,16 +743,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           // sub-category overview - show general data
           return (
             <div>
-              <div className="flex justify-between items-center mb-6 px-6 pt-6">
+              <div className="mb-6 px-6 pt-6">
                 <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {t('analytics.overview')}
                 </h2>
-                <button
-                  onClick={refreshData}
-                  className="bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg border border-green-500/30 transition-colors"
-                >
-                  {t('Refresh')}
-                </button>
               </div>
               <AnalyticsOverview analytics={analytics} isLoading={isRefreshing} />
             </div>
@@ -808,7 +790,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <RAGManagement 
             activeSubItem={activeSubItem}
             language={language}
-            onRefresh={refreshData}
           />
         );
       case 'settings':

@@ -8,13 +8,11 @@ type Language = 'he' | 'en';
 interface RAGManagementProps {
   activeSubItem: string | null;
   language: Language;
-  onRefresh: () => void;
 }
 
 export const RAGManagement: React.FC<RAGManagementProps> = ({ 
   activeSubItem, 
-  language, 
-  onRefresh 
+  language
 }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -525,7 +523,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-green-400">
           {t('rag.management')}
           {activeSubItem && activeSubItem !== 'overview' && (
@@ -536,16 +534,6 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
             </span>
           )}
         </h2>
-        <button
-          onClick={() => {
-            onRefresh();
-            fetchProfiles();
-          }}
-          disabled={loading}
-          className="bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors disabled:opacity-50"
-        >
-{loading ? (t('rag.loadingShort') || 'טוען...') : (t('rag.refresh') || 'רענן')}
-        </button>
       </div>
       
       {error && (
