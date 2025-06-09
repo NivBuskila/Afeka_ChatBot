@@ -1,4 +1,23 @@
 {
+  "loading": "טוען...",
+  "loadingPermissions": "אנא המתן...",
+  "Cancel": "ביטול",
+  "Delete": "מחק",
+  "Refresh": "רענן",
+  "Save": "שמור",
+  "Edit": "ערוך",
+  "Update": "עדכן",
+  "Close": "סגור",
+  "Add": "הוסף",
+  "Search": "חיפוש",
+  "Apply": "החל",
+  "Create": "צור",
+  "Remove": "הסר",
+  "Submit": "שלח",
+  "Confirm": "אשר",
+  "Back": "חזור",
+  "Next": "הבא",
+  "Previous": "הקודם",
   "settings": {
     "userSettings": "הגדרות משתמש",
     "changeEmail": "שינוי כתובת דואר אלקטרוני",
@@ -80,7 +99,25 @@
     "updateError": "אירעה שגיאה בעדכון המסמך",
     "search": "חיפוש מסמכים",
     "add": "הוסף מסמך",
-    "activeDocuments": "מסמכים פעילים"
+    "activeDocuments": "מסמכים פעילים",
+    "name": "שם המסמך",
+    "type": "סוג",
+    "size": "גודל",
+    "date": "תאריך",
+    "actions": "פעולות",
+    "confirmDelete": "אישור מחיקה"
+  },
+  "table": {
+    "document": {
+      "name": "שם המסמך"
+    },
+    "category": "קטגוריה",
+    "upload": {
+      "date": "תאריך העלאה"
+    },
+    "size": "גודל",
+    "status": "סטטוס",
+    "actions": "פעולות"
   },
   "chat": {
     "sidebar": {
@@ -124,6 +161,8 @@
     "showHistory": "הצג היסטוריה"
   },
   "admin": {
+    "loading": "טוען לוח בקרה",
+    "loadingPermissions": "מאתחל הרשאות מנהל...",
     "sidebar": {
       "dashboard": "דף הבית",
       "users": "משתמשים",

@@ -59,6 +59,7 @@ interface Document {
 import { supabase } from '../../config/supabase';
 import i18n from 'i18next';
 import { cacheService } from '../../services/cacheService';
+import LoadingScreen from '../LoadingScreen';
 
 type Language = 'he' | 'en';
 
@@ -904,7 +905,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   if (isInitialLoading) {
-    return <div>{t('loading')}</div>;
+    return (
+      <LoadingScreen 
+        message={t('admin.loading') || 'Loading Dashboard'}
+        subMessage={t('admin.loadingPermissions') || 'Initializing admin permissions...'}
+      />
+    );
   }
 
   return (

@@ -1,4 +1,23 @@
 {
+  "loading": "Loading...",
+  "loadingPermissions": "Please wait...",
+  "Cancel": "Cancel",
+  "Delete": "Delete",
+  "Refresh": "Refresh",
+  "Save": "Save",
+  "Edit": "Edit",
+  "Update": "Update",
+  "Close": "Close",
+  "Add": "Add",
+  "Search": "Search",
+  "Apply": "Apply",
+  "Create": "Create",
+  "Remove": "Remove",
+  "Submit": "Submit",
+  "Confirm": "Confirm",
+  "Back": "Back",
+  "Next": "Next",
+  "Previous": "Previous",
   "settings": {
     "userSettings": "User Settings",
     "changeEmail": "Change Email Address",
@@ -80,7 +99,25 @@
     "updateError": "Error updating document",
     "search": "Search documents",
     "add": "Add document",
-    "activeDocuments": "Active Documents"
+    "activeDocuments": "Active Documents",
+    "name": "Document Name",
+    "type": "Type",
+    "size": "Size",
+    "date": "Date",
+    "actions": "Actions",
+    "confirmDelete": "Confirm Delete"
+  },
+  "table": {
+    "document": {
+      "name": "Document Name"
+    },
+    "category": "Category",
+    "upload": {
+      "date": "Upload Date"
+    },
+    "size": "Size",
+    "status": "Status",
+    "actions": "Actions"
   },
   "chat": {
     "sidebar": {
@@ -124,6 +161,8 @@
     "showHistory": "Show history"
   },
   "admin": {
+    "loading": "Loading Dashboard",
+    "loadingPermissions": "Initializing admin permissions...",
     "sidebar": {
       "dashboard": "Dashboard",
       "users": "Users",

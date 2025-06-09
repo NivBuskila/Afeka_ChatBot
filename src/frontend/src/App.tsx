@@ -12,6 +12,7 @@ import { AdminDashboard } from './components/Dashboard/AdminDashboard';
 import ChatWindow from './components/Chat/ChatWindow';
 import TermsAndConditions from './components/Terms/TermsAndConditions';
 import ResetPassword from './components/ResetPassword/ResetPassword';
+import LoadingScreen from './components/LoadingScreen';
 
 import './styles/globals.css';
 
@@ -74,12 +75,13 @@ const App: React.FC = () => {
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
 
-  // אם עדיין בודק auth, מציג loading
+  // אם עדיין בודק auth, מציג loading מעוצב יותר
   if (isCheckingAuth) {
     return (
-      <div className="h-screen w-screen bg-black text-white font-sans flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-      </div>
+      <LoadingScreen 
+        message={i18n.language === 'he' ? 'בודק הרשאות...' : 'Checking permissions...'}
+        subMessage={i18n.language === 'he' ? 'מתחבר למערכת...' : 'Connecting to system...'}
+      />
     );
   }
 
