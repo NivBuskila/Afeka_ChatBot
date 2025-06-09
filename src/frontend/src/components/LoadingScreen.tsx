@@ -14,28 +14,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden flex items-center justify-center">
-      {/* Matrix-style background */}
-      <div className="absolute inset-0">
-        {[...Array(50)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute text-green-400/20 font-mono text-sm select-none"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationName: 'float',
-              animationDuration: '6s',
-              animationTimingFunction: 'ease-in-out',
-              animationIterationCount: 'infinite',
-              animationDirection: 'alternate',
-              animationDelay: `${Math.random() * 5}s`
-            }}
-          >
-            {Math.random() > 0.5 ? '0' : '1'}
-          </div>
-        ))}
-      </div>
-
       {/* Ambient light effects */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse"></div>
