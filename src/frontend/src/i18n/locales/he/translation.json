@@ -284,7 +284,10 @@
     "expectedQualityPlaceholder": "גבוה/בינוני/בסיסי...",
     "tradeoffsPlaceholder": "מה הפשרות בפרופיל הזה...",
     "cancel": "ביטול",
-    "creating": "יוצר..."
+    "creating": "יוצר...",
+    "chunkSource": "מקור הטקסט (צ'אנק):",
+    "viewMore": "הצג עוד",
+    "showLess": "הצג פחות"
   },
   "pagination": {
     "showing": "מציג",

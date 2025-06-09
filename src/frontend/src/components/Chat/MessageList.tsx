@@ -1,9 +1,9 @@
-import React from 'react';
-import MessageItem from './MessageItem';
+import React from "react";
+import MessageItem from "./MessageItem";
 
 interface Message {
   id: string;
-  type: 'user' | 'bot';
+  type: "user" | "bot";
   content: string;
   timestamp: string;
   sessionId?: string;
@@ -11,23 +11,25 @@ interface Message {
 
 interface MessageListProps {
   messages: Message[];
-  fontSize: number; 
+  fontSize: number;
   highlightIndices?: number[];
   searchTerm?: string;
+  showChunkText?: boolean; // New prop to control chunk text display
 }
 
-const MessageList: React.FC<MessageListProps> = ({ 
-  messages, 
-  fontSize, 
+const MessageList: React.FC<MessageListProps> = ({
+  messages,
+  fontSize,
   highlightIndices = [],
-  searchTerm = ''
+  searchTerm = "",
+  showChunkText = false, // Default to false
 }) => {
   return (
     <div
       className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
-      style={{ 
+      style={{
         fontSize: `${fontSize}px`,
-        overscrollBehavior: 'contain' 
+        overscrollBehavior: "contain",
       }}
     >
       {messages.map((msg, index) => (
@@ -35,10 +37,16 @@ const MessageList: React.FC<MessageListProps> = ({
           id={`message-${index}`}
           key={msg.id}
           className={`transition-colors duration-300 rounded-lg ${
-            highlightIndices.includes(index) ? 'ring-2 ring-green-500 dark:ring-green-600' : ''
+            highlightIndices.includes(index)
+              ? "ring-2 ring-green-500 dark:ring-green-600"
+              : ""
           }`}
         >
-          <MessageItem message={msg} searchTerm={searchTerm} />
+          <MessageItem
+            message={msg}
+            searchTerm={searchTerm}
+            showChunkText={showChunkText}
+          />
         </div>
       ))}
     </div>

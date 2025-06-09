@@ -38,6 +38,7 @@ export interface RAGTestResult {
   chunks: number;
   searchMethod?: string;
   configUsed?: any;
+  chunkText?: string;
 }
 
 export class RAGService {

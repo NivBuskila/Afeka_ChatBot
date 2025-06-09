@@ -25,6 +25,7 @@ interface Message {
   content: string;
   timestamp: string;
   sessionId?: string;
+  chunkText?: string; // Added chunk text for bot messages
 }
 
 interface ChatWindowProps {
@@ -513,6 +514,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }
 
       let botContent = "";
+      let chunkText = "";
 
       if (response.ok) {
         const data = await response.json();
@@ -523,6 +525,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           data.response ||
           t("chat.errorProcessing") ||
           "Sorry, I couldn't process your request.";
+        // Extract chunk text if available
+        chunkText = data.chunkText || "";
       } else {
         console.error("RAG API error:", response.status, response.statusText);
         botContent =
@@ -537,6 +541,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         content: botContent,
         timestamp: new Date().toLocaleTimeString(),
         sessionId: sessionId,
+        chunkText: chunkText,
       };
 
       setMessages((prev) => [...prev, botReply]);
@@ -693,7 +698,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               onClick={() => handleSelectSession("new")}
               className="p-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
-              title={t("chat.history.newChat")}
+              title={t("chat.history.newChat") || "צ'אט חדש"}
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -905,6 +910,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     fontSize={fontSize}
                     highlightIndices={searchResults}
                     searchTerm={searchQuery}
+                    showChunkText={false}
                   />
                   <div ref={messagesEndRef} />
                   {isLoading && (

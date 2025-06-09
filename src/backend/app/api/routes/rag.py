@@ -443,6 +443,14 @@ async def test_rag_query(request: Dict[str, Any]):
             # Run the test query
             result = await rag_service.generate_answer(query, search_method="hybrid")
             
+            # Get chunk text for display
+            chunk_text = ""
+            chunks_selected = result.get("chunks_selected", [])
+            if chunks_selected:
+                # Take the first chunk as the main chunk text
+                first_chunk = chunks_selected[0]
+                chunk_text = first_chunk.get("chunk_text", first_chunk.get("content", ""))
+            
             return JSONResponse(
                 content={
                     "query": query,
@@ -451,7 +459,8 @@ async def test_rag_query(request: Dict[str, Any]):
                     "sourcesFound": len(result.get("sources", [])),
                     "chunks": len(result.get("chunks_selected", [])),
                     "searchMethod": result.get("search_method", "unknown"),
-                    "configUsed": result.get("config_used", {})
+                    "configUsed": result.get("config_used", {}),
+                    "chunkText": chunk_text
                 }
             )
             

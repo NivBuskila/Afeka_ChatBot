@@ -284,7 +284,10 @@
     "expectedQualityPlaceholder": "High/Medium/Basic...",
     "tradeoffsPlaceholder": "What are the trade-offs of this profile...",
     "cancel": "Cancel",
-    "creating": "Creating..."
+    "creating": "Creating...",
+    "chunkSource": "Source Text (Chunk):",
+    "viewMore": "VIEW MORE",
+    "showLess": "Show Less"
   },
   "pagination": {
     "showing": "Showing",

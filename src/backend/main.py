@@ -360,6 +360,14 @@ async def chat_demo(request: Dict[str, Any]):
             # Run the query through RAG - same as Test Center
             result = await rag_service.generate_answer(query, search_method="hybrid")
             
+            # Get chunk text for display
+            chunk_text = ""
+            chunks_selected = result.get("chunks_selected", [])
+            if chunks_selected:
+                # Take the first chunk as the main chunk text
+                first_chunk = chunks_selected[0]
+                chunk_text = first_chunk.get("chunk_text", first_chunk.get("content", ""))
+            
             # Return in the format expected by Chat Preview
             return JSONResponse(
                 content={
@@ -368,7 +376,8 @@ async def chat_demo(request: Dict[str, Any]):
                     "responseTime": result.get("response_time_ms", 0),
                     "sourcesFound": len(result.get("sources", [])),
                     "chunks": len(result.get("chunks_selected", [])),
-                    "searchMethod": result.get("search_method", "hybrid")
+                    "searchMethod": result.get("search_method", "hybrid"),
+                    "chunkText": chunk_text
                 }
             )
             
