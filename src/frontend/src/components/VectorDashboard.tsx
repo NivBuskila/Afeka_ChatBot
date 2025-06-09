@@ -11,6 +11,8 @@ import {
   AlertCircle,
   XCircle
 } from 'lucide-react';
+import { Pagination, usePagination } from './common/Pagination';
+import { ItemsPerPageSelector } from './common/ItemsPerPageSelector';
 
 interface Document {
   id: number;
@@ -48,6 +50,23 @@ const VectorDashboard: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [searchType, setSearchType] = useState<'semantic' | 'hybrid'>('semantic');
+  
+  // Pagination state
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Pagination logic
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDocuments = documents.slice(startIndex, endIndex);
+  
+  // Reset to first page if current page is out of bounds
+  const totalPages = Math.ceil(documents.length / itemsPerPage);
+  React.useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [documents.length, itemsPerPage, currentPage, totalPages]);
 
   useEffect(() => {
     loadDocuments();
@@ -370,7 +389,20 @@ const VectorDashboard: React.FC = () => {
         {/* Documents Table */}
         <div className="mt-8 bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold">רשימת מסמכים</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">רשימת מסמכים ({documents.length})</h2>
+              
+              {documents.length > 10 && (
+                <ItemsPerPageSelector
+                  itemsPerPage={itemsPerPage}
+                  onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                  }}
+                  options={[10, 25, 50, 100]}
+                />
+              )}
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -398,7 +430,7 @@ const VectorDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {documents.map((doc) => (
+                {paginatedDocuments.map((doc) => (
                   <tr key={doc.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {doc.name}
@@ -431,6 +463,18 @@ const VectorDashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {documents.length > itemsPerPage && (
+            <div className="px-6 py-3 border-t border-gray-200">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={documents.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

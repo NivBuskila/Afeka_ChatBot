@@ -22,7 +22,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   activeSessionId,
   isLoading
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
@@ -73,7 +73,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-700 dark:border-green-500"></div>
         </div>
       ) : sessions.length > 0 ? (
-        <ul className="text-sm">
+        <ul className="text-sm flex-1 overflow-y-auto">
           {sessions.map((session) => (
             <li
               key={session.id}

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Brain, Cpu, TrendingUp, Search, Check, AlertCircle, Clock, Settings } from 'lucide-react';
 import { ragService, RAGProfile, RAGTestResult } from './RAGService';
+import { Pagination } from '../../common/Pagination';
+import { ItemsPerPageSelector } from '../../common/ItemsPerPageSelector';
 
 type Language = 'he' | 'en';
 
@@ -26,6 +28,10 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   const [isDeletingProfile, setIsDeletingProfile] = useState<string | null>(null);
 
+  // Pagination state for profiles
+  const [profilesItemsPerPage, setProfilesItemsPerPage] = useState(10);
+  const [profilesCurrentPage, setProfilesCurrentPage] = useState(1);
+
   const fetchProfiles = async () => {
     try {
       setLoading(true);
@@ -41,6 +47,14 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   useEffect(() => {
     fetchProfiles();
   }, [language]);
+
+  // Pagination reset effect
+  useEffect(() => {
+    const totalPages = Math.ceil(profiles.length / profilesItemsPerPage);
+    if (profilesCurrentPage > totalPages && totalPages > 0) {
+      setProfilesCurrentPage(1);
+    }
+  }, [profiles.length, profilesItemsPerPage, profilesCurrentPage]);
 
   const handleProfileChange = async (profileId: string) => {
     setLoading(true);
@@ -230,116 +244,154 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     }
   };
 
-  const renderProfiles = () => (
-    <div className="space-y-6">
-      {/* כפתור יצירת פרופיל חדש */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-green-400">{t('rag.available.profiles') || 'פרופילים זמינים'}</h3>
-        <button
-          onClick={() => setShowCreateProfile(true)}
-          className="bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors flex items-center space-x-2"
-        >
-          <span>+</span>
-          <span>{t('rag.create.profile') || 'צור פרופיל חדש'}</span>
-        </button>
-      </div>
+  const renderProfiles = () => {
+    // Pagination logic for profiles
+    const startIndex = (profilesCurrentPage - 1) * profilesItemsPerPage;
+    const endIndex = startIndex + profilesItemsPerPage;
+    const paginatedProfiles = profiles.slice(startIndex, endIndex);
 
-      {/* מודאל יצירת פרופיל */}
-      {showCreateProfile && (
-        <CreateProfileModal
-          language={language}
-          onSubmit={handleCreateProfile}
-          onCancel={() => setShowCreateProfile(false)}
-          isCreating={isCreatingProfile}
-        />
-      )}
+    return (
+      <div className="space-y-6">
+        {/* Header with Create button and pagination controls */}
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-green-400">
+            {t('rag.available.profiles') || 'פרופילים זמינים'} ({profiles.length})
+          </h3>
+          <div className="flex items-center space-x-4">
+            {profiles.length > 6 && (
+              <ItemsPerPageSelector
+                itemsPerPage={profilesItemsPerPage}
+                onItemsPerPageChange={(newItemsPerPage) => {
+                  setProfilesItemsPerPage(newItemsPerPage);
+                  setProfilesCurrentPage(1);
+                }}
+                options={[6, 12, 18, 24]}
+              />
+            )}
+            <button
+              onClick={() => setShowCreateProfile(true)}
+              className="bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors flex items-center space-x-2"
+            >
+              <span>+</span>
+              <span>{t('rag.create.profile') || 'צור פרופיל חדש'}</span>
+            </button>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {profiles.map((profile) => (
-          <div
-            key={profile.id}
-            className={`bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border p-6 transition-all shadow-lg ${
-              profile.isActive 
-                ? 'border-green-500 dark:border-green-500/50 bg-green-50 dark:bg-green-500/5' 
-                : 'border-gray-300 dark:border-green-500/20 hover:border-green-400 dark:hover:border-green-500/30'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-green-800 dark:text-green-400">{profile.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-green-400/70 mt-1">{profile.description}</p>
-              </div>
-              {profile.isActive && (
-                <div className="flex items-center space-x-2 bg-green-100 dark:bg-green-500/20 px-3 py-1 rounded-full">
-                  <Check className="w-4 h-4 text-green-600 dark:text-green-500" />
-                  <span className="text-sm text-green-800 dark:text-green-400">{t('rag.profile.active')}</span>
-                </div>
-              )}
-            </div>
+        {/* מודאל יצירת פרופיל */}
+        {showCreateProfile && (
+          <CreateProfileModal
+            language={language}
+            onSubmit={handleCreateProfile}
+            onCancel={() => setShowCreateProfile(false)}
+            isCreating={isCreatingProfile}
+          />
+        )}
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-green-400/50 uppercase tracking-wide">{t('rag.settings') || 'הגדרות'}</p>
-                <div className="space-y-1 mt-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-green-400/70">{t('rag.similarity.threshold') || 'סף דמיון'}:</span>
-                    <span className="text-gray-800 dark:text-green-300">{profile.config.similarityThreshold}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-green-400/70">{t('rag.chunks') || 'צ\'אנקים'}:</span>
-                    <span className="text-gray-800 dark:text-green-300">{profile.config.maxChunks}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-green-400/70">{t('rag.temperature') || 'טמפרטורה'}:</span>
-                    <span className="text-gray-800 dark:text-green-300">{profile.config.temperature}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-green-400/50 uppercase tracking-wide">{t('rag.characteristics') || 'מאפיינים'}</p>
-                <div className="space-y-1 mt-2">
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-green-400/70">{t('rag.focus')}:</span>
-                    <p className="text-gray-800 dark:text-green-300 text-xs mt-1">{profile.characteristics.focus}</p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-green-400/70">{t('rag.bestFor')}:</span>
-                    <p className="text-gray-800 dark:text-green-300 text-xs mt-1">{profile.characteristics.bestFor}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex space-x-2">
-              {!profile.isActive && (
-                <button
-                  onClick={() => handleProfileChange(profile.id)}
-                  disabled={loading}
-                  className="flex-1 bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors disabled:opacity-50"
-                >
-                  {loading ? (t('rag.switching') || 'מחליף...') : t('rag.apply.profile')}
-                </button>
-              )}
-              {!profile.isActive && (
-                <button
-                  onClick={() => handleDeleteProfile(profile.id, profile.name, profile.isCustom || false)}
-                  disabled={isDeletingProfile === profile.id}
-                  className={`font-medium py-2 px-4 rounded-lg border transition-colors disabled:opacity-50 ${
-                    profile.isCustom 
-                      ? 'bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 text-red-800 dark:text-red-400 border-red-300 dark:border-red-500/30' 
-                      : 'bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-500/30'
+        {/* Profiles Grid */}
+        <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {paginatedProfiles.map((profile) => (
+                <div
+                  key={profile.id}
+                  className={`bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border p-6 transition-all shadow-lg ${
+                    profile.isActive 
+                      ? 'border-green-500 dark:border-green-500/50 bg-green-50 dark:bg-green-500/5' 
+                      : 'border-gray-300 dark:border-green-500/20 hover:border-green-400 dark:hover:border-green-500/30'
                   }`}
-                  title={profile.isCustom ? (t('rag.delete.profile') || 'מחק פרופיל') : (t('rag.hide.profile') || 'הסתר פרופיל')}
                 >
-                  {isDeletingProfile === profile.id ? '...' : (profile.isCustom ? '🗑️' : '👁️‍🗨️')}
-                </button>
-              )}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-800 dark:text-green-400">{profile.name}</h3>
+                      <p className="text-sm text-gray-600 dark:text-green-400/70 mt-1">{profile.description}</p>
+                    </div>
+                    {profile.isActive && (
+                      <div className="flex items-center space-x-2 bg-green-100 dark:bg-green-500/20 px-3 py-1 rounded-full">
+                        <Check className="w-4 h-4 text-green-600 dark:text-green-500" />
+                        <span className="text-sm text-green-800 dark:text-green-400">{t('rag.profile.active')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-green-400/50 uppercase tracking-wide">{t('rag.settings') || 'הגדרות'}</p>
+                      <div className="space-y-1 mt-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-green-400/70">{t('rag.similarity.threshold') || 'סף דמיון'}:</span>
+                          <span className="text-gray-800 dark:text-green-300">{profile.config.similarityThreshold}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-green-400/70">{t('rag.chunks') || 'צ\'אנקים'}:</span>
+                          <span className="text-gray-800 dark:text-green-300">{profile.config.maxChunks}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-green-400/70">{t('rag.temperature') || 'טמפרטורה'}:</span>
+                          <span className="text-gray-800 dark:text-green-300">{profile.config.temperature}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-green-400/50 uppercase tracking-wide">{t('rag.characteristics') || 'מאפיינים'}</p>
+                      <div className="space-y-1 mt-2">
+                        <div className="text-sm">
+                          <span className="text-gray-600 dark:text-green-400/70">{t('rag.focus')}:</span>
+                          <p className="text-gray-800 dark:text-green-300 text-xs mt-1">{profile.characteristics.focus}</p>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-gray-600 dark:text-green-400/70">{t('rag.bestFor')}:</span>
+                          <p className="text-gray-800 dark:text-green-300 text-xs mt-1">{profile.characteristics.bestFor}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    {!profile.isActive && (
+                      <button
+                        onClick={() => handleProfileChange(profile.id)}
+                        disabled={loading}
+                        className="flex-1 bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors disabled:opacity-50"
+                      >
+                        {loading ? (t('rag.switching') || 'מחליף...') : t('rag.apply.profile')}
+                      </button>
+                    )}
+                    {!profile.isActive && (
+                      <button
+                        onClick={() => handleDeleteProfile(profile.id, profile.name, profile.isCustom || false)}
+                        disabled={isDeletingProfile === profile.id}
+                        className={`font-medium py-2 px-4 rounded-lg border transition-colors disabled:opacity-50 ${
+                          profile.isCustom 
+                            ? 'bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 text-red-800 dark:text-red-400 border-red-300 dark:border-red-500/30' 
+                            : 'bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-500/30'
+                        }`}
+                        title={profile.isCustom ? (t('rag.delete.profile') || 'מחק פרופיל') : (t('rag.hide.profile') || 'הסתר פרופיל')}
+                      >
+                        {isDeletingProfile === profile.id ? '...' : (profile.isCustom ? '🗑️' : '👁️‍🗨️')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+          
+          {/* Pagination */}
+          {profiles.length > profilesItemsPerPage && (
+            <div className="px-6 py-3 border-t border-gray-300 dark:border-green-500/20">
+              <Pagination
+                currentPage={profilesCurrentPage}
+                totalItems={profiles.length}
+                itemsPerPage={profilesItemsPerPage}
+                onPageChange={setProfilesCurrentPage}
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderPerformance = () => (
     <div className="space-y-6">

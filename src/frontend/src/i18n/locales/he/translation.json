@@ -285,5 +285,17 @@
     "tradeoffsPlaceholder": "מה הפשרות בפרופיל הזה...",
     "cancel": "ביטול",
     "creating": "יוצר..."
+  },
+  "pagination": {
+    "showing": "מציג",
+    "of": "מתוך",
+    "items": "פריטים",
+    "itemsPerPage": "פריטים לעמוד",
+    "firstPage": "עמוד ראשון",
+    "previousPage": "עמוד קודם",
+    "nextPage": "עמוד הבא",
+    "lastPage": "עמוד אחרון",
+    "morePages": "עמודים נוספים",
+    "goToPage": "עבור לעמוד"
   }
 }

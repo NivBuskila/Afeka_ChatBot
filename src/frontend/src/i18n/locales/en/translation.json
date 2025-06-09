@@ -285,5 +285,17 @@
     "tradeoffsPlaceholder": "What are the trade-offs of this profile...",
     "cancel": "Cancel",
     "creating": "Creating..."
+  },
+  "pagination": {
+    "showing": "Showing",
+    "of": "of",
+    "items": "items",
+    "itemsPerPage": "Items per page",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "morePages": "More pages",
+    "goToPage": "Go to page"
   }
 }

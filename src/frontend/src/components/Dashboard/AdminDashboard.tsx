@@ -44,6 +44,8 @@ import { RAGManagement } from './RAG/RAGManagement';
 import { documentService } from '../../services/documentService';
 import { userService } from '../../services/userService';
 import { analyticsService, DashboardAnalytics } from '../../services/analyticsService';
+import { Pagination, usePagination } from '../common/Pagination';
+import { ItemsPerPageSelector } from '../common/ItemsPerPageSelector';
 // import type { Document } from '../../config/supabase';
 
 // Local Document interface for AdminDashboard
@@ -115,6 +117,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('chatbot');
+  
+  // Pagination state for users and admins
+  const [usersItemsPerPage, setUsersItemsPerPage] = useState(10);
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
+  const [adminsItemsPerPage, setAdminsItemsPerPage] = useState(10);
+  const [adminsCurrentPage, setAdminsCurrentPage] = useState(1);
+
+  // Pagination reset effects
+  useEffect(() => {
+    const regularUsers = analytics.recentUsers.filter(user => {
+      return !analytics.recentAdmins?.some(admin => admin.id === user.id);
+    });
+    const totalPages = Math.ceil(regularUsers.length / usersItemsPerPage);
+    if (usersCurrentPage > totalPages && totalPages > 0) {
+      setUsersCurrentPage(1);
+    }
+  }, [analytics.recentUsers, analytics.recentAdmins, usersItemsPerPage, usersCurrentPage]);
+
+  useEffect(() => {
+    const adminsTotalPages = Math.ceil(analytics.recentAdmins.length / adminsItemsPerPage);
+    if (adminsCurrentPage > adminsTotalPages && adminsTotalPages > 0) {
+      setAdminsCurrentPage(1);
+    }
+  }, [analytics.recentAdmins.length, adminsItemsPerPage, adminsCurrentPage]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -657,6 +683,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             return !analytics.recentAdmins?.some(admin => admin.id === user.id);
           });
           
+          // Pagination logic for users
+          const startIndex = (usersCurrentPage - 1) * usersItemsPerPage;
+          const endIndex = startIndex + usersItemsPerPage;
+          const paginatedUsers = regularUsers.slice(startIndex, endIndex);
+          
           return (
             <div className="p-6">
               <div className="mb-6">
@@ -664,15 +695,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {t('admin.sidebar.users')}
                 </h2>
               </div>
+              
               <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
+                {/* Header עם bchירת כמות פריטים */}
                 <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
-                    {t('analytics.users')} ({regularUsers.length})
-                  </h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
+                      {t('analytics.users')} ({regularUsers.length})
+                    </h3>
+                    
+                    {regularUsers.length > 10 && (
+                      <ItemsPerPageSelector
+                        itemsPerPage={usersItemsPerPage}
+                        onItemsPerPageChange={(newItemsPerPage) => {
+                          setUsersItemsPerPage(newItemsPerPage);
+                          setUsersCurrentPage(1);
+                        }}
+                        options={[10, 25, 50, 100]}
+                      />
+                    )}
+                  </div>
                 </div>
+                
                 <div className="p-6 space-y-4">
-                  {regularUsers && regularUsers.length > 0 ? (
-                    regularUsers.map((user, index) => (
+                  {paginatedUsers && paginatedUsers.length > 0 ? (
+                    paginatedUsers.map((user: any, index: number) => (
                       <div key={user.id || index} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-800 dark:text-green-400">{user.email || user.name || 'Unknown User'}</p>
@@ -698,11 +745,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="text-gray-600 dark:text-green-400/70">{t('analytics.noUsers')}</p>
                   )}
                 </div>
+                
+                {/* Pagination */}
+                {regularUsers.length > usersItemsPerPage && (
+                  <div className="px-6 py-3 border-t border-gray-300 dark:border-green-500/20">
+                    <Pagination
+                      currentPage={usersCurrentPage}
+                      totalItems={regularUsers.length}
+                      itemsPerPage={usersItemsPerPage}
+                      onPageChange={setUsersCurrentPage}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           );
         }
         else if (activeSubItem === 'admins') {
+          // Pagination logic for admins
+          const adminsStartIndex = (adminsCurrentPage - 1) * adminsItemsPerPage;
+          const adminsEndIndex = adminsStartIndex + adminsItemsPerPage;
+          const paginatedAdmins = analytics.recentAdmins.slice(adminsStartIndex, adminsEndIndex);
+          
           return (
             <div className="p-6">
               <div className="mb-6">
@@ -710,15 +774,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {t('admin.sidebar.administrators')}
                 </h2>
               </div>
+              
               <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
+                {/* Header עם בחירת כמות פריטים */}
                 <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
-                  <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
-                    {t('analytics.activeAdmins')} ({analytics.recentAdmins.length})
-                  </h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
+                      {t('analytics.activeAdmins')} ({analytics.recentAdmins.length})
+                    </h3>
+                    
+                    {analytics.recentAdmins.length > 10 && (
+                      <ItemsPerPageSelector
+                        itemsPerPage={adminsItemsPerPage}
+                        onItemsPerPageChange={(newItemsPerPage) => {
+                          setAdminsItemsPerPage(newItemsPerPage);
+                          setAdminsCurrentPage(1);
+                        }}
+                        options={[10, 25, 50, 100]}
+                      />
+                    )}
+                  </div>
                 </div>
+                
                 <div className="p-6 space-y-4">
-                  {analytics.recentAdmins && analytics.recentAdmins.length > 0 ? (
-                    analytics.recentAdmins.map((admin, index) => (
+                  {paginatedAdmins && paginatedAdmins.length > 0 ? (
+                    paginatedAdmins.map((admin: any, index: number) => (
                       <div key={admin.id || index} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-800 dark:text-green-400">{admin.email || admin.name || 'Unknown Admin'}</p>
@@ -735,6 +815,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="text-gray-600 dark:text-green-400/70">{t('analytics.noAdmins')}</p>
                   )}
                 </div>
+                
+                {/* Pagination */}
+                {analytics.recentAdmins.length > adminsItemsPerPage && (
+                  <div className="px-6 py-3 border-t border-gray-300 dark:border-green-500/20">
+                    <Pagination
+                      currentPage={adminsCurrentPage}
+                      totalItems={analytics.recentAdmins.length}
+                      itemsPerPage={adminsItemsPerPage}
+                      onPageChange={setAdminsCurrentPage}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           );

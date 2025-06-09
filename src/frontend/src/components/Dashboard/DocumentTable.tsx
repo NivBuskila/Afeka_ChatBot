@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Download, Trash2, Edit } from 'lucide-react';
 import type { Document } from '../../config/supabase';
 import ProcessingProgressBar from './ProcessingProgressBar';
+import { Pagination, usePagination } from '../common/Pagination';
+import { ItemsPerPageSelector } from '../common/ItemsPerPageSelector';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -20,6 +22,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onEdit
 }) => {
   const { t, i18n } = useTranslation();
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const getFileType = (type: string): string => {
     const mimeMap: Record<string, string> = {
@@ -58,20 +61,47 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
     }
   };
 
+  // סינון המסמכים לפי החיפוש
   const filteredDocuments = documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // שימוש ב-pagination hook עם itemsPerPage דינמי
+  const {
+    currentPage,
+    setCurrentPage,
+    getPaginatedItems,
+    totalPages
+  } = usePagination(filteredDocuments.length, itemsPerPage);
+
+  // קבלת המסמכים לעמוד הנוכחי
+  const paginatedDocuments = getPaginatedItems(filteredDocuments);
+
+  // פונקציה לטיפול בשינוי כמות פריטים לעמוד
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // חזרה לעמוד הראשון
+  };
+
   return (
     <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg border border-gray-300 dark:border-green-500/20 rounded-lg shadow-lg">
+      {/* Header עם חיפוש ובחירת כמות פריטים */}
       <div className="p-4 border-b border-gray-200 dark:border-green-500/20">
-        <input
-          type="text"
-          placeholder={t('documents.search')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
-        />
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <input
+            type="text"
+            placeholder={t('documents.search')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:flex-1 px-4 py-2 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+          />
+          
+          <ItemsPerPageSelector
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            options={[10, 25, 50, 100, 250]}
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -99,7 +129,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-black/20 divide-y divide-gray-100 dark:divide-green-500/20">
-            {filteredDocuments.map((doc) => (
+            {paginatedDocuments.map((doc) => (
               <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-green-500/5 transition-colors">
                 <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
                   <div className={`flex items-center ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
@@ -154,6 +184,18 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination בתחתית הטבלה */}
+      {filteredDocuments.length > 0 && (
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-green-500/20">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredDocuments.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
     </div>
   );
 }; 
