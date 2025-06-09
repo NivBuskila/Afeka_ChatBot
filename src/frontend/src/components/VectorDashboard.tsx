@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Upload, 
-  Search, 
-  Trash2, 
-  FileText, 
-  Database, 
+import React, { useState, useEffect } from "react";
+import {
+  Upload,
+  Search,
+  Trash2,
+  FileText,
+  Database,
   Activity,
   CheckCircle,
   Clock,
   AlertCircle,
-  XCircle
-} from 'lucide-react';
-import { Pagination, usePagination } from './common/Pagination';
-import { ItemsPerPageSelector } from './common/ItemsPerPageSelector';
+  XCircle,
+} from "lucide-react";
+import { Pagination, usePagination } from "./common/Pagination";
+import { ItemsPerPageSelector } from "./common/ItemsPerPageSelector";
 
 interface Document {
   id: number;
@@ -44,22 +44,28 @@ interface SearchResult {
 const VectorDashboard: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [stats, setStats] = useState<VectorStats | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [searchType, setSearchType] = useState<'semantic' | 'hybrid'>('semantic');
-  
+  const [searchType, setSearchType] = useState<"semantic" | "hybrid">(
+    "semantic"
+  );
+
   // Pagination state
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
+  // הוספת מערכת הודעות
+  const [successMessage, setSuccessMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
   // Pagination logic
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedDocuments = documents.slice(startIndex, endIndex);
-  
+
   // Reset to first page if current page is out of bounds
   const totalPages = Math.ceil(documents.length / itemsPerPage);
   React.useEffect(() => {
@@ -75,35 +81,35 @@ const VectorDashboard: React.FC = () => {
 
   const loadDocuments = async () => {
     try {
-      const response = await fetch('/api/vector/documents', {
+      const response = await fetch("/api/vector/documents", {
         headers: {
-          'Authorization': 'Bearer dev-token' // For development
-        }
+          Authorization: "Bearer dev-token", // For development
+        },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents);
       }
     } catch (error) {
-      console.error('Error loading documents:', error);
+      console.error("Error loading documents:", error);
     }
   };
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/vector/stats', {
+      const response = await fetch("/api/vector/stats", {
         headers: {
-          'Authorization': 'Bearer dev-token'
-        }
+          Authorization: "Bearer dev-token",
+        },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setStats(data);
       }
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error("Error loading stats:", error);
     }
   };
 
@@ -112,30 +118,30 @@ const VectorDashboard: React.FC = () => {
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append("file", selectedFile);
 
     try {
-      const response = await fetch('/api/vector/upload-document', {
-        method: 'POST',
+      const response = await fetch("/api/vector/upload-document", {
+        method: "POST",
         headers: {
-          'Authorization': 'Bearer dev-token'
+          Authorization: "Bearer dev-token",
         },
-        body: formData
+        body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
-        alert(`מסמך הועלה בהצלחה! ID: ${result.document_id}`);
+        showSuccessMessage(`מסמך הועלה בהצלחה! ID: ${result.document_id}`);
         setSelectedFile(null);
         loadDocuments();
         loadStats();
       } else {
         const error = await response.json();
-        alert(`שגיאה בהעלאת המסמך: ${error.detail}`);
+        showErrorMessage(`שגיאה בהעלאת המסמך: ${error.detail}`);
       }
     } catch (error) {
-      console.error('Error uploading file:', error);
-      alert('שגיאה בהעלאת הקובץ');
+      console.error("Error uploading file:", error);
+      showErrorMessage("שגיאה בהעלאת הקובץ");
     } finally {
       setIsUploading(false);
     }
@@ -146,18 +152,21 @@ const VectorDashboard: React.FC = () => {
 
     setIsSearching(true);
     try {
-      const endpoint = searchType === 'semantic' ? '/api/vector/search' : '/api/vector/search/hybrid';
+      const endpoint =
+        searchType === "semantic"
+          ? "/api/vector/search"
+          : "/api/vector/search/hybrid";
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer dev-token'
+          "Content-Type": "application/json",
+          Authorization: "Bearer dev-token",
         },
         body: JSON.stringify({
           query: searchQuery,
           limit: 10,
-          threshold: 0.78
-        })
+          threshold: 0.78,
+        }),
       });
 
       if (response.ok) {
@@ -165,46 +174,46 @@ const VectorDashboard: React.FC = () => {
         setSearchResults(data.results);
       }
     } catch (error) {
-      console.error('Error searching:', error);
+      console.error("Error searching:", error);
     } finally {
       setIsSearching(false);
     }
   };
 
   const handleDeleteDocument = async (documentId: number) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק את המסמך וכל ה-embeddings שלו?')) {
+    if (!confirm("האם אתה בטוח שברצונך למחוק את המסמך וכל ה-embeddings שלו?")) {
       return;
     }
 
     try {
       const response = await fetch(`/api/vector/document/${documentId}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: {
-          'Authorization': 'Bearer dev-token'
-        }
+          Authorization: "Bearer dev-token",
+        },
       });
 
       if (response.ok) {
-        alert('המסמך נמחק בהצלחה');
+        showSuccessMessage("המסמך נמחק בהצלחה");
         loadDocuments();
         loadStats();
       } else {
         const error = await response.json();
-        alert(`שגיאה במחיקת המסמך: ${error.detail}`);
+        showErrorMessage(`שגיאה במחיקת המסמך: ${error.detail}`);
       }
     } catch (error) {
-      console.error('Error deleting document:', error);
-      alert('שגיאה במחיקת המסמך');
+      console.error("Error deleting document:", error);
+      showErrorMessage("שגיאה במחיקת המסמך");
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'processing':
+      case "processing":
         return <Clock className="w-5 h-5 text-yellow-500" />;
-      case 'failed':
+      case "failed":
         return <XCircle className="w-5 h-5 text-red-500" />;
       default:
         return <AlertCircle className="w-5 h-5 text-gray-500" />;
@@ -213,21 +222,54 @@ const VectorDashboard: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'הושלם';
-      case 'processing':
-        return 'מעובד';
-      case 'failed':
-        return 'נכשל';
-      case 'pending':
-        return 'ממתין';
+      case "completed":
+        return "הושלם";
+      case "processing":
+        return "מעובד";
+      case "failed":
+        return "נכשל";
+      case "pending":
+        return "ממתין";
       default:
         return status;
     }
   };
 
+  // פונקציות להצגת הודעות
+  const showSuccessMessage = (message: string) => {
+    setSuccessMessage(message);
+    setErrorMessage("");
+    setTimeout(() => setSuccessMessage(""), 3000);
+  };
+
+  const showErrorMessage = (message: string) => {
+    setErrorMessage(message);
+    setSuccessMessage("");
+    setTimeout(() => setErrorMessage(""), 5000);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6" dir="rtl">
+      {/* Success message */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-md max-w-md animate-fadeIn">
+          <div className="flex items-center">
+            <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+            <p className="text-green-700">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error message */}
+      {errorMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-md max-w-md animate-fadeIn">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+            <p className="text-red-700">{errorMessage}</p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">
           <Database className="inline-block w-8 h-8 ml-2" />
@@ -241,32 +283,44 @@ const VectorDashboard: React.FC = () => {
               <div className="flex items-center">
                 <FileText className="w-8 h-8 text-blue-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">סה"כ מסמכים</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total_documents}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    סה"כ מסמכים
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.total_documents}
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <Database className="w-8 h-8 text-green-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">סה"כ chunks</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total_chunks}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    סה"כ chunks
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.total_chunks}
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <Activity className="w-8 h-8 text-purple-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">מודל Embedding</p>
-                  <p className="text-xs font-bold text-gray-900">Gemini Embedding</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    מודל Embedding
+                  </p>
+                  <p className="text-xs font-bold text-gray-900">
+                    Gemini Embedding
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <CheckCircle className="w-8 h-8 text-green-500" />
@@ -288,7 +342,7 @@ const VectorDashboard: React.FC = () => {
               <Upload className="inline-block w-5 h-5 ml-2" />
               העלאת מסמך חדש
             </h2>
-            
+
             <div className="space-y-4">
               <div>
                 <input
@@ -298,15 +352,15 @@ const VectorDashboard: React.FC = () => {
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
               </div>
-              
+
               <button
                 onClick={handleFileUpload}
                 disabled={!selectedFile || isUploading}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isUploading ? 'מעלה...' : 'העלה מסמך'}
+                {isUploading ? "מעלה..." : "העלה מסמך"}
               </button>
-              
+
               <p className="text-sm text-gray-600">
                 פורמטים נתמכים: PDF, TXT, DOCX, DOC
               </p>
@@ -319,58 +373,62 @@ const VectorDashboard: React.FC = () => {
               <Search className="inline-block w-5 h-5 ml-2" />
               חיפוש במסמכים
             </h2>
-            
+
             <div className="space-y-4">
               <div className="flex gap-2">
                 <button
-                  onClick={() => setSearchType('semantic')}
+                  onClick={() => setSearchType("semantic")}
                   className={`px-3 py-1 rounded text-sm ${
-                    searchType === 'semantic' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-200 text-gray-700'
+                    searchType === "semantic"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 text-gray-700"
                   }`}
                 >
                   חיפוש סמנטי
                 </button>
                 <button
-                  onClick={() => setSearchType('hybrid')}
+                  onClick={() => setSearchType("hybrid")}
                   className={`px-3 py-1 rounded text-sm ${
-                    searchType === 'hybrid' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-200 text-gray-700'
+                    searchType === "hybrid"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 text-gray-700"
                   }`}
                 >
                   חיפוש היברידי
                 </button>
               </div>
-              
+
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="הכנס שאלה או מילות מפתח..."
                 className="w-full p-2 border border-gray-300 rounded-md"
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               />
-              
+
               <button
                 onClick={handleSearch}
                 disabled={!searchQuery.trim() || isSearching}
                 className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50"
               >
-                {isSearching ? 'מחפש...' : 'חפש'}
+                {isSearching ? "מחפש..." : "חפש"}
               </button>
             </div>
 
             {/* Search Results */}
             {searchResults.length > 0 && (
               <div className="mt-6">
-                <h3 className="font-semibold mb-3">תוצאות חיפוש ({searchResults.length})</h3>
+                <h3 className="font-semibold mb-3">
+                  תוצאות חיפוש ({searchResults.length})
+                </h3>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {searchResults.map((result, index) => (
                     <div key={index} className="p-3 bg-gray-50 rounded border">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium text-sm">{result.name}</span>
+                        <span className="font-medium text-sm">
+                          {result.name}
+                        </span>
                         <span className="text-xs text-gray-500">
                           דמיון: {(result.similarity * 100).toFixed(1)}%
                         </span>
@@ -390,8 +448,10 @@ const VectorDashboard: React.FC = () => {
         <div className="mt-8 bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">רשימת מסמכים ({documents.length})</h2>
-              
+              <h2 className="text-xl font-semibold">
+                רשימת מסמכים ({documents.length})
+              </h2>
+
               {documents.length > 10 && (
                 <ItemsPerPageSelector
                   itemsPerPage={itemsPerPage}
@@ -404,7 +464,7 @@ const VectorDashboard: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -438,7 +498,9 @@ const VectorDashboard: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center">
                         {getStatusIcon(doc.processing_status)}
-                        <span className="mr-2">{getStatusText(doc.processing_status)}</span>
+                        <span className="mr-2">
+                          {getStatusText(doc.processing_status)}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -448,7 +510,7 @@ const VectorDashboard: React.FC = () => {
                       {(doc.size / 1024).toFixed(1)} KB
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(doc.created_at).toLocaleDateString('he-IL')}
+                      {new Date(doc.created_at).toLocaleDateString("he-IL")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
@@ -463,7 +525,7 @@ const VectorDashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination */}
           {documents.length > itemsPerPage && (
             <div className="px-6 py-3 border-t border-gray-200">
