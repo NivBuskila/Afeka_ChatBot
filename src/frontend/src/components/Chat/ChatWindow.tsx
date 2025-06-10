@@ -69,6 +69,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [searchResults, setSearchResults] = useState<number[]>([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
 
+  // Chat search state - for sidebar search
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [filteredChatSessions, setFilteredChatSessions] = useState<ChatSession[]>([]);
+
   // Load user chat sessions
   useEffect(() => {
     const initializeChat = async () => {
@@ -122,6 +126,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Update filtered sessions when chatSessions changes
+  useEffect(() => {
+    if (!chatSearchQuery) {
+      setFilteredChatSessions(chatSessions);
+    }
+  }, [chatSessions, chatSearchQuery]);
 
   // Helper function to load session messages
   const loadSessionMessages = async (sessionId: string) => {
@@ -696,6 +707,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  // Search chat sessions function  
+  const searchChatSessions = async (query: string) => {
+    setChatSearchQuery(query);
+    
+    if (!query.trim()) {
+      setFilteredChatSessions(chatSessions);
+      return;
+    }
+
+    try {
+      const user = await chatService.getCurrentUser();
+      if (user) {
+        const searchResults = await chatService.searchChatSessions(user.id, query.trim());
+        setFilteredChatSessions(searchResults);
+      }
+    } catch (error) {
+      console.error('Error searching chat sessions:', error);
+      const localResults = chatSessions.filter(session => 
+        session.title?.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredChatSessions(localResults);
+    }
+  };
+
   // Search within current messages
   const searchMessages = (query: string) => {
     if (!query.trim()) {
@@ -823,15 +858,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               type="text"
               placeholder={(t("chat.history.search") as string) || "Search..."}
               className="w-full px-2 py-1.5 pr-7 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
-              value={searchQuery}
+              value={chatSearchQuery}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
-                searchMessages(e.target.value);
+                searchChatSessions(e.target.value);
               }}
             />
-            {searchQuery ? (
+            {chatSearchQuery ? (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => {
+                  setChatSearchQuery("");
+                  setFilteredChatSessions(chatSessions);
+                }}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <X className="w-3 h-3" />
@@ -845,7 +882,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         {/* Chat history list */}
         <div className="flex-1 overflow-y-auto">
           <ChatHistory
-            sessions={chatSessions}
+            sessions={filteredChatSessions}
             onSelectSession={(session) => handleSelectSession(session.id)}
             onCreateNewSession={() => handleSelectSession("new")}
             onDeleteSession={handleDeleteSession}
