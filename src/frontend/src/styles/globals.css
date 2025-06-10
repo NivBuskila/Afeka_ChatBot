@@ -9,7 +9,7 @@
   --primary: #22c55e;
   --primary-hover: #16a34a;
   --bg-light: #ffffff;
-  --bg-dark: #1a1a1a;
+  --bg-dark: #000000;
   --text-light: #333333;
   --text-dark: #f5f5f5;
   --border-light: #e5e7eb;
@@ -33,6 +33,35 @@ body {
   background-color: var(--bg-light);
   color: var(--text-light);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Theme Transitions for all elements
+-------------------------------------------------- */
+*,
+*:before,
+*:after {
+  transition: 
+    background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    fill 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    stroke 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smoother transitions for specific elements */
+button,
+input,
+textarea,
+select {
+  transition: 
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Dark Mode
@@ -81,6 +110,16 @@ body {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(34, 197, 94, 0.4);
+}
+
+/* Hide scrollbars for chat input */
+.chat-input-textarea {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.chat-input-textarea::-webkit-scrollbar {
+  display: none;
 }
 
 /* Common utility classes

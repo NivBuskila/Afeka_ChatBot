@@ -4,15 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { userService } from '../../services/userService';
 import { supabase } from '../../config/supabase';
 import { changeLanguage } from '../../i18n/config';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface UserSettingsProps {
   onClose: () => void;
-  theme?: 'dark' | 'light';
-  onThemeChange?: (theme: 'dark' | 'light') => void;
 }
 
-const UserSettings: React.FC<UserSettingsProps> = ({ onClose, theme = 'dark', onThemeChange }) => {
+const UserSettings: React.FC<UserSettingsProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -22,10 +22,11 @@ const UserSettings: React.FC<UserSettingsProps> = ({ onClose, theme = 'dark', on
   };
 
   const handleThemeChange = (newTheme: 'dark' | 'light') => {
-    if (onThemeChange) {
-      onThemeChange(newTheme);
-    }
+    console.log('handleThemeChange called with:', newTheme, 'current theme:', theme);
+    setTheme(newTheme);
   };
+
+  console.log('UserSettings rendered with theme:', theme);
 
   return (
     <div className="space-y-8">

@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   X,
+  Bot,
 } from "lucide-react";
 import SettingsPanel from "./SettingsPanel";
 import { API_CONFIG } from "../../config/constants";
@@ -18,6 +19,9 @@ import chatService, { ChatSession } from "../../services/chatService";
 import titleGenerationService from "../../services/titleGenerationService";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../config/supabase";
+import { useThemeClasses } from '../../hooks/useThemeClasses';
+import ThemeButton from '../ui/ThemeButton';
+import ThemeCard from '../ui/ThemeCard';
 
 // Interface for message display
 interface Message {
@@ -31,12 +35,10 @@ interface Message {
 
 interface ChatWindowProps {
   onLogout: () => void;
-  theme?: "dark" | "light";
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   onLogout,
-  theme: parentTheme,
 }) => {
   const { t, i18n } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,9 +52,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // UI state
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const theme = parentTheme || "dark"; // Use parent theme or fallback to dark
+  const { currentTheme, classes, chatContainer, chatSidebar, primaryButton, cardBackground, textPrimary } = useThemeClasses();
   const [hasStarted, setHasStarted] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
+  const [fontSize, setFontSize] = useState(16);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Chat history state
@@ -66,8 +68,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<number[]>([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
-
-  // Theme is now managed by parent component
 
   // Load user chat sessions
   useEffect(() => {
@@ -763,7 +763,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className="relative h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-white flex">
+    <div className={`relative h-full w-full ${chatContainer} flex`}>
       {/* Status message toast */}
       {statusMessage && (
         <div className="absolute top-4 right-4 z-50 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-md max-w-md animate-fadeIn">
@@ -792,37 +792,37 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       )}
 
       {/* Sidebar with navigation and chat history */}
-      <div className="h-full border-l dark:border-gray-800 flex flex-col bg-gray-50 dark:bg-black w-60 overflow-hidden flex-shrink-0">
+      <div className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`}>
         {/* Sidebar header with logo and main actions */}
-        <div className="p-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-          <div className="text-green-700 dark:text-green-500 font-bold text-lg tracking-wider">
+        <div className={`p-3 border-b ${classes.border.primary} flex items-center justify-between`}>
+          <div className={`${classes.text.success} font-bold text-lg tracking-wider`}>
             APEX
           </div>
           <div className="flex items-center space-x-2">
-            <button
+            <ThemeButton
+              variant="success"
+              size="sm"
               onClick={() => handleSelectSession("new")}
-              className="p-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+              icon={<Plus className="w-3.5 h-3.5" />}
               title={(t("chat.history.newChat") as string) || "צ'אט חדש"}
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-            <button
+            />
+            <ThemeButton
+              variant="ghost"
+              size="sm"
               onClick={() => setShowSettings(true)}
-              className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800"
+              icon={<Settings className="w-4 h-4" />}
               title={(t("chat.sidebar.settings") as string) || "Settings"}
-            >
-              <Settings className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-            </button>
+            />
           </div>
         </div>
 
         {/* Search input */}
-        <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-800">
+        <div className="px-3 py-2 border-b border-gray-300 dark:border-gray-700">
           <div className="relative">
             <input
               type="text"
               placeholder={(t("chat.history.search") as string) || "Search..."}
-              className="w-full px-2 py-1.5 pr-7 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full px-2 py-1.5 pr-7 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -856,7 +856,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
 
         {/* Logout Button */}
-        <div className="p-3 border-t border-gray-200 dark:border-gray-800">
+        <div className="p-3 border-t border-gray-300 dark:border-gray-700">
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center p-2 gap-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
@@ -875,10 +875,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         {!activeSession ? (
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 flex flex-col items-center justify-center">
-              <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">
+              <h1 className="text-5xl font-light mb-8 text-gray-800 dark:text-white">
                 {t("chat.noActiveSession", "ברוך הבא לצ'אטבוט אפקה!")}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 text-xl text-center mx-auto max-w-2xl">
+              <p className="text-gray-500 dark:text-gray-400 mb-12 text-lg text-center mx-auto max-w-2xl leading-relaxed">
                 {t(
                   "chat.startNewChatPrompt",
                   "כאן תוכלו לשאול שאלות לגבי תקנון הלימודים, נהלי הפקולטה, ומידע אחר שקשור ללימודים באפקה. התחילו שיחה חדשה כדי להתחיל!"
@@ -899,31 +899,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top bar */}
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
+            {/* Minimal top bar like ChatGPT */}
+            <div className="flex justify-center items-center py-4 flex-shrink-0">
+              <div className="flex items-center space-x-4">
+                <h1 className="text-lg font-medium text-gray-700 dark:text-gray-300">
                   {activeSession?.title ||
                     (t("chat.newChat") as string) ||
-                    "New Chat"}
+                    "ChatGPT"}
                 </h1>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                {/* Search button */}
+                
+                {/* Search button - minimal style */}
                 <button
                   onClick={() => setShowSearch(!showSearch)}
-                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   title={(t("chat.search") as string) || "Search"}
                 >
-                  <Search className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                  <Search className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
             </div>
 
             {/* Search bar */}
             {showSearch && (
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center flex-shrink-0">
+              <div className="p-2 bg-gray-100 dark:bg-black flex items-center flex-shrink-0">
                 <div className="relative flex-1 max-w-md mx-auto">
                   <input
                     type="text"
@@ -1025,19 +1023,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   />
                   <div ref={messagesEndRef} />
                   {isLoading && (
-                    <div className="p-4 flex items-center gap-2">
-                      <div className="flex space-x-1">
-                        {[...Array(3)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-1.5 h-1.5 bg-green-700 dark:bg-green-500 rounded-full animate-bounce"
-                            style={{ animationDelay: `${i * 0.2}s` }}
-                          />
-                        ))}
+                    <div className="max-w-3xl mx-auto px-8 py-4">
+                      <div className="w-full text-right">
+                        <div className="mb-6">
+                          <div className="flex justify-end space-x-1 mb-2">
+                            {[...Array(3)].map((_, i) => (
+                              <div
+                                key={i}
+                                className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
+                                style={{ animationDelay: `${i * 0.2}s` }}
+                              />
+                            ))}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-500 opacity-60">
+                            מכין תשובה...
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-sm text-green-700 dark:text-green-500">
-                        {(t("chat.processing") as string) || "Processing..."}
-                      </span>
                     </div>
                   )}
                 </>
@@ -1046,7 +1048,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
             {/* Input at the bottom only when conversation has started */}
             {hasStarted && (
-              <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
+              <div className="p-4 flex-shrink-0">
                 <ChatInput
                   input={input}
                   setInput={setInput}
@@ -1062,13 +1064,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Settings Panel - Clean & Minimal with Green Accent */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-black rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-gray-800">
+          <ThemeCard className="w-full max-w-md" shadow="lg" padding="none">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-800">
+            <div className={`flex items-center justify-between p-6 border-b ${classes.border.primary}`}>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                <div className={`w-10 h-10 rounded-xl ${classes.bg.tertiary} flex items-center justify-center`}>
                   <svg
-                    className="w-5 h-5 text-green-600 dark:text-green-400"
+                    className={`w-5 h-5 ${classes.text.success}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1088,43 +1090,43 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                  <h2 className={`text-xl font-semibold ${classes.text.primary}`}>
                     {i18n.language === "he" ? "הגדרות" : "Settings"}
                   </h2>
-                  <p className="text-sm text-slate-500 dark:text-gray-400">
+                  <p className={`text-sm ${classes.text.secondary}`}>
                     {i18n.language === "he" ? "התאמה אישית" : "Customize"}
                   </p>
                 </div>
               </div>
-              <button
+              <ThemeButton
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowSettings(false)}
-                className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+                icon={
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                }
+              />
             </div>
 
             {/* Content */}
             <div className="p-6">
               <UserSettings
                 onClose={() => setShowSettings(false)}
-                theme={theme}
-                onThemeChange={() => {}} // Theme is controlled by parent
               />
             </div>
-          </div>
+          </ThemeCard>
         </div>
       )}
     </div>

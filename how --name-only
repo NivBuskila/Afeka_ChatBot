@@ -1,5 +1,0 @@
-[33mcommit 11097ffa7757cdf94d9cefa4decafdf4b7351b9c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32momris-supabase-auth-feature[m[33m, [m[1;31morigin/omris-supabase-auth-feature[m[33m)[m
-Author: Omri <omti9@afeka.edu>
-Date:   Tue Apr 1 20:04:47 2025 +0300
-
-    Update Reset Password UI to match project styling and improve text display

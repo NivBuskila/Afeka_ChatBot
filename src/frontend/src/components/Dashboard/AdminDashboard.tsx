@@ -51,6 +51,7 @@ import {
 } from "../../services/analyticsService";
 import { Pagination, usePagination } from "../common/Pagination";
 import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
+import { useTheme } from '../../contexts/ThemeContext';
 // import type { Document } from '../../config/supabase';
 
 // Local Document interface for AdminDashboard
@@ -121,7 +122,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [language, setLanguage] = useState<Language>(i18n.language as Language);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("chatbot");
 
@@ -795,7 +796,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </h2>
             <div className="bg-gray-100/30 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300/20 dark:border-green-500/20 p-4 h-[calc(100vh-200px)] overflow-hidden">
               <div className="h-full relative">
-                <ChatWindow onLogout={onLogout} theme={theme} />
+                <ChatWindow onLogout={onLogout} />
               </div>
             </div>
           </div>
@@ -1208,30 +1209,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       {/* Delete user modal */}
       {showDeleteUserModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-black border border-green-500/30 rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm dark:bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-black border border-gray-300 dark:border-green-500/30 rounded-lg p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-green-400">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-green-400">
                 {t("users.confirmDelete") || "Confirm User Deletion"}
               </h3>
               <button
                 onClick={() => setShowDeleteUserModal(false)}
-                className="text-green-400 hover:text-green-300"
+                className="text-gray-500 dark:text-green-400 hover:text-gray-700 dark:hover:text-green-300 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex items-center mb-4 text-amber-400 bg-amber-500/10 p-3 rounded-lg">
+            <div className="flex items-center mb-4 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3 rounded-lg">
               <AlertTriangle className="w-5 h-5 mr-2" />
               <p className="text-sm">
                 {t("users.deleteWarning") ||
                   "This action cannot be undone. The user will be permanently deleted."}
               </p>
             </div>
-            <p className="text-green-400/80 mb-6">
+            <p className="text-gray-600 dark:text-green-400/80 mb-6">
               {t("users.deleteConfirmText") ||
                 "Are you sure you want to delete the user:"}{" "}
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900 dark:text-green-400">
                 {selectedUser?.email || selectedUser?.name || "Unknown User"}
               </span>
               ?
@@ -1239,15 +1240,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteUserModal(false)}
-                className="px-4 py-2 border border-green-500/30 rounded-lg text-green-400 hover:bg-green-500/20"
+                className="px-4 py-2 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-700 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-green-500/20 transition-colors"
               >
                 {t("Cancel")}
               </button>
               <button
                 onClick={handleDeleteUserConfirm}
-                className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30"
+                className="px-4 py-2 bg-red-50 dark:bg-red-500/20 border border-red-300 dark:border-red-500/30 rounded-lg text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/30 transition-colors"
               >
-                {t("Delete")}
+                {t("users.delete") || t("Delete")}
               </button>
             </div>
           </div>

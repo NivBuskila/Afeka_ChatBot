@@ -5,6 +5,7 @@ import { supabase } from "./config/supabase";
 import { useTranslation } from "react-i18next";
 import { CheckCircle } from "lucide-react";
 import "./i18n/config";
+import { useThemeClasses } from './hooks/useThemeClasses';
 
 import APEXSplashScreen from "./components/SplashScreen/components/APEXSplashScreen";
 import APEXStaticLogin from "./components/Login/APEXStaticLogin";
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string>("");
   const navigate = useNavigate();
   const { i18n } = useTranslation();
+  const { currentTheme, pageBackground, textPrimary } = useThemeClasses();
 
   // בדיקה ראשונית של session קיים כאשר האפליקציה נטענת
   useEffect(() => {
@@ -162,7 +164,7 @@ const App: React.FC = () => {
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <div className="h-screen w-screen bg-black text-white font-sans overflow-auto">
+      <div className={`h-screen w-screen font-sans overflow-auto ${pageBackground} ${textPrimary} ${currentTheme === 'dark' ? 'dark' : ''}`}>
         {/* Success message */}
         {successMessage && (
           <div className="fixed top-4 right-4 z-50 bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-md max-w-md animate-fadeIn">

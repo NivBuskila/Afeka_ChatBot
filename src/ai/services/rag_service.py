@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import os
 import asyncio
 import logging
@@ -21,17 +20,10 @@ from ..config.rag_config import (
     get_database_config,
     get_performance_config
 )
-=======
-# src/ai/services/rag_service.py
-import logging
-import time
-from typing import Dict, Any
->>>>>>> 3ba6015 (feat: implement Gemini API key management with 7-key rotation and fallback)
 
 logger = logging.getLogger(__name__)
 
 class RAGService:
-<<<<<<< HEAD
     def __init__(self, config_profile: Optional[str] = None):
         self.supabase: Client = create_client(
             os.getenv("SUPABASE_URL"),
@@ -136,7 +128,7 @@ class RAGService:
             results = response.data or []
             response_time = int((time.time() - start_time) * 1000)
             
-                        # רישום analytics
+            # רישום analytics
             if self.performance_config.LOG_SEARCH_ANALYTICS:
                 await self._log_search_analytics(
                     query, 
@@ -248,173 +240,115 @@ class RAGService:
                     match = re.search(pattern, query)
                     if match:
                         extracted_section = match.group(1)
+                        logger.info(f"Extracted section number: {extracted_section}")
                         break
             
-            if not extracted_section:
-                # אם לא נמצא מספר סעיף ספציפי, נחזור לחיפוש רגיל
-                return await self.hybrid_search(query)
-            
-            logger.info(f"Section-specific search for section: {extracted_section}")
-            
-            # חיפוש היברידי רגיל
-            query_embedding = await self.generate_query_embedding(query)
-            
-            # חיפוש עם דגש על מספר הסעיף
-            section_enhanced_query = f"סעיף {extracted_section} {query}"
-            section_embedding = await self.generate_query_embedding(section_enhanced_query)
-            
-            # משקל כפול לsection
-            combined_embedding = [
-                (e1 * 0.4 + e2 * 0.6) for e1, e2 in zip(query_embedding, section_embedding)
-            ]
-            
-            # חיפוש עם סף נמוך יותר לסעיפים ספציפיים
-            response = self.supabase.rpc(self.db_config.HYBRID_SEARCH_FUNCTION, {
-                'query_text': section_enhanced_query,
-                'query_embedding': combined_embedding,
-                'semantic_weight': 0.9,  # דגש על חיפוש סמנטי
-                'keyword_weight': 0.1,
-                'match_threshold': 0.25,  # סף נמוך מאוד לסעיפים
-                'match_count': self.search_config.MAX_RESULTS_EXTENDED
-            }).execute()
-            
-            results = response.data or []
-            
-            # סינון נוסף - העדפה לתוצאות שמכילות את מספר הסעיף
-            section_results = []
-            other_results = []
-            
-            for result in results:
-                chunk_text = result.get('chunk_text', '') or ''
-                chunk_header = result.get('chunk_header', '') or ''
-                metadata = result.get('metadata', {}) or {}
+            if extracted_section:
+                # חיפוש מיוחד לסעיפים עם pattern matching
+                query_embedding = await self.generate_query_embedding(query)
                 
-                # בדיקה אם מספר הסעיף מופיע בטקסט או במטאדטה
-                metadata_str = str(metadata) if metadata else ''
-                if (extracted_section in chunk_text or 
-                    extracted_section in chunk_header or 
-                    extracted_section in metadata_str):
-                    section_results.append(result)
-                else:
-                    other_results.append(result)
-            
-            # עדיפות לתוצאות עם מספר הסעיף, אבל נכלול גם אחרות
-            final_results = section_results + other_results[:self.search_config.MAX_CHUNKS_RETRIEVED]
-            final_results = final_results[:self.search_config.MAX_CHUNKS_RETRIEVED]
-            
-            search_time = int((time.time() - start_time) * 1000)
-            
-            # רישום analytics
-            if self.performance_config.LOG_SEARCH_ANALYTICS:
-                await self._log_search_analytics(
-                    query, 'section_specific', len(final_results),
-                    final_results[0]['similarity_score'] if final_results else 0.0,
-                    search_time
-                )
-            
-            logger.info(f"Section-specific search completed: {len(section_results)} exact + {len(other_results[:self.search_config.MAX_CHUNKS_RETRIEVED-len(section_results)])} related results in {search_time}ms")
-            return final_results
-            
+                response = self.supabase.rpc(self.db_config.SECTION_SEARCH_FUNCTION, {
+                    'query_embedding': query_embedding,
+                    'section_number': extracted_section,
+                    'similarity_threshold': 0.3,  # סף נמוך יותר לחיפוש סעיפים
+                    'max_results': self.search_config.MAX_CHUNKS_FOR_CONTEXT
+                }).execute()
+                
+                section_results = response.data or []
+                
+                # אם לא נמצא דבר, חפש גם חיפוש היברידי רגיל
+                if not section_results:
+                    logger.info(f"No section-specific results found for {extracted_section}, falling back to hybrid search")
+                    section_results = await self.hybrid_search(query)
+                
+                response_time = int((time.time() - start_time) * 1000)
+                logger.info(f"Section search completed: {len(section_results)} results in {response_time}ms")
+                
+                return section_results
+            else:
+                # אם לא נמצא מספר סעיף, חזור לחיפוש רגיל
+                logger.info("No section number detected, falling back to hybrid search")
+                return await self.hybrid_search(query)
+                
         except Exception as e:
-            logger.error(f"Error in section-specific search: {e}")
-            raise
-    
+            logger.error(f"Error in section specific search: {e}")
+            # חזרה לחיפוש רגיל במקרה של שגיאה
+            return await self.hybrid_search(query)
+
     def _build_context(self, search_results: List[Dict[str, Any]]) -> Tuple[str, List[str]]:
-        """בונה הקשר מהתוצאות"""
-        context_parts = []
+        """בונה קונטקסט מתוצאות החיפוש"""
+        context_chunks = []
         citations = []
-        current_tokens = 0
-        max_tokens = self.context_config.AVAILABLE_CONTEXT_TOKENS
+        total_tokens = 0
         
-        # מגביל מספר צ'אנקים לפי ההגדרות
+        # מגביל למספר chunks מקסימלי ולגבול tokens
         max_chunks_for_context = min(
-            self.search_config.MAX_CHUNKS_FOR_CONTEXT,
-            len(search_results)
+            len(search_results), 
+            self.search_config.MAX_CHUNKS_FOR_CONTEXT
         )
         
         for i, result in enumerate(search_results[:max_chunks_for_context]):
-            chunk_text = result['chunk_text']
-            chunk_tokens = result.get('token_count', len(chunk_text.split()) * 1.3)  # הערכה
+            chunk_content = result.get('chunk_text', result.get('content', ''))
+            document_name = result.get('document_name', f'מסמך {i+1}')
             
-            if current_tokens + chunk_tokens > max_tokens:
-                logger.info(f"Context token limit reached: {current_tokens + chunk_tokens} > {max_tokens}")
+            # הערכת tokens (בקירוב)
+            estimated_tokens = len(chunk_content.split()) * 1.3
+            
+            if total_tokens + estimated_tokens > self.context_config.MAX_CONTEXT_TOKENS:
+                logger.info(f"Context token limit reached at chunk {i}")
                 break
-                
-            # בניית ציטוט
-            doc_name = result.get('document_name', 'מסמך')
             
-            citation_parts = [doc_name]
+            # הוספת מידע על הציון דומיות אם זמין
+            similarity_info = ""
+            if 'similarity_score' in result:
+                similarity_info = f" (דומיות: {result['similarity_score']:.3f})"
+            elif 'combined_score' in result:
+                similarity_info = f" (ציון: {result['combined_score']:.3f})"
             
-            # הוספת פרטים לפי ההגדרות
-            if self.context_config.INCLUDE_CHUNK_HEADERS:
-                section = result.get('section') or result.get('chunk_header')
-                if section:
-                    citation_parts.append(f"סעיף: {section}")
-            
-            if self.context_config.INCLUDE_PAGE_NUMBERS:
-                page = result.get('page_number')
-                if page:
-                    citation_parts.append(f"עמוד {page}")
-            
-            citation = self.context_config.CITATION_SEPARATOR.join(citation_parts)
-            
-            if self.context_config.INCLUDE_CITATIONS:
-                citations.append(citation)
-            
-            # הוספת הקונטקסט
-            context_part = f"[מקור {i+1}: {citation}]\n{chunk_text}"
-            context_parts.append(context_part)
-            current_tokens += chunk_tokens
+            context_chunks.append(f"מקור {i+1} - {document_name}{similarity_info}:\n{chunk_content}")
+            citations.append(document_name)
+            total_tokens += estimated_tokens
         
-        context = self.context_config.CHUNK_SEPARATOR.join(context_parts)
+        context = "\n\n".join(context_chunks)
+        
+        logger.info(f"Built context from {len(context_chunks)} chunks, ~{int(total_tokens)} tokens")
         return context, citations
-    
-    def _create_rag_prompt(self, query: str, context: str) -> str:
-        """יוצר prompt מותאם לRAG"""
-        return f"""אתה מומחה תקנונים משפטי של מכללת אפקה. תפקידך לענות על שאלות בהתבסס בדיוק על התקנונים שסופקו.
 
-עקרונות מנחים:
-1. ענה רק על סמך המידע שסופק בהקשר
-2. אם אין מידע מספיק - אמר זאת בבירור
-3. צטט את המקורות הרלוונטיים בתשובתך
-4. השתמש בשפה ברורה ומקצועית
-5. אם יש מספר סעיפים רלוונטיים - הזכר את כולם
-6. הדגש חובות וזכויות בבירור
+    def _create_rag_prompt(self, query: str, context: str) -> str:
+        """יוצר prompt מותאם לשאלות תקנונים"""
+        return f"""אתה עוזר אקדמי המתמחה בתקנוני מכללת אפקה. ענה על השאלה בהתבסס על המידע הרלוונטי שניתן.
 
 הקשר רלוונטי מהתקנונים:
 {context}
 
-שאלה: {query}
+שאלת המשתמש: {query}
 
-תשובה מקצועית מבוססת תקנונים:"""
-    
+הנחיות למתן תשובה:
+1. ענה בעברית בצורה ברורה ומדויקת
+2. השתמש במידע מהקשר שניתן בלבד
+3. אם השאלה נוגעת לסעיף ספציפי, צטט אותו במדויק
+4. אם המידע חלקי או לא ברור, ציין זאת
+5. אם השאלה לא קשורה לתקנונים, ציין שאין לך מידע על הנושא
+
+תשובה:"""
+
     async def generate_answer(
         self, 
         query: str, 
         search_method: str = 'hybrid',
         document_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """יוצר תשובה מלאה כולל חיפוש וייצור תשובה"""
+        """יוצר תשובה מלאה לשאילתה"""
         start_time = time.time()
         
         try:
-            logger.info(f"Generating answer for query: '{query[:50]}...' using {search_method} search")
+            logger.info(f"Generating answer for query: {query[:100]}...")
             
-            # זיהוי אם השאלה מתייחסת לסעיף ספציפי
-            section_query_patterns = [
-                r'סעיף\s+\d+(?:\.\d+)*',
-                r'בסעיף\s+\d+(?:\.\d+)*',
-                r'מה\s+(?:אומר|כתוב|נאמר)\s+(?:ב)?סעיף\s+\d+(?:\.\d+)*'
-            ]
+            # זיהוי אם זו שאלה על סעיף ספציפי
+            section_keywords = ['סעיף', 'בסעיף', 'פרק', 'תקנה']
+            is_section_query = any(keyword in query for keyword in section_keywords)
             
-            is_section_query = False
-            try:
-                is_section_query = any(re.search(pattern, query or "") for pattern in section_query_patterns)
-            except Exception as e:
-                logger.warning(f"Error in section pattern matching: {e}")
-                is_section_query = False
-            
-            # בחירת שיטת חיפוש
+            # ביצוע חיפוש לפי השיטה המבוקשת
             if is_section_query:
                 logger.info("Detected section-specific query, using enhanced search")
                 search_results = await self.section_specific_search(query)
@@ -563,44 +497,7 @@ class RAGService:
     def get_current_config(self) -> Dict[str, Any]:
         """מחזיר את ההגדרות הנוכחיות"""
         return rag_config.get_config_dict()
-=======
-    def __init__(self):
-        # Initialize resources needed for RAG here
-        # e.g., vector store connection, language model client
-        logger.info("Initializing RAG Service (Placeholder)")
-        # self.vector_store = ...
-        # self.llm = ...
-        pass
 
-    def process_query(self, query: str) -> Dict[str, Any]:
-        """Processes the user query using RAG (placeholder implementation)."""
-        start_time = time.time()
-        logger.info(f"RAG Service received query: {query[:50]}...")
-        
-        # 1. Retrieve relevant documents (Placeholder)
-        # retrieved_docs = self.vector_store.search(query)
-        retrieved_docs = ["doc1 content placeholder", "doc2 content placeholder"]
-        logger.debug("Retrieved relevant document placeholders.")
-
-        # 2. Augment prompt with context (Placeholder)
-        # prompt = f"Context: {retrieved_docs}\n\nQuestion: {query}\n\nAnswer:"
-
-        # 3. Generate response using LLM (Placeholder)
-        # llm_response = self.llm.generate(prompt)
-        llm_response = "This is a placeholder response from RAGService. Future implementation will use RAG to query document knowledge base."
-        logger.debug("Generated LLM response placeholder.")
-
-        # 4. Format and return result
-        processing_time = time.time() - start_time
-        result = {
-            "keywords": [], # Placeholder
-            "result": llm_response,
-            "sentiment": "neutral", # Placeholder
-            "retrieved_docs_count": len(retrieved_docs),
-            "processing_time": round(processing_time, 3)
-        }
-        
-        return result
 
 # --- Dependency Injection (if using Flask-Injector or similar) ---
 # You might use a framework for dependency injection, or a simple factory
@@ -612,5 +509,3 @@ def get_rag_service() -> RAGService:
     if _rag_service_instance is None:
         _rag_service_instance = RAGService()
     return _rag_service_instance
-# ------------------------------------------------------------------ 
->>>>>>> 3ba6015 (feat: implement Gemini API key management with 7-key rotation and fallback)

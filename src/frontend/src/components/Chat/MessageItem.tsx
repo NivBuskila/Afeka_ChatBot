@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { User, Bot } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useThemeClasses } from '../../hooks/useThemeClasses';
+import ThemeButton from '../ui/ThemeButton';
 
 interface Message {
   id: string;
@@ -14,72 +15,56 @@ interface Message {
 interface MessageItemProps {
   message: Message;
   searchTerm?: string;
-  showChunkText?: boolean; // New prop to control chunk text display
+  showChunkText?: boolean;
+  fontSize?: number;
 }
 
-// Function to highlight search term in text
+// Utility function to highlight search terms
 const highlightText = (text: string, searchTerm: string) => {
   if (!searchTerm.trim()) return text;
 
-  const parts = text.split(
-    new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")
-  );
+  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
 
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === searchTerm.toLowerCase() ? (
-          <mark
-            key={i}
-            className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded"
-          >
-            {part}
-          </mark>
-        ) : (
-          part
-        )
-      )}
-    </>
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <span key={index} className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded">
+        {part}
+      </span>
+    ) : (
+      part
+    )
   );
 };
 
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
   searchTerm = "",
-  showChunkText = false, // Default to false
+  showChunkText = false,
+  fontSize = 16,
 }) => {
   const { t } = useTranslation();
+  const { classes } = useThemeClasses();
   const isUser = message.type === "user";
   const [showFullChunk, setShowFullChunk] = useState(false);
 
-  return (
-    <div
-      className={`flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}
-    >
-      <div
-        className={`relative p-3 rounded-lg ${
-          isUser
-            ? "bg-green-100 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20"
-            : "bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700"
-        } max-w-2xl`}
-      >
-        <div className="flex items-center gap-2 mb-1">
-          {isUser ? (
-            <User className="w-3 h-3 text-green-600 dark:text-green-400" />
-          ) : (
-            <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
-          )}
-          <span className="text-xs text-green-700/70 dark:text-green-400/60">
-            {message.timestamp}
-          </span>
-        </div>
-        <div
-          className="text-sm text-gray-700 dark:text-gray-100"
+          return (
+      <div className={`w-full ${isUser ? "text-right" : "text-right"}`}>
+        {/* Message content */}
+        <div className={`mb-6 ${isUser ? "text-right" : "text-right"}`}>
+          <div
+            className={`${
+              isUser 
+                ? 'bg-gray-800 dark:bg-gray-700 text-white dark:text-white px-4 py-3 rounded-2xl inline-block max-w-sm' 
+                : 'text-gray-800 dark:text-gray-200'
+            } leading-relaxed`}
           dir="rtl"
           style={{
+            fontSize: `${fontSize}px`,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             fontFamily: "inherit",
+            lineHeight: "1.6",
           }}
         >
           {searchTerm
@@ -87,15 +72,20 @@ const MessageItem: React.FC<MessageItemProps> = ({
             : message.content}
         </div>
 
+        {/* Timestamp - subtle and small */}
+        <div className="mt-2 text-xs text-gray-500 dark:text-gray-500 opacity-60">
+          {message.timestamp}
+        </div>
+
         {/* Show chunk text for bot messages if available and enabled */}
         {!isUser && message.chunkText && showChunkText && (
-          <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+          <div className="mt-4 pt-4 border-t border-gray-700 dark:border-gray-600">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
               {t("rag.chunkSource") || "מקור הטקסט (צ'אנק):"}
             </p>
-            <div className="bg-white dark:bg-black/30 border border-gray-300 dark:border-green-500/30 rounded-lg p-3">
+            <div className="bg-gray-800 dark:bg-gray-800 rounded-lg p-4 border border-gray-700 dark:border-gray-600">
               <div
-                className="text-gray-800 dark:text-green-300 text-xs leading-relaxed"
+                className="text-sm text-gray-300 dark:text-gray-300 leading-relaxed"
                 dir="rtl"
                 style={{
                   whiteSpace: "pre-wrap",
@@ -109,16 +99,17 @@ const MessageItem: React.FC<MessageItemProps> = ({
                       message.chunkText.length > 200 ? "..." : ""
                     }`}
               </div>
+              
               {message.chunkText.length > 200 && (
-                <button
-                  onClick={() => setShowFullChunk(!showFullChunk)}
-                  className="mt-2 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-xs font-medium flex items-center gap-1 transition-colors"
-                >
-                  {showFullChunk ? (
-                    <>
-                      <span>{t("rag.showLess") || "הצג פחות"}</span>
+                <div className="mt-3">
+                  <ThemeButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFullChunk(!showFullChunk)}
+                    className="text-xs font-medium"
+                    icon={
                       <svg
-                        className="w-3 h-3 transform rotate-180"
+                        className={`w-3 h-3 ${showFullChunk ? 'transform rotate-180' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -130,26 +121,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
                           d="M19 9l-7 7-7-7"
                         />
                       </svg>
-                    </>
-                  ) : (
-                    <>
-                      <span>{t("rag.viewMore") || "הצג עוד"}</span>
-                      <svg
-                        className="w-3 h-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </>
-                  )}
-                </button>
+                    }
+                  >
+                    {showFullChunk ? (t("rag.showLess") || "הצג פחות") : (t("rag.viewMore") || "הצג עוד")}
+                  </ThemeButton>
+                </div>
               )}
             </div>
           </div>
