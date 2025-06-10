@@ -1,8 +1,13 @@
 import React from "react";
 
-const AnimatedText = ({ textVisible, showFullName }) => (
-  <>
-    <div className="mt-12 flex items-center space-x-4">
+interface AnimatedTextProps {
+  textVisible: boolean[];
+  showFullName: boolean;
+}
+
+const AnimatedText: React.FC<AnimatedTextProps> = ({ textVisible, showFullName }) => (
+  <div className="flex flex-col items-center mt-8 space-y-6">
+    <div className="flex items-center justify-center space-x-4">
       {["A", "P", "E", "X"].map((letter, index) => (
         <div
           key={letter}
@@ -16,8 +21,9 @@ const AnimatedText = ({ textVisible, showFullName }) => (
         </div>
       ))}
     </div>
+    
     <div
-      className={`mt-6 text-lg text-green-400/80 transition-all duration-1000 ${
+      className={`text-lg text-green-400/80 transition-all duration-1000 ${
         showFullName ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
@@ -28,7 +34,7 @@ const AnimatedText = ({ textVisible, showFullName }) => (
         <div>eXperience</div>
       </div>
     </div>
-  </>
+  </div>
 );
 
-export default AnimatedText;
+export default AnimatedText; 

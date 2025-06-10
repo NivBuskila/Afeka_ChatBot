@@ -249,7 +249,7 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
   };
 
   return (
-    <div className={`relative h-screen overflow-hidden ${
+    <div className={`relative min-h-screen overflow-auto ${
       theme === 'dark' 
         ? 'bg-black text-white' 
         : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900'

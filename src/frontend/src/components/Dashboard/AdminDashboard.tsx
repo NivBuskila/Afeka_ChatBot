@@ -794,7 +794,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-4">
               {t("admin.sidebar.chatbotPreview")}
             </h2>
-            <div className="bg-gray-100/30 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300/20 dark:border-green-500/20 p-4 h-[calc(100vh-200px)] overflow-hidden">
+            <div className="bg-gray-100/30 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300/20 dark:border-green-500/20 p-4 h-[calc(100vh-200px)] overflow-auto">
               <div className="h-full relative">
                 <ChatWindow onLogout={onLogout} />
               </div>

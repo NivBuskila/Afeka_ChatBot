@@ -51,11 +51,14 @@ const APEXSplashScreen: React.FC<APEXSplashScreenProps> = ({ onSplashComplete })
       }`}
       onClick={onSplashComplete}
     >
-      <div className="relative z-10 h-full flex flex-col items-center justify-center">
-        <LogoContainer />
-        <AnimatedText textVisible={textVisible} showFullName={showFullName} />
+      <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
+        <div className="flex flex-col items-center justify-center flex-1">
+          <LogoContainer />
+          <AnimatedText textVisible={textVisible} showFullName={showFullName} />
+        </div>
+        
         {showFullName && (
-          <div className={`absolute bottom-12 left-1/2 transform -translate-x-1/2 text-sm animate-pulse ${
+          <div className={`pb-8 text-sm animate-pulse ${
             theme === 'dark' ? 'text-green-400/60' : 'text-green-600/70'
           }`}>
             Click anywhere to continue

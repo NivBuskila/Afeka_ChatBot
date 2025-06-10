@@ -643,4 +643,22 @@ async def restore_rag_profile(profile_id: str):
         raise http_exc
     except Exception as e:
         logger.exception(f"Error restoring RAG profile {profile_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error restoring profile: {profile_id}") 
+        raise HTTPException(status_code=500, detail=f"Error restoring profile: {profile_id}")
+
+@router.get("/hidden-profiles")
+async def get_hidden_profiles():
+    """Get list of hidden built-in profiles"""
+    try:
+        from src.ai.config.rag_config_profiles import load_hidden_profiles
+        
+        hidden_profiles = load_hidden_profiles()
+        
+        return JSONResponse(
+            content={
+                "hiddenProfiles": hidden_profiles
+            }
+        )
+        
+    except Exception as e:
+        logger.exception(f"Error getting hidden profiles: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving hidden profiles") 

@@ -15,7 +15,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
   const { theme } = useTheme();
 
   return (
-    <div className={`min-h-screen relative overflow-hidden flex items-center justify-center ${
+    <div className={`min-h-screen relative overflow-auto flex items-center justify-center ${
       theme === 'dark' 
         ? 'bg-black text-white' 
         : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900'

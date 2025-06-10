@@ -1,7 +1,7 @@
 import React from "react";
 import { Brain } from "lucide-react";
 
-const LogoContainer = () => (
+const LogoContainer: React.FC = () => (
   <div className="relative">
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="w-48 h-48 border-2 border-green-500/30 rotate-45 transform animate-spin-slow" />
@@ -14,4 +14,4 @@ const LogoContainer = () => (
   </div>
 );
 
-export default LogoContainer;
+export default LogoContainer; 

@@ -39,6 +39,9 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     null
   );
   const [showFullChunk, setShowFullChunk] = useState(false);
+  const [showHiddenProfiles, setShowHiddenProfiles] = useState(false);
+  const [hiddenProfiles, setHiddenProfiles] = useState<string[]>([]);
+  const [isRestoringProfile, setIsRestoringProfile] = useState<string | null>(null);
 
   // Pagination state for profiles
   const [profilesItemsPerPage, setProfilesItemsPerPage] = useState(10);
@@ -56,8 +59,21 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     }
   };
 
+  const fetchHiddenProfiles = async () => {
+    try {
+      console.log('Fetching hidden profiles...');
+      const hiddenProfilesData = await ragService.getHiddenProfiles();
+      console.log('Hidden profiles received:', hiddenProfilesData);
+      setHiddenProfiles(hiddenProfilesData);
+    } catch (error) {
+      console.error("Error fetching hidden profiles:", error);
+      setHiddenProfiles([]);
+    }
+  };
+
   useEffect(() => {
     fetchProfiles();
+    fetchHiddenProfiles();
   }, [language]);
 
   // Pagination reset effect
@@ -281,6 +297,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       await ragService.deleteProfile(profileId, !isCustom);
       console.log(`Successfully deleted ${profileType} profile:`, profileId);
       await fetchProfiles(); // רענון הרשימה
+      await fetchHiddenProfiles(); // רענון רשימת הנסתרים
     } catch (error) {
       console.error("Error deleting profile:", error);
       setError(
@@ -290,6 +307,32 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       );
     } finally {
       setIsDeletingProfile(null);
+    }
+  };
+
+  const handleRestoreProfile = async (profileId: string, profileName: string) => {
+    const confirmMessage = `האם אתה בטוח שברצונך לשחזר את הפרופיל "${profileName}"?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsRestoringProfile(profileId);
+    setError(null);
+    try {
+      await ragService.restoreProfile(profileId);
+      console.log('Successfully restored profile:', profileId);
+      await fetchProfiles(); // רענון הרשימה
+      await fetchHiddenProfiles(); // רענון רשימת הנסתרים
+    } catch (error) {
+      console.error("Error restoring profile:", error);
+      setError(
+        `Failed to restore profile: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    } finally {
+      setIsRestoringProfile(null);
     }
   };
 
@@ -319,6 +362,21 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
               />
             )}
             <button
+              onClick={() => {
+                console.log('Toggle hidden profiles clicked. Current state:', showHiddenProfiles);
+                setShowHiddenProfiles(!showHiddenProfiles);
+              }}
+              className="bg-gray-100 dark:bg-gray-500/20 hover:bg-gray-200 dark:hover:bg-gray-500/30 text-gray-800 dark:text-gray-400 font-medium py-2 px-4 rounded-lg border border-gray-300 dark:border-gray-500/30 transition-colors flex items-center space-x-2"
+            >
+              <span>{showHiddenProfiles ? "👁️" : "👁️‍🗨️"}</span>
+              <span>
+                {showHiddenProfiles 
+                  ? (language === 'he' ? "הסתר פרופילים נסתרים" : "Hide Hidden Profiles")
+                  : (language === 'he' ? "הצג פרופילים נסתרים" : "Show Hidden Profiles")
+                }
+              </span>
+            </button>
+            <button
               onClick={() => setShowCreateProfile(true)}
               className="bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors flex items-center space-x-2"
             >
@@ -336,6 +394,69 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
             onCancel={() => setShowCreateProfile(false)}
             isCreating={isCreatingProfile}
           />
+        )}
+
+        {/* Hidden Profiles Section */}
+        {showHiddenProfiles && (
+          <div className="bg-orange-50 dark:bg-orange-500/10 backdrop-blur-lg rounded-lg border border-orange-200 dark:border-orange-500/20 shadow-lg mb-6">
+            <div className="p-6">
+              <h4 className="text-lg font-semibold text-orange-800 dark:text-orange-400 mb-4">
+                {language === 'he' ? `פרופילים נסתרים (${hiddenProfiles.length})` : `Hidden Profiles (${hiddenProfiles.length})`}
+              </h4>
+              {hiddenProfiles.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-orange-600 dark:text-orange-400/70">
+                    {language === 'he' ? "אין פרופילים נסתרים כרגע" : "No hidden profiles at the moment"}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {hiddenProfiles.map((profileId) => (
+                  <div
+                    key={`hidden-${profileId}`}
+                    className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-orange-300 dark:border-orange-500/30 p-4 transition-all shadow-lg opacity-75"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h5 className="text-md font-semibold text-orange-800 dark:text-orange-400">
+                          {profileId.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </h5>
+                        <p className="text-sm text-orange-600 dark:text-orange-400/70 mt-1">
+                          {language === 'he' ? "פרופיל מוסתר" : "Hidden profile"}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-orange-100 dark:bg-orange-500/20 px-2 py-1 rounded-full">
+                        <span className="text-xs text-orange-800 dark:text-orange-400">
+                          {language === 'he' ? "מוסתר" : "Hidden"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleRestoreProfile(profileId, profileId.replace('_', ' '))}
+                        disabled={isRestoringProfile === profileId}
+                        className="bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors disabled:opacity-50 flex items-center space-x-2"
+                      >
+                        {isRestoringProfile === profileId ? (
+                          <>
+                            <span className="animate-spin">⏳</span>
+                            <span>{language === 'he' ? "משחזר..." : "Restoring..."}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>↩️</span>
+                            <span>{language === 'he' ? "שחזר פרופיל" : "Restore Profile"}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Profiles Grid */}
@@ -452,7 +573,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
                         className={`font-medium py-2 px-4 rounded-lg border transition-colors disabled:opacity-50 ${
                           profile.isCustom
                             ? "bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 text-red-800 dark:text-red-400 border-red-300 dark:border-red-500/30"
-                            : "bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-500/30"
+                            : "bg-gray-100 dark:bg-gray-500/20 hover:bg-gray-200 dark:hover:bg-gray-500/30 text-gray-800 dark:text-gray-400 border-gray-300 dark:border-gray-500/30"
                         }`}
                         title={
                           profile.isCustom

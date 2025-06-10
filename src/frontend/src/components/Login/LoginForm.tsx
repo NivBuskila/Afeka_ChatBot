@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface LoginFormProps {
   onSubmit: (email: string, password: string) => Promise<void>;
@@ -12,6 +13,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const { t, i18n } = useTranslation();
+  const { theme } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,14 +53,20 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {(error || localError) && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <div className={`px-4 py-3 rounded relative border ${
+          theme === 'dark' 
+            ? 'bg-red-900/20 border-red-500/30 text-red-400' 
+            : 'bg-red-100 border-red-400 text-red-700'
+        }`} role="alert">
           <strong className="font-bold">{i18n.language === 'he' ? 'שגיאה:' : 'Error:'}</strong>
           <span className="block sm:inline"> {error || localError}</span>
         </div>
       )}
       
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="email" className={`block text-sm font-medium ${
+          theme === 'dark' ? 'text-green-400' : 'text-gray-700'
+        }`}>
           {i18n.language === 'he' ? 'אימייל' : 'Email'}
         </label>
         <input
@@ -66,7 +74,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            theme === 'dark' 
+              ? 'bg-black/50 border-green-500/30 text-white focus:ring-green-500/50 focus:border-green-500/50' 
+              : 'bg-white border-gray-300 text-gray-900 focus:ring-green-500 focus:border-green-500'
+          }`}
           placeholder={i18n.language === 'he' ? 'הכנס אימייל' : 'Enter your email'}
           dir={i18n.language === 'he' ? 'rtl' : 'ltr'}
           required
@@ -74,7 +86,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
       </div>
       
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="password" className={`block text-sm font-medium ${
+          theme === 'dark' ? 'text-green-400' : 'text-gray-700'
+        }`}>
           {i18n.language === 'he' ? 'סיסמה' : 'Password'} 
         </label>
         <input
@@ -82,7 +96,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            theme === 'dark' 
+              ? 'bg-black/50 border-green-500/30 text-white focus:ring-green-500/50 focus:border-green-500/50' 
+              : 'bg-white border-gray-300 text-gray-900 focus:ring-green-500 focus:border-green-500'
+          }`}
           placeholder={i18n.language === 'he' ? 'הכנס סיסמה' : 'Enter your password'}
           dir={i18n.language === 'he' ? 'rtl' : 'ltr'}
           required
@@ -93,7 +111,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium transition-colors ${
+            theme === 'dark'
+              ? 'text-white bg-green-600 hover:bg-green-700 focus:ring-green-500'
+              : 'text-white bg-green-600 hover:bg-green-700 focus:ring-green-500'
+          } focus:outline-none focus:ring-2 focus:ring-offset-2`}
         >
           {loading ? (
             <span className="flex items-center">
@@ -111,19 +133,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
       
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-4 border-t pt-4">
-          <p className="text-xs text-gray-500 mb-2">{i18n.language === 'he' ? 'משתמשי טסט (רק בסביבת פיתוח):' : 'Test users (development only):'}</p>
+          <p className={`text-xs mb-2 ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`}>{i18n.language === 'he' ? 'משתמשי טסט (רק בסביבת פיתוח):' : 'Test users (development only):'}</p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => loginAsTestUser('user')}
-              className="text-xs px-2 py-1 bg-gray-100 rounded"
+              className={`text-xs px-2 py-1 rounded ${
+                theme === 'dark' ? 'bg-gray-700 text-green-400' : 'bg-gray-100 text-gray-700'
+              }`}
             >
               {i18n.language === 'he' ? 'משתמש רגיל' : 'Regular User'}
             </button>
             <button
               type="button"
               onClick={() => loginAsTestUser('admin')}
-              className="text-xs px-2 py-1 bg-gray-100 rounded"
+              className={`text-xs px-2 py-1 rounded ${
+                theme === 'dark' ? 'bg-gray-700 text-green-400' : 'bg-gray-100 text-gray-700'
+              }`}
             >
               {i18n.language === 'he' ? 'מנהל מערכת' : 'Admin User'}
             </button>

@@ -178,6 +178,50 @@ export class RAGService {
 
     return await response.json();
   }
+
+  async restoreProfile(profileId: string): Promise<any> {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw new Error('Not authenticated');
+
+    const response = await fetch(`${API_BASE_URL}/api/rag/profiles/${profileId}/restore`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${data.session.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to restore profile: ${errorText}`);
+    }
+
+    return await response.json();
+  }
+
+  async getHiddenProfiles(): Promise<string[]> {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw new Error('Not authenticated');
+
+    const response = await fetch(`${API_BASE_URL}/api/rag/hidden-profiles`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${data.session.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      // If endpoint doesn't exist, return empty array
+      if (response.status === 404) {
+        return [];
+      }
+      throw new Error(`Failed to get hidden profiles: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.hiddenProfiles || [];
+  }
 }
 
 export const ragService = new RAGService(); 

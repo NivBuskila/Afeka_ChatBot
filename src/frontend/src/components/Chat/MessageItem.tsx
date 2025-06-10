@@ -55,7 +55,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           <div
             className={`${
               isUser 
-                ? 'bg-gray-800 dark:bg-gray-700 text-white dark:text-white px-4 py-3 rounded-2xl inline-block max-w-sm' 
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200' 
                 : 'text-gray-800 dark:text-gray-200'
             } leading-relaxed`}
           dir="rtl"
@@ -65,6 +65,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             wordBreak: "break-word",
             fontFamily: "inherit",
             lineHeight: "1.6",
+            borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px'
           }}
         >
           {searchTerm

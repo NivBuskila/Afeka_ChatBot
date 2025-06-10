@@ -133,6 +133,29 @@ select {
   box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);
 }
 
+/* Animation delays */
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
 /* Accessibility
 -------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {

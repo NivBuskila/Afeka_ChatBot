@@ -10,9 +10,12 @@ import {
   Clock,
   AlertCircle,
   XCircle,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { Pagination, usePagination } from "./common/Pagination";
 import { ItemsPerPageSelector } from "./common/ItemsPerPageSelector";
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Document {
   id: number;
@@ -42,6 +45,7 @@ interface SearchResult {
 }
 
 const VectorDashboard: React.FC = () => {
+  const { theme } = useTheme();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [stats, setStats] = useState<VectorStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,8 +62,8 @@ const VectorDashboard: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // הוספת מערכת הודעות
-  const [successMessage, setSuccessMessage] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Pagination logic
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -249,29 +253,45 @@ const VectorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" dir="rtl">
+    <div className={`min-h-screen p-6 ${
+      theme === 'dark' ? 'bg-black' : 'bg-gray-50'
+    }`} dir="rtl">
       {/* Success message */}
       {successMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-md max-w-md animate-fadeIn">
+        <div className={`fixed top-4 right-4 z-50 border-l-4 border-green-500 p-4 rounded shadow-md max-w-md animate-fadeIn ${
+          theme === 'dark' 
+            ? 'bg-green-900/20' 
+            : 'bg-green-50'
+        }`}>
           <div className="flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-            <p className="text-green-700">{successMessage}</p>
+            <CheckCircle className={`w-5 h-5 mr-2 ${
+              theme === 'dark' ? 'text-green-400' : 'text-green-600'
+            }`} />
+            <p className={theme === 'dark' ? 'text-green-400' : 'text-green-700'}>{successMessage}</p>
           </div>
         </div>
       )}
 
       {/* Error message */}
       {errorMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-md max-w-md animate-fadeIn">
+        <div className={`fixed top-4 right-4 z-50 border-l-4 border-red-500 p-4 rounded shadow-md max-w-md animate-fadeIn ${
+          theme === 'dark' 
+            ? 'bg-red-900/20' 
+            : 'bg-red-50'
+        }`}>
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-            <p className="text-red-700">{errorMessage}</p>
+            <AlertCircle className={`w-5 h-5 mr-2 ${
+              theme === 'dark' ? 'text-red-400' : 'text-red-600'
+            }`} />
+            <p className={theme === 'dark' ? 'text-red-400' : 'text-red-700'}>{errorMessage}</p>
           </div>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+        <h1 className={`text-3xl font-bold mb-8 ${
+          theme === 'dark' ? 'text-white' : 'text-gray-900'
+        }`}>
           <Database className="inline-block w-8 h-8 ml-2" />
           ניהול מסד נתונים וקטורי
         </h1>
@@ -279,54 +299,78 @@ const VectorDashboard: React.FC = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className={`rounded-lg shadow p-6 ${
+              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            }`}>
               <div className="flex items-center">
                 <FileText className="w-8 h-8 text-blue-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className={`text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
                     סה"כ מסמכים
                   </p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {stats.total_documents}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className={`rounded-lg shadow p-6 ${
+              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            }`}>
               <div className="flex items-center">
                 <Database className="w-8 h-8 text-green-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className={`text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
                     סה"כ chunks
                   </p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {stats.total_chunks}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className={`rounded-lg shadow p-6 ${
+              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            }`}>
               <div className="flex items-center">
                 <Activity className="w-8 h-8 text-purple-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className={`text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
                     מודל Embedding
                   </p>
-                  <p className="text-xs font-bold text-gray-900">
+                  <p className={`text-xs font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     Gemini Embedding
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className={`rounded-lg shadow p-6 ${
+              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            }`}>
               <div className="flex items-center">
                 <CheckCircle className="w-8 h-8 text-green-500" />
                 <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-600">הושלמו</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className={`text-sm font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  }`}>הושלמו</p>
+                  <p className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {stats.status_breakdown.completed || 0}
                   </p>
                 </div>
@@ -337,8 +381,12 @@ const VectorDashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upload Section */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">
+          <div className={`rounded-lg shadow p-6 ${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            <h2 className={`text-xl font-semibold mb-4 ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
               <Upload className="inline-block w-5 h-5 ml-2" />
               העלאת מסמך חדש
             </h2>
@@ -349,7 +397,9 @@ const VectorDashboard: React.FC = () => {
                   type="file"
                   accept=".pdf,.txt,.docx,.doc"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  className={`block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}
                 />
               </div>
 
@@ -361,14 +411,18 @@ const VectorDashboard: React.FC = () => {
                 {isUploading ? "מעלה..." : "העלה מסמך"}
               </button>
 
-              <p className="text-sm text-gray-600">
+              <p className={`text-sm ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+              }`}>
                 פורמטים נתמכים: PDF, TXT, DOCX, DOC
               </p>
             </div>
           </div>
 
           {/* Search Section */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className={`rounded-lg shadow p-6 ${
+            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+          }`}>
             <h2 className="text-xl font-semibold mb-4">
               <Search className="inline-block w-5 h-5 ml-2" />
               חיפוש במסמכים
@@ -424,16 +478,24 @@ const VectorDashboard: React.FC = () => {
                 </h3>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {searchResults.map((result, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded border">
+                    <div key={index} className={`p-3 rounded border ${
+                      theme === 'dark' ? 'bg-gray-800 border-green-500/30' : 'bg-gray-50 border-gray-200'
+                    }`}>
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium text-sm">
+                        <span className={`font-medium text-sm ${
+                          theme === 'dark' ? 'text-green-400' : 'text-gray-900'
+                        }`}>
                           {result.name}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className={`text-xs ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
                           דמיון: {(result.similarity * 100).toFixed(1)}%
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700 line-clamp-3">
+                      <p className={`text-sm line-clamp-3 ${
+                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                         {result.content.substring(0, 200)}...
                       </p>
                     </div>
@@ -445,10 +507,16 @@ const VectorDashboard: React.FC = () => {
         </div>
 
         {/* Documents Table */}
-        <div className="mt-8 bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
+        <div className={`mt-8 rounded-lg shadow ${
+          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+        }`}>
+          <div className={`p-6 border-b ${
+            theme === 'dark' ? 'border-green-500/30' : 'border-gray-200'
+          }`}>
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">
+              <h2 className={`text-xl font-semibold ${
+                theme === 'dark' ? 'text-green-400' : 'text-gray-900'
+              }`}>
                 רשימת מסמכים ({documents.length})
               </h2>
 
@@ -466,36 +534,56 @@ const VectorDashboard: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className={`min-w-full divide-y ${
+              theme === 'dark' ? 'divide-green-500/30' : 'divide-gray-200'
+            }`}>
+              <thead className={theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}>
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-green-400' : 'text-gray-500'
+                  }`}>
                     שם המסמך
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-green-400' : 'text-gray-500'
+                  }`}>
                     סטטוס
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-green-400' : 'text-gray-500'
+                  }`}>
                     Chunks
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-green-400' : 'text-gray-500'
+                  }`}>
                     גודל
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-green-400' : 'text-gray-500'
+                  }`}>
                     תאריך יצירה
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-green-400' : 'text-gray-500'
+                  }`}>
                     פעולות
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className={`divide-y ${
+                theme === 'dark' ? 'bg-gray-800 divide-green-500/30' : 'bg-white divide-gray-200'
+              }`}>
                 {paginatedDocuments.map((doc) => (
                   <tr key={doc.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      theme === 'dark' ? 'text-green-400' : 'text-gray-900'
+                    }`}>
                       {doc.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                       <div className="flex items-center">
                         {getStatusIcon(doc.processing_status)}
                         <span className="mr-2">
@@ -503,19 +591,27 @@ const VectorDashboard: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                       {doc.chunk_count}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                       {(doc.size / 1024).toFixed(1)} KB
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                       {new Date(doc.created_at).toLocaleDateString("he-IL")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleDeleteDocument(doc.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className={`hover:text-red-900 ${
+                          theme === 'dark' ? 'text-red-400 hover:text-red-300' : 'text-red-600'
+                        }`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -528,7 +624,9 @@ const VectorDashboard: React.FC = () => {
 
           {/* Pagination */}
           {documents.length > itemsPerPage && (
-            <div className="px-6 py-3 border-t border-gray-200">
+            <div className={`px-6 py-3 border-t ${
+              theme === 'dark' ? 'border-green-500/30' : 'border-gray-200'
+            }`}>
               <Pagination
                 currentPage={currentPage}
                 totalItems={documents.length}
