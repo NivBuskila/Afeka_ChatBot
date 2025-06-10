@@ -16,6 +16,7 @@ interface ChatInputProps {
 /**
  * ChatInput component with modern floating design
  * Features centered layout, integrated send button, and smooth animations
+ * Supports RTL for Hebrew language
  */
 const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
@@ -27,9 +28,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isWaiting = false,
   placeholder,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [localMessage, setLocalMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // RTL support
+  const isRTL = i18n.language === 'he';
   
   // Determine if we're using props.input or internal state
   const message = input !== undefined ? input : localMessage;
@@ -81,23 +85,28 @@ const ChatInput: React.FC<ChatInputProps> = ({
               placeholder={placeholder || (t('chat.inputPlaceholder') as string) || "Type your message here..."}
               disabled={isDisabled}
               rows={1}
-              className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-0 outline-none resize-none py-4 px-6 pr-14 min-h-[24px] max-h-[120px] leading-6 chat-input-textarea"
+              className={`flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-0 outline-none resize-none py-4 px-6 ${
+                isRTL ? 'pl-14 text-right' : 'pr-14 text-left'
+              } min-h-[24px] max-h-[120px] leading-6 chat-input-textarea`}
+              dir={isRTL ? 'rtl' : 'ltr'}
               aria-label={(t('chat.messageInput') as string) || "Message input"}
             />
             
-            {/* Integrated send button */}
+            {/* Integrated send button with RTL support */}
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!message.trim() || isDisabled}
-              className={`absolute right-3 bottom-3 p-2.5 rounded-xl transition-all duration-200 ease-in-out transform ${
+              className={`absolute ${
+                isRTL ? 'left-3' : 'right-3'
+              } top-1/2 transform -translate-y-1/2 p-2.5 rounded-xl transition-all duration-200 ease-in-out ${
                 !message.trim() || isDisabled
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
                   : 'bg-green-500 text-white hover:bg-green-600 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-400 shadow-md hover:shadow-lg'
               }`}
               aria-label={(t('chat.sendMessage') as string) || "Send message"}
             >
-              <Send className="w-5 h-5" />
+              <Send className={`w-4 h-4 ${isRTL ? 'transform scale-x-[-1]' : ''}`} />
             </button>
           </div>
           
