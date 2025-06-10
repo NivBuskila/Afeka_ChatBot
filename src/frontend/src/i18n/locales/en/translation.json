@@ -94,6 +94,7 @@
     "edit": "Edit"
   },
   "documents": {
+    "edit": "Edit Document",
     "replaceInstructions": "Select a new file to replace the current document:",
     "updateSuccess": "Document updated successfully",
     "updateError": "Error updating document",

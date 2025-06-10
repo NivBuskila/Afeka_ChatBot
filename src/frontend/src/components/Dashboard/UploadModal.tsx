@@ -54,21 +54,21 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/90 dark:bg-black/80 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/30 max-w-lg w-full mx-4 text-gray-800 dark:text-white shadow-2xl">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white/90 dark:bg-black/80 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/30 max-w-lg w-full text-gray-800 dark:text-white shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-gray-300 dark:border-green-500/30">
-          <h2 className="text-xl font-semibold text-green-600 dark:text-green-400">
+          <h2 className="text-xl font-semibold text-green-600 dark:text-green-400 truncate mr-4">
             {i18n.language === 'he' ? 'העלאת מסמך' : 'Upload Document'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-green-400/70 hover:text-gray-700 dark:hover:text-green-400"
+            className="text-gray-500 dark:text-green-400/70 hover:text-gray-700 dark:hover:text-green-400 flex-shrink-0"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto max-h-[calc(100vh-200px)]">
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
               ${isDragging 
@@ -87,12 +87,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
             />
             <Upload className="w-12 h-12 text-green-600 dark:text-green-400/70 mx-auto mb-4" />
-            <p className="text-lg font-medium text-green-600 dark:text-green-400 mb-2">
+            <p className="text-lg font-medium text-green-600 dark:text-green-400 mb-2 break-words">
               {isDragging
                 ? (i18n.language === 'he' ? 'שחרר כאן' : 'Drop Here')
                 : (i18n.language === 'he' ? 'לחץ או גרור קובץ לכאן' : 'Click or drag file here')}
             </p>
-            <p className="text-sm text-gray-600 dark:text-green-400/70">
+            <p className="text-sm text-gray-600 dark:text-green-400/70 break-words">
               {i18n.language === 'he' 
                 ? 'פורמטים נתמכים: PDF, DOC, DOCX, XLS, XLSX, TXT' 
                 : 'Supported formats: PDF, DOC, DOCX, XLS, XLSX, TXT'}

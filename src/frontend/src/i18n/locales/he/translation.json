@@ -94,6 +94,7 @@
     "edit": "ערוך"
   },
   "documents": {
+    "edit": "עריכת מסמך",
     "replaceInstructions": "בחר קובץ חדש כדי להחליף את המסמך הנוכחי:",
     "updateSuccess": "המסמך עודכן בהצלחה",
     "updateError": "אירעה שגיאה בעדכון המסמך",
