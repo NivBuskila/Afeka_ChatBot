@@ -2,22 +2,50 @@
   "keys_usage": {
     "key_0": {
       "2025-06-12": {
-        "tokens_used": 479032,
-        "requests_count": 58,
+        "tokens_used": 604722,
+        "requests_count": 73,
         "first_request": "2025-06-12T01:28:52.937724",
-        "last_request": "2025-06-12T03:29:38.116450",
+        "last_request": "2025-06-12T03:42:01.069624",
         "current_minute_data": {
-          "2025-06-12 03:25": {
-            "tokens": 24892,
-            "requests": 3
+          "2025-06-12 03:41": {
+            "tokens": 100555,
+            "requests": 13
           },
-          "2025-06-12 03:27": {
-            "tokens": 25310,
-            "requests": 3
+          "2025-06-12 03:42": {
+            "tokens": 25135,
+            "requests": 2
+          }
+        }
+      }
+    },
+    "key_1": {
+      "2025-06-12": {
+        "tokens_used": 402848,
+        "requests_count": 48,
+        "first_request": "2025-06-12T03:42:05.196840",
+        "last_request": "2025-06-12T03:56:53.070405",
+        "current_minute_data": {
+          "2025-06-12 03:56": {
+            "tokens": 126330,
+            "requests": 15
+          }
+        }
+      }
+    },
+    "key_2": {
+      "2025-06-12": {
+        "tokens_used": 77007,
+        "requests_count": 30,
+        "first_request": "2025-06-12T03:56:56.732669",
+        "last_request": "2025-06-12T04:12:36.855174",
+        "current_minute_data": {
+          "2025-06-12 04:11": {
+            "tokens": 115,
+            "requests": 2
           },
-          "2025-06-12 03:29": {
-            "tokens": 25348,
-            "requests": 3
+          "2025-06-12 04:12": {
+            "tokens": 522,
+            "requests": 9
           }
         }
       }
@@ -25,12 +53,14 @@
   },
   "daily_totals": {
     "2025-06-12": {
-      "total_tokens": 479032,
-      "total_requests": 58,
+      "total_tokens": 1084577,
+      "total_requests": 151,
       "active_keys": [
-        0
+        0,
+        1,
+        2
       ]
     }
   },
-  "last_updated": "2025-06-12T03:29:38.116450"
+  "last_updated": "2025-06-12T04:12:36.855174"
 }

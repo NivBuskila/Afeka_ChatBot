@@ -49,71 +49,103 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [keyChangeAlert, setKeyChangeAlert] = useState<{show: boolean, oldKey: number, newKey: number} | null>(null);
+  const [previousCurrentKey, setPreviousCurrentKey] = useState<number | null>(null);
 
-  // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData();
-    }, 30000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (managementStatus && previousCurrentKey !== null) {
+      const currentKey = managementStatus.current_key_index;
+      if (currentKey !== previousCurrentKey) {
+        console.log('🔄 [KEY-SWITCH] Key changed from', previousCurrentKey, 'to', currentKey);
+        setKeyChangeAlert({
+          show: true,
+          oldKey: previousCurrentKey,
+          newKey: currentKey
+        });
+        
+        setTimeout(() => {
+          setKeyChangeAlert(null);
+        }, 5000);
+      }
+    }
+    
+    if (managementStatus) {
+      setPreviousCurrentKey(managementStatus.current_key_index);
+    }
+  }, [managementStatus, previousCurrentKey]);
+
   const fetchData = useCallback(async () => {
     try {
-      setIsLoading(true);
+      if (isLoading) {
+        setIsLoading(true);
+      }
+      
       setError(null);
       
-      // Get the AI service URL from environment
       const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
       
-      console.log('🔍 [DASHBOARD-DEBUG] ===== FETCHING TOKEN DATA =====');
-      console.log('🔍 [DASHBOARD-DEBUG] AI Service URL:', AI_SERVICE_URL);
-      console.log('🔍 [DASHBOARD-DEBUG] Full endpoint:', `${AI_SERVICE_URL}/api/key-status`);
-      
-      // Fetch key status from the existing API endpoint
       const response = await fetch(`${AI_SERVICE_URL}/api/key-status`);
       
-      console.log('🔍 [DASHBOARD-DEBUG] Response status:', response.status);
-      console.log('🔍 [DASHBOARD-DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
-      
       if (!response.ok) {
-        console.error('❌ [DASHBOARD-ERROR] HTTP error:', response.status, response.statusText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('🔍 [DASHBOARD-DEBUG] Raw response data:', data);
       
       if (data.status === 'ok' && data.key_management) {
         const keyManagement = data.key_management;
-        console.log('🔍 [DASHBOARD-DEBUG] Key management data:', keyManagement);
+        
+        const prevCurrentKey = managementStatus?.current_key_index;
         
         setManagementStatus(keyManagement);
         
-        // השתמש בנתונים המפורטים החדשים
         const transformedKeys: KeyStatus[] = keyManagement.keys_status.map((keyStatus: any) => {
-          console.log('🔍 [DASHBOARD-DEBUG] Processing key status:', keyStatus);
+          console.log('🔍 [DASHBOARD-DEBUG] Processing key:', keyStatus.id, 'Status:', keyStatus.status, 'Is Current:', keyStatus.is_current);
+          
           return {
             id: keyStatus.id + 1,
             status: keyStatus.status,
             is_current: keyStatus.is_current,
-            tokens_today: keyStatus.tokens_today,
-            requests_today: keyStatus.requests_today,
-            tokens_current_minute: keyStatus.tokens_current_minute,
-            requests_current_minute: keyStatus.requests_current_minute,
+            tokens_today: keyStatus.tokens_today || 0,
+            requests_today: keyStatus.requests_today || 0,
+            tokens_current_minute: keyStatus.tokens_current_minute || 0,
+            requests_current_minute: keyStatus.requests_current_minute || 0,
             next_reset: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
             last_used: keyStatus.last_used,
             first_used_today: keyStatus.first_used_today
           };
         });
         
-        console.log('🔍 [DASHBOARD-DEBUG] Transformed keys:', transformedKeys);
         setKeyData(transformedKeys);
         
-        console.log('🔍 [DASHBOARD-DEBUG] ===== TOKEN DATA FETCH COMPLETE =====');
+        if (prevCurrentKey !== undefined && prevCurrentKey !== keyManagement.current_key_index) {
+          console.log('🔄 [KEY-SWITCH-DETECTED] Key switched from', prevCurrentKey, 'to', keyManagement.current_key_index);
+          setKeyChangeAlert({
+            show: true,
+            oldKey: prevCurrentKey,
+            newKey: keyManagement.current_key_index
+          });
+          
+          setTimeout(() => {
+            setKeyChangeAlert(null);
+          }, 8000);
+        }
+        
+        console.log('🔍 [DASHBOARD-DEBUG] Current key index:', keyManagement.current_key_index);
+        console.log('🔍 [DASHBOARD-DEBUG] Keys by status:', {
+          current: transformedKeys.filter(k => k.status === 'current').map(k => `Key #${k.id}`),
+          available: transformedKeys.filter(k => k.status === 'available').map(k => `Key #${k.id}`),
+          blocked: transformedKeys.filter(k => k.status === 'blocked').map(k => `Key #${k.id}`)
+        });
       } else {
-        console.error('❌ [DASHBOARD-ERROR] Invalid response format:', data);
         throw new Error('Invalid response format from key status API');
       }
       
@@ -124,7 +156,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isLoading, managementStatus]);
 
   useEffect(() => {
     fetchData();
@@ -244,13 +276,29 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
   const blockedKeys = totalKeys - availableKeys;
   const currentKey = keyData.find(k => k.is_current);
 
-  // 🎯 חישוב סכומים כוללים של כל המפתחות
   const totalTokensToday = keyData.reduce((sum, key) => sum + (key.tokens_today || 0), 0);
   const totalRequestsToday = keyData.reduce((sum, key) => sum + (key.requests_today || 0), 0);
+  
+  const activeKeysToday = keyData.filter(k => (k.tokens_today || 0) > 0 || (k.requests_today || 0) > 0).length;
+  const totalCurrentMinuteTokens = keyData.reduce((sum, key) => sum + (key.tokens_current_minute || 0), 0);
+  const totalCurrentMinuteRequests = keyData.reduce((sum, key) => sum + (key.requests_current_minute || 0), 0);
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
+      {keyChangeAlert?.show && (
+        <div className="bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-500/30 rounded-lg p-4 animate-pulse">
+          <div className="flex items-center">
+            <Activity className="w-5 h-5 text-blue-500 mr-2 animate-spin" />
+            <span className="text-blue-700 dark:text-blue-400 font-medium">
+              {language === 'he' 
+                ? `מפתח הוחלף אוטומטית: מפתח #${keyChangeAlert.oldKey + 1} → מפתח #${keyChangeAlert.newKey + 1}`
+                : `API Key switched automatically: Key #${keyChangeAlert.oldKey + 1} → Key #${keyChangeAlert.newKey + 1}`
+              }
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
@@ -258,6 +306,9 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           </h2>
           <p className="text-sm text-gray-600 dark:text-green-400/70 mt-1">
             {language === 'he' ? 'עדכון אחרון:' : 'Last updated:'} {lastUpdate.toLocaleTimeString()}
+            <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded">
+              {language === 'he' ? 'עדכון אוטומטי' : 'Auto-refresh'}
+            </span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -279,7 +330,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 p-4 shadow-lg">
           <div className="flex items-center justify-between">
@@ -330,7 +380,10 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
                 {language === 'he' ? 'טוקנים היום' : 'Tokens Today'}
               </p>
               <p className="text-2xl font-semibold mt-1 text-gray-800 dark:text-green-400">
-                {currentKey?.tokens_today?.toLocaleString() || 'N/A'}
+                {totalTokensToday.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-green-400/50 mt-1">
+                {language === 'he' ? `מ-${activeKeysToday} מפתחות` : `From ${activeKeysToday} keys`}
               </p>
             </div>
             <Coins className="w-8 h-8 text-purple-500" />
@@ -344,7 +397,10 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
                 {language === 'he' ? 'בקשות היום' : 'Requests Today'}
               </p>
               <p className="text-2xl font-semibold mt-1 text-gray-800 dark:text-green-400">
-                {currentKey?.requests_today?.toLocaleString() || 'N/A'}
+                {totalRequestsToday.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-green-400/50 mt-1">
+                {language === 'he' ? `מ-${activeKeysToday} מפתחות` : `From ${activeKeysToday} keys`}
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-orange-500" />
@@ -352,7 +408,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         </div>
       </div>
 
-      {/* Current Key Details */}
       {currentKey && (
         <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-4">
@@ -407,7 +462,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         </div>
       )}
 
-      {/* All Keys Status Table */}
       <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
         <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
           <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">

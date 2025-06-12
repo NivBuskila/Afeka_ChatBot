@@ -515,7 +515,28 @@ def key_status():
         from core.token_persistence import TokenUsagePersistence
         manager = get_key_manager()
         
-        print("🔍 Getting manager status...")
+        print(f"🔍 Manager instance ID: {id(manager)}")
+        print(f"🔍 Current key index at start: {manager.current_key_index}")
+        print(f"🔍 Total API keys: {len(manager.api_keys) if manager.api_keys else 0}")
+        
+        # 🆕 הוספת בדיקה מיידית של המצב
+        print("🔍 Forcing immediate key availability check...")
+        if manager.api_keys:
+            current_key = manager.api_keys[manager.current_key_index]
+            manager._reset_counters_if_needed(current_key)
+            is_current_available = manager._check_limits(current_key)
+            print(f"🔍 Current key {manager.current_key_index} available: {is_current_available}")
+            
+            if not is_current_available:
+                print("🔄 Current key not available, looking for alternative...")
+                available_index = manager._find_available_key()
+                if available_index is not None and available_index != manager.current_key_index:
+                    old_key = manager.current_key_index
+                    manager.current_key_index = available_index
+                    manager._configure_current_key()
+                    print(f"🔄 SWITCHED: {old_key} → {manager.current_key_index}")
+                else:
+                    print("❌ No alternative key found!")
         
         # 🆕 תמיד טען נתונים עדכניים מהקובץ
         import os
@@ -540,10 +561,8 @@ def key_status():
         # 🔄 צור persistence חדש וטען נתונים מחדש
         print("🔄 Creating fresh persistence and reloading data...")
         try:
-            # צור persistence חדש
             manager.persistence = TokenUsagePersistence()
             print("✅ Created new persistence instance")
-            
         except Exception as reload_err:
             print(f"❌ Error creating persistence: {reload_err}")
         
@@ -551,31 +570,35 @@ def key_status():
         print("🔍 Getting detailed status with current minute data...")
         detailed_status = manager.get_detailed_status()
         
-        print(f"🎯 Detailed status result:")
+        print(f"🎯 Final status result:")
         print(f"🎯 - Total keys: {detailed_status.get('total_keys', 'N/A')}")
         print(f"🎯 - Current key index: {detailed_status.get('current_key_index', 'N/A')}")
         print(f"🎯 - Keys status count: {len(detailed_status.get('keys_status', []))}")
         
-        # הדפס נתונים של המפתח הנוכחי
+        # הדפס פירוט של כל מפתח
         keys_status = detailed_status.get('keys_status', [])
-        current_key_index = detailed_status.get('current_key_index', 0)
-        
-        if current_key_index < len(keys_status):
-            current_key = keys_status[current_key_index]
-            print(f"🎯 Current key data:")
-            print(f"🎯 - Tokens today: {current_key.get('tokens_today', 'N/A')}")
-            print(f"🎯 - Requests today: {current_key.get('requests_today', 'N/A')}")
-            print(f"🎯 - Tokens current minute: {current_key.get('tokens_current_minute', 'N/A')}")
-            print(f"🎯 - Requests current minute: {current_key.get('requests_current_minute', 'N/A')}")
-        else:
-            print(f"❌ Current key index {current_key_index} is out of range for {len(keys_status)} keys")
+        for i, key_status in enumerate(keys_status):
+            status = key_status.get('status', 'unknown')
+            is_current = key_status.get('is_current', False)
+            tokens_today = key_status.get('tokens_today', 0)
+            requests_today = key_status.get('requests_today', 0)
+            tokens_minute = key_status.get('tokens_current_minute', 0)
+            requests_minute = key_status.get('requests_current_minute', 0)
+            
+            print(f"🎯 Key {i}:")
+            print(f"🎯   - Status: {status}")
+            print(f"🎯   - Is Current: {is_current}")
+            print(f"🎯   - Tokens today: {tokens_today}")
+            print(f"🎯   - Requests today: {requests_today}")
+            print(f"🎯   - Tokens/min: {tokens_minute}")
+            print(f"🎯   - Requests/min: {requests_minute}")
         
         response_data = {
             "status": "ok",
             "key_management": detailed_status
         }
         
-        print(f"🎯 Sending response with {len(keys_status)} keys")
+        print(f"🎯 Sending response with current key index: {detailed_status.get('current_key_index')}")
         return jsonify(response_data)
         
     except Exception as e:
@@ -587,6 +610,47 @@ def key_status():
             "status": "error", 
             "error": str(e)
         }), 500
+
+@app.route('/api/debug-key-status')
+def debug_key_status():
+    """דיבג מצב מפתחות"""
+    try:
+        from core.gemini_key_manager import get_key_manager
+        manager = get_key_manager()
+        
+        # בדיקה ישירה של מצב המערכת
+        debug_info = {
+            "manager_instance_id": id(manager),
+            "current_key_index_raw": manager.current_key_index,
+            "total_keys": len(manager.api_keys) if manager.api_keys else 0,
+            "key_limits": manager.limits,
+            "keys_detailed": []
+        }
+        
+        # בדיקה ישירה של כל מפתח
+        for i, key in enumerate(manager.api_keys):
+            usage = manager.usage[key]
+            manager._reset_counters_if_needed(key)
+            is_available = manager._check_limits(key)
+            
+            key_info = {
+                "index": i,
+                "is_current": i == manager.current_key_index,
+                "is_available": is_available,
+                "usage": {
+                    "tokens_today": usage.tokens_today,
+                    "requests_today": usage.requests_today,
+                    "tokens_current_minute": usage.tokens_current_minute,
+                    "requests_current_minute": usage.requests_current_minute,
+                },
+                "blocked_until": str(usage.blocked_until) if usage.blocked_until else None
+            }
+            debug_info["keys_detailed"].append(key_info)
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Set up server start time for uptime tracking

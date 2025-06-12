@@ -167,6 +167,30 @@ class GeminiKeyManager:
         except Exception as persistence_err:
             logger.error(f"❌ [TOKEN-ERROR] Failed to save to persistence: {persistence_err}")
         
+        # 🆕 בדיקה האם צריך לעבור למפתח אחר אחרי השימוש
+        logger.info(f"🔍 [TOKEN-TRACK] Checking if key switch is needed after usage...")
+        try:
+            if not self._check_limits(current_key):
+                logger.warning(f"🔄 [TOKEN-TRACK] Current key {self.current_key_index} reached limits, attempting switch...")
+                available_index = self._find_available_key()
+                if available_index is not None and available_index != self.current_key_index:
+                    old_key = self.current_key_index
+                    self.current_key_index = available_index
+                    self._configure_current_key()
+                    logger.warning(f"🔄 [TOKEN-TRACK] Switched from key {old_key} to key {self.current_key_index}")
+                    
+                    # 🆕 תיעוד החלפה
+                    try:
+                        self.persistence.log_key_switch(old_key, self.current_key_index)
+                    except Exception as log_err:
+                        logger.error(f"❌ [TOKEN-TRACK] Failed to log key switch: {log_err}")
+                else:
+                    logger.error(f"❌ [TOKEN-TRACK] No alternative key available!")
+            else:
+                logger.info(f"✅ [TOKEN-TRACK] Current key {self.current_key_index} still within limits")
+        except Exception as switch_err:
+            logger.error(f"❌ [TOKEN-TRACK] Error during key switch check: {switch_err}")
+        
         logger.info(f"🔢 [TOKEN-TRACK] ===== TOKEN TRACKING COMPLETE =====")
 
     def ensure_available_key(self) -> bool:
@@ -208,78 +232,118 @@ class GeminiKeyManager:
         """מצב מפורט עם נתונים מכל המפתחות"""
         logger.info(f"📊 [KEY-MANAGER-DEBUG] ===== GET DETAILED STATUS =====")
         
+        # 🔧 עדכון מיידי של המונים לפני החזרת הסטטוס
+        for i, key in enumerate(self.api_keys):
+            self._reset_counters_if_needed(key)
+        
         # טען נתונים עדכניים מהקובץ לזיכרון
         self._load_existing_usage()
         
         # נתונים מהזיכרון (current)
         memory_status = self.get_status()
         logger.info(f"📊 [KEY-MANAGER-DEBUG] Memory status: {memory_status}")
+        logger.info(f"📊 [KEY-MANAGER-DEBUG] Current key index from memory: {self.current_key_index}")
         
         # נתונים קבועים מהקובץ
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Loading persistent data...")
         all_keys_usage = self.persistence.get_all_keys_usage_today()
         daily_summary = self.persistence.get_daily_summary()
-        
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] All keys usage from file: {list(all_keys_usage.keys())}")
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Daily summary from file: {daily_summary}")
         
         # שילוב הנתונים
         keys_details = []
         for i in range(len(self.api_keys)):
             key_id = f"key_{i}"
-            is_current = i == self.current_key_index
+            is_current = i == self.current_key_index  # 🎯 זה הקריטריון העיקרי
             
             # נתונים יומיים מהקובץ
             persistent_data = all_keys_usage.get(key_id, {})
             tokens_today = persistent_data.get("tokens_used", 0)
             requests_today = persistent_data.get("requests_count", 0)
             
-            # 🆕 נתונים של דקה נוכחית מהקובץ
+            # נתונים של דקה נוכחית מהקובץ
             minute_usage = self.persistence.get_current_minute_usage(i)
             tokens_minute = minute_usage["tokens"]
             requests_minute = minute_usage["requests"]
+            
+            # 🎯 חישוב סטטוס מדויק על בסיס הלימיטים האמיתיים
+            is_blocked = self._is_key_blocked(i, tokens_today, requests_today, tokens_minute, requests_minute)
+            
+            if is_current:
+                status = "current"
+            elif is_blocked:
+                status = "blocked"
+            else:
+                status = "available"
             
             logger.info(f"📊 [KEY-MANAGER-DEBUG] Key {i} ({key_id}):")
             logger.info(f"📊 [KEY-MANAGER-DEBUG] - Today: tokens={tokens_today}, requests={requests_today}")
             logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current minute: tokens={tokens_minute}, requests={requests_minute}")
             logger.info(f"📊 [KEY-MANAGER-DEBUG] - Is current: {is_current}")
+            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Is blocked: {is_blocked}")
+            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Final status: {status}")
             
             key_detail = {
                 "id": i,
                 "is_current": is_current,
-                "status": "current" if is_current else ("available" if i < memory_status['available_keys'] else "blocked"),
+                "status": status,
                 "tokens_today": tokens_today,
                 "requests_today": requests_today,
-                "tokens_current_minute": tokens_minute,  # 🎯 מהקובץ!
-                "requests_current_minute": requests_minute,  # 🎯 מהקובץ!
+                "tokens_current_minute": tokens_minute,
+                "requests_current_minute": requests_minute,
                 "last_used": persistent_data.get("last_request"),
-                "first_used_today": persistent_data.get("first_request")
+                "first_used_today": persistent_data.get("first_request"),
+                # 🆕 הוספת מידע על הגבלות
+                "limits_info": {
+                    "max_requests_per_minute": self.limits['requests_per_minute'],
+                    "max_requests_per_day": self.limits['requests_per_day'],
+                    "max_tokens_per_day": self.limits['tokens_per_day']
+                }
             }
             
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] Key {i} final detail: {key_detail}")
             keys_details.append(key_detail)
+        
+        # 🔧 חישוב מחדש של מפתחות זמינים ומחוסמים
+        available_count = sum(1 for detail in keys_details if detail['status'] == 'available')
+        blocked_count = sum(1 for detail in keys_details if detail['status'] == 'blocked')
         
         result = {
             "total_keys": len(self.api_keys),
-            "available_keys": memory_status['available_keys'],
-            "blocked_keys": len(self.api_keys) - memory_status['available_keys'],
+            "available_keys": available_count + 1,  # +1 for current key
+            "blocked_keys": blocked_count,
             "current_key_index": self.current_key_index,
             "keys_status": keys_details,
             "daily_summary": daily_summary,
-            "memory_status": memory_status
+            "memory_status": memory_status,
+            "last_updated": datetime.now().isoformat()
         }
         
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Final result summary:")
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current key index: {self.current_key_index}")
-        if self.current_key_index < len(keys_details):
-            current_key_detail = keys_details[self.current_key_index]
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current key tokens today: {current_key_detail['tokens_today']}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current key requests today: {current_key_detail['requests_today']}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current key tokens/min: {current_key_detail['tokens_current_minute']}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current key requests/min: {current_key_detail['requests_current_minute']}")
+        logger.info(f"📊 [KEY-MANAGER-DEBUG] Final result - Current key: {self.current_key_index}")
+        logger.info(f"📊 [KEY-MANAGER-DEBUG] Available keys: {available_count + 1}, Blocked keys: {blocked_count}")
         logger.info(f"📊 [KEY-MANAGER-DEBUG] ===== GET DETAILED STATUS COMPLETE =====")
         
         return result
+
+    def _is_key_blocked(self, key_index: int, tokens_today: int, requests_today: int, tokens_minute: int, requests_minute: int) -> bool:
+        """בדיקה האם מפתח חסום על בסיס הנתונים הקיימים"""
+        # 🎯 בדיקת לימיטים מדויקת - אם הגיע לליטמיט בדיוק, זה blocked
+        
+        # לימיט בקשות בדקה (15)
+        if requests_minute >= self.limits['requests_per_minute']:
+            logger.info(f"🚫 [LIMIT-CHECK] Key {key_index} blocked: requests_minute {requests_minute} >= {self.limits['requests_per_minute']}")
+            return True
+        
+        # לימיט בקשות ביום (1500)
+        if requests_today >= self.limits['requests_per_day']:
+            logger.info(f"🚫 [LIMIT-CHECK] Key {key_index} blocked: requests_today {requests_today} >= {self.limits['requests_per_day']}")
+            return True
+        
+        # לימיט טוקנים ביום (1,000,000)
+        if tokens_today >= self.limits['tokens_per_day']:
+            logger.info(f"🚫 [LIMIT-CHECK] Key {key_index} blocked: tokens_today {tokens_today} >= {self.limits['tokens_per_day']}")
+            return True
+        
+        logger.info(f"✅ [LIMIT-CHECK] Key {key_index} available: within all limits")
+        return False
+
 
     def _load_existing_usage(self):
         """טעינת נתונים קיימים מהקובץ לזיכרון"""
@@ -301,6 +365,64 @@ class GeminiKeyManager:
                     
         except Exception as load_err:
             logger.error(f"❌ [KEY-MANAGER] Error loading existing usage: {load_err}")
+    
+    def safe_generate_content(*args, **kwargs) -> Any:
+        """Wrapper בטוח לgenerative content"""
+        manager = get_key_manager()
+        
+        # 🎯 וידוא שיש מפתח זמין ועדכון current_key_index אם צריך
+        if not manager.ensure_available_key():
+            raise Exception("No available Gemini API keys")
+        
+        # 🆕 לוג המפתח שבשימוש לפני הבקשה
+        logger.info(f"🔥 [API-CALL] Using key #{manager.current_key_index} for content generation")
+        
+        try:
+            # ביצוע הבקשה
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            response = model.generate_content(*args, **kwargs)
+            
+            # עדכון שימוש (הערכה)
+            estimated_tokens = len(str(args)) // 4 if args else 100
+            
+            # 🆕 לוג השימוש
+            logger.info(f"🔥 [API-CALL] Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
+            
+            manager.track_usage(estimated_tokens)
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
+            raise
+
+def safe_embed_content(*args, **kwargs) -> Any:
+    """Wrapper בטוח לembedding content"""
+    manager = get_key_manager()
+    
+    # 🎯 וידוא שיש מפתח זמין
+    if not manager.ensure_available_key():
+        raise Exception("No available Gemini API keys")
+    
+    # 🆕 לוג המפתח שבשימוש לפני הבקשה
+    logger.info(f"🔥 [API-CALL] Using key #{manager.current_key_index} for embedding")
+    
+    try:
+        response = genai.embed_content(*args, **kwargs)
+        
+        # עדכון שימוש
+        estimated_tokens = len(str(args)) // 4 if args else 50
+        
+        # 🆕 לוג השימוש
+        logger.info(f"🔥 [API-CALL] Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
+        
+        manager.track_usage(estimated_tokens)
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Gemini Embedding API error: {e}")
+        raise
 
 # Instance יחיד גלובלי
 _key_manager = None
