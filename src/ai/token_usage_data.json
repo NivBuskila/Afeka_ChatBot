@@ -1,0 +1,36 @@
+{
+  "keys_usage": {
+    "key_0": {
+      "2025-06-12": {
+        "tokens_used": 479032,
+        "requests_count": 58,
+        "first_request": "2025-06-12T01:28:52.937724",
+        "last_request": "2025-06-12T03:29:38.116450",
+        "current_minute_data": {
+          "2025-06-12 03:25": {
+            "tokens": 24892,
+            "requests": 3
+          },
+          "2025-06-12 03:27": {
+            "tokens": 25310,
+            "requests": 3
+          },
+          "2025-06-12 03:29": {
+            "tokens": 25348,
+            "requests": 3
+          }
+        }
+      }
+    }
+  },
+  "daily_totals": {
+    "2025-06-12": {
+      "total_tokens": 479032,
+      "total_requests": 58,
+      "active_keys": [
+        0
+      ]
+    }
+  },
+  "last_updated": "2025-06-12T03:29:38.116450"
+}

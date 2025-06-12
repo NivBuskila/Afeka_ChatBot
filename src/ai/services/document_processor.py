@@ -17,6 +17,7 @@ import tiktoken
 from supabase import create_client, Client
 import PyPDF2
 from docx import Document as DocxDocument
+from ..core.gemini_key_manager import get_key_manager, safe_embed_content
 
 # Import SemanticChunker and Gemini Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -28,6 +29,9 @@ from ..config.rag_config import (
     get_database_config,
     get_performance_config
 )
+
+
+key_manager = get_key_manager()
 
 logger = logging.getLogger(__name__)
 
@@ -418,8 +422,8 @@ class DocumentProcessor:
             # Using the model specified for embeddings, e.g., "models/embedding-001"
             # Task types: "retrieval_query", "retrieval_document", "semantic_similarity", "classification", "clustering"
             logger.debug(f"Calling genai.embed_content with model {self.embedding_config.MODEL_NAME} and task_type {task_type}")
-            result = genai.embed_content(
-                model=self.embedding_config.MODEL_NAME, # Correct embedding model
+            result = safe_embed_content(
+                model=self.embedding_config.MODEL_NAME,
                 content=text,
                 task_type=task_type
             )

@@ -14,7 +14,8 @@ import {
   Brain,
   Cpu,
   TrendingUp,
-  Search
+  Search,
+  Coins
 } from 'lucide-react';
 import { translations } from './translations';
 
@@ -70,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <BarChart3 className="w-5 h-5" />,
       subItems: [
         { id: 'overview', title: t('analytics.overview'), icon: <BarChart3 className="w-4 h-4" /> },
+        { id: 'token-usage', title: t('analytics.token.usage'), icon: <Coins className="w-4 h-4" /> },
         { id: 'users', title: t('analytics.users'), icon: <Users className="w-4 h-4" /> },
         { id: 'admins', title: t('analytics.admins'), icon: <UserCog className="w-4 h-4" /> }
       ]

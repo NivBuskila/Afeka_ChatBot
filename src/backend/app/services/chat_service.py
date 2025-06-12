@@ -11,6 +11,11 @@ backend_dir = Path(__file__).parent.parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
+# Add AI path to sys.path
+ai_path = Path(__file__).parent.parent.parent.parent / "ai"
+if str(ai_path) not in sys.path:
+    sys.path.insert(0, str(ai_path))
+
 from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
@@ -27,6 +32,7 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
 )
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from core.gemini_key_manager import get_key_manager
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +62,12 @@ class ChatService(IChatService):
             return
 
         try:
+            # Before creating the LLM, get current key
+            key_manager = get_key_manager()
+            current_key = key_manager.api_keys[key_manager.current_key_index]
+
             self.llm = ChatGoogleGenerativeAI(
-                google_api_key=settings.GEMINI_API_KEY,
+                google_api_key=current_key,  # Use key from manager
                 model=settings.GEMINI_MODEL_NAME,
                 temperature=settings.GEMINI_TEMPERATURE,
                 max_output_tokens=settings.GEMINI_MAX_TOKENS
@@ -88,6 +98,44 @@ class ChatService(IChatService):
             logger.error(f"Error initializing LangChain components with Gemini: {e}", exc_info=True)
             self.llm = None
             self.conversation_chain = None
+
+    def _track_token_usage(self, user_message: str, ai_response: str, method: str = "chat"):
+        """Track token usage with the key manager"""
+        try:
+            # 🔍 DEBUG: הוספת לוגים מפורטים
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] ===== TRACKING TOKEN USAGE =====")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Method: {method}")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] User message length: {len(user_message)}")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] AI response length: {len(ai_response)}")
+            
+            key_manager = get_key_manager()
+            
+            # Estimate tokens based on text length (rough approximation)
+            # Typically ~4 characters per token for mixed content
+            input_tokens = len(user_message) // 4
+            output_tokens = len(ai_response) // 4
+            total_tokens = input_tokens + output_tokens
+            
+            # Add some overhead for system prompt and context
+            system_overhead = 50  # Rough estimate
+            total_tokens += system_overhead
+            
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Estimated tokens:")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Input: {input_tokens}")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Output: {output_tokens}")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Overhead: {system_overhead}")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Total: {total_tokens}")
+            
+            # Track usage with the key manager
+            key_manager.track_usage(total_tokens)
+            
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens")
+            logger.info(f"🔢 [CHAT-TOKEN-TRACK] ===== TOKEN TRACKING COMPLETE =====")
+            
+        except Exception as e:
+            logger.error(f"❌ [CHAT-TOKEN-ERROR] Error tracking token usage: {e}")
+            import traceback
+            logger.error(f"❌ [CHAT-TOKEN-ERROR] Traceback: {traceback.format_exc()}")
 
     def _get_current_rag_service(self) -> Optional[Any]:
         """מחזיר RAGService עם cache חכם שבודק שינויים בפרופיל"""
@@ -153,6 +201,12 @@ class ChatService(IChatService):
     ) -> Dict[str, Any]:
         """Process a chat message using LangChain with Gemini and return an AI response."""
 
+        # 🔍 DEBUG: הוספת לוגים מפורטים
+        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] ===== PROCESSING CHAT MESSAGE =====")
+        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] User ID: {user_id}")
+        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] Message: {user_message[:50]}...")
+        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] History provided: {len(history) if history else 0} messages")
+
         if not self.conversation_chain:
             logger.error("ConversationChain (Gemini) is not initialized. GEMINI_API_KEY might be missing or initialization failed.")
             raise HTTPException(status_code=500, detail="AI Service (Gemini/LangChain) not initialized. Check GEMINI_API_KEY and server logs.")
@@ -192,6 +246,10 @@ class ChatService(IChatService):
             response_content = self.conversation_chain.predict(input=user_message)
             logger.debug(f"LangChain conversation chain - AI response: {response_content[:100]}...")
             
+            # 🔥 TRACK TOKEN USAGE FOR CONVERSATION
+            logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for conversation response")
+            self._track_token_usage(user_message, response_content, "conversation")
+            
             return {
                 "response": response_content,
                 "sources": [],
@@ -227,6 +285,10 @@ class ChatService(IChatService):
                     self.memory.chat_memory.add_user_message(user_message)
                     self.memory.chat_memory.add_ai_message(rag_response["answer"])
                     
+                    # 🔥 TRACK TOKEN USAGE FOR RAG RESPONSE
+                    logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for RAG response")
+                    self._track_token_usage(user_message, rag_response["answer"], "rag")
+                    
                     return {
                         "response": rag_response["answer"],
                         "sources": rag_response.get("sources", []),
@@ -244,6 +306,10 @@ class ChatService(IChatService):
         # Fallback to LangChain conversation chain (preserves memory)
         response_content = self.conversation_chain.predict(input=user_message)
         logger.debug(f"LangChain conversation chain fallback - AI response: {response_content[:100]}...")
+        
+        # 🔥 TRACK TOKEN USAGE FOR FALLBACK RESPONSE
+        logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for fallback response")
+        self._track_token_usage(user_message, response_content, "fallback")
         
         return {
             "response": response_content,

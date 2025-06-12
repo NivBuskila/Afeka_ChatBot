@@ -10,6 +10,9 @@ import google.generativeai as genai
 from supabase import create_client, Client
 import numpy as np
 
+from ..config.current_profile import get_current_profile
+from ..config.rag_config_profiles import get_profile
+
 # ייבוא קובץ ההגדרות החדש
 from ..config.rag_config import (
     rag_config,
@@ -21,6 +24,9 @@ from ..config.rag_config import (
     get_performance_config
 )
 
+# 🔥 הוספת הKey Manager
+from core.gemini_key_manager import get_key_manager
+
 logger = logging.getLogger(__name__)
 
 class RAGService:
@@ -30,11 +36,19 @@ class RAGService:
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         )
         
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is required")
-            
-        genai.configure(api_key=api_key)
+        # 🔥 שימוש ב-Key Manager במקום API Key ישיר
+        try:
+            self.key_manager = get_key_manager()
+            logger.info("🔑 RAG Service using Key Manager for API calls")
+        except Exception as e:
+            logger.error(f"Failed to initialize Key Manager: {e}")
+            # Fallback to direct API key
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY environment variable is required")
+            genai.configure(api_key=api_key)
+            self.key_manager = None
+            logger.warning("⚠️ RAG Service using direct API key (no token tracking)")
         
         # 🎯 טעינת פרופיל מהמערכת המרכזית
         if config_profile is None:
@@ -75,6 +89,12 @@ class RAGService:
             self.db_config = get_database_config()
             self.performance_config = get_performance_config()
         
+        # 🔥 יצירת מודל Gemini עם Key Manager
+        if self.key_manager:
+            # Configure with current key from manager
+            current_key = self.key_manager.api_keys[self.key_manager.current_key_index]
+            genai.configure(api_key=current_key)
+        
         # יצירת מודל Gemini עם הגדרות מהconfig
         self.model = genai.GenerativeModel(
             self.llm_config.MODEL_NAME,
@@ -89,14 +109,43 @@ class RAGService:
                    f"Max chunks: {self.search_config.MAX_CHUNKS_RETRIEVED}, "
                    f"Model: {self.llm_config.MODEL_NAME}")
     
+    def _track_embedding_usage(self, text: str):
+        """Track token usage for embedding generation"""
+        if self.key_manager:
+            # Estimate tokens for embedding (much smaller than generation)
+            estimated_tokens = len(text) // 8  # Embeddings use fewer tokens
+            logger.info(f"🔢 [RAG-EMBED-TRACK] Tracking {estimated_tokens} tokens for embedding")
+            self.key_manager.track_usage(estimated_tokens)
+
+    def _track_generation_usage(self, prompt: str, response: str):
+        """Track token usage for text generation"""
+        if self.key_manager:
+            input_tokens = len(prompt) // 4
+            output_tokens = len(response) // 4
+            total_tokens = input_tokens + output_tokens
+            logger.info(f"🔢 [RAG-GEN-TRACK] Tracking {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
+            self.key_manager.track_usage(total_tokens)
+    
     async def generate_query_embedding(self, query: str) -> List[float]:
         """יוצר embedding עבור שאילתה"""
         try:
+            # 🔥 Ensure we're using current key if Key Manager available
+            if self.key_manager and not self.key_manager.ensure_available_key():
+                raise Exception("No available API keys for embedding")
+            
+            if self.key_manager:
+                current_key = self.key_manager.api_keys[self.key_manager.current_key_index]
+                genai.configure(api_key=current_key)
+            
             embedding_model = genai.embed_content(
                 model=self.embedding_config.MODEL_NAME,
                 content=query,
                 task_type=self.embedding_config.TASK_TYPE_QUERY
             )
+            
+            # 🔥 Track usage
+            self._track_embedding_usage(query)
+            
             return embedding_model['embedding']
         except Exception as e:
             logger.error(f"Error generating query embedding: {e}")
@@ -415,8 +464,33 @@ class RAGService:
         """יוצר תוכן עם retry logic למקרה של rate limiting"""
         for attempt in range(max_retries):
             try:
+                # 🔥 Ensure we're using current key if Key Manager available
+                if self.key_manager and not self.key_manager.ensure_available_key():
+                    raise Exception("No available API keys for generation")
+                
+                if self.key_manager:
+                    current_key = self.key_manager.api_keys[self.key_manager.current_key_index]
+                    genai.configure(api_key=current_key)
+                    
+                    # Recreate model with current key
+                    self.model = genai.GenerativeModel(
+                        self.llm_config.MODEL_NAME,
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=self.llm_config.TEMPERATURE,
+                            max_output_tokens=self.llm_config.MAX_OUTPUT_TOKENS
+                        )
+                    )
+                
+                logger.info(f"🔢 [RAG-GEN-DEBUG] Generating response for prompt length: {len(prompt)}")
                 response = await self.model.generate_content_async(prompt)
-                return response.text
+                response_text = response.text
+                
+                # 🔥 Track usage
+                self._track_generation_usage(prompt, response_text)
+                
+                logger.info(f"🔢 [RAG-GEN-DEBUG] Generated response length: {len(response_text)}")
+                return response_text
+                
             except Exception as e:
                 error_str = str(e)
                 

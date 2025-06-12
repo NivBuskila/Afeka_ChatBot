@@ -29,6 +29,7 @@ import {
   Sun,
   Moon,
   Globe,
+  Coins,
 } from "lucide-react";
 import "./AdminDashboard.css";
 import { translations } from "./translations";
@@ -52,6 +53,8 @@ import {
 import { Pagination, usePagination } from "../common/Pagination";
 import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
 import { useTheme } from '../../contexts/ThemeContext';
+import { TokensUsageDashboard } from "./TokensUsageDashboard";
+import TokenUsageAnalytics from "./TokenUsageAnalytics";
 // import type { Document } from '../../config/supabase';
 
 // Local Document interface for AdminDashboard
@@ -273,6 +276,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           id: "overview",
           title: t("admin.sidebar.overview"),
           icon: <BarChart3 className="w-4 h-4" />,
+        },
+        {
+          id: "token-usage",
+          title: t("analytics.token.usage"),
+          icon: <Coins className="w-4 h-4" />,
         },
         {
           id: "users",
@@ -802,7 +810,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         );
       case "analytics":
-        if (activeSubItem === "users") {
+        if (activeSubItem === "token-usage") {
+          return <TokenUsageAnalytics language={language} />;
+        } else if (activeSubItem === "users") {
           // Filter only regular users (not admins)
           const regularUsers = analytics.recentUsers.filter((user) => {
             // Check if user is not in the admins list

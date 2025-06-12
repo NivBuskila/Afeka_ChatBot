@@ -85,6 +85,74 @@ export const translations: Translations = {
     he: 'מהשבוע שעבר',
     en: 'from last week'
   },
+  'analytics.token.usage': {
+    he: 'ניתוח שימוש ב-API',
+    en: 'Token Usage'
+  },
+  'analytics.api.keys': {
+    he: 'מפתחות API',
+    en: 'API Keys'
+  },
+  'analytics.available.keys': {
+    he: 'מפתחות זמינים',
+    en: 'Available Keys'
+  },
+  'analytics.blocked.keys': {
+    he: 'מפתחות חסומים',
+    en: 'Blocked Keys'
+  },
+  'analytics.total.requests': {
+    he: 'סך כל הבקשות',
+    en: 'Total Requests'
+  },
+  'analytics.usage.by.key': {
+    he: 'שימוש לפי מפתח',
+    en: 'Usage by Key'
+  },
+  'analytics.requests.timeline': {
+    he: 'בקשות לאורך זמן',
+    en: 'Requests Timeline'
+  },
+  'analytics.key.status.details': {
+    he: 'מצב מפתחות מפורט',
+    en: 'Key Status Details'
+  },
+  'analytics.export.csv': {
+    he: 'ייצא CSV',
+    en: 'Export CSV'
+  },
+  'analytics.refresh': {
+    he: 'רענן',
+    en: 'Refresh'
+  },
+  'analytics.last.updated': {
+    he: 'עדכון אחרון',
+    en: 'Last updated'
+  },
+  'analytics.key.id': {
+    he: 'מזהה מפתח',
+    en: 'Key ID'
+  },
+  'analytics.status': {
+    he: 'סטטוס',
+    en: 'Status'
+  },
+  'analytics.tokens.today': {
+    he: 'טוקנים היום',
+    en: 'Tokens Today'
+  },
+  'analytics.tokens.minute': {
+    he: 'טוקנים/דקה',
+    en: 'Tokens/Min'
+  },
+  'analytics.requests.minute': {
+    he: 'בקשות/דקה',
+    en: 'Requests/Min'
+  },
+  'analytics.next.reset': {
+    he: 'איפוס הבא',
+    en: 'Next Reset'
+  },
 
   // Documents
   'documents.add': {

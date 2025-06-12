@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 import dotenv
 from flask_cors import CORS  # הוספת ייבוא של flask_cors
+from core.gemini_key_manager import safe_generate_content
 
 # הוספת הנתיב לתיקיית backend כדי לאפשר גישה למודולים של RAG
 backend_path = Path(__file__).parent.parent / "backend"
@@ -38,8 +39,11 @@ if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.")
     raise ValueError("GEMINI_API_KEY environment variable is required but not found")
 
-# שימוש ב-configure במקום ביצירת מופע Client
-genai.configure(api_key=GEMINI_API_KEY)
+# # שימוש ב-configure במקום ביצירת מופע Client
+# genai.configure(api_key=GEMINI_API_KEY)
+from core.gemini_key_manager import get_key_manager
+# Initialize key manager
+key_manager = get_key_manager()
 
 # Create Flask app
 app = Flask(__name__)
@@ -463,8 +467,7 @@ def chat():
                 logger.error(f"Error using enhanced RAG: {str(rag_err)}")
                 # Fallback to regular Gemini without RAG
                 try:
-                    model = genai.GenerativeModel("gemini-2.0-flash")
-                    gemini_response = model.generate_content(user_message)
+                    gemini_response = safe_generate_content(user_message)
                     ai_response = gemini_response.text
                     logger.info("Fallback to basic Gemini response")
                 except Exception as gemini_error:
@@ -472,8 +475,7 @@ def chat():
         else:
             # Use basic Gemini without RAG
             try:
-                model = genai.GenerativeModel("gemini-2.0-flash")
-                gemini_response = model.generate_content(user_message)
+                gemini_response = safe_generate_content(user_message)
                 ai_response = gemini_response.text
                 logger.info("Using basic Gemini response (no RAG)")
             except Exception as gemini_error:
@@ -502,6 +504,89 @@ def chat():
         })
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
         return response, 500
+
+@app.route('/api/key-status')
+def key_status():
+    """מצב מנגנון המפתחות"""
+    print("🚨🚨🚨 KEY-STATUS CALLED! 🚨🚨🚨")
+    
+    try:
+        from core.gemini_key_manager import get_key_manager
+        from core.token_persistence import TokenUsagePersistence
+        manager = get_key_manager()
+        
+        print("🔍 Getting manager status...")
+        
+        # 🆕 תמיד טען נתונים עדכניים מהקובץ
+        import os
+        import shutil
+        
+        current_dir = os.getcwd()
+        ai_file = os.path.join(current_dir, "token_usage_data.json")
+        backend_file = os.path.join(current_dir, "..", "backend", "token_usage_data.json")
+        backend_file = os.path.abspath(backend_file)
+        
+        print(f"📁 AI file exists: {os.path.exists(ai_file)}")
+        print(f"📁 Backend file exists: {os.path.exists(backend_file)}")
+        
+        # 🔄 תמיד העתק את הקובץ העדכני מהבקאנד
+        if os.path.exists(backend_file):
+            try:
+                shutil.copy2(backend_file, ai_file)
+                print(f"✅ Updated file from backend")
+            except Exception as copy_err:
+                print(f"❌ Error copying file: {copy_err}")
+        
+        # 🔄 צור persistence חדש וטען נתונים מחדש
+        print("🔄 Creating fresh persistence and reloading data...")
+        try:
+            # צור persistence חדש
+            manager.persistence = TokenUsagePersistence()
+            print("✅ Created new persistence instance")
+            
+        except Exception as reload_err:
+            print(f"❌ Error creating persistence: {reload_err}")
+        
+        # 🎯 השתמש בפונקציה החדשה get_detailed_status
+        print("🔍 Getting detailed status with current minute data...")
+        detailed_status = manager.get_detailed_status()
+        
+        print(f"🎯 Detailed status result:")
+        print(f"🎯 - Total keys: {detailed_status.get('total_keys', 'N/A')}")
+        print(f"🎯 - Current key index: {detailed_status.get('current_key_index', 'N/A')}")
+        print(f"🎯 - Keys status count: {len(detailed_status.get('keys_status', []))}")
+        
+        # הדפס נתונים של המפתח הנוכחי
+        keys_status = detailed_status.get('keys_status', [])
+        current_key_index = detailed_status.get('current_key_index', 0)
+        
+        if current_key_index < len(keys_status):
+            current_key = keys_status[current_key_index]
+            print(f"🎯 Current key data:")
+            print(f"🎯 - Tokens today: {current_key.get('tokens_today', 'N/A')}")
+            print(f"🎯 - Requests today: {current_key.get('requests_today', 'N/A')}")
+            print(f"🎯 - Tokens current minute: {current_key.get('tokens_current_minute', 'N/A')}")
+            print(f"🎯 - Requests current minute: {current_key.get('requests_current_minute', 'N/A')}")
+        else:
+            print(f"❌ Current key index {current_key_index} is out of range for {len(keys_status)} keys")
+        
+        response_data = {
+            "status": "ok",
+            "key_management": detailed_status
+        }
+        
+        print(f"🎯 Sending response with {len(keys_status)} keys")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error", 
+            "error": str(e)
+        }), 500
 
 if __name__ == '__main__':
     # Set up server start time for uptime tracking
