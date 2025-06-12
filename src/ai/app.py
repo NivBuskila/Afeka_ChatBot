@@ -9,6 +9,7 @@ from pathlib import Path
 import dotenv
 from flask_cors import CORS  # הוספת ייבוא של flask_cors
 from core.gemini_key_manager import safe_generate_content
+from core.gemini_key_manager import get_key_manager
 
 # הוספת הנתיב לתיקיית backend כדי לאפשר גישה למודולים של RAG
 backend_path = Path(__file__).parent.parent / "backend"
@@ -41,7 +42,7 @@ if not GEMINI_API_KEY:
 
 # # שימוש ב-configure במקום ביצירת מופע Client
 # genai.configure(api_key=GEMINI_API_KEY)
-from core.gemini_key_manager import get_key_manager
+
 # Initialize key manager
 key_manager = get_key_manager()
 
@@ -388,7 +389,7 @@ def rag_document_status(document_id):
 
 # Main chat endpoint
 @app.route('/chat', methods=['POST'])
-def chat():
+async def chat():
     """
     Process user message with Gemini API
     """
@@ -467,17 +468,45 @@ def chat():
                 logger.error(f"Error using enhanced RAG: {str(rag_err)}")
                 # Fallback to regular Gemini without RAG
                 try:
-                    gemini_response = safe_generate_content(user_message)
+                    # השתמש ב-Key Manager:
+                    key_manager = get_key_manager()
+                    api_key = await key_manager.get_next_available_key()
+                    
+                    if not api_key:
+                        return jsonify({"error": "No available API keys"}), 503
+                    
+                    # השתמש במפתח...
+                    gemini_response = await safe_generate_content(user_message, api_key)
                     ai_response = gemini_response.text
                     logger.info("Fallback to basic Gemini response")
+                    
+                    # רשום שימוש
+                    await key_manager.record_usage(
+                        tokens_used=100,  # הערכה קבועה
+                        requests_count=1
+                    )
                 except Exception as gemini_error:
                     logger.error(f"Gemini fallback also failed: {str(gemini_error)}")
         else:
             # Use basic Gemini without RAG
             try:
-                gemini_response = safe_generate_content(user_message)
+                # השתמש ב-Key Manager:
+                key_manager = get_key_manager()
+                api_key = await key_manager.get_next_available_key()
+                
+                if not api_key:
+                    return jsonify({"error": "No available API keys"}), 503
+                
+                # השתמש במפתח...
+                gemini_response = await safe_generate_content(user_message, api_key)
                 ai_response = gemini_response.text
                 logger.info("Using basic Gemini response (no RAG)")
+                
+                # רשום שימוש
+                await key_manager.record_usage(
+                    tokens_used=100,  # הערכה קבועה
+                    requests_count=1
+                )
             except Exception as gemini_error:
                 logger.error(f"Gemini API error: {str(gemini_error)}")
         
@@ -505,6 +534,7 @@ def chat():
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
         return response, 500
 
+@app.route('/status')
 @app.route('/api/key-status')
 def key_status():
     """מצב מנגנון המפתחות"""
@@ -606,10 +636,30 @@ def key_status():
         import traceback
         traceback.print_exc()
         
-        return jsonify({
-            "status": "error", 
-            "error": str(e)
-        }), 500
+        # 🆕 במקרה של שגיאה, החזר לפחות נתונים בסיסיים
+        try:
+            from core.gemini_key_manager import get_key_manager
+            manager = get_key_manager()
+            basic_response = {
+                "status": "error",
+                "error": str(e),
+                "key_management": {
+                    "current_key_index": getattr(manager, 'current_key_index', 0),
+                    "total_keys": len(getattr(manager, 'api_keys', [])),
+                    "available_keys": 1
+                }
+            }
+            return jsonify(basic_response), 500
+        except:
+            return jsonify({
+                "status": "error", 
+                "error": str(e),
+                "key_management": {
+                    "current_key_index": 0,
+                    "total_keys": 0,
+                    "available_keys": 0
+                }
+            }), 500
 
 @app.route('/api/debug-key-status')
 def debug_key_status():
@@ -651,6 +701,19 @@ def debug_key_status():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def count_tokens(response) -> int:
+    """הערכת מספר טוקנים על בסיס אורך התוכן"""
+    if hasattr(response, 'text'):
+        text = response.text
+    elif isinstance(response, str):
+        text = response
+    else:
+        text = str(response)
+    
+    # הערכה פשוטה: בערך 4 תווים = 1 טוקן
+    estimated_tokens = max(len(text) // 4, 1)
+    return estimated_tokens
 
 if __name__ == '__main__':
     # Set up server start time for uptime tracking

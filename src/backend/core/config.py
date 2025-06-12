@@ -36,8 +36,8 @@ AI_SERVICE_URL = os.environ.get("AI_SERVICE_URL", "http://localhost:5000")
 API_KEY_NAME = "X-API-Key"
 INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY", secrets.token_urlsafe(32))
 
-# Rate Limiting
-API_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "100"))
+# Rate Limiting - מוגדל לטסטים של מעבר מפתחות
+API_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "500"))
 
 # Other settings
 # Example: Max document size

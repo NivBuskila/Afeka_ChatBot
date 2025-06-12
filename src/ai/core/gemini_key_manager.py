@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 import google.generativeai as genai
 from .token_persistence import TokenUsagePersistence
+import asyncio
+from .database_key_manager import DatabaseKeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +27,14 @@ class GeminiKeyManager:
     
     def __init__(self):
         logger.info("🔧 [KEY-MANAGER] ===== INITIALIZING KEY MANAGER =====")
-        self.api_keys = self._load_keys()
-        logger.info(f"🔧 [KEY-MANAGER] Loaded {len(self.api_keys)} API keys")
+        
+        # 🆕 תמיד השתמש בחיבור ישיר ל-Supabase כדי למנוע בעיות תלות
+        self.database_manager = DatabaseKeyManager(use_direct_supabase=True)
+        self.api_keys = []
+        self.current_key_index = 0
+        
+        # 🔄 שנה זאת: בדלה fallback ל-.env אם דאטה בייס לא זמין
+        self._load_keys_with_fallback()
         
         # Initialize usage tracking for each key
         self.usage = {}
@@ -41,7 +49,6 @@ class GeminiKeyManager:
         logger.info("🔧 [KEY-MANAGER] Loading existing usage data...")
         self._load_existing_usage()
         
-        self.current_key_index = 0
         self._configure_current_key()
         
         # Rate limiting configuration
@@ -54,22 +61,63 @@ class GeminiKeyManager:
         logger.info(f"🔧 [KEY-MANAGER] Initialized with {len(self.api_keys)} keys, current key: {self.current_key_index}")
         logger.info("🔧 [KEY-MANAGER] ===== KEY MANAGER INITIALIZATION COMPLETE =====")
 
-    def _load_keys(self) -> List[str]:
-        """טעינת מפתחות מסביבה"""
-        keys = []
+    def _load_keys_with_fallback(self):
+        """טעינת מפתחות עם fallback ל-.env"""
+        try:
+            # 🆕 נסה לטעון ישירות מדאטה בייס (ללא תלות בבקאנד)
+            logger.info("🔄 Attempting to load keys directly from Supabase...")
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # Timeout של 5 שניות
+            future = asyncio.wait_for(self._load_keys_from_database(), timeout=5.0)
+            loop.run_until_complete(future)
+            
+            if self.api_keys:
+                print(f"🔑 Loaded {len(self.api_keys)} keys from database")
+                return
+            else:
+                logger.warning("⚠️  No keys found in database, falling back to .env")
+                
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.warning(f"⚠️  Could not load from database: {e}")
+            logger.info("🔄 Falling back to .env keys...")
         
-        # מפתח יחיד (תאימות אחורה)
-        single_key = os.getenv('GEMINI_API_KEY')
-        if single_key:
-            keys.append(single_key)
+        # Fallback ל-.env
+        self._load_keys_from_env()
+
+
+
+    def _load_keys_from_env(self):
+        """טעינת מפתחות מ-.env (fallback)"""
+        env_keys = []
+        
+        # מפתח יחיד
+        main_key = os.getenv('GEMINI_API_KEY')
+        if main_key:
+            env_keys.append(main_key)
         
         # מפתחות מרובים
-        for i in range(1, 8):  # תמיכה ב-7 מפתחות
+        for i in range(1, 8):
             key = os.getenv(f'GEMINI_API_KEY_{i}')
-            if key:
-                keys.append(key)
+            if key and key not in env_keys:
+                env_keys.append(key)
         
-        return list(set(keys))  # הסרת כפילויות
+        self.api_keys = env_keys
+        print(f"🔑 Loaded {len(self.api_keys)} keys from .env")
+
+    async def _load_keys_from_database(self):
+        """טעינת מפתחות מדאטה בייס"""
+        await self.database_manager.refresh_keys()
+        self.api_keys = [key["api_key"] for key in self.database_manager.api_keys]
+        print(f"🔑 Loaded {len(self.api_keys)} keys from database")
+
+    async def get_next_available_key(self):
+        """קבלת מפתח זמין הבא"""
+        available_key = await self.database_manager.get_available_key()
+        if available_key:
+            return available_key["api_key"]
+        return None
 
     def _configure_current_key(self):
         """הגדרת המפתח הנוכחי ב-genai"""
@@ -105,8 +153,8 @@ class GeminiKeyManager:
         if usage.blocked_until and now < usage.blocked_until:
             return False
         
-        # בדיקת גבולות עם מרווח ביטחון
-        safety_margin = 0.9
+        # בדיקת גבולות עם מרווח ביטחון (מקטן לטסט)
+        safety_margin = 0.6  # 60% במקום 90% - לבדיקת מעבר מפתחות
         
         if (usage.requests_today >= self.limits['requests_per_day'] * safety_margin or  # שונה מ-tokens_current_minute
             usage.requests_current_minute >= self.limits['requests_per_minute'] * safety_margin or
@@ -155,17 +203,50 @@ class GeminiKeyManager:
         logger.info(f"🔢 [TOKEN-TRACK] - Requests today: {usage.requests_today}")
         logger.info(f"🔢 [TOKEN-TRACK] - Requests current minute: {usage.requests_current_minute}")
         
-        # 🆕 שמירה קבועה
+        # 🆕 שמירה קבועה (קובץ מקומי)
         try:
-            logger.info(f"🔢 [TOKEN-TRACK] Saving to persistence...")
+            logger.info(f"🔢 [TOKEN-TRACK] Saving to local persistence...")
             self.persistence.update_usage(
                 key_index=self.current_key_index,
                 tokens_used=tokens_used,
                 requests_count=1
             )
-            logger.info(f"🔢 [TOKEN-TRACK] Successfully saved to persistence")
+            logger.info(f"🔢 [TOKEN-TRACK] Successfully saved to local persistence")
         except Exception as persistence_err:
-            logger.error(f"❌ [TOKEN-ERROR] Failed to save to persistence: {persistence_err}")
+            logger.error(f"❌ [TOKEN-ERROR] Failed to save to local persistence: {persistence_err}")
+        
+        # 🆕 שמירה בדאטה בייס (async call in background)
+        try:
+            logger.info(f"🔢 [TOKEN-TRACK] Scheduling database save...")
+            if self.database_manager.api_keys and len(self.database_manager.api_keys) > self.current_key_index:
+                current_key_data = self.database_manager.api_keys[self.current_key_index]
+                
+                # רץ ב-background thread כדי לא לחסום
+                import asyncio
+                import threading
+                
+                def run_async_save():
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(
+                            self.database_manager.record_usage(
+                                current_key_data["id"], 
+                                tokens_used, 
+                                1
+                            )
+                        )
+                        loop.close()
+                        logger.info(f"🔢 [TOKEN-TRACK] Successfully saved to database for key ID {current_key_data['id']}")
+                    except Exception as async_err:
+                        logger.error(f"❌ [TOKEN-ERROR] Background database save failed: {async_err}")
+                
+                threading.Thread(target=run_async_save, daemon=True).start()
+                logger.info(f"🔢 [TOKEN-TRACK] Database save scheduled for key ID {current_key_data['id']}")
+            else:
+                logger.warning(f"🔢 [TOKEN-TRACK] No database key data available for index {self.current_key_index}")
+        except Exception as db_err:
+            logger.error(f"❌ [TOKEN-ERROR] Failed to schedule database save: {db_err}")
         
         # 🆕 בדיקה האם צריך לעבור למפתח אחר אחרי השימוש
         logger.info(f"🔍 [TOKEN-TRACK] Checking if key switch is needed after usage...")
@@ -366,35 +447,44 @@ class GeminiKeyManager:
         except Exception as load_err:
             logger.error(f"❌ [KEY-MANAGER] Error loading existing usage: {load_err}")
     
-    def safe_generate_content(*args, **kwargs) -> Any:
-        """Wrapper בטוח לgenerative content"""
-        manager = get_key_manager()
+    async def record_usage(self, tokens_used: int, requests_count: int = 1):
+        """רישום שימוש"""
+        current_key_data = self.database_manager.api_keys[self.current_key_index]
+        await self.database_manager.record_usage(
+            current_key_data["id"], 
+            tokens_used, 
+            requests_count
+        )
+
+def safe_generate_content(*args, **kwargs) -> Any:
+    """Wrapper בטוח לgenerative content"""
+    manager = get_key_manager()
+    
+    # 🎯 וידוא שיש מפתח זמין ועדכון current_key_index אם צריך
+    if not manager.ensure_available_key():
+        raise Exception("No available Gemini API keys")
+    
+    # 🆕 לוג המפתח שבשימוש לפני הבקשה
+    logger.info(f"🔥 [API-CALL] Using key #{manager.current_key_index} for content generation")
+    
+    try:
+        # ביצוע הבקשה
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        response = model.generate_content(*args, **kwargs)
         
-        # 🎯 וידוא שיש מפתח זמין ועדכון current_key_index אם צריך
-        if not manager.ensure_available_key():
-            raise Exception("No available Gemini API keys")
+        # עדכון שימוש (הערכה)
+        estimated_tokens = len(str(args)) // 4 if args else 100
         
-        # 🆕 לוג המפתח שבשימוש לפני הבקשה
-        logger.info(f"🔥 [API-CALL] Using key #{manager.current_key_index} for content generation")
+        # 🆕 לוג השימוש
+        logger.info(f"🔥 [API-CALL] Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        try:
-            # ביצוע הבקשה
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
-            response = model.generate_content(*args, **kwargs)
+        manager.track_usage(estimated_tokens)
+        
+        return response
             
-            # עדכון שימוש (הערכה)
-            estimated_tokens = len(str(args)) // 4 if args else 100
-            
-            # 🆕 לוג השימוש
-            logger.info(f"🔥 [API-CALL] Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
-            
-            manager.track_usage(estimated_tokens)
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Gemini API error: {e}")
-            raise
+    except Exception as e:
+        logger.error(f"Gemini API error: {e}")
+        raise
 
 def safe_embed_content(*args, **kwargs) -> Any:
     """Wrapper בטוח לembedding content"""

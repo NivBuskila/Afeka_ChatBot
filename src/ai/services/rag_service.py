@@ -24,8 +24,8 @@ from ..config.rag_config import (
     get_performance_config
 )
 
-# 🔥 הוספת הKey Manager
-from core.gemini_key_manager import get_key_manager
+# בייבוא החדש
+from src.ai.core.database_key_manager import DatabaseKeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -36,19 +36,9 @@ class RAGService:
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         )
         
-        # 🔥 שימוש ב-Key Manager במקום API Key ישיר
-        try:
-            self.key_manager = get_key_manager()
-            logger.info("🔑 RAG Service using Key Manager for API calls")
-        except Exception as e:
-            logger.error(f"Failed to initialize Key Manager: {e}")
-            # Fallback to direct API key
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY environment variable is required")
-            genai.configure(api_key=api_key)
-            self.key_manager = None
-            logger.warning("⚠️ RAG Service using direct API key (no token tracking)")
+        # 🆕 החלף ל-Database Key Manager
+        self.key_manager = DatabaseKeyManager()
+        logger.info("🔑 RAG Service using Database Key Manager")
         
         # 🎯 טעינת פרופיל מהמערכת המרכזית
         if config_profile is None:

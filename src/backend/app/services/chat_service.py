@@ -32,7 +32,7 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
 )
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from core.gemini_key_manager import get_key_manager
+from src.ai.core.gemini_key_manager import get_key_manager
 
 logger = logging.getLogger(__name__)
 

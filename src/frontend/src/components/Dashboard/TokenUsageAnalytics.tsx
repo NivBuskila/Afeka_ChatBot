@@ -40,6 +40,15 @@ interface KeyManagementStatus {
     tokens_current_minute: number;
     requests_current_minute: number;
   };
+  current_key_usage?: {
+    current_key_index: number;
+    key_name: string;
+    tokens_today: number;
+    tokens_current_minute: number;
+    requests_today: number;
+    requests_current_minute: number;
+    status: string;
+  };
 }
 
 export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ language }) => {
@@ -47,52 +56,39 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
   const [keyData, setKeyData] = useState<KeyStatus[]>([]);
   const [managementStatus, setManagementStatus] = useState<KeyManagementStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [keyChangeAlert, setKeyChangeAlert] = useState<{show: boolean, oldKey: number, newKey: number} | null>(null);
   const [previousCurrentKey, setPreviousCurrentKey] = useState<number | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState<number>(30000);
+  const [isVisible, setIsVisible] = useState<boolean>(true);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData();
-    }, 5000);
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
 
-    return () => clearInterval(interval);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
-  useEffect(() => {
-    if (managementStatus && previousCurrentKey !== null) {
-      const currentKey = managementStatus.current_key_index;
-      if (currentKey !== previousCurrentKey) {
-        console.log('🔄 [KEY-SWITCH] Key changed from', previousCurrentKey, 'to', currentKey);
-        setKeyChangeAlert({
-          show: true,
-          oldKey: previousCurrentKey,
-          newKey: currentKey
-        });
-        
-        setTimeout(() => {
-          setKeyChangeAlert(null);
-        }, 5000);
-      }
-    }
-    
-    if (managementStatus) {
-      setPreviousCurrentKey(managementStatus.current_key_index);
-    }
-  }, [managementStatus, previousCurrentKey]);
-
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isInitialLoad = false) => {
     try {
-      if (isLoading) {
+      if (isInitialLoad) {
         setIsLoading(true);
+      } else {
+        setIsUpdating(true);
       }
       
       setError(null);
       
-      const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
       
-      const response = await fetch(`${AI_SERVICE_URL}/api/key-status`);
+      const response = await fetch(`${BACKEND_URL}/api/keys/`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -109,6 +105,12 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         
         const transformedKeys: KeyStatus[] = keyManagement.keys_status.map((keyStatus: any) => {
           console.log('🔍 [DASHBOARD-DEBUG] Processing key:', keyStatus.id, 'Status:', keyStatus.status, 'Is Current:', keyStatus.is_current);
+          console.log('🔍 [DASHBOARD-DEBUG] Key data:', {
+            tokens_today: keyStatus.tokens_today,
+            requests_today: keyStatus.requests_today,
+            tokens_current_minute: keyStatus.tokens_current_minute,
+            requests_current_minute: keyStatus.requests_current_minute
+          });
           
           return {
             id: keyStatus.id + 1,
@@ -139,6 +141,8 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           }, 8000);
         }
         
+        setPreviousCurrentKey(keyManagement.current_key_index);
+        
         console.log('🔍 [DASHBOARD-DEBUG] Current key index:', keyManagement.current_key_index);
         console.log('🔍 [DASHBOARD-DEBUG] Keys by status:', {
           current: transformedKeys.filter(k => k.status === 'current').map(k => `Key #${k.id}`),
@@ -154,16 +158,28 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
       console.error('❌ [DASHBOARD-ERROR] Failed to fetch token usage data:', error);
       setError('Failed to load token usage data. Please check if the AI service is running.');
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        setIsLoading(false);
+      } else {
+        setIsUpdating(false);
+      }
     }
-  }, [isLoading, managementStatus]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true); // Initial load with loading state
+    
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchData(false); // Auto-refresh without loading state
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   const handleRefresh = () => {
-    fetchData();
+    fetchData(true); // Manual refresh with loading indicator
   };
 
   const handleExportCSV = () => {
@@ -274,7 +290,17 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
   const totalKeys = managementStatus.total_keys;
   const availableKeys = managementStatus.available_keys;
   const blockedKeys = totalKeys - availableKeys;
-  const currentKey = keyData.find(k => k.is_current);
+  
+  // 🆕 השתמש בנתונים החדשים מהבקאנד במקום לחפש ב-keyData
+  const currentKey = managementStatus.current_key_usage ? {
+    id: managementStatus.current_key_usage.current_key_index + 1,
+    tokens_today: managementStatus.current_key_usage.tokens_today,
+    tokens_current_minute: managementStatus.current_key_usage.tokens_current_minute,
+    requests_today: managementStatus.current_key_usage.requests_today,
+    requests_current_minute: managementStatus.current_key_usage.requests_current_minute,
+    status: managementStatus.current_key_usage.status,
+    key_name: managementStatus.current_key_usage.key_name
+  } : keyData.find(k => k.is_current);
 
   const totalTokensToday = keyData.reduce((sum, key) => sum + (key.tokens_today || 0), 0);
   const totalRequestsToday = keyData.reduce((sum, key) => sum + (key.requests_today || 0), 0);
@@ -302,12 +328,19 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {language === 'he' ? 'ניתוח שימוש ב-API' : 'Token Usage Analytics'}
+            {language === 'he' ? 'ניתוח שימוש ב-API' : 'Token Usage'}
           </h2>
           <p className="text-sm text-gray-600 dark:text-green-400/70 mt-1">
             {language === 'he' ? 'עדכון אחרון:' : 'Last updated:'} {lastUpdate.toLocaleTimeString()}
-            <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded">
-              {language === 'he' ? 'עדכון אוטומטי' : 'Auto-refresh'}
+            <span className={`ml-2 text-xs px-2 py-1 rounded transition-all duration-300 ${
+              isUpdating 
+                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                : 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+            }`}>
+              {isUpdating 
+                ? (language === 'he' ? 'מעדכן...' : 'Updating...') 
+                : (language === 'he' ? 'עדכון אוטומטי' : 'Auto-refresh')
+              }
             </span>
           </p>
         </div>
@@ -321,10 +354,10 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           </button>
           <button
             onClick={handleRefresh}
-            disabled={isLoading}
+            disabled={isLoading || isUpdating}
             className="flex items-center gap-2 px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg border border-green-500/30 transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading || isUpdating ? 'animate-spin' : ''}`} />
             {language === 'he' ? 'רענן' : 'Refresh'}
           </button>
         </div>
@@ -349,7 +382,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-green-400/70">
-                {language === 'he' ? 'מפתחות זמינים' : 'Available Keys'}
+                {language === 'he' ? 'מפתחות פעילים' : 'Active Keys'}
               </p>
               <p className="text-2xl font-semibold mt-1 text-gray-800 dark:text-green-400">
                 {availableKeys}
@@ -363,7 +396,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-green-400/70">
-                {language === 'he' ? 'מפתחות חסומים' : 'Blocked Keys'}
+                {language === 'he' ? 'מפתחות לא זמינים' : 'Unavailable Keys'}
               </p>
               <p className="text-2xl font-semibold mt-1 text-gray-800 dark:text-green-400">
                 {blockedKeys}
@@ -377,7 +410,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-green-400/70">
-                {language === 'he' ? 'טוקנים היום' : 'Tokens Today'}
+                {language === 'he' ? 'שימוש היומי' : 'Daily Usage'}
               </p>
               <p className="text-2xl font-semibold mt-1 text-gray-800 dark:text-green-400">
                 {totalTokensToday.toLocaleString()}
@@ -394,7 +427,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-green-400/70">
-                {language === 'he' ? 'בקשות היום' : 'Requests Today'}
+                {language === 'he' ? 'בקשות יומיות' : 'Daily Requests'}
               </p>
               <p className="text-2xl font-semibold mt-1 text-gray-800 dark:text-green-400">
                 {totalRequestsToday.toLocaleString()}
@@ -411,14 +444,19 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
       {currentKey && (
         <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-4">
-            {language === 'he' ? 'מפתח נוכחי - פרטי שימוש' : 'Current Key - Usage Details'}
+            {language === 'he' ? 'המפתח הפעיל כרגע' : 'Currently Active API Key'}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Activity className="w-5 h-5 text-blue-500" />
                 <span className="font-medium text-blue-700 dark:text-blue-400">
-                  Key #{currentKey.id} ({language === 'he' ? 'פעיל' : 'Active'})
+                  {language === 'he' ? `מפתח פעיל #${currentKey.id}` : `Active Key #${currentKey.id}`}
+                  {currentKey.key_name && (
+                    <span className="text-xs text-blue-500 dark:text-blue-300 block mt-1">
+                      {currentKey.key_name.replace('GEMINI_API_KEY_', 'AI Key ')}
+                    </span>
+                  )}
                 </span>
               </div>
               <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
@@ -444,11 +482,26 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
               </p>
             </div>
             
+            <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <BarChart3 className="w-5 h-5 text-orange-500" />
+                <span className="font-medium text-orange-700 dark:text-orange-400">
+                  {language === 'he' ? 'בקשות היום' : 'Requests Today'}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-orange-700 dark:text-orange-400">
+                {currentKey.requests_today?.toLocaleString() || 0}
+              </p>
+              <p className="text-sm text-orange-600 dark:text-orange-400/70">
+                {language === 'he' ? 'סך הבקשות היום' : 'Total requests today'}
+              </p>
+            </div>
+            
             <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-purple-500" />
                 <span className="font-medium text-purple-700 dark:text-purple-400">
-                  {language === 'he' ? 'בקשות' : 'Requests'}
+                  {language === 'he' ? 'בקשות/דקה' : 'Requests/Min'}
                 </span>
               </div>
               <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">
@@ -465,7 +518,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
       <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 shadow-lg">
         <div className="border-b border-gray-300 dark:border-green-500/20 py-3 px-6">
           <h3 className="text-lg font-semibold text-green-600 dark:text-green-400">
-            {language === 'he' ? 'סטטוס כל המפתחות' : 'All Keys Status'}
+            {language === 'he' ? 'סטטוס מפתחות המערכת' : 'System Keys Status'}
           </h3>
         </div>
         <div className="overflow-x-auto">

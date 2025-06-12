@@ -21,6 +21,9 @@ if project_root not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+# Set flag to indicate we're running in backend
+os.environ["RUNNING_IN_BACKEND"] = "true"
+
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -49,6 +52,9 @@ from src.backend.app.api.routes.rag import router as rag_router
 
 # Import title generation router
 from src.backend.app.api.routes.title_generation import router as title_router
+
+# Import API Keys router
+from src.backend.app.api.routes.api_keys import router as api_keys_router
 
 # --- NEW IMPORTS FOR CHAT SERVICE ---
 from src.backend.app.services.chat_service import ChatService
@@ -108,6 +114,9 @@ app.include_router(rag_router, prefix="/api/rag")
 # Include title generation router
 app.include_router(title_router)
 
+# Include API Keys router
+app.include_router(api_keys_router)
+
 # Request timing middleware
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -129,7 +138,7 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 # Rate limiting setup
-API_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "100"))  # Requests per minute
+API_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "500"))  # Requests per minute - מוגדל לטסטים
 rate_limit_data = {}
 
 # Rate limiting middleware

@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, Any
 import logging
 
@@ -44,8 +44,10 @@ class TokenUsagePersistence:
         logger.info(f"💾 [PERSIST-DEBUG] Requests count: {requests_count}")
         
         today = date.today().isoformat()
-        current_time = datetime.now().isoformat()
-        current_minute = datetime.now().strftime("%Y-%m-%d %H:%M")  # 🆕 דקה נוכחית
+        # שימוש בזמן UTC כדי להתאים לדאטה בייס
+        current_time_utc = datetime.now(timezone.utc)
+        current_time = current_time_utc.isoformat()
+        current_minute = current_time_utc.strftime("%Y-%m-%d %H:%M")  # דקה נוכחית ב-UTC
         
         logger.info(f"💾 [PERSIST-DEBUG] Date: {today}")
         logger.info(f"💾 [PERSIST-DEBUG] Time: {current_time}")
@@ -106,7 +108,7 @@ class TokenUsagePersistence:
         logger.info(f"💾 [PERSIST-DEBUG] - Minute requests: {minute_data['requests']}")
         
         # 🧹 נקה נתונים ישנים (שמור רק 5 דקות אחרונות)
-        current_dt = datetime.now()
+        current_dt = datetime.now(timezone.utc)
         minutes_to_keep = []
         for i in range(5):
             minute_dt = current_dt - timedelta(minutes=i)
@@ -161,7 +163,7 @@ class TokenUsagePersistence:
     def get_current_minute_usage(self, key_index: int) -> Dict[str, int]:
         """קבלת שימוש של דקה נוכחית או האחרונה"""
         today = date.today().isoformat()
-        current_minute = datetime.now().strftime("%Y-%m-%d %H:%M")
+        current_minute = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
         key_id = f"key_{key_index}"
         
         logger.info(f"📊 [PERSIST-DEBUG] Getting current minute usage for {key_id}")
@@ -193,7 +195,7 @@ class TokenUsagePersistence:
                 # בדוק שהדקה האחרונה היא בטווח של 5 דקות אחרונות
                 try:
                     latest_dt = datetime.strptime(latest_minute, "%Y-%m-%d %H:%M")
-                    current_dt = datetime.now()
+                    current_dt = datetime.now(timezone.utc)
                     time_diff = current_dt - latest_dt
                     
                     if time_diff.total_seconds() <= 300:  # 5 דקות

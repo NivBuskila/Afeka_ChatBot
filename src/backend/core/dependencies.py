@@ -5,7 +5,7 @@ from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 from supabase import Client, create_client
 
-from backend.core import config
+from src.backend.core import config
 
 logger = logging.getLogger(__name__)
 

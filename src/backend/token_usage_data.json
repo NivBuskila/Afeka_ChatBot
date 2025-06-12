@@ -2,50 +2,42 @@
   "keys_usage": {
     "key_0": {
       "2025-06-12": {
-        "tokens_used": 604722,
-        "requests_count": 73,
+        "tokens_used": 606671,
+        "requests_count": 100,
         "first_request": "2025-06-12T01:28:52.937724",
-        "last_request": "2025-06-12T03:42:01.069624",
+        "last_request": "2025-06-12T11:39:08.711802+00:00",
         "current_minute_data": {
-          "2025-06-12 03:41": {
-            "tokens": 100555,
-            "requests": 13
-          },
-          "2025-06-12 03:42": {
-            "tokens": 25135,
-            "requests": 2
+          "2025-06-12 11:39": {
+            "tokens": 59,
+            "requests": 1
           }
         }
       }
     },
     "key_1": {
       "2025-06-12": {
-        "tokens_used": 402848,
-        "requests_count": 48,
+        "tokens_used": 404044,
+        "requests_count": 66,
         "first_request": "2025-06-12T03:42:05.196840",
-        "last_request": "2025-06-12T03:56:53.070405",
+        "last_request": "2025-06-12T11:39:42.836788+00:00",
         "current_minute_data": {
-          "2025-06-12 03:56": {
-            "tokens": 126330,
-            "requests": 15
+          "2025-06-12 11:39": {
+            "tokens": 546,
+            "requests": 9
           }
         }
       }
     },
     "key_2": {
       "2025-06-12": {
-        "tokens_used": 77007,
-        "requests_count": 30,
+        "tokens_used": 77519,
+        "requests_count": 37,
         "first_request": "2025-06-12T03:56:56.732669",
-        "last_request": "2025-06-12T04:12:36.855174",
+        "last_request": "2025-06-12T11:39:46.886532+00:00",
         "current_minute_data": {
-          "2025-06-12 04:11": {
-            "tokens": 115,
-            "requests": 2
-          },
-          "2025-06-12 04:12": {
-            "tokens": 522,
-            "requests": 9
+          "2025-06-12 11:39": {
+            "tokens": 55,
+            "requests": 1
           }
         }
       }
@@ -53,8 +45,8 @@
   },
   "daily_totals": {
     "2025-06-12": {
-      "total_tokens": 1084577,
-      "total_requests": 151,
+      "total_tokens": 1088234,
+      "total_requests": 203,
       "active_keys": [
         0,
         1,
@@ -62,5 +54,5 @@
       ]
     }
   },
-  "last_updated": "2025-06-12T04:12:36.855174"
+  "last_updated": "2025-06-12T11:39:46.886532+00:00"
 }

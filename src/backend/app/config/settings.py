@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     INTERNAL_API_KEY: str = Field(default=os.environ.get("INTERNAL_API_KEY", secrets.token_urlsafe(32)))
     
     # Rate Limiting
-    API_RATE_LIMIT: int = Field(default=int(os.environ.get("API_RATE_LIMIT", "100")))
+    API_RATE_LIMIT: int = Field(default=int(os.environ.get("API_RATE_LIMIT", "500")))  # מוגדל לטסטים
     
     # Document Size Limit
     MAX_DOCUMENT_SIZE_KB: int = Field(default=int(os.environ.get("MAX_DOCUMENT_SIZE_KB", "100")))
