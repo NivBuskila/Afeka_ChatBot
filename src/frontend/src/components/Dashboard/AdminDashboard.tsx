@@ -212,10 +212,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     };
 
-    if (activeItem === "analytics") {
+    // Only fetch analytics when specifically viewing analytics sections
+    // and prevent unnecessary calls when switching between sub-items
+    if (activeItem === "analytics" && !isRefreshing) {
       fetchAnalytics();
     }
-  }, [activeItem, activeSubItem]);
+  }, [activeItem]); // Removed activeSubItem to prevent duplicate calls
 
   useEffect(() => {
     const fetchData = async () => {

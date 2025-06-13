@@ -170,10 +170,11 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
     fetchData(true); // Initial load with loading state
     
     const interval = setInterval(() => {
-      if (!document.hidden) {
+      // Only refresh if page is visible and user is actively viewing this component
+      if (!document.hidden && !isUpdating && !isLoading) {
         fetchData(false); // Auto-refresh without loading state
       }
-    }, 5000);
+    }, 30000); // Changed from 5000 to 30000 (30 seconds)
 
     return () => clearInterval(interval);
   }, [fetchData]);

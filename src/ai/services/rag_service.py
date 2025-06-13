@@ -5,6 +5,9 @@ import time
 import re
 from typing import List, Dict, Any, Optional, Tuple
 import json
+import hashlib
+from functools import lru_cache
+from datetime import datetime, timedelta
 
 import google.generativeai as genai
 from supabase import create_client, Client
@@ -30,6 +33,10 @@ from src.ai.core.database_key_manager import DatabaseKeyManager
 logger = logging.getLogger(__name__)
 
 class RAGService:
+    # Class-level cache for embeddings (shared across instances)
+    _embedding_cache = {}
+    _cache_ttl = 300  # 5 minutes TTL
+    
     def __init__(self, config_profile: Optional[str] = None):
         self.supabase: Client = create_client(
             os.getenv("SUPABASE_URL"),
@@ -116,23 +123,81 @@ class RAGService:
                    f"Max chunks: {self.search_config.MAX_CHUNKS_RETRIEVED}, "
                    f"Model: {self.llm_config.MODEL_NAME}")
     
-    def _track_embedding_usage(self, text: str, key_id: int = None):
+    def _get_cache_key(self, text: str) -> str:
+        """Generate cache key from text"""
+        return hashlib.md5(text.encode()).hexdigest()
+    
+    def _is_cache_valid(self, cache_entry: dict) -> bool:
+        """Check if cache entry is still valid"""
+        return (datetime.now() - cache_entry['timestamp']).seconds < self._cache_ttl
+    
+    def _get_from_cache(self, cache_key: str) -> Optional[List[float]]:
+        """Get embedding from cache if valid"""
+        if cache_key in self._embedding_cache:
+            entry = self._embedding_cache[cache_key]
+            if self._is_cache_valid(entry):
+                logger.info(f"⚡ Using cached embedding for key: {cache_key[:8]}")
+                return entry['embedding']
+            else:
+                # Remove expired cache entry
+                del self._embedding_cache[cache_key]
+        return None
+    
+    def _cache_embedding(self, cache_key: str, embedding: List[float]):
+        """Cache embedding with timestamp"""
+        self._embedding_cache[cache_key] = {
+            'embedding': embedding,
+            'timestamp': datetime.now()
+        }
+        # Clean old cache entries (keep max 1000 entries)
+        if len(self._embedding_cache) > 1000:
+            # Remove oldest 100 entries
+            sorted_items = sorted(self._embedding_cache.items(), key=lambda x: x[1]['timestamp'])
+            for key, _ in sorted_items[:100]:
+                del self._embedding_cache[key]
+
+    async def _track_embedding_usage(self, text: str, key_id: int = None):
         """Track token usage for embedding generation"""
         # Estimate tokens for embedding (much smaller than generation)
         estimated_tokens = len(text) // 8  # Embeddings use fewer tokens
         logger.info(f"🔢 [RAG-EMBED-TRACK] Estimated {estimated_tokens} tokens for embedding")
-        # Note: Key tracking can be implemented later async
+        
+        # 🔥 FIX: Actually track usage with key manager
+        try:
+            if self.key_manager and key_id:
+                await self.key_manager.record_usage(key_id, estimated_tokens, 1)
+                logger.info(f"🔢 [RAG-EMBED-TRACK] Successfully tracked {estimated_tokens} tokens for key {key_id}")
+            else:
+                logger.warning("⚠️ [RAG-EMBED-TRACK] No key_id provided or key_manager not available")
+        except Exception as e:
+            logger.error(f"❌ [RAG-EMBED-TRACK] Failed to track usage: {e}")
 
-    def _track_generation_usage(self, prompt: str, response: str, key_id: int = None):
+    async def _track_generation_usage(self, prompt: str, response: str, key_id: int = None):
         """Track token usage for text generation"""
         input_tokens = len(prompt) // 4
         output_tokens = len(response) // 4
         total_tokens = input_tokens + output_tokens
         logger.info(f"🔢 [RAG-GEN-TRACK] Estimated {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
-        # Note: Key tracking can be implemented later async
+        
+        # 🔥 FIX: Actually track usage with key manager
+        try:
+            if self.key_manager and key_id:
+                await self.key_manager.record_usage(key_id, total_tokens, 1)
+                logger.info(f"🔢 [RAG-GEN-TRACK] Successfully tracked {total_tokens} tokens for key {key_id}")
+            else:
+                logger.warning("⚠️ [RAG-GEN-TRACK] No key_id provided or key_manager not available")
+        except Exception as e:
+            logger.error(f"❌ [RAG-GEN-TRACK] Failed to track usage: {e}")
     
     async def generate_query_embedding(self, query: str) -> List[float]:
-        """יוצר embedding עבור שאילתה"""
+        """יוצר embedding עבור שאילתה עם caching"""
+        cache_key = self._get_cache_key(query)
+        
+        # ⚡ Check cache first
+        cached_embedding = self._get_from_cache(cache_key)
+        if cached_embedding:
+            return cached_embedding
+        
         try:
             # 🔥 Ensure we're using current key if Key Manager available
             key_id = None
@@ -146,16 +211,26 @@ class RAGService:
                 key_id = available_key.get('id')
                 logger.info(f"🔑 Using key {available_key.get('key_name', 'unknown')} for embedding")
             
+            # ⏱️ Generate embedding
+            start_time = time.time()
             embedding_model = genai.embed_content(
                 model=self.embedding_config.MODEL_NAME,
                 content=query,
                 task_type=self.embedding_config.TASK_TYPE_QUERY
             )
             
-            # 🔥 Track usage
-            self._track_embedding_usage(query, key_id)
+            embedding = embedding_model['embedding']
+            generation_time = int((time.time() - start_time) * 1000)
             
-            return embedding_model['embedding']
+            # ⚡ Cache the result
+            self._cache_embedding(cache_key, embedding)
+            
+            # 🔥 Track usage
+            await self._track_embedding_usage(query, key_id)
+            
+            logger.info(f"🔍 Embedding generated in {generation_time}ms (cached for future use)")
+            return embedding
+            
         except Exception as e:
             logger.error(f"Error generating query embedding: {e}")
             raise
@@ -495,8 +570,8 @@ class RAGService:
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text
                 
-                # 🔥 Track usage
-                self._track_generation_usage(prompt, response_text)
+                # 🔥 Track usage  
+                await self._track_generation_usage(prompt, response_text, available_key.get('id'))
                 
                 logger.info(f"🔢 [RAG-GEN-DEBUG] Generated response length: {len(response_text)}")
                 return response_text

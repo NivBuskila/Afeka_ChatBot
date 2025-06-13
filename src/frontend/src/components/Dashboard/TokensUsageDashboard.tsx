@@ -52,11 +52,14 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [timelineData, setTimelineData] = useState<any[]>([]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 60 seconds (reduced from 30)
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchData();
-    }, 30000);
+      // Only refresh if page is visible and not already loading
+      if (!document.hidden && !isLoading) {
+        fetchData();
+      }
+    }, 60000); // Changed from 30000 to 60000 (60 seconds)
 
     return () => clearInterval(interval);
   }, []);

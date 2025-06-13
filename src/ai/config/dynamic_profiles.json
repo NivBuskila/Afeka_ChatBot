@@ -48,5 +48,30 @@
       "tradeoffs": "FUNNY GUY, BUT MARRIED"
     },
     "isActive": false
+  },
+  "niv": {
+    "id": "niv",
+    "name": "NIV",
+    "description": "NIV",
+    "config": {
+      "similarityThreshold": 0.4,
+      "maxChunks": 22,
+      "temperature": 0.1,
+      "modelName": "gemini-2.0-flash",
+      "chunkSize": 1500,
+      "chunkOverlap": 200,
+      "maxContextTokens": 8000,
+      "targetTokensPerChunk": 300,
+      "hybridSemanticWeight": 0.7,
+      "hybridKeywordWeight": 0.3
+    },
+    "characteristics": {
+      "focus": "",
+      "expectedSpeed": "",
+      "expectedQuality": "",
+      "bestFor": "",
+      "tradeoffs": ""
+    },
+    "isActive": false
   }
 }

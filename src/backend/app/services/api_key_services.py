@@ -44,20 +44,13 @@ class ApiKeyService:
     
     async def get_key_current_usage(self, key_id: int) -> Dict[str, int]:
         """קבלת שימוש נוכחי של מפתח עם cache"""
-        cache_key = f"usage_{key_id}_{datetime.now().minute}"
-        
-        # בדוק cache
-        if cache_key in self._usage_cache:
-            cached_time, cached_data = self._usage_cache[cache_key]
-            if datetime.now() - cached_time < self._cache_timeout:
-                return cached_data
-        
-        today = date.today()
+        today = date.today().isoformat()
         # שימוש בזמן UTC כדי להתאים לדאטה בייס
         current_minute_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         
         try:
-            # שימוש יומי
+            # 🚀 FIXED: Separate queries but optimized logic
+            # Daily usage
             daily_response = self.supabase.table("api_key_usage")\
                 .select("tokens_used,requests_count")\
                 .eq("api_key_id", key_id)\
@@ -67,18 +60,17 @@ class ApiKeyService:
             daily_tokens = sum([row["tokens_used"] for row in daily_response.data])
             daily_requests = sum([row["requests_count"] for row in daily_response.data])
             
-            # שימוש בדקה הנוכחית (UTC)
+            # Current minute usage
             minute_response = self.supabase.table("api_key_usage")\
                 .select("tokens_used,requests_count")\
                 .eq("api_key_id", key_id)\
                 .eq("usage_minute", current_minute_utc.isoformat())\
                 .execute()
             
-            logger.info(f"🔍 [USAGE-DEBUG] Looking for minute: {current_minute_utc.isoformat()}")
-            logger.info(f"🔍 [USAGE-DEBUG] Found {len(minute_response.data)} records for minute")
-            
             minute_tokens = sum([row["tokens_used"] for row in minute_response.data])
             minute_requests = sum([row["requests_count"] for row in minute_response.data])
+            
+            logger.info(f"🔍 [FIXED-USAGE] Key {key_id}: Daily={daily_tokens}t/{daily_requests}r, Minute={minute_tokens}t/{minute_requests}r")
             
             usage_data = {
                 "daily_tokens": daily_tokens,
@@ -87,10 +79,8 @@ class ApiKeyService:
                 "minute_requests": minute_requests
             }
             
-            # שמור ב-cache
-            self._usage_cache[cache_key] = (datetime.now(), usage_data)
-            
             return usage_data
+            
         except Exception as e:
             logger.error(f"Error fetching usage for key {key_id}: {e}")
             return {"daily_tokens": 0, "daily_requests": 0, "minute_tokens": 0, "minute_requests": 0}
@@ -121,7 +111,7 @@ class ApiKeyService:
                 # יצור רשומה חדשה
                 self.supabase.table("api_key_usage").insert({
                     "api_key_id": key_id,
-                    "usage_date": date.today(),
+                    "usage_date": date.today().isoformat(),
                     "usage_minute": current_minute_utc.isoformat(),
                     "tokens_used": tokens_used,
                     "requests_count": requests_count

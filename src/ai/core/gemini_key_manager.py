@@ -116,7 +116,18 @@ class GeminiKeyManager:
         """קבלת מפתח זמין הבא"""
         available_key = await self.database_manager.get_available_key()
         if available_key:
-            return available_key["api_key"]
+            # 🔥 FIX: Sync local index with database manager
+            db_current_index = self.database_manager.current_key_index
+            api_key_value = available_key["api_key"]
+            
+            # Update local index to match database manager
+            self.current_key_index = db_current_index
+            
+            # Configure the current key in genai
+            genai.configure(api_key=api_key_value)
+            
+            logger.info(f"🔑 [GEMINI-KEY-MANAGER] Using key index {self.current_key_index}: {available_key.get('key_name', 'Unknown')}")
+            return api_key_value
         return None
 
     def _configure_current_key(self):
@@ -479,7 +490,28 @@ async def safe_generate_content(*args, **kwargs) -> Any:
         # 🆕 לוג השימוש
         logger.info(f"🔥 [API-CALL] Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        manager.track_usage(estimated_tokens)
+        # Smart tracking for both manager types
+        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
+            # DatabaseKeyManager - needs key_id and async call
+            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
+                current_key_data = manager.api_keys[manager.current_key_index]
+                key_id = current_key_data.get('id')
+                if key_id:
+                    # Run in background thread to avoid blocking
+                    import threading
+                    def async_track():
+                        import asyncio
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
+                            loop.close()
+                        except Exception as e:
+                            logger.error(f"Background tracking failed: {e}")
+                    threading.Thread(target=async_track, daemon=True).start()
+        else:
+            # Legacy GeminiKeyManager
+            manager.track_usage(estimated_tokens)
         
         return response
             
@@ -508,7 +540,28 @@ async def safe_embed_content(*args, **kwargs) -> Any:
         # 🆕 לוג השימוש
         logger.info(f"🔥 [API-CALL] Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        manager.track_usage(estimated_tokens)
+        # Smart tracking for both manager types
+        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
+            # DatabaseKeyManager - needs key_id and async call
+            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
+                current_key_data = manager.api_keys[manager.current_key_index]
+                key_id = current_key_data.get('id')
+                if key_id:
+                    # Run in background thread to avoid blocking
+                    import threading
+                    def async_track():
+                        import asyncio
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
+                            loop.close()
+                        except Exception as e:
+                            logger.error(f"Background tracking failed: {e}")
+                    threading.Thread(target=async_track, daemon=True).start()
+        else:
+            # Legacy GeminiKeyManager
+            manager.track_usage(estimated_tokens)
         
         return response
         
@@ -558,7 +611,29 @@ async def safe_generate_content(*args, **kwargs) -> Any:
         
         # עדכון שימוש (הערכה)
         estimated_tokens = len(str(args)) // 4 if args else 100
-        manager.track_usage(estimated_tokens)
+        
+        # Smart tracking for both manager types
+        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
+            # DatabaseKeyManager - needs key_id and async call
+            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
+                current_key_data = manager.api_keys[manager.current_key_index]
+                key_id = current_key_data.get('id')
+                if key_id:
+                    # Run in background thread to avoid blocking
+                    import threading
+                    def async_track():
+                        import asyncio
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
+                            loop.close()
+                        except Exception as e:
+                            logger.error(f"Background tracking failed: {e}")
+                    threading.Thread(target=async_track, daemon=True).start()
+        else:
+            # Legacy GeminiKeyManager
+            manager.track_usage(estimated_tokens)
         
         return response
         
@@ -579,7 +654,29 @@ async def safe_embed_content(*args, **kwargs) -> Any:
         
         # עדכון שימוש
         estimated_tokens = len(str(args)) // 4 if args else 50
-        manager.track_usage(estimated_tokens)
+        
+        # Smart tracking for both manager types
+        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
+            # DatabaseKeyManager - needs key_id and async call
+            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
+                current_key_data = manager.api_keys[manager.current_key_index]
+                key_id = current_key_data.get('id')
+                if key_id:
+                    # Run in background thread to avoid blocking
+                    import threading
+                    def async_track():
+                        import asyncio
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
+                            loop.close()
+                        except Exception as e:
+                            logger.error(f"Background tracking failed: {e}")
+                    threading.Thread(target=async_track, daemon=True).start()
+        else:
+            # Legacy GeminiKeyManager
+            manager.track_usage(estimated_tokens)
         
         return response
         

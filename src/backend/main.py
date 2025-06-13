@@ -42,6 +42,7 @@ from datetime import datetime
 import uuid
 import asyncio
 import threading
+from contextlib import asynccontextmanager
 from src.backend.app.config.settings import settings
 
 # Import vector management router
@@ -71,111 +72,11 @@ if settings.GEMINI_API_KEY:
 else:
     logger.warning("⚠️  GEMINI_API_KEY not found. Ensure it is set in the .env file.")
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Afeka ChatBot API",
-    description="Backend API for Afeka College Regulations ChatBot",
-    version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json"
-)
 
-# Set CORS origins
-ALLOWED_ORIGINS = os.environ.get(
-    "ALLOWED_ORIGINS", 
-    "http://localhost:5173,http://localhost:3000,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000"
-).split(",")
-
-# Only log CORS configuration in debug mode
-if settings.ENVIRONMENT == "development":
-    logger.debug(f"🌐 Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Security middleware
-if os.environ.get("ENV", "development") == "production":
-    ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
-    logger.info(f"🔒 Security: TrustedHostMiddleware enabled for production")
-
-# Include vector management router
-app.include_router(vector_router)
-
-# Include RAG router
-app.include_router(rag_router, prefix="/api/rag")
-
-# Include title generation router
-app.include_router(title_router)
-
-# Include API Keys router
-app.include_router(api_keys_router)
-
-# Request timing middleware
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
-
-# Security headers middleware
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    return response
 
 # Rate limiting setup
 API_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "500"))  # Requests per minute - מוגדל לטסטים
 rate_limit_data = {}
-
-# Rate limiting middleware
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    # Get client IP
-    client_ip = request.client.host if request.client else "unknown"
-    
-    # Skip rate limiting for certain paths
-    if request.url.path in ["/api/health", "/", "/api/docs", "/api/redoc", "/api/openapi.json"]:
-        return await call_next(request)
-    
-    current_time = time.time()
-    minute_window = int(current_time / 60)
-    
-    # Initialize or reset rate limit data for new minute window
-    if client_ip not in rate_limit_data or rate_limit_data[client_ip]["window"] != minute_window:
-        rate_limit_data[client_ip] = {"window": minute_window, "count": 0}
-    
-    # Increment request count for this IP
-    rate_limit_data[client_ip]["count"] += 1
-    
-    # Check if rate limit exceeded
-    if rate_limit_data[client_ip]["count"] > API_RATE_LIMIT:
-        logger.warning(f"Rate limit exceeded for IP {client_ip}")
-        return JSONResponse(
-            status_code=429,
-            content={"error": "Too many requests. Please try again later."}
-        )
-    
-    # Add rate limit headers
-    response = await call_next(request)
-    response.headers["X-RateLimit-Limit"] = str(API_RATE_LIMIT)
-    response.headers["X-RateLimit-Remaining"] = str(max(0, API_RATE_LIMIT - rate_limit_data[client_ip]["count"]))
-    response.headers["X-RateLimit-Reset"] = str((minute_window + 1) * 60)
-    
-    return response
 
 # Initialize Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -186,8 +87,9 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     logger.error("❌ Missing Supabase configuration. Check SUPABASE_URL and SUPABASE_KEY environment variables.")
     raise ValueError("Supabase configuration is required")
 
-# Initialize Supabase client  
+# Initialize Supabase client with connection pooling
 try:
+    # Initialize without custom options for now (Supabase client format issue)
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     logger.info("✅ Supabase client initialized successfully")
 except Exception as e:
@@ -236,30 +138,131 @@ def run_document_processor():
     # הפעלת המעבד עם בדיקה כל 30 שניות
     loop.run_until_complete(run_processor(interval=30))
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
+# Lifespan context manager (replaces deprecated on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events"""
     global auto_processor_thread
+    
+    # Startup
+    logger.info("🚀 Starting application...")
     
     # Initialize Google Gemini API key if available
     if settings.GEMINI_API_KEY:
         import google.generativeai as genai
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        logger.info("Google Generative AI API key configured successfully.")
+        logger.info("✅ Google Generative AI API key configured successfully.")
     else:
-        logger.warning("GEMINI_API_KEY not found. Gemini features will be limited.")
+        logger.warning("⚠️ GEMINI_API_KEY not found. Gemini features will be limited.")
     
     # Start document processor thread
     auto_processor_thread = threading.Thread(target=run_document_processor, daemon=True)
     auto_processor_thread.start()
-    logger.info("Document processor thread started")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """פעולות שיבוצעו בעת סגירת השרת"""
-    logger.info("Server shutting down")
+    logger.info("✅ Document processor thread started")
     
-    # הסקריפט יסתיים אוטומטית כשהשרת יסתיים כי התהליך מוגדר כ-daemon
+    logger.info("🎉 Application startup complete!")
+    
+    yield  # Application runs here
+    
+    # Shutdown
+    logger.info("🔄 Server shutting down...")
+    # The processor thread will stop automatically as it's a daemon thread
+    logger.info("✅ Shutdown complete")
+
+# Initialize FastAPI app (after lifespan is defined)
+app = FastAPI(
+    title="Afeka ChatBot API",
+    description="Backend API for Afeka College Regulations ChatBot",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan  # Use the new lifespan context manager
+)
+
+# Now configure CORS and middleware AFTER app is created
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:5173,http://localhost:3000,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000"
+).split(",")
+
+# Only log CORS configuration in debug mode
+if settings.ENVIRONMENT == "development":
+    logger.debug(f"🌐 Configured CORS with allowed origins: {ALLOWED_ORIGINS}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Security middleware
+if os.environ.get("ENV", "development") == "production":
+    ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+    logger.info(f"🔒 Security: TrustedHostMiddleware enabled for production")
+
+# Include routers
+app.include_router(vector_router)
+app.include_router(rag_router, prefix="/api/rag")
+app.include_router(title_router)
+app.include_router(api_keys_router)
+
+# Add middleware after app is created
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Get client IP
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Skip rate limiting for certain paths
+    if request.url.path in ["/api/health", "/", "/api/docs", "/api/redoc", "/api/openapi.json"]:
+        return await call_next(request)
+    
+    current_time = time.time()
+    minute_window = int(current_time / 60)
+    
+    # Initialize or reset rate limit data for new minute window
+    if client_ip not in rate_limit_data or rate_limit_data[client_ip]["window"] != minute_window:
+        rate_limit_data[client_ip] = {"window": minute_window, "count": 0}
+    
+    # Increment request count for this IP
+    rate_limit_data[client_ip]["count"] += 1
+    
+    # Check if rate limit exceeded
+    if rate_limit_data[client_ip]["count"] > API_RATE_LIMIT:
+        logger.warning(f"Rate limit exceeded for IP {client_ip}")
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Too many requests. Please try again later."}
+        )
+    
+    # Add rate limit headers
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(API_RATE_LIMIT)
+    response.headers["X-RateLimit-Remaining"] = str(max(0, API_RATE_LIMIT - rate_limit_data[client_ip]["count"]))
+    response.headers["X-RateLimit-Reset"] = str((minute_window + 1) * 60)
+    
+    return response
 
 @app.get("/")
 async def root():
@@ -268,10 +271,53 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint for monitoring"""
-    # Also check Supabase connection
-    supabase_status = "connected" if supabase else "disconnected"
-    return {"status": "ok", "supabase": supabase_status}
+    """Enhanced health check endpoint for monitoring"""
+    import time
+    start_time = time.time()
+    
+    health_status = {
+        "status": "ok",
+        "timestamp": time.time(),
+        "services": {}
+    }
+    
+    # Check Supabase connection
+    try:
+        # Quick DB test - check if we can query an existing table
+        result = supabase.table('api_keys').select('id').limit(1).execute()
+        health_status["services"]["supabase"] = {
+            "status": "connected",
+            "response_time_ms": round((time.time() - start_time) * 1000, 2)
+        }
+    except Exception as e:
+        health_status["services"]["supabase"] = {
+            "status": "disconnected",
+            "error": str(e)[:100] + "..." if len(str(e)) > 100 else str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Check Key Manager
+    try:
+        from src.ai.core.database_key_manager import DatabaseKeyManager
+        key_manager = DatabaseKeyManager(use_direct_supabase=True)
+        # Quick key count check
+        await key_manager.refresh_keys()
+        key_count = len(key_manager.api_keys)
+        health_status["services"]["key_manager"] = {
+            "status": "ok",
+            "active_keys": key_count
+        }
+    except Exception as e:
+        health_status["services"]["key_manager"] = {
+            "status": "error",
+            "error": str(e)[:100] + "..." if len(str(e)) > 100 else str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Overall response time
+    health_status["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
+    
+    return health_status
 
 # Singleton instance of ChatService
 _chat_service_instance = None

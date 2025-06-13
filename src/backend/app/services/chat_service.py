@@ -106,7 +106,7 @@ class ChatService(IChatService):
             self.llm = None
             self.conversation_chain = None
 
-    def _track_token_usage(self, user_message: str, ai_response: str, method: str = "chat"):
+    async def _track_token_usage(self, user_message: str, ai_response: str, method: str = "chat"):
         """Track token usage with the key manager"""
         try:
             # 🔍 DEBUG: הוספת לוגים מפורטים
@@ -131,11 +131,35 @@ class ChatService(IChatService):
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Overhead: {system_overhead}")
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Total: {total_tokens}")
             
-            # For ChatService, we use the basic track_usage which is backward compatible
+            # Smart tracking that works with both key manager types
             try:
                 key_manager = get_key_manager()
-                key_manager.track_usage(total_tokens)
-                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens")
+                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Key manager type: {type(key_manager).__name__}")
+                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Has record_usage: {hasattr(key_manager, 'record_usage')}")
+                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Has api_keys: {hasattr(key_manager, 'api_keys')}")
+                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Has track_usage: {hasattr(key_manager, 'track_usage')}")
+                
+                # Check if this is DatabaseKeyManager or legacy GeminiKeyManager
+                if hasattr(key_manager, 'record_usage') and hasattr(key_manager, 'api_keys'):
+                    # DatabaseKeyManager - needs key_id
+                    # 🔥 FIX: Ensure keys are loaded by calling get_available_key
+                    current_key = await key_manager.get_available_key()
+                    if current_key:
+                        key_id = current_key.get('id')
+                        if key_id:
+                            await key_manager.record_usage(key_id, total_tokens, 1)
+                            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens for key {key_id}")
+                        else:
+                            logger.warning("⚠️ [CHAT-TOKEN-TRACK] No key_id found in current key")
+                    else:
+                        logger.warning("⚠️ [CHAT-TOKEN-TRACK] No API keys available in DatabaseKeyManager")
+                elif hasattr(key_manager, 'track_usage'):
+                    # Legacy GeminiKeyManager - accepts only tokens_used
+                    key_manager.track_usage(total_tokens)
+                    logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens (legacy)")
+                else:
+                    logger.warning("⚠️ [CHAT-TOKEN-TRACK] Unknown key manager type - no tracking method found")
+                    
             except Exception as km_error:
                 logger.warning(f"⚠️ [CHAT-TOKEN-TRACK] Key manager tracking failed: {km_error}")
                 # Continue without key manager tracking - not critical for ChatService
@@ -258,7 +282,7 @@ class ChatService(IChatService):
             
             # 🔥 TRACK TOKEN USAGE FOR CONVERSATION
             logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for conversation response")
-            self._track_token_usage(user_message, response_content, "conversation")
+            await self._track_token_usage(user_message, response_content, "conversation")
             
             return {
                 "response": response_content,
@@ -297,7 +321,7 @@ class ChatService(IChatService):
                     
                     # 🔥 TRACK TOKEN USAGE FOR RAG RESPONSE
                     logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for RAG response")
-                    self._track_token_usage(user_message, rag_response["answer"], "rag")
+                    await self._track_token_usage(user_message, rag_response["answer"], "rag")
                     
                     return {
                         "response": rag_response["answer"],
@@ -319,7 +343,7 @@ class ChatService(IChatService):
         
         # 🔥 TRACK TOKEN USAGE FOR FALLBACK RESPONSE
         logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for fallback response")
-        self._track_token_usage(user_message, response_content, "fallback")
+        await self._track_token_usage(user_message, response_content, "fallback")
         
         return {
             "response": response_content,

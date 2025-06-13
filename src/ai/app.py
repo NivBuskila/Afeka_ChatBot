@@ -541,125 +541,55 @@ def key_status():
     print("🚨🚨🚨 KEY-STATUS CALLED! 🚨🚨🚨")
     
     try:
-        from core.gemini_key_manager import get_key_manager
-        from core.token_persistence import TokenUsagePersistence
-        manager = get_key_manager()
+        # 🆕 פתרון פשוט: קרא לבקאנד API במקום לטפל בדאטה בייס ישירות
+        import requests
+        backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
         
-        print(f"🔍 Manager instance ID: {id(manager)}")
-        print(f"🔍 Current key index at start: {manager.current_key_index}")
-        print(f"🔍 Total API keys: {len(manager.api_keys) if manager.api_keys else 0}")
+        print(f"🔍 Calling backend API: {backend_url}/api/keys/")
+        response = requests.get(f"{backend_url}/api/keys/", timeout=10)
         
-        # 🆕 הוספת בדיקה מיידית של המצב
-        print("🔍 Forcing immediate key availability check...")
-        if manager.api_keys:
-            current_key = manager.api_keys[manager.current_key_index]
-            manager._reset_counters_if_needed(current_key)
-            is_current_available = manager._check_limits(current_key)
-            print(f"🔍 Current key {manager.current_key_index} available: {is_current_available}")
-            
-            if not is_current_available:
-                print("🔄 Current key not available, looking for alternative...")
-                available_index = manager._find_available_key()
-                if available_index is not None and available_index != manager.current_key_index:
-                    old_key = manager.current_key_index
-                    manager.current_key_index = available_index
-                    manager._configure_current_key()
-                    print(f"🔄 SWITCHED: {old_key} → {manager.current_key_index}")
-                else:
-                    print("❌ No alternative key found!")
-        
-        # 🆕 תמיד טען נתונים עדכניים מהקובץ
-        import os
-        import shutil
-        
-        current_dir = os.getcwd()
-        ai_file = os.path.join(current_dir, "token_usage_data.json")
-        backend_file = os.path.join(current_dir, "..", "backend", "token_usage_data.json")
-        backend_file = os.path.abspath(backend_file)
-        
-        print(f"📁 AI file exists: {os.path.exists(ai_file)}")
-        print(f"📁 Backend file exists: {os.path.exists(backend_file)}")
-        
-        # 🔄 תמיד העתק את הקובץ העדכני מהבקאנד
-        if os.path.exists(backend_file):
-            try:
-                shutil.copy2(backend_file, ai_file)
-                print(f"✅ Updated file from backend")
-            except Exception as copy_err:
-                print(f"❌ Error copying file: {copy_err}")
-        
-        # 🔄 צור persistence חדש וטען נתונים מחדש
-        print("🔄 Creating fresh persistence and reloading data...")
-        try:
-            manager.persistence = TokenUsagePersistence()
-            print("✅ Created new persistence instance")
-        except Exception as reload_err:
-            print(f"❌ Error creating persistence: {reload_err}")
-        
-        # 🎯 השתמש בפונקציה החדשה get_detailed_status
-        print("🔍 Getting detailed status with current minute data...")
-        detailed_status = manager.get_detailed_status()
-        
-        print(f"🎯 Final status result:")
-        print(f"🎯 - Total keys: {detailed_status.get('total_keys', 'N/A')}")
-        print(f"🎯 - Current key index: {detailed_status.get('current_key_index', 'N/A')}")
-        print(f"🎯 - Keys status count: {len(detailed_status.get('keys_status', []))}")
-        
-        # הדפס פירוט של כל מפתח
-        keys_status = detailed_status.get('keys_status', [])
-        for i, key_status in enumerate(keys_status):
-            status = key_status.get('status', 'unknown')
-            is_current = key_status.get('is_current', False)
-            tokens_today = key_status.get('tokens_today', 0)
-            requests_today = key_status.get('requests_today', 0)
-            tokens_minute = key_status.get('tokens_current_minute', 0)
-            requests_minute = key_status.get('requests_current_minute', 0)
-            
-            print(f"🎯 Key {i}:")
-            print(f"🎯   - Status: {status}")
-            print(f"🎯   - Is Current: {is_current}")
-            print(f"🎯   - Tokens today: {tokens_today}")
-            print(f"🎯   - Requests today: {requests_today}")
-            print(f"🎯   - Tokens/min: {tokens_minute}")
-            print(f"🎯   - Requests/min: {requests_minute}")
-        
-        response_data = {
-            "status": "ok",
-            "key_management": detailed_status
-        }
-        
-        print(f"🎯 Sending response with current key index: {detailed_status.get('current_key_index')}")
-        return jsonify(response_data)
-        
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        # 🆕 במקרה של שגיאה, החזר לפחות נתונים בסיסיים
-        try:
-            from core.gemini_key_manager import get_key_manager
-            manager = get_key_manager()
-            basic_response = {
-                "status": "error",
-                "error": str(e),
-                "key_management": {
-                    "current_key_index": getattr(manager, 'current_key_index', 0),
-                    "total_keys": len(getattr(manager, 'api_keys', [])),
-                    "available_keys": 1
-                }
-            }
-            return jsonify(basic_response), 500
-        except:
+        if response.status_code == 200:
+            backend_data = response.json()
+            print(f"✅ Got response from backend API")
+            print(f"🎯 Backend response keys: {list(backend_data.keys())}")
+            return jsonify(backend_data)
+        else:
+            print(f"❌ Backend API error: {response.status_code}")
             return jsonify({
-                "status": "error", 
-                "error": str(e),
+                "status": "error",
+                "error": f"Backend API returned {response.status_code}",
                 "key_management": {
                     "current_key_index": 0,
                     "total_keys": 0,
                     "available_keys": 0
                 }
             }), 500
+            
+    except requests.RequestException as e:
+        print(f"❌ Network error calling backend: {e}")
+        return jsonify({
+            "status": "error", 
+            "error": f"Could not connect to backend: {str(e)}",
+            "key_management": {
+                "current_key_index": 0,
+                "total_keys": 0,
+                "available_keys": 0
+            }
+        }), 500
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error", 
+            "error": str(e),
+            "key_management": {
+                "current_key_index": 0,
+                "total_keys": 0,
+                "available_keys": 0
+            }
+        }), 500
 
 @app.route('/api/debug-key-status')
 def debug_key_status():

@@ -4,13 +4,13 @@ import { documentService } from '../../services/documentService';
 
 interface ProcessingProgressBarProps {
   documentId: number;
-  refreshInterval?: number; // in milliseconds, default 5000 (5 seconds)
+  refreshInterval?: number; // in milliseconds, default 10000 (10 seconds)
   maxPollingTime?: number; // in milliseconds, default 120000 (2 minutes)
 }
 
 const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({ 
   documentId,
-  refreshInterval = 5000,
+  refreshInterval = 10000,
   maxPollingTime = 120000
 }) => {
   const [processingData, setProcessingData] = useState<any>(null);
