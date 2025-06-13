@@ -12,6 +12,18 @@
             "requests": 1
           }
         }
+      },
+      "2025-06-13": {
+        "tokens_used": 56,
+        "requests_count": 1,
+        "first_request": "2025-06-13T08:04:48.334366+00:00",
+        "last_request": "2025-06-13T08:04:48.334366+00:00",
+        "current_minute_data": {
+          "2025-06-13 08:04": {
+            "tokens": 56,
+            "requests": 1
+          }
+        }
       }
     },
     "key_1": {
@@ -52,7 +64,14 @@
         1,
         2
       ]
+    },
+    "2025-06-13": {
+      "total_tokens": 56,
+      "total_requests": 1,
+      "active_keys": [
+        0
+      ]
     }
   },
-  "last_updated": "2025-06-12T11:39:46.886532+00:00"
+  "last_updated": "2025-06-13T08:04:48.334366+00:00"
 }

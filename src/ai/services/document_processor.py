@@ -422,7 +422,7 @@ class DocumentProcessor:
             # Using the model specified for embeddings, e.g., "models/embedding-001"
             # Task types: "retrieval_query", "retrieval_document", "semantic_similarity", "classification", "clustering"
             logger.debug(f"Calling genai.embed_content with model {self.embedding_config.MODEL_NAME} and task_type {task_type}")
-            result = safe_embed_content(
+            result = await safe_embed_content(
                 model=self.embedding_config.MODEL_NAME,
                 content=text,
                 task_type=task_type

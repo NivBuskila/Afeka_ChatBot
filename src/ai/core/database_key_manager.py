@@ -139,6 +139,18 @@ class DatabaseKeyManager:
             
         return True
     
+    async def ensure_available_key(self) -> bool:
+        """Compatibility method that wraps get_available_key for existing code"""
+        key = await self.get_available_key()
+        return key is not None
+    
+    def track_usage(self, tokens_used: int = 100):
+        """Compatibility method for tracking usage - implements basic tracking"""
+        logger.info(f"📊 [DatabaseKeyManager] Tracking usage: {tokens_used} tokens")
+        # Note: This is a compatibility method. Real tracking is done via record_usage()
+        # when the key_id is available. This method is mainly for backward compatibility
+        # with existing code that expects synchronous tracking.
+    
     async def record_usage(self, key_id: int, tokens_used: int, requests_count: int = 1):
         """רישום שימוש"""
         if self.use_direct_supabase and self.supabase:

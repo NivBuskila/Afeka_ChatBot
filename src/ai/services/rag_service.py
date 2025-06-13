@@ -36,9 +36,9 @@ class RAGService:
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         )
         
-        # 🆕 החלף ל-Database Key Manager
-        self.key_manager = DatabaseKeyManager()
-        logger.info("🔑 RAG Service using Database Key Manager")
+        # 🆕 החלף ל-Database Key Manager עם חיבור ישיר ל-Supabase
+        self.key_manager = DatabaseKeyManager(use_direct_supabase=True)
+        logger.info("🔑 RAG Service using Database Key Manager with direct Supabase connection")
         
         # 🎯 טעינת פרופיל מהמערכת המרכזית
         if config_profile is None:
@@ -79,11 +79,28 @@ class RAGService:
             self.db_config = get_database_config()
             self.performance_config = get_performance_config()
         
-        # 🔥 יצירת מודל Gemini עם Key Manager
-        if self.key_manager:
-            # Configure with current key from manager
-            current_key = self.key_manager.api_keys[self.key_manager.current_key_index]
-            genai.configure(api_key=current_key)
+        # 🔥 הגדר Key Manager - נטען מפתחות בצורה lazy
+        # Note: Keys will be loaded when first needed in ensure_available_key()
+        logger.info("🔑 Database Key Manager configured - keys will be loaded on first use")
+        
+        # 🔥 יצירת מודל Gemini - יש fallback לסביבה
+        # Try to get key from environment first (safe init approach)
+        fallback_key = os.getenv("GEMINI_API_KEY")
+        if fallback_key:
+            genai.configure(api_key=fallback_key)
+            logger.info("🔑 Using GEMINI_API_KEY from environment for initialization")
+        else:
+            # Try to use Key Manager for initialization (keys loaded lazily) 
+            try:
+                if self.key_manager:
+                    # Just configure with environment key for now, database keys will be loaded lazily
+                    logger.info("🔑 Database Key Manager configured - will use environment key for init")
+                    # Will switch to database keys when needed
+                else:
+                    raise Exception("No API keys available from Database or environment")
+            except Exception as e:
+                logger.error(f"❌ Key initialization failed: {e}")
+                raise Exception("No API keys available")
         
         # יצירת מודל Gemini עם הגדרות מהconfig
         self.model = genai.GenerativeModel(
@@ -99,33 +116,35 @@ class RAGService:
                    f"Max chunks: {self.search_config.MAX_CHUNKS_RETRIEVED}, "
                    f"Model: {self.llm_config.MODEL_NAME}")
     
-    def _track_embedding_usage(self, text: str):
+    def _track_embedding_usage(self, text: str, key_id: int = None):
         """Track token usage for embedding generation"""
-        if self.key_manager:
-            # Estimate tokens for embedding (much smaller than generation)
-            estimated_tokens = len(text) // 8  # Embeddings use fewer tokens
-            logger.info(f"🔢 [RAG-EMBED-TRACK] Tracking {estimated_tokens} tokens for embedding")
-            self.key_manager.track_usage(estimated_tokens)
+        # Estimate tokens for embedding (much smaller than generation)
+        estimated_tokens = len(text) // 8  # Embeddings use fewer tokens
+        logger.info(f"🔢 [RAG-EMBED-TRACK] Estimated {estimated_tokens} tokens for embedding")
+        # Note: Key tracking can be implemented later async
 
-    def _track_generation_usage(self, prompt: str, response: str):
+    def _track_generation_usage(self, prompt: str, response: str, key_id: int = None):
         """Track token usage for text generation"""
-        if self.key_manager:
-            input_tokens = len(prompt) // 4
-            output_tokens = len(response) // 4
-            total_tokens = input_tokens + output_tokens
-            logger.info(f"🔢 [RAG-GEN-TRACK] Tracking {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
-            self.key_manager.track_usage(total_tokens)
+        input_tokens = len(prompt) // 4
+        output_tokens = len(response) // 4
+        total_tokens = input_tokens + output_tokens
+        logger.info(f"🔢 [RAG-GEN-TRACK] Estimated {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
+        # Note: Key tracking can be implemented later async
     
     async def generate_query_embedding(self, query: str) -> List[float]:
         """יוצר embedding עבור שאילתה"""
         try:
             # 🔥 Ensure we're using current key if Key Manager available
-            if self.key_manager and not self.key_manager.ensure_available_key():
-                raise Exception("No available API keys for embedding")
-            
+            key_id = None
             if self.key_manager:
-                current_key = self.key_manager.api_keys[self.key_manager.current_key_index]
-                genai.configure(api_key=current_key)
+                available_key = await self.key_manager.get_available_key()
+                if not available_key:
+                    raise Exception("No available API keys for embedding")
+                
+                # Configure with the available key
+                genai.configure(api_key=available_key['api_key'])
+                key_id = available_key.get('id')
+                logger.info(f"🔑 Using key {available_key.get('key_name', 'unknown')} for embedding")
             
             embedding_model = genai.embed_content(
                 model=self.embedding_config.MODEL_NAME,
@@ -134,7 +153,7 @@ class RAGService:
             )
             
             # 🔥 Track usage
-            self._track_embedding_usage(query)
+            self._track_embedding_usage(query, key_id)
             
             return embedding_model['embedding']
         except Exception as e:
@@ -455,12 +474,13 @@ class RAGService:
         for attempt in range(max_retries):
             try:
                 # 🔥 Ensure we're using current key if Key Manager available
-                if self.key_manager and not self.key_manager.ensure_available_key():
-                    raise Exception("No available API keys for generation")
-                
                 if self.key_manager:
-                    current_key = self.key_manager.api_keys[self.key_manager.current_key_index]
-                    genai.configure(api_key=current_key)
+                    available_key = await self.key_manager.get_available_key()
+                    if not available_key:
+                        raise Exception("No available API keys for generation")
+                    
+                    # Configure with the available key
+                    genai.configure(api_key=available_key['api_key'])
                     
                     # Recreate model with current key
                     self.model = genai.GenerativeModel(

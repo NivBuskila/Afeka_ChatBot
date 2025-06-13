@@ -4,12 +4,15 @@ import logging
 from supabase import Client
 import httpx
 import os
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
 class ApiKeyService:
     def __init__(self, supabase: Client):
         self.supabase = supabase
+        self._usage_cache = {}
+        self._cache_timeout = timedelta(minutes=1)
     
     async def get_all_keys(self) -> List[Dict[str, Any]]:
         """קבלת כל המפתחות הפעילים"""
@@ -40,7 +43,15 @@ class ApiKeyService:
             return 0  # fallback לפערך ראשון
     
     async def get_key_current_usage(self, key_id: int) -> Dict[str, int]:
-        """קבלת שימוש נוכחי של מפתח"""
+        """קבלת שימוש נוכחי של מפתח עם cache"""
+        cache_key = f"usage_{key_id}_{datetime.now().minute}"
+        
+        # בדוק cache
+        if cache_key in self._usage_cache:
+            cached_time, cached_data = self._usage_cache[cache_key]
+            if datetime.now() - cached_time < self._cache_timeout:
+                return cached_data
+        
         today = date.today()
         # שימוש בזמן UTC כדי להתאים לדאטה בייס
         current_minute_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
@@ -69,12 +80,17 @@ class ApiKeyService:
             minute_tokens = sum([row["tokens_used"] for row in minute_response.data])
             minute_requests = sum([row["requests_count"] for row in minute_response.data])
             
-            return {
+            usage_data = {
                 "daily_tokens": daily_tokens,
                 "daily_requests": daily_requests,
                 "minute_tokens": minute_tokens,
                 "minute_requests": minute_requests
             }
+            
+            # שמור ב-cache
+            self._usage_cache[cache_key] = (datetime.now(), usage_data)
+            
+            return usage_data
         except Exception as e:
             logger.error(f"Error fetching usage for key {key_id}: {e}")
             return {"daily_tokens": 0, "daily_requests": 0, "minute_tokens": 0, "minute_requests": 0}

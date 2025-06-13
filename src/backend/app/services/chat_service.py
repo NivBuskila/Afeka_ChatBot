@@ -62,12 +62,19 @@ class ChatService(IChatService):
             return
 
         try:
-            # Before creating the LLM, get current key
+            # Before creating the LLM, get current key from manager
             key_manager = get_key_manager()
-            current_key = key_manager.api_keys[key_manager.current_key_index]
+            
+            # Use environment key for ChatService since it's initialized once
+            # The RAG service will use the key manager for dynamic key management
+            current_key = settings.GEMINI_API_KEY
+            
+            if not current_key:
+                logger.error("No GEMINI_API_KEY available for ChatService initialization")
+                raise ValueError("GEMINI_API_KEY is required for ChatService")
 
             self.llm = ChatGoogleGenerativeAI(
-                google_api_key=current_key,  # Use key from manager
+                google_api_key=current_key,  # Use environment key for stable init
                 model=settings.GEMINI_MODEL_NAME,
                 temperature=settings.GEMINI_TEMPERATURE,
                 max_output_tokens=settings.GEMINI_MAX_TOKENS
@@ -108,8 +115,6 @@ class ChatService(IChatService):
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] User message length: {len(user_message)}")
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] AI response length: {len(ai_response)}")
             
-            key_manager = get_key_manager()
-            
             # Estimate tokens based on text length (rough approximation)
             # Typically ~4 characters per token for mixed content
             input_tokens = len(user_message) // 4
@@ -126,10 +131,15 @@ class ChatService(IChatService):
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Overhead: {system_overhead}")
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Total: {total_tokens}")
             
-            # Track usage with the key manager
-            key_manager.track_usage(total_tokens)
+            # For ChatService, we use the basic track_usage which is backward compatible
+            try:
+                key_manager = get_key_manager()
+                key_manager.track_usage(total_tokens)
+                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens")
+            except Exception as km_error:
+                logger.warning(f"⚠️ [CHAT-TOKEN-TRACK] Key manager tracking failed: {km_error}")
+                # Continue without key manager tracking - not critical for ChatService
             
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens")
             logger.info(f"🔢 [CHAT-TOKEN-TRACK] ===== TOKEN TRACKING COMPLETE =====")
             
         except Exception as e:

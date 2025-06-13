@@ -456,12 +456,13 @@ class GeminiKeyManager:
             requests_count
         )
 
-def safe_generate_content(*args, **kwargs) -> Any:
+async def safe_generate_content(*args, **kwargs) -> Any:
     """Wrapper בטוח לgenerative content"""
     manager = get_key_manager()
     
     # 🎯 וידוא שיש מפתח זמין ועדכון current_key_index אם צריך
-    if not manager.ensure_available_key():
+    key = await manager.get_available_key()
+    if not key:
         raise Exception("No available Gemini API keys")
     
     # 🆕 לוג המפתח שבשימוש לפני הבקשה
@@ -486,12 +487,13 @@ def safe_generate_content(*args, **kwargs) -> Any:
         logger.error(f"Gemini API error: {e}")
         raise
 
-def safe_embed_content(*args, **kwargs) -> Any:
+async def safe_embed_content(*args, **kwargs) -> Any:
     """Wrapper בטוח לembedding content"""
     manager = get_key_manager()
     
     # 🎯 וידוא שיש מפתח זמין
-    if not manager.ensure_available_key():
+    key = await manager.get_available_key()
+    if not key:
         raise Exception("No available Gemini API keys")
     
     # 🆕 לוג המפתח שבשימוש לפני הבקשה
@@ -517,8 +519,9 @@ def safe_embed_content(*args, **kwargs) -> Any:
 # Instance יחיד גלובלי
 _key_manager = None
 
-def get_key_manager() -> GeminiKeyManager:
-    """קבלת מנגנון הניהול הגלובלי"""
+def get_key_manager():
+    """קבלת מנגנון הניהול הגלובלי - החל מעכשיו משתמש ב-DatabaseKeyManager"""
+    from .database_key_manager import DatabaseKeyManager
     import threading
     global _key_manager
     
@@ -532,19 +535,20 @@ def get_key_manager() -> GeminiKeyManager:
     logger.info(f"🔧 [KEY-MANAGER] Current instance: {id(_key_manager) if _key_manager else 'None'}")
     
     if _key_manager is None:
-        logger.info("🔧 [KEY-MANAGER] Creating NEW Key Manager instance")
-        _key_manager = GeminiKeyManager()
+        logger.info("🔧 [KEY-MANAGER] Creating NEW Database Key Manager instance")
+        _key_manager = DatabaseKeyManager()
         logger.info(f"🔧 [KEY-MANAGER] Created instance with ID: {id(_key_manager)}")
     else:
-        logger.info(f"🔧 [KEY-MANAGER] Using EXISTING Key Manager instance ID: {id(_key_manager)}")
+        logger.info(f"🔧 [KEY-MANAGER] Using EXISTING Database Key Manager instance ID: {id(_key_manager)}")
         
     return _key_manager
 
-def safe_generate_content(*args, **kwargs) -> Any:
+async def safe_generate_content(*args, **kwargs) -> Any:
     """Wrapper בטוח לgenerative content"""
     manager = get_key_manager()
     
-    if not manager.ensure_available_key():
+    key = await manager.get_available_key()
+    if not key:
         raise Exception("No available Gemini API keys")
     
     try:
@@ -562,11 +566,12 @@ def safe_generate_content(*args, **kwargs) -> Any:
         logger.error(f"Gemini API error: {e}")
         raise
 
-def safe_embed_content(*args, **kwargs) -> Any:
+async def safe_embed_content(*args, **kwargs) -> Any:
     """Wrapper בטוח לembedding content"""
     manager = get_key_manager()
     
-    if not manager.ensure_available_key():
+    key = await manager.get_available_key()
+    if not key:
         raise Exception("No available Gemini API keys")
     
     try:
