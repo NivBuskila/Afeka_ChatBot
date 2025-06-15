@@ -49,7 +49,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const [showFullChunk, setShowFullChunk] = useState(false);
 
           return (
-      <div className={`w-full ${isUser ? "text-right" : "text-right"}`}>
+      <div className={`w-full ${isUser ? "text-right" : "text-right"}`} data-testid={isUser ? "user-message" : "bot-message"}>
         {/* Message content */}
         <div className={`mb-6 ${isUser ? "text-right" : "text-right"}`}>
           <div

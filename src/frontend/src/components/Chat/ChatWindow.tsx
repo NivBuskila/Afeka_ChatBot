@@ -798,7 +798,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className={`relative h-full w-full ${chatContainer} flex`}>
+    <div className={`relative h-full w-full ${chatContainer} flex`} data-testid="chat-container">
       {/* Status message toast */}
       {statusMessage && (
         <div className="absolute top-4 right-4 z-50 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-md max-w-md animate-fadeIn">
@@ -1060,7 +1060,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   />
                   <div ref={messagesEndRef} />
                   {isLoading && (
-                    <div className="max-w-3xl mx-auto px-8 py-4">
+                    <div className="max-w-3xl mx-auto px-8 py-4" data-testid="typing-indicator">
                       <div className="w-full text-right">
                         <div className="mb-6">
                           <div className="flex justify-end space-x-1 mb-2">

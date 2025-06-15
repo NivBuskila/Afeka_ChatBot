@@ -66,7 +66,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" data-testid="chat-history">
       {/* Sessions list */}
       {isLoading ? (
         <div className="flex items-center justify-center py-4">

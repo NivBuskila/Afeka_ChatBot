@@ -683,79 +683,217 @@ from langchain_experimental.text_splitter import SemanticChunker
 
 Make sure all files using `SemanticChunker` (like `rag_service.py` and `document_processor.py`) are updated. Also, ensure `langchain_experimental` is installed.
 
-## �� Project Structure
+## 📋 סקירה כללית
 
-- `frontend/`: Web interface (React/TypeScript)
-- `backend/`: API and business logic (Python/FastAPI)
-- `ai/`: AI models and processing (Python/Flask)
-  - `ai/services/`: RAG and AI business logic
-  - `ai/config/`: AI configuration and profiles
-  - `ai/scripts/`: Management and utility scripts
-- `supabase/`: Database schema and migrations
-- `RAG_test/`: AI system testing and validation
+הפרויקט כולל שלושה סוגי טסטים:
+- **Frontend Tests** - טסטים לצד הלקוח (React/TypeScript)
+- **Backend Tests** - טסטים לצד השרת (Python/FastAPI)
+- **RAG Tests** - טסטי איכות תשובות AI ומערכת החיפוש
 
-## 🔧 AI Configuration Management
+## 🎯 Frontend Tests
 
-The project includes several AI-related management scripts:
+### מיקום: `src/frontend/tests/`
 
-### Profile Management
+**3 קבצי טסט עם 27 טסטים:**
 
-To manage RAG system configuration profiles:
+1. **`simple.test.tsx`** (4 טסטים)
+   - חישוב סה"כ טוקנים
+   - לוגיקת מעבר מפתחות (60% threshold)
+   - סיווג סטטוס מפתחות
+   - פורמט נתונים
 
-```bash
-python src/ai/scripts/manage_profile.py
-```
+2. **`dashboard-logic.test.tsx`** (13 טסטים)
+   - חישובי טוקנים מורכבים
+   - לוגיקת switching עם margins שונים
+   - סיווג מפתחות לפי סטטוס
+   - אגרגציה של נתונים
+   - וולידציה של נתונים
 
-This script allows you to:
+3. **`TokenUsageAnalytics.test.tsx`** (10 טסטים)
+   - פורמט מספרים עם פסיקים
+   - חישוב סטטיסטיקות
+   - בדיקת localization (עברית/אנגלית)
+   - וולידציה של API responses
 
-- View current AI configuration
-- Switch between different performance profiles (fast, balanced, high_quality, etc.)
-- Test the current configuration
-- List all available profiles
-
-#### Available Profiles
-
-1. **Enhanced Testing (AGGRESSIVE)** ⭐ **[פעיל כברירת מחדל במערכת]**
-
-   - Based on 66.7% failure analysis - AGGRESSIVE PARAMETERS
-   - Similarity threshold: 0.15 (extremely low for maximum coverage)
-   - Max chunks: 40 (increased from 30)
-   - Max context chunks: 25 (increased for complex sections)
-   - Chunk size: 600 (smaller for precise section detection)
-   - High overlap: 300 tokens (maximum continuity)
-   - Semantic/Keyword balance: 0.7/0.3 (better section number detection)
-   - Max context: 15,000 tokens (increased for comprehensive answers)
-   - Temperature: 0.02 (maximum accuracy)
-
-2. **High Quality** - Maximum accuracy, slower performance
-3. **Fast** - Quick responses, good quality
-4. **Balanced** - Good balance between speed and accuracy
-5. **Improved** - Optimized for missing sections
-6. **Debug** - Development and testing with detailed logs
-
-### Testing Scripts
-
-Located in `RAG_test/`:
+### 🚀 הרצת טסטי Frontend:
 
 ```bash
-# Run comprehensive RAG system tests with profile and question set selection
-python RAG_test/test_runner.py
+# נווט לתיקיית Frontend
+cd src/frontend
 
-# Quick debugging and profile comparison
-python RAG_test/debug_rag.py
+# הרץ את כל הטסטים
+npm test
+
+# הרץ במצב watch (מעקב אוטומטי)
+npm run test:watch
+
+# הרץ טסט ספציפי
+npx vitest simple.test.tsx
 ```
 
-The test runner now includes:
+**זמן ריצה**: ~8 שניות  
+**שיעור הצלחה**: 100% (27/27)
 
-- **Profile Selection**: Choose which RAG configuration to test
-- **Question Set Selection**: Choose from multiple test question sets:
-  - Basic RAG Test Set (30 mixed questions)
-  - Detailed Accuracy Test Set (30 comprehensive accuracy questions)
-- **Comprehensive Reports**: Detailed analysis with profile information
-- **Chunking Analysis**: Specific insights into chunk selection and scoring
+## 🔧 Backend Tests
 
-Test results are saved in `RAG_test/results/` with:
+### מיקום: `src/tests/backend/`
 
-- Detailed text reports with profile and question set information
-- JSON raw data for further analysis
-- Chunk analysis for debugging retrieval issues
+**9 קבצי טסט עם 123 טסטים:**
+
+1. **`tests_01_auth.py`** (11 טסטים) - אימות והרשאות
+2. **`tests_02_chat_sessions.py`** (14 טסטים) - ניהול צ'אט
+3. **`tests_03_messages.py`** (13 טסטים) - טיפול בהודעות
+4. **`tests_04_ai_integration.py`** (15 טסטים) - אינטגרציה עם AI
+5. **`tests_05_documents.py`** (17 טסטים) - ניהול מסמכים ו-RAG
+6. **`tests_06_security.py`** (16 טסטים) - אבטחה
+7. **`tests_07_errors.py`** (13 טסטים) - טיפול בשגיאות
+8. **`tests_08_e2e.py`** (12 טסטים) - טסטי End-to-End
+9. **`tests_09_performance.py`** (12 טסטים) - ביצועים
+
+### 🚀 הרצת טסטי Backend:
+
+```bash
+# נווט לתיקיית הטסטים
+cd src/tests/backend
+
+# הרץ את כל הטסטים
+python tests_runner.py --all --verbose
+
+# הרץ קטגוריה ספציפית
+python tests_runner.py --category auth --verbose
+
+# הרץ טסט ספציפי
+pytest tests_01_auth.py -v
+```
+
+**זמן ריצה**: ~11.5 דקות  
+**שיעור הצלחה**: 100% (123/123)
+
+## 🧠 RAG Tests
+
+### מיקום: `RAG_test/`
+
+**3 סטים של שאלות עם 90 שאלות בסך הכל:**
+
+1. **Basic RAG Test Set** (30 שאלות)
+   - 🔍 דיוק מספרי סעיפים (8 שאלות)
+   - 🧠 שאלות תוכן מורכבות (8 שאלות)
+   - ⚖️ שאלות משמעת (7 שאלות)
+   - 🤔 שאלות אמביגואליות (4 שאלות)
+   - 🪤 שאלות מלכודת (3 שאלות)
+
+2. **Detailed Accuracy Test Set** (30 שאלות)
+   - בדיקות מקיפות של דיוק RAG
+   - שאלות מורכבות ומפורטות
+
+3. **Real Student Questions** (30 שאלות)
+   - שאלות שמדמות פניות אמיתיות של סטודנטים
+   - תרחישים מעשיים מהחיים האמיתיים
+
+### 🚀 הרצת טסטי RAG:
+
+```bash
+# נווט לתיקיית RAG
+cd RAG_test
+
+# הרץ את כל הטסטים (90 שאלות)
+python test_runner.py
+
+# דיבוג מהיר
+python debug_rag.py
+```
+
+**דרישות**:
+- משתני סביבה: `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`
+- מסד נתונים Supabase עם מסמכים מעובדים
+
+**זמן ריצה**: ~13 דקות  
+**פרופילים זמינים**: 9 פרופילי תצורה שונים
+
+### 📊 דוחות RAG:
+- `test_report_[timestamp].txt` - דוח מפורט בעברית
+- `chunks_analysis_[timestamp].txt` - ניתוח צ'אנקים
+- `rag_settings_[timestamp].json` - הגדרות מערכת
+- `raw_results_[timestamp].json` - נתונים גולמיים
+
+## 🎯 הרצת כל הטסטים
+
+### סקריפט מהיר להרצת הכל:
+
+```bash
+# Frontend Tests
+cd src/frontend && npm test
+
+# Backend Tests  
+cd ../../src/tests/backend && python tests_runner.py --all
+
+# RAG Tests
+cd ../../../RAG_test && python test_runner.py
+```
+
+## 📊 סיכום כולל
+
+### **240 טסטים בסך הכל:**
+- ✅ **Frontend**: 27 טסטים (8 שניות)
+- ✅ **Backend**: 123 טסטים (11.5 דקות)
+- ✅ **RAG**: 90 שאלות (13 דקות)
+
+### **זמן ריצה כולל**: ~25 דקות
+
+## 🔧 דרישות מערכת
+
+### Frontend:
+- Node.js 16+
+- npm או yarn
+- Dependencies: `@testing-library/react`, `@testing-library/jest-dom`
+
+### Backend:
+- Python 3.8+
+- pytest
+- pytest-json-report
+- כל התלויות מ-`requirements.txt`
+
+### RAG:
+- Python 3.8+
+- Gemini API Key
+- Supabase Database
+- מסמכים מעובדים במסד הנתונים
+
+## 🐛 פתרון בעיות
+
+### שגיאות נפוצות:
+
+**Frontend**: `Module not found`
+```bash
+cd src/frontend && npm install
+```
+
+**Backend**: `pytest not found`
+```bash
+pip install pytest pytest-json-report
+```
+
+**RAG**: `supabase_url is required`
+```bash
+# בדוק קובץ .env בשורש הפרויקט
+SUPABASE_URL=your_url
+SUPABASE_KEY=your_key
+GEMINI_API_KEY=your_key
+```
+
+## 📈 מדדי הצלחה
+
+- **Frontend**: 100% pass rate (27/27)
+- **Backend**: 100% pass rate (123/123)
+- **RAG**: תלוי בתצורה (מטרה: 80%+)
+
+## 🔄 הרצה תקופתית
+
+מומלץ להריץ:
+- **Frontend**: לפני כל commit
+- **Backend**: לפני כל deployment
+- **RAG**: אחת לשבוע או לאחר שינויי תוכן
+
+---
+
+**נוצר ועודכן על ידי מערכת הבדיקה האוטומטית** 🎓

@@ -55,6 +55,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
       e.preventDefault();
       if (message.trim() && !isDisabled) {
         handleSend();
+        // Clear message after sending
+        updateMessage('');
+        // Reset textarea height
+        if (textareaRef.current) {
+          textareaRef.current.style.height = '24px';
+        }
       }
     }
   };
@@ -90,6 +96,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               } min-h-[24px] max-h-[120px] leading-6 chat-input-textarea`}
               dir={isRTL ? 'rtl' : 'ltr'}
               aria-label={(t('chat.messageInput') as string) || "Message input"}
+              data-testid="chat-input"
             />
             
             {/* Integrated send button with RTL support */}
@@ -105,6 +112,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   : 'bg-green-500 text-white hover:bg-green-600 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-400 shadow-md hover:shadow-lg'
               }`}
               aria-label={(t('chat.sendMessage') as string) || "Send message"}
+              data-testid="send-button"
             >
               <Send className={`w-4 h-4 ${isRTL ? 'transform scale-x-[-1]' : ''}`} />
             </button>
