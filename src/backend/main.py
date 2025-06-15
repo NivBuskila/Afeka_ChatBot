@@ -1,13 +1,4 @@
-"""
-מודול שרת ראשי למערכת RAG
-הפעלה נכונה: מהתיקייה src/backend:
-uvicorn main:app --reload
 
-או מהתיקייה של הפרויקט:
-uvicorn src.backend.main:app --reload
-
-לא להשתמש ב-"main:app" ללא ציון הנתיב המלא כי זה יגרום לשגיאות טעינה.
-"""
 import os
 import sys
 

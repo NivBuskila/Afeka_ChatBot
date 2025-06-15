@@ -5,9 +5,15 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Helper function to replace axios with native fetch
 const apiRequest = async (url: string, options: RequestInit = {}) => {
+  // Get current session
+  const { data: { session } } = await supabase.auth.getSession();
+  
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(session?.access_token && {
+        'Authorization': `Bearer ${session.access_token}`
+      }),
       ...options.headers,
     },
     ...options,
@@ -15,6 +21,21 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
   
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  // Handle responses with no content (like 204 No Content)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return { success: true };
+  }
+  
+  // Check if response has content to parse
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const text = await response.text();
+    if (text.trim() === '') {
+      return { success: true };
+    }
+    return JSON.parse(text);
   }
   
   return response.json();
@@ -437,12 +458,13 @@ const chatService = {
         method: 'DELETE'
       });
       
-      if (!response || response.success !== true) {
-        console.error('Error deleting chat session:', response?.error || 'Unknown error');
-        return false;
+      // Handle both 204 responses and JSON responses
+      if (response && (response.success === true || response.success === undefined)) {
+        return true;
       }
-
-      return true;
+      
+      console.error('Error deleting chat session:', response?.error || 'Unknown error');
+      return false;
     } catch (error) {
       console.error('Exception deleting chat session:', error);
       return false;

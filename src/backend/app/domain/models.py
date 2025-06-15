@@ -7,7 +7,7 @@ class ChatMessageHistoryItem(BaseModel):
 
 class ChatRequest(BaseModel):
     """Chat request model."""
-    message: str
+    message: str = Field(..., min_length=1, description="Message cannot be empty")
     user_id: str = "anonymous"
     history: Optional[List[ChatMessageHistoryItem]] = None
 
