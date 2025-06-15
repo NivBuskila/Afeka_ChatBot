@@ -6,9 +6,15 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Helper function to replace axios with native fetch
 const apiRequest = async (url: string, options: RequestInit = {}) => {
+  // Get current session
+  const { data: { session } } = await supabase.auth.getSession();
+  
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(session?.access_token && {
+        'Authorization': `Bearer ${session.access_token}`
+      }),
       ...options.headers,
     },
     ...options,
