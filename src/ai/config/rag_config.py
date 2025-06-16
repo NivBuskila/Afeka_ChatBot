@@ -21,14 +21,14 @@ class SearchConfig:
     """הגדרות חיפוש במערכת RAG"""
     
     # ספי דמיון לחיפוש
-    SIMILARITY_THRESHOLD: float = 0.3  # סף דמיון מינימלי לכל הצ'אנקים (lowered for better results)
-    HIGH_QUALITY_THRESHOLD: float = 0.75  # סף לתוצאות איכותיות גבוהות
-    LOW_QUALITY_THRESHOLD: float = 0.40  # סף מינימלי לתוצאות חלשות
+    SIMILARITY_THRESHOLD: float = 0.5  # סף דמיון מינימלי לכל הצ'אנקים (raised for better quality)
+    HIGH_QUALITY_THRESHOLD: float = 0.85  # סף לתוצאות איכותיות גבוהות
+    LOW_QUALITY_THRESHOLD: float = 0.60  # סף מינימלי לתוצאות חלשות
     
     # מספר תוצאות מקסימלי
-    MAX_CHUNKS_RETRIEVED: int = 12  # מספר צ'אנקים מקסימלי לכל חיפוש
-    MAX_CHUNKS_FOR_CONTEXT: int = 8  # מספר צ'אנקים בפועל לשליחה ל-LLM
-    MAX_RESULTS_EXTENDED: int = 20  # חיפוש מורחב לצרכים מיוחדים
+    MAX_CHUNKS_RETRIEVED: int = 8  # מספר צ'אנקים מקסימלי לכל חיפוש (reduced for better focus)
+    MAX_CHUNKS_FOR_CONTEXT: int = 5  # מספר צ'אנקים בפועל לשליחה ל-LLM
+    MAX_RESULTS_EXTENDED: int = 15  # חיפוש מורחב לצרכים מיוחדים
     
     # משקלים לחיפוש היברידי
     HYBRID_SEMANTIC_WEIGHT: float = 0.7  # משקל החיפוש הסמנטי

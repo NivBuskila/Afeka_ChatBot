@@ -19,8 +19,14 @@ if str(ai_path) not in sys.path:
 from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
-# from src.ai.services.rag_service import RAGService  # Import the new RAG service - DISABLED
-# from src.ai.services.document_processor import DocumentProcessor  # Import from ai/services - DISABLED
+try:
+    from src.ai.services.rag_service import RAGService  # Import the new RAG service
+    from src.ai.services.document_processor import DocumentProcessor  # Import from ai/services
+    RAG_AVAILABLE = True
+except ImportError as e:
+    RAGService = None
+    DocumentProcessor = None
+    RAG_AVAILABLE = False
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferWindowMemory
@@ -35,6 +41,12 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from src.ai.core.gemini_key_manager import get_key_manager
 
 logger = logging.getLogger(__name__)
+
+# Log RAG availability after logger is defined
+if RAG_AVAILABLE:
+    logger.info("✅ RAG services imported successfully")
+else:
+    logger.warning("⚠️ RAG services not available")
 
 class ChatService(IChatService):
     """Implementation of chat service interface using LangChain with Google Gemini."""
@@ -201,17 +213,21 @@ class ChatService(IChatService):
                 
                 # שמירת הפרופיל הנוכחי לcache
                 try:
-                    from src.ai.config.current_profile import get_current_profile
-                    current_profile = get_current_profile()
-                    self.current_profile_cache = current_profile
-                    
-                    # יצירת RAG service חדש
-                    from src.ai.services.rag_service import RAGService
-                    self.rag_service = RAGService()
-                    logger.debug(f"✅ RAG service ready with profile: {self.current_profile_cache}")
+                    if RAG_AVAILABLE and RAGService:
+                        from src.ai.config.current_profile import get_current_profile
+                        current_profile = get_current_profile()
+                        self.current_profile_cache = current_profile
+                        
+                        # יצירת RAG service חדש
+                        self.rag_service = RAGService()
+                        logger.debug(f"✅ RAG service ready with profile: {self.current_profile_cache}")
+                    else:
+                        logger.warning("RAG service not available - imports failed")
+                        self.rag_service = None
+                        self.current_profile_cache = "unavailable"
                 except Exception as e:
                     logger.warning(f"Could not get current profile or create RAG service: {e}")
-                    self.current_profile_cache = "unknown"
+                    self.current_profile_cache = "error"
                     self.rag_service = None
                     
             else:

@@ -431,13 +431,17 @@ class RAGService:
         included_chunks = []  # 🆕 רשימת החלקים שבפועל נכללו בקונטקסט
         total_tokens = 0
         
+        # ✅ הסרה של hard-coding! עכשיו נסתמך על אלגוריתם חכם בלבד
+        # החיפוש כבר מדורג לפי רלוונטיות - נשמור על הסדר הזה
+        reordered_results = search_results
+        
         # מגביל למספר chunks מקסימלי ולגבול tokens
         max_chunks_for_context = min(
-            len(search_results), 
+            len(reordered_results), 
             self.search_config.MAX_CHUNKS_FOR_CONTEXT
         )
         
-        for i, result in enumerate(search_results[:max_chunks_for_context]):
+        for i, result in enumerate(reordered_results[:max_chunks_for_context]):
             chunk_content = result.get('chunk_text', result.get('content', ''))
             document_name = result.get('document_name', f'מסמך {i+1}')
             
@@ -561,6 +565,8 @@ class RAGService:
 
 שאלת המשתמש: {query}
 
+⚠️ CRITICAL: ציטוט מקורות הוא חובה אבסולוטית ובלתי משתמעת! ללא חריגים!
+
 הנחיות למתן תשובה:
 1. קרא בקפידה את כל המידע שניתן מהקשר לעיל
 2. ענה בעברית בצורה ברורה ומפורטת, כולל פרטים ספציפיים כמו סכומים, אחוזים, תנאים
@@ -570,61 +576,382 @@ class RAGService:
 6. אם השאלה לא קשורה לתקנונים כלל, ציין שאין לך מידע על הנושא
 7. במקרה של מלגות, זכויות או הטבות - פרט את כל התנאים והסכומים הרלוונטיים
 
-חשוב מאוד: בסוף התשובה שלך, ציין במדויק איזה מקורות השתמשת בהם לתשובה בפורמט:
+🔥 MANDATORY SOURCE CITATION FORMAT:
+בסוף כל תשובה, חייב לכלול ציטוט מקורות בפורמט הזה בדיוק:
 [מקורות: מקור X, מקור Y]
 
-לדוגמה: [מקורות: מקור 1, מקור 3] או [מקורות: מקור 2]
+⭐ REQUIRED EXAMPLES:
+✅ CORRECT: "הקנס על חניה הוא 150 ₪. [מקורות: מקור 1, מקור 3]"
+✅ CORRECT: "זמן הלימודים לתואר בהנדסה הוא 4 שנים. [מקורות: מקור 2]"
+✅ CORRECT: "תנאי הזכאות למלגה כוללים... [מקורות: מקור 5, מקור 12]"
 
-חשוב: בדוק שוב בקפידה את המידע שניתן לפני שאתה טוען שאין מידע!
+❌ WRONG: תשובה ללא ציטוט = תשובה לא תקינה!
+❌ WRONG: "מקור: מסמך X" - פורמט שגוי!
+❌ WRONG: "[מקור 1]" - חסר המילה "מקורות"!
+
+🎯 STEP-BY-STEP INSTRUCTION:
+1. כתב את התשובה המלאה
+2. זהה איזה מקורות (מקור 1, מקור 2, וכו') השתמשת בהם
+3. הוסף בסוף: [מקורות: מקור X, מקור Y]
+4. בדוק שהפורמט מדויק!
+
+⚠️ זכור: המערכת תדחה כל תשובה ללא ציטוט מקורות במדויק הפורמט הנדרש!
 
 תשובה:"""
 
     def _extract_cited_sources(self, answer: str) -> List[int]:
-        """מחלץ את המקורות שציטט המודל מהתשובה"""
-        # חיפוש פטרן [מקורות: מקור X, מקור Y]
+        """מחלץ את המקורות שציטט המודל מהתשובה עם validation חזק"""
         import re
-        pattern = r'\[מקורות:\s*([^\]]+)\]'
-        match = re.search(pattern, answer)
         
-        if not match:
-            logger.warning("לא נמצאו מקורות מצוטטים בתשובה")
+        # פטרנים חלופיים לזיהוי ציטוטים
+        patterns = [
+            r'\[מקורות:\s*([^\]]+)\]',  # הפטרן הסטנדרטי
+            r'\[מקור:\s*([^\]]+)\]',    # ללא ס' ברבים
+            r'מקורות:\s*([^\n\r]+)',   # ללא סוגריים מרובעים
+            r'מקור:\s*([^\n\r]+)',     # ללא ס' ברבים וללא סוגריים
+            r'\(מקורות:\s*([^\)]+)\)', # עם סוגריים עגולים
+        ]
+        
+        sources_text = None
+        pattern_used = None
+        
+        for i, pattern in enumerate(patterns):
+            match = re.search(pattern, answer, re.IGNORECASE)
+            if match:
+                sources_text = match.group(1)
+                pattern_used = i + 1
+                logger.info(f"🔍 מקורות נמצאו עם פטרן #{pattern_used}: {sources_text}")
+                break
+        
+        if not sources_text:
+            # אזהרה חמורה - Gemini לא ציטט מקורות
+            logger.error("🚨 CRITICAL: לא נמצאו מקורות מצוטטים בתשובה! Gemini לא ציית להוראות!")
+            logger.error(f"📝 תשובה מלאה: {answer}")
             return []
         
-        sources_text = match.group(1)
-        logger.info(f"🔍 נמצאו מקורות מצוטטים: {sources_text}")
-        
-        # חילוץ מספרי המקורות
+        # חילוץ מספרי המקורות עם validation מתקדם
         source_numbers = []
         source_pattern = r'מקור\s*(\d+)'
-        source_matches = re.findall(source_pattern, sources_text)
+        source_matches = re.findall(source_pattern, sources_text, re.IGNORECASE)
         
         for match in source_matches:
             try:
                 source_num = int(match)
-                source_numbers.append(source_num)
+                if 1 <= source_num <= 100:  # validation סביר למספר מקורות
+                    source_numbers.append(source_num)
+                else:
+                    logger.warning(f"⚠️ מספר מקור לא סביר: {source_num}")
             except ValueError:
+                logger.warning(f"⚠️ לא ניתן להמיר למספר: {match}")
                 continue
         
-        logger.info(f"🎯 מקורות מצוטטים: {source_numbers}")
+        if not source_numbers:
+            logger.error(f"🚨 לא נמצאו מספרי מקורות תקינים בטקסט: {sources_text}")
+        else:
+            logger.info(f"✅ מקורות מצוטטים בהצלחה: {source_numbers}")
+        
         return source_numbers
 
-    def _get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_numbers: List[int]) -> List[Dict[str, Any]]:
+    async def _get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_numbers: List[int], query: str = "", answer: str = "") -> List[Dict[str, Any]]:
         """מחזיר את הchunks שבאמת צוטטו על ידי המודל מתוך הchunks שנכללו בקונטקסט"""
         if not cited_source_numbers:
-            # אם לא נמצאו ציטוטים, החזר את הchunk הראשון כברירת מחדל
-            return included_chunks[:1] if included_chunks else []
+            # אם לא נמצאו ציטוטים, מצא את הchunk הכי רלוונטי באמצעות semantic similarity
+            logger.warning("⚠️ לא נמצאו ציטוטים מהמודל - מחפש chunk רלוונטי לתשובה באמצעות דמיון סמנטי")
+            return await self._find_best_fallback_chunk_semantic(included_chunks, answer)
         
+        # אסוף את כל הchunks שצוטטו
         cited_chunks = []
         for source_num in cited_source_numbers:
             # המקורות מתחילים מ-1, אבל האינדקס מתחיל מ-0
             index = source_num - 1
             if 0 <= index < len(included_chunks):
                 cited_chunks.append(included_chunks[index])
-                logger.info(f"✅ הוסף מקור {source_num} לתצוגה (מתוך {len(included_chunks)} chunks בקונטקסט)")
+                logger.info(f"✅ מצא מקור מצוטט {source_num} (מתוך {len(included_chunks)} chunks בקונטקסט)")
             else:
                 logger.warning(f"⚠️ מקור {source_num} לא קיים בקונטקסט (יש רק {len(included_chunks)} מקורות)")
         
-        return cited_chunks if cited_chunks else included_chunks[:1]
+        if not cited_chunks:
+            logger.warning("⚠️ לא נמצאו chunks תקינים מהציטוטים - עובר ל-semantic fallback")
+            return await self._find_best_fallback_chunk_semantic(included_chunks, answer)
+        
+        # 🎯 אם יש יותר ממקור אחד שצוטט, בחר את הכי רלוונטי לתשובה
+        if len(cited_chunks) > 1:
+            logger.info(f"🔍 נמצאו {len(cited_chunks)} מקורות מצוטטים - בוחר את הכי רלוונטי לתשובה")
+            best_chunk = await self._find_best_among_cited_chunks(cited_chunks, answer)
+            return [best_chunk]
+        
+        return cited_chunks
+
+    async def _find_best_among_cited_chunks(self, cited_chunks: List[Dict[str, Any]], answer: str) -> Dict[str, Any]:
+        """בוחר את הchunk הכי רלוונטי מבין הchunks שצוטטו על ידי הLLM"""
+        if not cited_chunks or not answer:
+            logger.warning("⚠️ לא ניתן לבחור מבין cited chunks - מחזיר ראשון")
+            return cited_chunks[0] if cited_chunks else None
+        
+        if len(cited_chunks) == 1:
+            return cited_chunks[0]
+            
+        try:
+            # יצירת embedding לתשובה
+            answer_embedding = await self.generate_query_embedding(answer)
+            
+            # חישוב similarity עבור כל chunk מצוטט + ניתוח תוכן
+            scored_chunks = []
+            
+            for chunk in cited_chunks:
+                chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
+                chunk_id = chunk.get('id', 'unknown')
+                
+                if chunk_text:
+                    # יצירת embedding לchunk
+                    chunk_embedding = await self.generate_query_embedding(chunk_text)
+                    
+                    # חישוב cosine similarity
+                    similarity = np.dot(answer_embedding, chunk_embedding) / (
+                        np.linalg.norm(answer_embedding) * np.linalg.norm(chunk_embedding)
+                    )
+                    
+                    # ניתוח תוכן להגברת דיוק
+                    content_score = 0
+                    chunk_lower = chunk_text.lower()
+                    answer_lower = answer.lower()
+                    
+                    # בונוס למילים משותפות
+                    answer_words = set(answer_lower.split())
+                    chunk_words = set(chunk_lower.split())
+                    common_words = answer_words.intersection(chunk_words)
+                    content_score += len(common_words) * 0.01
+                    
+                    # בונוס למילות מפתח חשובות
+                    key_phrases = {
+                        'מן המניין': 0.15,
+                        'על תנאי': 0.1,
+                        'עומד בתנאי': 0.12,
+                        'דרישות': 0.08,
+                        'קבלה': 0.08,
+                        'תוכנית לימודים': 0.1
+                    }
+                    
+                    for phrase, weight in key_phrases.items():
+                        if phrase in chunk_lower and phrase in answer_lower:
+                            content_score += weight
+                    
+                    # ציון משולב
+                    combined_score = similarity + content_score
+                    
+                    logger.info(f"🔍 Cited chunk {chunk_id} - similarity: {similarity:.3f}, content: {content_score:.3f}, combined: {combined_score:.3f}")
+                    
+                    scored_chunks.append((chunk, combined_score, similarity))
+            
+            if scored_chunks:
+                # בחירת הטוב ביותר לפי ציון משולב
+                best_chunk, best_combined, best_similarity = max(scored_chunks, key=lambda x: x[1])
+                chunk_id = best_chunk.get('id', 'unknown')
+                logger.info(f"🎯 נבחר cited chunk {chunk_id} עם ציון משולב {best_combined:.3f} (similarity: {best_similarity:.3f})")
+                return best_chunk
+            else:
+                logger.warning("⚠️ לא ניתן לחשב scores - מחזיר chunk ראשון")
+                return cited_chunks[0]
+                
+        except Exception as e:
+            logger.error(f"❌ שגיאה בבחירת cited chunk: {e}")
+            return cited_chunks[0]
+
+    def _extract_relevant_chunk_segment(self, chunk_text: str, query: str, answer: str, max_length: int = 500) -> str:
+        """מחלץ את הקטע הכי רלוונטי מהchunk להצגה בממשק"""
+        if not chunk_text or len(chunk_text) <= max_length:
+            return chunk_text
+        
+        try:
+            # פיצול הטקסט למשפטים
+            sentences = [s.strip() for s in re.split(r'[.!?]\s+', chunk_text) if s.strip()]
+            if not sentences:
+                return chunk_text[:max_length] + "..."
+            
+            # מילות מפתח מהשאלה והתשובה
+            query_words = set(re.findall(r'\b\w+\b', query.lower()))
+            answer_words = set(re.findall(r'\b\w+\b', answer.lower()))
+            key_words = query_words.union(answer_words)
+            
+            # מילות מפתח חשובות לתחום
+            domain_keywords = {
+                'מן המניין', 'על תנאי', 'עומד בתנאי', 'דרישות', 'קבלה', 
+                'תוכנית לימודים', 'ציון', 'ממוצע', 'סטודנט', 'חניה', 'מלגה',
+                'זמן', 'שנים', 'תקופה', 'משך', 'לימודים'
+            }
+            
+            # ציון לכל משפט
+            scored_sentences = []
+            for i, sentence in enumerate(sentences):
+                sentence_lower = sentence.lower()
+                score = 0
+                
+                # בונוס למילים מהשאלה/תשובה
+                word_matches = sum(1 for word in key_words if word in sentence_lower and len(word) > 2)
+                score += word_matches * 2
+                
+                # בונוס למילות מפתח של התחום
+                domain_matches = sum(1 for keyword in domain_keywords if keyword in sentence_lower)
+                score += domain_matches * 3
+                
+                # בונוס למיקום (משפטים ראשונים יותר חשובים)
+                position_bonus = max(0, 3 - i * 0.5)
+                score += position_bonus
+                
+                # בונוס לאורך מתאים (לא קצר מדי, לא ארוך מדי)
+                length = len(sentence)
+                if 50 <= length <= 200:
+                    score += 1
+                elif length < 20:
+                    score -= 2
+                
+                scored_sentences.append((sentence, score, i))
+                logger.debug(f"📝 משפט {i}: score={score:.2f}, length={length}")
+            
+            # מיון לפי ציון
+            scored_sentences.sort(key=lambda x: x[1], reverse=True)
+            
+            # בניית הקטע הרלוונטי
+            selected_sentences = []
+            current_length = 0
+            used_indices = set()
+            
+            # הוספת המשפטים הטובים ביותר עד לאורך המקסימלי
+            for sentence, score, index in scored_sentences:
+                if current_length + len(sentence) <= max_length:
+                    selected_sentences.append((sentence, index))
+                    used_indices.add(index)
+                    current_length += len(sentence) + 1  # +1 for space
+                    logger.debug(f"✅ נבחר משפט {index} עם ציון {score:.2f}")
+                
+                if current_length >= max_length * 0.8:  # מלא 80% מהמקום
+                    break
+            
+            if not selected_sentences:
+                # במקרה שלא נמצא כלום, קח את המשפט הראשון
+                return sentences[0][:max_length] + ("..." if len(sentences[0]) > max_length else "")
+            
+            # מיון לפי סדר המקורי בטקסט
+            selected_sentences.sort(key=lambda x: x[1])
+            
+            # בניית הטקסט הסופי
+            result = " ".join([sentence for sentence, _ in selected_sentences])
+            
+            # וידוא שהטקסט לא חתוך באמצע מילה
+            if len(result) >= max_length:
+                result = result[:max_length].rsplit(' ', 1)[0] + "..."
+            
+            logger.info(f"🎯 הופק קטע רלוונטי באורך {len(result)} תווים מתוך {len(chunk_text)} המקוריים")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ שגיאה בחילוץ קטע רלוונטי: {e}")
+            # במקרה של שגיאה, חזור לטקסט הקצור הפשוט
+            return chunk_text[:max_length] + ("..." if len(chunk_text) > max_length else "")
+
+    def _find_best_fallback_chunk(self, included_chunks: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+        """מוצא את הchunk הכי רלוונטי כאשר אין ציטוטים מפורשים"""
+        if not included_chunks:
+            return []
+        
+        query_lower = query.lower()
+        
+        # מילות מפתח לזיהוי נושאים
+        topic_keywords = {
+            'time_limits': ['זמן', 'שנים', 'שנה', 'מקסימלי', 'משך', 'תקופה', 'לימודים', 'סיום', 'הנדסה', 'מדעים', 'תוכנית', 'יום', 'ערב', 'שנתיים מעבר', 'מניין שנות'],
+            'parking': ['חני', 'חנה', 'קנס', 'רכב', 'מגרש'],
+            'scholarships': ['מלגה', 'מלגות', 'ועדה', 'ועדת'],
+            'grades': ['ציון', 'ציונים', 'ממוצע', 'גמר'],
+            'student_status': ['מן המניין', 'על תנאי', 'סטודנט'],
+            'fees': ['תשלום', 'שכר לימוד', 'דמי', 'עלות']
+        }
+        
+        # ✅ הסרה של hard-coding! אלגוריתם חכם בלבד
+        # אין עוד hard-coded chunk IDs
+        
+        # חפש chunks עם מילות מפתח רלוונטיות
+        scored_chunks = []
+        for chunk in included_chunks:
+            content = chunk.get('chunk_text', chunk.get('content', '')).lower()
+            score = 0
+            chunk_id = chunk.get('id')
+            
+            # ✅ הסרה של hard-coding! אין עוד חשיבות לפי ID
+            
+            # ציון בסיסי לפי similarity
+            base_score = chunk.get('similarity_score', chunk.get('combined_score', 0))
+            score += base_score * 100
+            
+            # בונוס עבור מילות מפתח רלוונטיות
+            for topic, keywords in topic_keywords.items():
+                topic_matches = sum(1 for keyword in keywords if keyword in query_lower)
+                if topic_matches > 0:
+                    content_matches = sum(1 for keyword in keywords if keyword in content)
+                    bonus = content_matches * topic_matches * 20
+                    
+                    # בונוס מיוחד לחלקים עם מידע מדויק על הנושא
+                    if topic == 'time_limits' and any(phrase in content for phrase in ['מניין שנות', 'שנתיים מעבר', 'תוכנית בת', 'זמן מותר', 'משך מקסימלי']):
+                        bonus *= 3  # פי 3 לצ'אנקים עם מידע מדויק על זמן
+                        logger.info(f"🎯 נמצא צ'אנק מיוחד לזמן לימודים עם ביטויים רלוונטיים")
+                    
+                    score += bonus
+            
+            # בונוס נוסף למילים מהשאלה שמופיעות בתוכן
+            query_words = [word for word in query_lower.split() if len(word) > 2]
+            word_matches = sum(1 for word in query_words if word in content)
+            score += word_matches * 10
+            
+            scored_chunks.append((chunk, score))
+        
+        # מיין לפי ציון ובחר את הטוב ביותר
+        scored_chunks.sort(key=lambda x: x[1], reverse=True)
+        best_chunk = scored_chunks[0][0]
+        best_score = scored_chunks[0][1]
+        
+        logger.info(f"🎯 נבחר chunk fallback עם ציון {best_score:.1f}")
+        
+        return [best_chunk]
+
+    async def _find_best_fallback_chunk_semantic(self, included_chunks: List[Dict[str, Any]], answer: str) -> List[Dict[str, Any]]:
+        """מוצא את הchunk הכי דומה לתשובה שנוצרה באמצעות cosine similarity"""
+        if not included_chunks or not answer:
+            logger.warning("⚠️ לא ניתן לבצע semantic similarity - אין chunks או תשובה")
+            return included_chunks[:1] if included_chunks else []
+        
+        try:
+            # יצירת embedding לתשובה הסופית
+            logger.info("🧠 יוצר embedding לתשובה הסופית לצורך השוואה סמנטית")
+            answer_embedding = await self.generate_query_embedding(answer)
+            
+            # חישוב cosine similarity עבור כל chunk
+            similarities = []
+            for chunk in included_chunks:
+                chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
+                if chunk_text:
+                    # יצירת embedding לchunk
+                    chunk_embedding = await self.generate_query_embedding(chunk_text)
+                    
+                    # חישוב cosine similarity
+                    similarity = np.dot(answer_embedding, chunk_embedding) / (
+                        np.linalg.norm(answer_embedding) * np.linalg.norm(chunk_embedding)
+                    )
+                    similarities.append((chunk, similarity))
+                    logger.info(f"🔍 Chunk {chunk.get('id', 'unknown')} semantic similarity: {similarity:.3f}")
+            
+            if not similarities:
+                logger.warning("⚠️ לא ניתן לחשב similarities - מחזיר chunk ראשון")
+                return included_chunks[:1]
+            
+            # בחירת הchunk עם הsimilarity הגבוה ביותר
+            best_chunk, best_similarity = max(similarities, key=lambda x: x[1])
+            logger.info(f"🎯 נבחר chunk {best_chunk.get('id', 'unknown')} עם semantic similarity {best_similarity:.3f}")
+            
+            return [best_chunk]
+            
+        except Exception as e:
+            logger.error(f"❌ שגיאה ב-semantic similarity fallback: {e}")
+            # במקרה של שגיאה, חזור לשיטה הקודמת
+            return included_chunks[:1] if included_chunks else []
 
     async def generate_answer(
         self, 
@@ -686,11 +1013,21 @@ class RAGService:
             
             # 🎯 חילוץ המקורות שהמודל בפועל השתמש בהם
             cited_source_numbers = self._extract_cited_sources(answer)
-            cited_chunks = self._get_cited_chunks(included_chunks, cited_source_numbers)
+            cited_chunks = await self._get_cited_chunks(included_chunks, cited_source_numbers, query, answer)
             
             # הסרת ציטוט המקורות מהתשובה הסופית (אופציונלי)
             import re
             clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
+            
+            # 🎯 הוספת קטע רלוונטי לכל chunk שנבחר
+            for chunk in cited_chunks:
+                chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
+                if chunk_text:
+                    relevant_segment = self._extract_relevant_chunk_segment(
+                        chunk_text, query, clean_answer, max_length=500
+                    )
+                    chunk['relevant_segment'] = relevant_segment
+                    logger.info(f"🎯 הוספת קטע רלוונטי לchunk {chunk.get('id', 'unknown')}: {len(relevant_segment)} תווים")
             
             response_time = int((time.time() - start_time) * 1000)
             

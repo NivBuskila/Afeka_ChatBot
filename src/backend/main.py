@@ -412,13 +412,15 @@ async def chat_demo(request: Dict[str, Any]):
             # Run the query through RAG - same as Test Center
             result = await rag_service.generate_answer(query, search_method="hybrid")
             
-            # Get chunk text for display
+            # Get chunk text for display - prefer relevant segment over full text
             chunk_text = ""
             chunks_selected = result.get("chunks_selected", [])
             if chunks_selected:
                 # Take the first chunk as the main chunk text
                 first_chunk = chunks_selected[0]
-                chunk_text = first_chunk.get("chunk_text", first_chunk.get("content", ""))
+                # Use relevant segment if available, otherwise fall back to full text
+                chunk_text = first_chunk.get("relevant_segment", 
+                           first_chunk.get("chunk_text", first_chunk.get("content", "")))
             
             # Return in the format expected by Chat Preview
             return JSONResponse(
