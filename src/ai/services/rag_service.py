@@ -13,22 +13,40 @@ import google.generativeai as genai
 from supabase import create_client, Client
 import numpy as np
 
-from ..config.current_profile import get_current_profile
-from ..config.rag_config_profiles import get_profile
-
-# ייבוא קובץ ההגדרות החדש
-from ..config.rag_config import (
-    rag_config,
-    get_search_config,
-    get_embedding_config,
-    get_context_config,
-    get_llm_config,
-    get_database_config,
-    get_performance_config
-)
+try:
+    # Try relative import first (when running from AI module)
+    from ..config.current_profile import get_current_profile
+    from ..config.rag_config_profiles import get_profile
+    from ..config.rag_config import (
+        rag_config,
+        get_search_config,
+        get_embedding_config,
+        get_context_config,
+        get_llm_config,
+        get_database_config,
+        get_performance_config
+    )
+except ImportError:
+    # Fallback to absolute import (when running from outside AI module)
+    from src.ai.config.current_profile import get_current_profile
+    from src.ai.config.rag_config_profiles import get_profile
+    from src.ai.config.rag_config import (
+        rag_config,
+        get_search_config,
+        get_embedding_config,
+        get_context_config,
+        get_llm_config,
+        get_database_config,
+        get_performance_config
+    )
 
 # בייבוא החדש
-from src.ai.core.database_key_manager import DatabaseKeyManager
+try:
+    # Try relative import first
+    from ..core.database_key_manager import DatabaseKeyManager
+except ImportError:
+    # Fallback to absolute import
+    from src.ai.core.database_key_manager import DatabaseKeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -50,16 +68,14 @@ class RAGService:
         # 🎯 טעינת פרופיל מהמערכת המרכזית
         if config_profile is None:
             try:
-                from ..config.current_profile import get_current_profile
                 config_profile = get_current_profile()
                 logger.info(f"🎯 Loaded central profile: {config_profile}")
-            except ImportError:
-                logger.warning("Central profile system not found, using manual profile selection")
+            except Exception as e:
+                logger.warning(f"Central profile system not found: {e}, using manual profile selection")
         
         # טעינת הגדרות לפי פרופיל או ברירת מחדל
         if config_profile:
             try:
-                from ..config.rag_config_profiles import get_profile
                 profile_config = get_profile(config_profile)
                 self.search_config = profile_config.search
                 self.embedding_config = profile_config.embedding
@@ -408,10 +424,11 @@ class RAGService:
             # חזרה לחיפוש רגיל במקרה של שגיאה
             return await self.hybrid_search(query)
 
-    def _build_context(self, search_results: List[Dict[str, Any]]) -> Tuple[str, List[str]]:
-        """בונה קונטקסט מתוצאות החיפוש"""
+    def _build_context(self, search_results: List[Dict[str, Any]]) -> Tuple[str, List[str], List[Dict[str, Any]]]:
+        """בונה קונטקסט מתוצאות החיפוש ומחזיר גם את הchunks שבפועל נכללו"""
         context_chunks = []
         citations = []
+        included_chunks = []  # 🆕 רשימת החלקים שבפועל נכללו בקונטקסט
         total_tokens = 0
         
         # מגביל למספר chunks מקסימלי ולגבול tokens
@@ -438,17 +455,105 @@ class RAGService:
             elif 'combined_score' in result:
                 similarity_info = f" (ציון: {result['combined_score']:.3f})"
             
-            context_chunks.append(f"מקור {i+1} - {document_name}{similarity_info}:\n{chunk_content}")
+            context_chunks.append(f"מקור {len(included_chunks)+1} - {document_name}{similarity_info}:\n{chunk_content}")
             citations.append(document_name)
+            included_chunks.append(result)  # 🆕 שמירת החלק שנכלל
             total_tokens += estimated_tokens
         
         context = "\n\n".join(context_chunks)
         
         logger.info(f"Built context from {len(context_chunks)} chunks, ~{int(total_tokens)} tokens")
-        return context, citations
+        return context, citations, included_chunks
+
+    def _find_best_chunk_for_display(self, search_results: List[Dict[str, Any]], query: str) -> Dict[str, Any]:
+        """מוצא את החלק הכי רלוונטי להצגה ב-UI - חיפוש חכם עם דגש על ביטויים מדויקים
+        
+        ⚠️ DEPRECATED: פונקציה זו לא בשימוש יותר. במקום זה, המודל מצטט את המקורות שהוא משתמש בהם
+        באמצעות _extract_cited_sources ו-_get_cited_chunks.
+        """
+        if not search_results:
+            return None
+        
+        query_lower = query.lower()
+        
+        # 🎯 קודם כל - חיפוש ביטויים מדויקים מהשאלה
+        exact_phrases = []
+        if 'מן המניין' in query_lower:
+            exact_phrases.append('מן המניין')
+        if 'על תנאי' in query_lower:
+            exact_phrases.append('על תנאי')
+        if 'ועדת מלגות' in query_lower:
+            exact_phrases.append('ועדת מלגות')
+        
+        # אם יש ביטוי מדויק, חפש אותו ראשון
+        if exact_phrases:
+            for chunk in search_results:
+                chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
+                for phrase in exact_phrases:
+                    if phrase in chunk_text:
+                        logger.info(f"🎯 Found exact phrase '{phrase}' in chunk - selecting it")
+                        return chunk
+        
+        # מילות מפתח לנושאים שונים
+        topic_keywords = {
+            'parking': ['חני', 'חנה', 'קנס', 'מגרש', 'רכב'],
+            'scholarships': ['מלגה', 'מלגות', 'ועדת', 'סיוע', 'בקשה'],
+            'grades': ['ציון', 'בחינה', 'מבחן', 'הערכה'],
+            'tuition': ['שכר', 'לימוד', 'תשלום', 'כסף'],
+            'discipline': ['משמעת', 'עבירה', 'עונש'],
+            'student_status': ['מן המניין', 'על תנאי', 'סטודנט', 'מעמד']
+        }
+        
+        # זיהוי נושא השאלה
+        query_topic = None
+        for topic, keywords in topic_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                query_topic = topic
+                break
+        
+        best_chunk = None
+        best_score = 0
+        
+        for chunk in search_results:
+            chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
+            chunk_lower = chunk_text.lower()
+            
+            score = 0
+            
+            # בונוס גבוה מאוד לביטויים מדויקים
+            for phrase in exact_phrases:
+                if phrase in chunk_text:
+                    score += 100  # משקל מאוד גבוה
+            
+            # אם זיהינו נושא, חפש מילות מפתח רלוונטיות
+            if query_topic and query_topic in topic_keywords:
+                relevant_keywords = topic_keywords[query_topic]
+                topic_matches = sum(1 for keyword in relevant_keywords if keyword in chunk_lower)
+                score += topic_matches * 10
+            
+            # בונוס למילות מפתח מהשאלה עצמה
+            query_words = [word.strip() for word in query.split() if len(word.strip()) > 2]
+            direct_matches = sum(1 for word in query_words if word in chunk_text)
+            score += direct_matches * 5
+            
+            # בונוס לדומיות גבוהה (משקל נמוך יותר)
+            similarity = chunk.get('similarity_score', chunk.get('similarity', 0))
+            score += similarity * 2
+            
+            if score > best_score:
+                best_score = score
+                best_chunk = chunk
+        
+        # אם לא נמצא match טוב, קח את זה עם הדומיות הגבוהה ביותר
+        if best_chunk is None and search_results:
+            best_chunk = max(search_results, 
+                           key=lambda x: x.get('similarity_score', x.get('similarity', 0)))
+        
+        logger.info(f"🎯 Selected chunk with score: {best_score}")
+        return best_chunk
 
     def _create_rag_prompt(self, query: str, context: str) -> str:
-        """יוצר prompt מותאם לשאלות תקנונים"""
+        """יוצר prompt מותאם לשאלות תקנונים עם הנחיה לציטוט מקורות"""
         return f"""אתה עוזר אקדמי המתמחה בתקנוני מכללת אפקה. ענה על השאלה בהתבסס על המידע הרלוונטי שניתן.
 
 הקשר רלוונטי מהתקנונים:
@@ -457,13 +562,69 @@ class RAGService:
 שאלת המשתמש: {query}
 
 הנחיות למתן תשובה:
-1. ענה בעברית בצורה ברורה ומדויקת
-2. השתמש במידע מהקשר שניתן בלבד
-3. אם השאלה נוגעת לסעיף ספציפי, צטט אותו במדויק
-4. אם המידע חלקי או לא ברור, ציין זאת
-5. אם השאלה לא קשורה לתקנונים, ציין שאין לך מידע על הנושא
+1. קרא בקפידה את כל המידע שניתן מהקשר לעיל
+2. ענה בעברית בצורה ברורה ומפורטת, כולל פרטים ספציפיים כמו סכומים, אחוזים, תנאים
+3. אם המידע קיים בקשר - תן תשובה מלאה ומדויקת
+4. אם השאלה נוגעת לסעיף ספציפי, צטט אותו במדויק
+5. אם המידע חלקי או לא ברור, ציין זאת ותן את המידע שכן קיים
+6. אם השאלה לא קשורה לתקנונים כלל, ציין שאין לך מידע על הנושא
+7. במקרה של מלגות, זכויות או הטבות - פרט את כל התנאים והסכומים הרלוונטיים
+
+חשוב מאוד: בסוף התשובה שלך, ציין במדויק איזה מקורות השתמשת בהם לתשובה בפורמט:
+[מקורות: מקור X, מקור Y]
+
+לדוגמה: [מקורות: מקור 1, מקור 3] או [מקורות: מקור 2]
+
+חשוב: בדוק שוב בקפידה את המידע שניתן לפני שאתה טוען שאין מידע!
 
 תשובה:"""
+
+    def _extract_cited_sources(self, answer: str) -> List[int]:
+        """מחלץ את המקורות שציטט המודל מהתשובה"""
+        # חיפוש פטרן [מקורות: מקור X, מקור Y]
+        import re
+        pattern = r'\[מקורות:\s*([^\]]+)\]'
+        match = re.search(pattern, answer)
+        
+        if not match:
+            logger.warning("לא נמצאו מקורות מצוטטים בתשובה")
+            return []
+        
+        sources_text = match.group(1)
+        logger.info(f"🔍 נמצאו מקורות מצוטטים: {sources_text}")
+        
+        # חילוץ מספרי המקורות
+        source_numbers = []
+        source_pattern = r'מקור\s*(\d+)'
+        source_matches = re.findall(source_pattern, sources_text)
+        
+        for match in source_matches:
+            try:
+                source_num = int(match)
+                source_numbers.append(source_num)
+            except ValueError:
+                continue
+        
+        logger.info(f"🎯 מקורות מצוטטים: {source_numbers}")
+        return source_numbers
+
+    def _get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_numbers: List[int]) -> List[Dict[str, Any]]:
+        """מחזיר את הchunks שבאמת צוטטו על ידי המודל מתוך הchunks שנכללו בקונטקסט"""
+        if not cited_source_numbers:
+            # אם לא נמצאו ציטוטים, החזר את הchunk הראשון כברירת מחדל
+            return included_chunks[:1] if included_chunks else []
+        
+        cited_chunks = []
+        for source_num in cited_source_numbers:
+            # המקורות מתחילים מ-1, אבל האינדקס מתחיל מ-0
+            index = source_num - 1
+            if 0 <= index < len(included_chunks):
+                cited_chunks.append(included_chunks[index])
+                logger.info(f"✅ הוסף מקור {source_num} לתצוגה (מתוך {len(included_chunks)} chunks בקונטקסט)")
+            else:
+                logger.warning(f"⚠️ מקור {source_num} לא קיים בקונטקסט (יש רק {len(included_chunks)} מקורות)")
+        
+        return cited_chunks if cited_chunks else included_chunks[:1]
 
     async def generate_answer(
         self, 
@@ -506,24 +667,42 @@ class RAGService:
                 }
             
             # בניית הקשר
-            context, citations = self._build_context(search_results)
+            context, citations, included_chunks = self._build_context(search_results)
             
             # יצירת prompt
             prompt = self._create_rag_prompt(query, context)
             
+            # 🔍 Debug: log the chunks being used
+            logger.info(f"🔍 [CHUNKS-DEBUG] Using {len(search_results)} total chunks, {len(included_chunks)} included in context")
+            for i, chunk in enumerate(included_chunks[:5]):  # Log first 5 chunks that were included
+                similarity = chunk.get('similarity_score') or chunk.get('similarity', 0)
+                chunk_preview = chunk.get('chunk_text', chunk.get('content', ''))[:100]
+                logger.info(f"🔍 [CONTEXT-CHUNK-{i+1}] Similarity: {similarity:.3f} | Preview: {chunk_preview}")
+            
+            # שימוש במערכת ציטוט מקורות חדשה במקום אלגוריתם בחירת chunks מורכב
+            
             # יצירת תשובה עם retry logic
             answer = await self._generate_with_retry(prompt)
+            
+            # 🎯 חילוץ המקורות שהמודל בפועל השתמש בהם
+            cited_source_numbers = self._extract_cited_sources(answer)
+            cited_chunks = self._get_cited_chunks(included_chunks, cited_source_numbers)
+            
+            # הסרת ציטוט המקורות מהתשובה הסופית (אופציונלי)
+            import re
+            clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
             
             response_time = int((time.time() - start_time) * 1000)
             
             result = {
-                "answer": answer,
+                "answer": clean_answer,
                 "sources": citations,
-                "chunks_selected": search_results,
+                "chunks_selected": cited_chunks,
                 "search_results_count": len(search_results),
                 "response_time_ms": response_time,
                 "search_method": search_method,
                 "query": query,
+                "cited_sources": cited_source_numbers,  # מידע נוסף על המקורות שצוטטו
                 "config_used": {
                     "similarity_threshold": self.search_config.SIMILARITY_THRESHOLD,
                     "max_chunks": self.search_config.MAX_CHUNKS_RETRIEVED,
@@ -567,8 +746,15 @@ class RAGService:
                     )
                 
                 logger.info(f"🔢 [RAG-GEN-DEBUG] Generating response for prompt length: {len(prompt)}")
+                
+                # Debug: Log first part of prompt to check content
+                logger.info(f"🔍 [PROMPT-DEBUG] First 500 chars: {prompt[:500]}")
+                logger.info(f"🔍 [PROMPT-DEBUG] Last 200 chars: {prompt[-200:]}")
+                
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text
+                
+                logger.info(f"🔍 [RESPONSE-DEBUG] Raw response: {response_text[:200]}")
                 
                 # 🔥 Track usage  
                 await self._track_generation_usage(prompt, response_text, available_key.get('id'))
