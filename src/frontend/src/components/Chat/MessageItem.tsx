@@ -2,9 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useThemeClasses } from '../../hooks/useThemeClasses';
 import ThemeButton from '../ui/ThemeButton';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
+import AIResponseRenderer from '../common/AIResponseRenderer';
 
 interface Message {
   id: string;
@@ -51,82 +49,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const isUser = message.type === "user";
   const [showFullChunk, setShowFullChunk] = useState(false);
 
-  // Custom components for markdown rendering
-  const markdownComponents = {
-    // Headers
-    h1: ({children}: any) => (
-      <h1 className="text-xl font-bold text-green-400 dark:text-green-300 my-3">
-        {children}
-      </h1>
-    ),
-    h2: ({children}: any) => (
-      <h2 className="text-lg font-bold text-green-400 dark:text-green-300 my-2">
-        {children}
-      </h2>
-    ),
-    h3: ({children}: any) => (
-      <h3 className="text-base font-bold text-green-400 dark:text-green-300 my-2">
-        {children}
-      </h3>
-    ),
-    // Strong/Bold
-    strong: ({children}: any) => (
-      <strong className="font-bold text-green-300 dark:text-green-200">
-        {children}
-      </strong>
-    ),
-    // Lists
-    ol: ({children}: any) => (
-      <ol className="list-decimal list-inside my-2 space-y-1 mr-4">
-        {children}
-      </ol>
-    ),
-    ul: ({children}: any) => (
-      <ul className="list-disc list-inside my-2 space-y-1 mr-4">
-        {children}
-      </ul>
-    ),
-    li: ({children}: any) => (
-      <li className="my-1 leading-relaxed">
-        {children}
-      </li>
-    ),
-    // Paragraphs
-    p: ({children}: any) => (
-      <p className="mb-2 leading-relaxed">
-        {children}
-      </p>
-    ),
-    // Code
-    code: ({children}: any) => (
-      <code className="bg-gray-700 dark:bg-gray-800 px-1 py-0.5 rounded text-green-300 dark:text-green-200 text-sm">
-        {children}
-      </code>
-    ),
-    // Custom highlighting for search terms in markdown content
-    text: ({children}: any) => {
-      if (typeof children === 'string' && searchTerm) {
-        const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        const parts = children.split(regex);
-        
-        return (
-          <>
-            {parts.map((part, index) =>
-              regex.test(part) ? (
-                <span key={index} className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded">
-                  {part}
-                </span>
-              ) : (
-                part
-              )
-            )}
-          </>
-        );
-      }
-      return children;
-    },
-  };
-
   return (
     <div className={`w-full ${isUser ? "text-right" : "text-right"}`} data-testid={isUser ? "user-message" : "bot-message"}>
       {/* Message content */}
@@ -149,16 +71,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
             // For user messages, display as plain text with search highlighting
             searchTerm ? highlightText(message.content, searchTerm) : message.content
           ) : (
-            // For bot messages, render markdown with built-in search highlighting
-            <div className="markdown-content">
-              <ReactMarkdown
-                components={markdownComponents}
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-              >
-                {message.content}
-              </ReactMarkdown>
-            </div>
+            // For bot messages, use the shared AI response renderer
+            <AIResponseRenderer 
+              content={message.content}
+              searchTerm={searchTerm}
+              className="markdown-content"
+            />
           )}
         </div>
 

@@ -13,6 +13,7 @@ import {
 import { ragService, RAGProfile, RAGTestResult } from "./RAGService";
 import { Pagination } from "../../common/Pagination";
 import { ItemsPerPageSelector } from "../../common/ItemsPerPageSelector";
+import AIResponseRenderer from "../../common/AIResponseRenderer";
 
 type Language = "he" | "en";
 
@@ -840,15 +841,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
                 <p className="text-sm text-gray-600 dark:text-green-400/70">
                   {t("rag.query") || "שאילתה"}:
                 </p>
-                <div
-                  className="text-gray-800 dark:text-green-300"
-                  dir="rtl"
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    fontFamily: "inherit",
-                  }}
-                >
+                <div className="text-gray-800 dark:text-green-300" dir="rtl">
                   {testResult.query}
                 </div>
               </div>
@@ -856,17 +849,10 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
                 <p className="text-sm text-gray-600 dark:text-green-400/70">
                   {t("rag.answer") || "תשובה"}:
                 </p>
-                <div
+                <AIResponseRenderer 
+                  content={testResult.answer}
                   className="text-gray-800 dark:text-green-300"
-                  dir="rtl"
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {testResult.answer}
-                </div>
+                />
               </div>
 
               {testResult.chunkText && (
