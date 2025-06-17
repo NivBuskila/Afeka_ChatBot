@@ -37,16 +37,34 @@ class Application:
     
     def _configure_middleware(self):
         """Configure all middleware."""
-        # Add CORS middleware
+        # Add CORS middleware with comprehensive origins
+        allowed_origins = [
+            "http://localhost:5173",
+            "http://localhost:3000", 
+            "http://localhost:80",
+            "http://localhost",
+            "https://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://127.0.0.1:5173"
+        ]
+        
+        # Add any additional origins from settings
+        if hasattr(settings, 'ALLOWED_ORIGINS') and settings.ALLOWED_ORIGINS:
+            if isinstance(settings.ALLOWED_ORIGINS, list):
+                allowed_origins.extend(settings.ALLOWED_ORIGINS)
+            elif settings.ALLOWED_ORIGINS != "*":
+                allowed_origins.append(settings.ALLOWED_ORIGINS)
+        
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=settings.ALLOWED_ORIGINS,
+            allow_origins=allowed_origins,
             allow_credentials=True,
-            allow_methods=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
             allow_headers=["*"],
+            expose_headers=["*"],
             max_age=600
         )
-        logger.info(f"Configured CORS with allowed origins: {settings.ALLOWED_ORIGINS}")
+        logger.info(f"Configured CORS with allowed origins: {allowed_origins}")
         
         # Add custom middleware
         self.app.middleware("http")(add_process_time_header)

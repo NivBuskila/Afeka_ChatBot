@@ -114,13 +114,25 @@ const chatService = {
         body: JSON.stringify(sessionInput)
       });
       
-      if (!response || response.length === 0) {
+      if (!response) {
         console.error('No data returned from chat session creation');
         return null;
       }
 
-      console.log('Chat session created successfully:', response[0]);
-      return response[0] as ChatSession;
+      // Handle both array and object responses
+      let sessionData;
+      if (Array.isArray(response)) {
+        if (response.length === 0) {
+          console.error('Empty array returned from chat session creation');
+          return null;
+        }
+        sessionData = response[0];
+      } else {
+        sessionData = response;
+      }
+
+      console.log('Chat session created successfully:', sessionData);
+      return sessionData as ChatSession;
     } catch (error) {
       console.error('Exception in createChatSession:', error);
       return null;
@@ -254,12 +266,13 @@ const chatService = {
         // Get messages schema to understand the column structure
         const response = await apiRequest(`${BACKEND_URL}/api/proxy/messages_schema`);
         
-        if (!response || !response.columns) {
+        if (!response || !Array.isArray(response)) {
           console.error('Failed to get messages schema');
-        return null;
-      }
+          return null;
+        }
 
-        const columns = response.columns;
+        // Extract column names from the schema response
+        const columns = response.map((col: any) => col.column_name);
         console.log('Available columns in messages table:', columns);
         
         // Determine which fields to use based on the schema

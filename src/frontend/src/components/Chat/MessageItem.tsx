@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useThemeClasses } from '../../hooks/useThemeClasses';
-import ThemeButton from '../ui/ThemeButton';
-import AIResponseRenderer from '../common/AIResponseRenderer';
+import { useThemeClasses } from "../../hooks/useThemeClasses";
+import ThemeButton from "../ui/ThemeButton";
+import AIResponseRenderer from "../common/AIResponseRenderer";
 
 interface Message {
   id: string;
@@ -24,12 +24,18 @@ interface MessageItemProps {
 const highlightText = (text: string, searchTerm: string) => {
   if (!searchTerm.trim()) return text;
 
-  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const regex = new RegExp(
+    `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+    "gi"
+  );
   const parts = text.split(regex);
 
   return parts.map((part, index) =>
     regex.test(part) ? (
-      <span key={index} className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded">
+      <span
+        key={index}
+        className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded"
+      >
         {part}
       </span>
     ) : (
@@ -50,33 +56,53 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const [showFullChunk, setShowFullChunk] = useState(false);
 
   return (
-    <div className={`w-full ${isUser ? "text-right" : "text-right"}`} data-testid={isUser ? "user-message" : "bot-message"}>
+    <div
+      className={`w-full ${isUser ? "text-right" : "text-right"}`}
+      data-testid={isUser ? "user-message" : "bot-message"}
+    >
       {/* Message content */}
       <div className={`mb-6 ${isUser ? "text-right" : "text-right"}`}>
         <div
           className={`${
-            isUser 
-              ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200' 
-              : 'text-gray-800 dark:text-gray-200'
+            isUser
+              ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200"
+              : "bot-message-container text-gray-800 dark:text-gray-200 px-4 py-3 shadow-md hover:shadow-lg transition-all duration-200 rounded-lg max-w-4xl"
           } leading-relaxed`}
           dir="rtl"
           style={{
             fontSize: `${fontSize}px`,
             fontFamily: "inherit",
             lineHeight: "1.6",
-            borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px'
+            borderRadius: isUser ? "20px 20px 4px 20px" : "12px",
           }}
         >
           {isUser ? (
             // For user messages, display as plain text with search highlighting
-            searchTerm ? highlightText(message.content, searchTerm) : message.content
+            searchTerm ? (
+              highlightText(message.content, searchTerm)
+            ) : (
+              message.content
+            )
           ) : (
-            // For bot messages, use the shared AI response renderer
-            <AIResponseRenderer 
-              content={message.content}
-              searchTerm={searchTerm}
-              className="markdown-content"
-            />
+            // For bot messages, use the shared AI response renderer with icon
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 bg-green-500 dark:bg-green-600 rounded-full flex items-center justify-center mt-1">
+                <svg
+                  className="w-3 h-3 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <AIResponseRenderer
+                  content={message.content}
+                  searchTerm={searchTerm}
+                  className="markdown-content"
+                />
+              </div>
+            </div>
           )}
         </div>
 
@@ -107,7 +133,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                       message.chunkText.length > 200 ? "..." : ""
                     }`}
               </div>
-              
+
               {message.chunkText.length > 200 && (
                 <div className="mt-3">
                   <ThemeButton
@@ -117,7 +143,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
                     className="text-xs font-medium"
                     icon={
                       <svg
-                        className={`w-3 h-3 ${showFullChunk ? 'transform rotate-180' : ''}`}
+                        className={`w-3 h-3 ${
+                          showFullChunk ? "transform rotate-180" : ""
+                        }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -131,7 +159,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
                       </svg>
                     }
                   >
-                    {showFullChunk ? (t("rag.showLess") || "הצג פחות") : (t("rag.viewMore") || "הצג עוד")}
+                    {showFullChunk
+                      ? t("rag.showLess") || "הצג פחות"
+                      : t("rag.viewMore") || "הצג עוד"}
                   </ThemeButton>
                 </div>
               )}

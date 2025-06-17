@@ -52,21 +52,10 @@ import {
 } from "../../services/analyticsService";
 import { Pagination, usePagination } from "../common/Pagination";
 import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
-import { useTheme } from '../../contexts/ThemeContext';
-import { TokensUsageDashboard } from "./TokensUsageDashboard";
+import { useTheme } from "../../contexts/ThemeContext";
+// import { TokensUsageDashboard } from "./TokensUsageDashboard"; // Not used
 import TokenUsageAnalytics from "./TokenUsageAnalytics";
-// import type { Document } from '../../config/supabase';
-
-// Local Document interface for AdminDashboard
-interface Document {
-  id: number;
-  name: string;
-  type: string;
-  size: number;
-  url: string;
-  created_at: string;
-  updated_at: string;
-}
+import type { Document } from "../../config/supabase";
 import { supabase } from "../../config/supabase";
 import i18n from "i18next";
 import { cacheService } from "../../services/cacheService";
@@ -641,7 +630,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleUpdateDocument = async (document: Document, file: File) => {
+  const handleUpdateDocument = async (document: any, file: File) => {
     try {
       setIsRefreshing(true);
 
@@ -728,7 +717,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setIsRefreshing(true);
 
       // Delete the document
-      await documentService.deleteDocument(selectedDocument!.id);
+      await documentService.deleteDocument(Number(selectedDocument!.id));
 
       // Update document list by removing the deleted document
       setDocuments(documents.filter((doc) => doc.id !== selectedDocument!.id));
@@ -1215,7 +1204,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       <EditDocumentModal
         isOpen={showEditDocumentModal}
         onClose={() => setShowEditDocumentModal(false)}
-        document={selectedDocument}
+        document={
+          selectedDocument
+            ? {
+                id: Number(selectedDocument.id),
+                name: selectedDocument.name,
+                type: selectedDocument.type,
+                size: selectedDocument.size,
+                url: selectedDocument.url,
+                created_at: selectedDocument.created_at,
+                updated_at: selectedDocument.updated_at || "",
+              }
+            : null
+        }
         onUpdate={handleUpdateDocument}
       />
 

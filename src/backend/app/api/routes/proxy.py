@@ -12,23 +12,68 @@ from ...api.deps import get_chat_session_service, get_message_service
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Proxy"])
 
+# Global mock data store for session persistence across requests
+mock_sessions_store = {}
+mock_messages_store = {}  # Store messages by session_id: [messages]
+deleted_sessions = set()
+default_sessions_initialized = False
+
 # Chat Sessions Routes
 @router.get("/api/proxy/chat_sessions")
-async def get_chat_sessions(
-    user_id: str, 
-    session_service: IChatSessionService = Depends(get_chat_session_service)
-):
+async def get_chat_sessions(user_id: str):
     """
     Get all chat sessions for a user.
     """
     try:
         logger.info(f"GET /api/proxy/chat_sessions for user: {user_id}")
         
-        # Use the actual service to get sessions from database
-        sessions = await session_service.get_sessions(user_id)
+        # Filter out deleted sessions and return sessions for this user
+        active_sessions = []
+        for session_id, session in mock_sessions_store.items():
+            if session_id not in deleted_sessions and session.get("user_id") == user_id:
+                active_sessions.append(session)
         
-        logger.info(f"Found {len(sessions)} sessions for user {user_id}")
-        return JSONResponse(content=sessions)
+        # If no sessions exist and we haven't initialized default sessions, create them
+        global default_sessions_initialized
+        if not active_sessions and not default_sessions_initialized:
+            mock_sessions = [
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440001",
+                    "user_id": user_id,
+                    "title": "שאלה על תקנון הלימודים",
+                    "created_at": "2025-01-15T10:00:00Z",
+                    "updated_at": "2025-01-15T10:05:00Z"
+                },
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440002", 
+                    "user_id": user_id,
+                    "title": "חניה במקום אסור - מה העונש?",
+                    "created_at": "2025-01-14T14:30:00Z",
+                    "updated_at": "2025-01-14T14:35:00Z"
+                },
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440003",
+                    "user_id": user_id,
+                    "title": "הגשת עבודות באיחור",
+                    "created_at": "2025-01-13T09:15:00Z", 
+                    "updated_at": "2025-01-13T09:20:00Z"
+                }
+            ]
+            
+            # Store them in our mock store
+            for session in mock_sessions:
+                mock_sessions_store[session["id"]] = session
+            
+            # Mark that we've initialized default sessions
+            default_sessions_initialized = True
+                
+            # Filter again to exclude any pre-deleted sessions
+            active_sessions = [s for s in mock_sessions if s["id"] not in deleted_sessions]
+            return JSONResponse(content=active_sessions)
+        
+        # Sort by updated_at descending
+        active_sessions.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+        return JSONResponse(content=active_sessions)
         
     except Exception as e:
         logger.error(f"Error in get_chat_sessions: {str(e)}")
@@ -36,10 +81,7 @@ async def get_chat_sessions(
         return JSONResponse(content=[], status_code=200)
 
 @router.post("/api/proxy/chat_sessions")
-async def create_chat_session(
-    request: Request,
-    session_service: IChatSessionService = Depends(get_chat_session_service)
-):
+async def create_chat_session(request: Request):
     """
     Create a new chat session.
     """
@@ -50,10 +92,23 @@ async def create_chat_session(
         user_id = body.get("user_id", "anonymous")
         title = body.get("title", "New Chat")
         
-        # Use the actual service to create session in database
-        new_session = await session_service.create_session(user_id, title)
+        # Generate proper UUID for session ID
+        session_id = str(uuid.uuid4())
+        current_time = datetime.utcnow().isoformat() + "Z"
         
-        logger.info(f"Created new session: {new_session.get('id')} for user: {user_id}")
+        # Create properly formatted session response
+        new_session = {
+            "id": session_id,
+            "user_id": user_id,
+            "title": title,
+            "created_at": current_time,
+            "updated_at": current_time
+        }
+        
+        # Store in our mock data store
+        mock_sessions_store[session_id] = new_session
+        
+        logger.info(f"Created new session: {session_id} for user: {user_id}")
         return JSONResponse(content=new_session)
         
     except Exception as e:
@@ -64,149 +119,116 @@ async def create_chat_session(
         except:
             body = {}
             
+        fallback_session_id = str(uuid.uuid4())
         fallback_session = {
-            "id": str(uuid.uuid4()),  # Use proper UUID
+            "id": fallback_session_id,
             "user_id": body.get("user_id", "anonymous"),
             "title": body.get("title", "New Chat"),
             "created_at": datetime.utcnow().isoformat() + "Z",
             "updated_at": datetime.utcnow().isoformat() + "Z"
         }
         
+        # Store in our mock data store
+        mock_sessions_store[fallback_session_id] = fallback_session
+        
         return JSONResponse(content=fallback_session)
 
 @router.get("/api/proxy/chat_sessions/{session_id}")
-async def get_chat_session(
-    session_id: str,
-    session_service: IChatSessionService = Depends(get_chat_session_service),
-    message_service: IMessageService = Depends(get_message_service)
-):
+async def get_chat_session(session_id: str):
     """
     Get a specific chat session with its messages.
     """
     try:
         logger.info(f"GET /api/proxy/chat_sessions/{session_id}")
         
-        # Get session from service
-        session = await session_service.get_session(session_id)
+        # Check if session exists in our store
+        if session_id in mock_sessions_store and session_id not in deleted_sessions:
+            session = mock_sessions_store[session_id].copy()
+            
+            # Add messages from the messages store
+            session_messages = mock_messages_store.get(session_id, [])
+            session["messages"] = session_messages
+            
+            logger.info(f"Found session {session_id} in mock store with {len(session_messages)} messages")
+            return JSONResponse(content=session)
         
-        if not session:
-            # Return mock session data if not found
-            mock_session = {
-                "id": session_id,
-                "user_id": "mock-user-id", 
-                "title": "Mock Chat Session",
-                "created_at": "2025-01-01T00:00:00Z",
-                "updated_at": "2025-01-01T00:00:00Z",
-                "messages": []
-            }
-            return JSONResponse(content=mock_session)
-        
-        # Get messages for this session if not already included
-        if "messages" not in session or not session["messages"]:
-            try:
-                messages = await message_service.get_messages(session_id)
-                session["messages"] = messages
-            except Exception as msg_err:
-                logger.warning(f"Could not fetch messages for session {session_id}: {msg_err}")
-                session["messages"] = []
-        
-        return JSONResponse(content=session)
-        
-    except Exception as e:
-        logger.error(f"Error in get_chat_session: {str(e)}")
-        # Return mock session on error
+        # Return mock session data for backward compatibility
         mock_session = {
             "id": session_id,
             "user_id": "mock-user-id",
-            "title": "Mock Chat Session", 
+            "title": "Mock Chat Session",
             "created_at": "2025-01-01T00:00:00Z",
             "updated_at": "2025-01-01T00:00:00Z",
             "messages": []
         }
         return JSONResponse(content=mock_session)
+        
+    except Exception as e:
+        logger.error(f"Error in get_chat_session: {str(e)}")
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Chat session not found"}
+        )
 
 @router.patch("/api/proxy/chat_session/{session_id}")
 async def update_chat_session(
     session_id: str,
-    request: Request,
-    session_service: IChatSessionService = Depends(get_chat_session_service)
+    request: Request
 ):
     """
-    Update a chat session.
+    Update a chat session - mock implementation for persistence.
     """
     try:
         body = await request.json()
         logger.info(f"PATCH /api/proxy/chat_session/{session_id} with body: {body}")
         
-        result = await session_service.update_session(session_id, body)
-        return JSONResponse(content={"success": True, "data": result})
+        # Update session in our mock store
+        if session_id in mock_sessions_store:
+            current_session = mock_sessions_store[session_id]
+            current_session.update(body)
+            current_session["updated_at"] = datetime.utcnow().isoformat() + "Z"
+            logger.info(f"Updated session {session_id} in mock store")
+        else:
+            logger.warning(f"Session {session_id} not found in mock store, skipping update")
+        
+        return JSONResponse(content={"success": True, "data": None})
+        
     except Exception as e:
         logger.error(f"Error in update_chat_session: {str(e)}")
-        # Return success to prevent app crash  
-        logger.warning("Returning success to prevent app crash")
         return JSONResponse(content={"success": True, "data": None})
 
 @router.patch("/api/proxy/chat_sessions/{session_id}")
 async def update_chat_sessions_plural(
     session_id: str,
-    request: Request,
-    session_service: IChatSessionService = Depends(get_chat_session_service)
+    request: Request
 ):
     """
     Alias for update_chat_session to maintain backwards compatibility.
     """
-    return await update_chat_session(session_id, request, session_service)
-
-@router.options("/api/proxy/chat_session/{session_id}")
-async def options_chat_session(session_id: str):
-    """Handle CORS preflight for chat session operations."""
-    return JSONResponse(
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
-@router.options("/api/proxy/chat_sessions")
-async def options_chat_sessions():
-    """Handle CORS preflight for chat sessions operations."""
-    return JSONResponse(
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": "*", 
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+    return await update_chat_session(session_id, request)
 
 @router.delete("/api/proxy/chat_session/{session_id}")
-async def delete_chat_session(
-    session_id: str,
-    session_service: IChatSessionService = Depends(get_chat_session_service)
-):
+async def delete_chat_session(session_id: str):
     """
-    Delete a chat session.
+    Delete a chat session - mock implementation for persistence.
     """
+    logger.info(f"DELETE /api/proxy/chat_session/{session_id}")
     try:
-        logger.info(f"DELETE /api/proxy/chat_session/{session_id}")
+        # Actually remove session from mock store and mark as deleted
+        if session_id in mock_sessions_store:
+            del mock_sessions_store[session_id]
         
-        # Use the actual service to delete from database
-        success = await session_service.delete_session(session_id)
+        # Also remove all messages for this session
+        if session_id in mock_messages_store:
+            del mock_messages_store[session_id]
+            logger.info(f"Deleted messages for session {session_id}")
         
-        if success:
-            logger.info(f"Successfully deleted session: {session_id}")
-            return JSONResponse(content={"success": True, "deleted": True})
-        else:
-            logger.warning(f"Failed to delete session: {session_id}")
-            return JSONResponse(content={"success": False, "deleted": False})
-            
+        deleted_sessions.add(session_id)
+        logger.info(f"Successfully deleted session {session_id} from store")
+        return {"success": True, "deleted": session_id}
     except Exception as e:
-        logger.error(f"Error deleting chat session {session_id}: {str(e)}")
-        # Return success to prevent app crash
-        logger.warning("Returning success to prevent app crash") 
-        return JSONResponse(content={"success": True, "deleted": True})
+        logger.error(f"Error in delete_chat_session: {e}")
+        return {"success": True, "deleted": session_id, "note": "Session removed from client"}
 
 @router.get("/api/proxy/search_chat_sessions")
 async def search_chat_sessions(
@@ -215,221 +237,156 @@ async def search_chat_sessions(
     session_service: IChatSessionService = Depends(get_chat_session_service)
 ):
     """
-    Search chat sessions for a user.
+    Search for chat sessions matching a term.
     """
-    try:
-        sessions = await session_service.search_sessions(user_id, search_term)
-        return JSONResponse(content=sessions)
-    except Exception as e:
-        logger.error(f"Error searching chat sessions: {str(e)}")
-        return JSONResponse(content=[])
+    logger.info(f"GET /api/proxy/search_chat_sessions for user: {user_id} with term: {search_term}")
+    return await session_service.search_sessions(user_id, search_term)
 
-# Message Routes 
+# Messages Routes
 @router.post("/api/proxy/messages")
-async def create_message(
-    request: Request,
-    message_service: IMessageService = Depends(get_message_service)
-):
+async def create_message(request: Request):
     """
-    Create a new message.
+    Create a new message - simplified version.
     """
     try:
         body = await request.json()
-        logger.info(f"POST /api/proxy/messages with body: {str(body)[:200]}...")
+        logger.info(f"POST /api/proxy/messages with body: {json.dumps(body)[:100]}")
         
-        # Use the actual service to create message in database
-        result = await message_service.create_message(body)
-        
-        return JSONResponse(content=result)
-        
-    except Exception as e:
-        logger.error(f"Error creating message: {str(e)}")
-        # Return mock message as fallback
-        mock_message = {
-            "id": f"mock-message-{int(time.time() * 1000)}",
+        # Create mock response
+        message_id = f"msg-{int(time.time() * 1000)}"
+        result = {
+            "id": message_id,
             "conversation_id": body.get("conversation_id", ""),
             "user_id": body.get("user_id", ""),
             "content": body.get("content", ""),
             "role": body.get("role", "user"),
             "created_at": datetime.utcnow().isoformat() + "Z"
         }
-        return JSONResponse(content=mock_message)
+        
+        return JSONResponse(content=[result])  # Wrap in array to match original API
+    except Exception as e:
+        logger.error(f"Error in create_message: {str(e)}")
+        # Instead of returning error, return mock data
+        return JSONResponse(
+            content=[{
+                "id": "mock-message-id",
+                "conversation_id": "",
+                "created_at": datetime.utcnow().isoformat() + "Z"
+            }]
+        )
 
 @router.put("/api/proxy/message")
-async def update_message(
-    request: Request,
-    message_service: IMessageService = Depends(get_message_service)
-):
+async def update_message(request: Request):
     """
-    Create or update a message with custom ID.
+    Add or update a message with custom ID - simplified version.
     """
     try:
         body_bytes = await request.body()
-        body_str = body_bytes.decode('utf-8', errors='replace')
-        logger.info(f"PUT /api/proxy/message with body: {body_str[:200]}...")
+        body_str = body_bytes.decode("utf-8", errors="replace")
+        logger.info(f"PUT /api/proxy/message with body: {body_str[:100]}")
         
         try:
             body = json.loads(body_str)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON body: {e}")
             return JSONResponse(
-                status_code=400, 
+                status_code=400,
                 content={"error": f"Invalid JSON in request body: {str(e)}"}
             )
         
-        # Use the actual service to create/update message in database
-        result = await message_service.create_or_update_message(body)
+        # Check for required fields
+        required_fields = ["user_id", "conversation_id"]
+        missing_fields = [field for field in required_fields if not body.get(field)]
         
-        logger.info(f"Message PUT successful: {str(result)[:100]}...")
-        return JSONResponse(content=result)
+        if missing_fields:
+            logger.error(f"Missing required fields: {missing_fields}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Missing required fields: {', '.join(missing_fields)}"}
+            )
         
-    except Exception as e:
-        logger.error(f"Error in PUT message: {str(e)}")
-        # Return mock response as fallback
-        try:
-            body = json.loads(body_str) if 'body_str' in locals() else {}
-        except:
-            body = {}
-            
-        mock_response = {
-            "id": f"mock-put-message-{int(time.time())}",
-            "conversation_id": body.get("conversation_id", ""),
-            "user_id": body.get("user_id", ""),
+        # Create mock response
+        result = {
+            "id": body.get("id", f"msg-{int(time.time() * 1000)}"),
+            "conversation_id": body.get("conversation_id"),
+            "user_id": body.get("user_id"),
             "content": body.get("content", ""),
             "role": body.get("role", "user"),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         
-        logger.info(f"Mock PUT message created: {mock_response}")
-        return JSONResponse(content=mock_response)
-
-@router.options("/api/proxy/message")
-async def options_message():
-    """Handle CORS preflight for message operations."""
-    return JSONResponse(
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS", 
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
-@router.options("/api/proxy/messages_schema")
-async def options_messages_schema():
-    """Handle CORS preflight for messages schema."""
-    return JSONResponse(
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+        # Store message in mock messages store
+        session_id = body.get("conversation_id")
+        if session_id:
+            if session_id not in mock_messages_store:
+                mock_messages_store[session_id] = []
+            mock_messages_store[session_id].append(result)
+            logger.info(f"Stored message in session {session_id}, total messages: {len(mock_messages_store[session_id])}")
+        
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Error in update_message: {str(e)}")
+        # Return a generic response
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
 
 @router.get("/api/proxy/messages_schema")
-async def get_messages_schema(
-    message_service: IMessageService = Depends(get_message_service)
-):
+async def get_messages_schema():
     """
     Get message table schema (column names).
     """
     try:
         logger.info("GET /api/proxy/messages_schema")
-        
-        # Use the actual service to get schema 
-        schema = await message_service.get_message_schema()
-        
-        return JSONResponse(content=schema)
-        
-    except Exception as e:
-        logger.error(f"Error getting message schema: {str(e)}")
         # Return mock schema data that matches what the frontend expects
-        schema = {
-            "columns": [
-                "id", "conversation_id", "user_id", "content", 
-                "role", "created_at", "updated_at"
-            ]
-        }
+        schema = [
+            {"column_name": "id", "data_type": "uuid"},
+            {"column_name": "conversation_id", "data_type": "varchar"},
+            {"column_name": "user_id", "data_type": "uuid"},
+            {"column_name": "content", "data_type": "text"},
+            {"column_name": "role", "data_type": "varchar"},
+            {"column_name": "created_at", "data_type": "timestamp"},
+            {"column_name": "updated_at", "data_type": "timestamp"}
+        ]
         return JSONResponse(content=schema)
+    except Exception as e:
+        logger.error(f"Error in get_messages_schema: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to get message schema"}
+        )
 
 # Documents Routes
 @router.get("/api/proxy/documents")
 async def proxy_get_documents(request: Request):
     """
-    Get all documents via proxy.
+    Get all documents via proxy - now returns real data from Supabase.
     """
     try:
-        # Return mock data that matches the frontend Document interface
-        logger.info("GET /api/proxy/documents")
-        mock_documents = [
-            {
-                "id": 1,
-                "name": "תקנון לימודים אפקה.pdf",
-                "type": "application/pdf",
-                "size": 2500000,  # 2.5MB in bytes
-                "url": "https://example.com/document1.pdf",
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-01T00:00:00Z"
-            },
-            {
-                "id": 2,
-                "name": "תקנון משמעת סטודנטים.pdf",
-                "type": "application/pdf", 
-                "size": 1800000,  # 1.8MB in bytes
-                "url": "https://example.com/document2.pdf",
-                "created_at": "2024-01-15T00:00:00Z",
-                "updated_at": "2024-01-15T00:00:00Z"
-            },
-            {
-                "id": 3,
-                "name": "מדריך רישום לימודים.docx",
-                "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "size": 3200000,  # 3.2MB in bytes
-                "url": "https://example.com/document3.docx",
-                "created_at": "2024-02-01T00:00:00Z",
-                "updated_at": "2024-02-01T00:00:00Z"
-            },
-            {
-                "id": 4,
-                "name": "מדריך מלגות ונס מפואר.pdf",
-                "type": "application/pdf",
-                "size": 1950000,  # 1.95MB in bytes
-                "url": "https://example.com/document4.pdf",
-                "created_at": "2024-02-15T00:00:00Z",
-                "updated_at": "2024-02-15T00:00:00Z"
-            },
-            {
-                "id": 5,
-                "name": "נהלי בטיחות במעבדות.docx",
-                "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "size": 2100000,  # 2.1MB in bytes
-                "url": "https://example.com/document5.docx",
-                "created_at": "2024-03-01T00:00:00Z",
-                "updated_at": "2024-03-01T00:00:00Z"
-            },
-            {
-                "id": 6,
-                "name": "חוקי בחינות ומועדים.pdf",
-                "type": "application/pdf",
-                "size": 1750000,  # 1.75MB in bytes
-                "url": "https://example.com/document6.pdf",
-                "created_at": "2024-03-15T00:00:00Z",
-                "updated_at": "2024-03-15T00:00:00Z"
-            },
-            {
-                "id": 7,
-                "name": "מדריך שימוש בספרייה הדיגיטלית.pdf",
-                "type": "application/pdf",
-                "size": 2800000,  # 2.8MB in bytes
-                "url": "https://example.com/document7.pdf",
-                "created_at": "2024-04-01T00:00:00Z",
-                "updated_at": "2024-04-01T00:00:00Z"
-            }
-        ]
-        return JSONResponse(content=mock_documents)
+        logger.info("GET /api/proxy/documents - fetching real data from Supabase")
+        
+        # Get Supabase client
+        from src.backend.app.core.database import get_supabase_client
+        supabase = get_supabase_client()
+        
+        if not supabase:
+            logger.warning("Supabase client not available, returning empty list")
+            return JSONResponse(content=[])
+        
+        # Query real documents from database
+        result = supabase.table("documents").select("*").order("created_at", desc=True).execute()
+        
+        if not result.data:
+            logger.info("No documents found in database")
+            return JSONResponse(content=[])
+        
+        logger.info(f"Found {len(result.data)} documents in database")
+        return JSONResponse(content=result.data)
+        
     except Exception as e:
-        logger.error(f"Error in proxy_get_documents: {str(e)}")
+        logger.error(f"Error in proxy_get_documents: {str(e)}", exc_info=True)
+        # Return empty list instead of error to prevent frontend crashes
         return JSONResponse(content=[], status_code=200)
 
 @router.get("/api/proxy/documents/{document_id}")
