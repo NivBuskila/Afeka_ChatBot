@@ -7,19 +7,19 @@ import google.generativeai as genai
 import sys
 from pathlib import Path
 import dotenv
-from flask_cors import CORS  # הוספת ייבוא של flask_cors
+from flask_cors import CORS
 from core.gemini_key_manager import safe_generate_content
 from core.gemini_key_manager import get_key_manager
 
-# הוספת הנתיב לתיקיית backend כדי לאפשר גישה למודולים של RAG
+# Add backend path for RAG module access
 backend_path = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
-# טעינת משתני סביבה
+# Load environment variables
 dotenv.load_dotenv(override=True)
 
-# ייבוא מודולי RAG - השבתה זמנית עד תיקון הבעיות
-# הצ'אט יעבוד עם Gemini לבד ללא RAG
+# RAG modules import - temporarily disabled until issues are fixed
+# Chat will work with Gemini alone without RAG
 has_rag = False
 enhanced_processor = None
 get_supabase_client = None
@@ -40,15 +40,12 @@ if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.")
     raise ValueError("GEMINI_API_KEY environment variable is required but not found")
 
-# # שימוש ב-configure במקום ביצירת מופע Client
-# genai.configure(api_key=GEMINI_API_KEY)
-
 # Initialize key manager
 key_manager = get_key_manager()
 
 # Create Flask app
 app = Flask(__name__)
-# הוספת תמיכה ב-CORS
+# Enable CORS support
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Get environment settings
@@ -79,7 +76,7 @@ def health_check():
 # RAG endpoints
 @app.route('/rag/search', methods=['POST'])
 def rag_search():
-    """חיפוש סמנטי במסמכים"""
+    """Semantic document search"""
     if not has_rag:
         return jsonify({"error": "RAG modules not available"}), 503
     
@@ -94,7 +91,7 @@ def rag_search():
         
         results = doc_processor.search_documents(query, limit, threshold)
         
-        # ממתינים לתוצאות מאחר שזו פונקציה אסינכרונית
+        # Wait for results as this is an async function
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -112,7 +109,7 @@ def rag_search():
 
 @app.route('/rag/search/hybrid', methods=['POST'])
 def rag_hybrid_search():
-    """חיפוש היברידי (סמנטי + מילות מפתח)"""
+    """Hybrid search (semantic + keyword)"""
     if not has_rag:
         return jsonify({"error": "RAG modules not available"}), 503
     
@@ -127,7 +124,7 @@ def rag_hybrid_search():
         
         results = doc_processor.hybrid_search(query, limit, threshold)
         
-        # ממתינים לתוצאות מאחר שזו פונקציה אסינכרונית
+        # Wait for results as this is an async function
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -145,7 +142,7 @@ def rag_hybrid_search():
 
 @app.route('/rag/enhanced_search', methods=['POST'])
 def rag_enhanced_search():
-    """חיפוש מתקדם עם RAG משודרג"""
+    """Advanced search with enhanced RAG"""
     if not has_rag or not enhanced_processor:
         return jsonify({"error": "Enhanced RAG modules not available"}), 503
     
@@ -158,7 +155,7 @@ def rag_enhanced_search():
         if not query.strip():
             return jsonify({"error": "Query cannot be empty"}), 400
         
-        # ביצוע חיפוש מתקדם
+        # Perform advanced search
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -187,7 +184,7 @@ def rag_enhanced_search():
 
 @app.route('/rag/stats', methods=['GET'])
 def rag_stats():
-    """מידע על מסמכים ו-embeddings"""
+    """Information about documents and embeddings"""
     if not has_rag:
         return jsonify({"error": "RAG modules not available"}), 503
     
@@ -236,7 +233,7 @@ def rag_stats():
 
 @app.route('/rag/document/<int:document_id>/reprocess', methods=['POST'])
 def rag_reprocess_document(document_id):
-    """עיבוד מחדש של מסמך עם המערכת החדשה"""
+    """Reprocess document with new system"""
     if not has_rag:
         return jsonify({"error": "RAG modules not available"}), 503
     
@@ -273,26 +270,26 @@ def rag_reprocess_document(document_id):
 
 @app.route('/rag/test_enhanced', methods=['POST'])
 def test_enhanced_system():
-    """בדיקת המערכת המשודרגת עם דוגמת טקסט"""
+    """Test enhanced system with sample text"""
     if not has_rag or not enhanced_processor:
         return jsonify({"error": "Enhanced RAG modules not available"}), 503
     
     try:
         data = request.get_json(force=True)
         test_text = data.get("test_text", """
-        שלום! זהו טקסט לבדיקה של המערכת המשודרגת.
+        Hello! This is test text for the enhanced system.
         
-        1.1 כללי
-        תקנון זה מסדיר את כללי הלימודים במכללה.
+        1.1 General
+        This regulation governs the rules of study at the college.
         
-        1.2 רישום ללימודים
-        על כל סטודנט להרשם עד לתאריך שנקבע.
+        1.2 Registration for Studies
+        Every student must register by the set date.
         
-        2.1 מבחנים
-        המבחנים יערכו לפי הלוח זמנים המתפרסם.
+        2.1 Exams
+        Exams will be held according to the published schedule.
         
-        2.2 ציונים
-        הציונים יפורסמו במערכת הממוחשבת.
+        2.2 Grades
+        Grades will be published in the computerized system.
         """)
         
         document_name = data.get("document_name", "test_document.txt")
@@ -328,7 +325,7 @@ def test_enhanced_system():
 
 @app.route('/rag/document/<int:document_id>', methods=['GET'])
 def rag_document_status(document_id):
-    """מידע מפורט על תהליך עיבוד המסמך"""
+    """Detailed information about document processing"""
     if not has_rag:
         return jsonify({"error": "RAG modules not available"}), 503
     
@@ -390,15 +387,10 @@ def rag_document_status(document_id):
 # Main chat endpoint
 @app.route('/chat', methods=['POST'])
 async def chat():
-    """
-    Process user message with Gemini API
-    """
+    """Process user message with Gemini API"""
     request_start_time = time.time()
     
     try:
-        # Log raw request for debugging
-        logger.info(f"Request content type: {request.content_type}")
-        
         # Get raw data and decode manually if needed
         try:
             # Try parsing as JSON first
@@ -425,7 +417,6 @@ async def chat():
             return response, 400
             
         user_message = data['message']
-        logger.info(f"User message type: {type(user_message)}")
         
         # Ensure message is properly decoded if it's bytes
         if isinstance(user_message, bytes):
@@ -443,7 +434,7 @@ async def chat():
         logger.info(f"Received message (length {len(user_message)}): {user_message[:30]}...")
         
         # Use enhanced RAG if available
-        ai_response = "מצטער, אירעה שגיאה בעת עיבוד הבקשה שלך. אנא נסה שוב מאוחר יותר."
+        ai_response = "Sorry, an error occurred while processing your request. Please try again later."
         rag_used = False
         rag_count = 0
         
@@ -468,21 +459,21 @@ async def chat():
                 logger.error(f"Error using enhanced RAG: {str(rag_err)}")
                 # Fallback to regular Gemini without RAG
                 try:
-                    # השתמש ב-Key Manager:
+                    # Use Key Manager
                     key_manager = get_key_manager()
                     api_key = await key_manager.get_next_available_key()
                     
                     if not api_key:
                         return jsonify({"error": "No available API keys"}), 503
                     
-                    # השתמש במפתח...
+                    # Use the key
                     gemini_response = await safe_generate_content(user_message, api_key)
                     ai_response = gemini_response.text
                     logger.info("Fallback to basic Gemini response")
                     
-                    # רשום שימוש
+                    # Record usage
                     await key_manager.record_usage(
-                        tokens_used=100,  # הערכה קבועה
+                        tokens_used=100,  # Fixed estimation
                         requests_count=1
                     )
                 except Exception as gemini_error:
@@ -490,21 +481,21 @@ async def chat():
         else:
             # Use basic Gemini without RAG
             try:
-                # השתמש ב-Key Manager:
+                # Use Key Manager
                 key_manager = get_key_manager()
                 api_key = await key_manager.get_next_available_key()
                 
                 if not api_key:
                     return jsonify({"error": "No available API keys"}), 503
                 
-                # השתמש במפתח...
+                # Use the key
                 gemini_response = await safe_generate_content(user_message, api_key)
                 ai_response = gemini_response.text
                 logger.info("Using basic Gemini response (no RAG)")
                 
-                # רשום שימוש
+                # Record usage
                 await key_manager.record_usage(
-                    tokens_used=100,  # הערכה קבועה
+                    tokens_used=100,  # Fixed estimation
                     requests_count=1
                 )
             except Exception as gemini_error:
@@ -537,24 +528,18 @@ async def chat():
 @app.route('/status')
 @app.route('/api/key-status')
 def key_status():
-    """מצב מנגנון המפתחות"""
-    print("🚨🚨🚨 KEY-STATUS CALLED! 🚨🚨🚨")
-    
+    """Key management status"""
     try:
-        # 🆕 פתרון פשוט: קרא לבקאנד API במקום לטפל בדאטה בייס ישירות
+        # Simple solution: call backend API instead of handling database directly
         import requests
         backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
         
-        print(f"🔍 Calling backend API: {backend_url}/api/keys/")
         response = requests.get(f"{backend_url}/api/keys/", timeout=10)
         
         if response.status_code == 200:
             backend_data = response.json()
-            print(f"✅ Got response from backend API")
-            print(f"🎯 Backend response keys: {list(backend_data.keys())}")
             return jsonify(backend_data)
         else:
-            print(f"❌ Backend API error: {response.status_code}")
             return jsonify({
                 "status": "error",
                 "error": f"Backend API returned {response.status_code}",
@@ -566,7 +551,6 @@ def key_status():
             }), 500
             
     except requests.RequestException as e:
-        print(f"❌ Network error calling backend: {e}")
         return jsonify({
             "status": "error", 
             "error": f"Could not connect to backend: {str(e)}",
@@ -577,7 +561,6 @@ def key_status():
             }
         }), 500
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         
@@ -593,12 +576,12 @@ def key_status():
 
 @app.route('/api/debug-key-status')
 def debug_key_status():
-    """דיבג מצב מפתחות"""
+    """Debug key status"""
     try:
         from core.gemini_key_manager import get_key_manager
         manager = get_key_manager()
         
-        # בדיקה ישירה של מצב המערכת
+        # Direct system status check
         debug_info = {
             "manager_instance_id": id(manager),
             "current_key_index_raw": manager.current_key_index,
@@ -607,7 +590,7 @@ def debug_key_status():
             "keys_detailed": []
         }
         
-        # בדיקה ישירה של כל מפתח
+        # Direct check of each key
         for i, key in enumerate(manager.api_keys):
             usage = manager.usage[key]
             manager._reset_counters_if_needed(key)
@@ -633,7 +616,7 @@ def debug_key_status():
         return jsonify({"error": str(e)}), 500
 
 def count_tokens(response) -> int:
-    """הערכת מספר טוקנים על בסיס אורך התוכן"""
+    """Estimate token count based on content length"""
     if hasattr(response, 'text'):
         text = response.text
     elif isinstance(response, str):
@@ -641,7 +624,7 @@ def count_tokens(response) -> int:
     else:
         text = str(response)
     
-    # הערכה פשוטה: בערך 4 תווים = 1 טוקן
+    # Simple estimation: approximately 4 characters = 1 token
     estimated_tokens = max(len(text) // 4, 1)
     return estimated_tokens
 
@@ -660,4 +643,4 @@ if __name__ == '__main__':
         port=port, 
         debug=DEBUG,
         threaded=True
-    ) 
+    )

@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-מערכת ניהול פרופיל נוכחי עבור RAG
-====================================
+Current Profile Management System for RAG
+=========================================
 
-מערכת זו מנהלת את הפרופיל הפעיל כרגע עבור מערכת RAG.
-הפרופיל נשמר בקובץ נפרד ונטען בכל פעם מחדש.
+This system manages the currently active profile for the RAG system.
+The profile is saved in a separate file and reloaded each time.
 """
 
 import os
@@ -14,20 +14,20 @@ import json
 from pathlib import Path
 from typing import Dict, Optional
 
-# נתיב לקובץ הפרופיל הנוכחי
+# Path to the current profile file
 CONFIG_DIR = Path(__file__).parent
 CURRENT_PROFILE_FILE = CONFIG_DIR / "current_profile.json"
 DYNAMIC_PROFILES_FILE = CONFIG_DIR / "dynamic_profiles.json"
 
 def get_current_profile() -> str:
-    """מחזיר את הפרופיל הנוכחי"""
+    """Returns the current profile"""
     try:
         if CURRENT_PROFILE_FILE.exists():
             with open(CURRENT_PROFILE_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return data.get("current_profile", "improved")
         else:
-            # יצירת קובץ ברירת מחדל
+            # Create default file
             set_current_profile("improved")
             return "improved"
     except Exception as e:
@@ -35,7 +35,7 @@ def get_current_profile() -> str:
         return "improved"
 
 def set_current_profile(profile_name: str) -> None:
-    """מגדיר פרופיל נוכחי"""
+    """Sets the current profile"""
     try:
         data = {"current_profile": profile_name}
         with open(CURRENT_PROFILE_FILE, 'w', encoding='utf-8') as f:
@@ -45,8 +45,8 @@ def set_current_profile(profile_name: str) -> None:
         print(f"Error setting current profile: {e}")
 
 def get_available_profiles() -> Dict[str, str]:
-    """מחזיר רשימה של כל הפרופילים הזמינים"""
-    # פרופילים סטטיים מובנים
+    """Returns a list of all available profiles"""
+    # Built-in static profiles
     static_profiles = {
         "high_quality": "Maximum quality - high accuracy, lower speed",
         "fast": "Maximum speed - good performance, reasonable quality", 
@@ -58,7 +58,7 @@ def get_available_profiles() -> Dict[str, str]:
         "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
     }
     
-    # טעינת פרופילים דינמיים מהקובץ
+    # Load dynamic profiles from file
     dynamic_profiles = {}
     try:
         if DYNAMIC_PROFILES_FILE.exists():
@@ -70,20 +70,20 @@ def get_available_profiles() -> Dict[str, str]:
     except Exception as e:
         print(f"Error loading dynamic profiles: {e}")
     
-    # שילוב הפרופילים
+    # Merge profiles
     all_profiles = {**static_profiles, **dynamic_profiles}
     
     print(f"Available profiles: {list(all_profiles.keys())}")
     return all_profiles
 
 def refresh_profiles():
-    """מרענן את רשימת הפרופילים הזמינים"""
-    # יבוא מחדש של מודול הפרופילים לטעינת שינויים
+    """Refreshes the list of available profiles"""
+    # Re-import the profiles module to load changes
     try:
         import importlib
         import sys
         
-        # רענון מודול הפרופילים
+        # Refresh the profiles module
         if 'src.ai.config.rag_config_profiles' in sys.modules:
             importlib.reload(sys.modules['src.ai.config.rag_config_profiles'])
         elif 'config.rag_config_profiles' in sys.modules:
@@ -104,4 +104,4 @@ if __name__ == "__main__":
     print(f"\nAvailable profiles ({len(profiles)}):")
     for name, desc in profiles.items():
         status = "🟢 ACTIVE" if name == current else "⚪"
-        print(f"  {status} {name}: {desc}") 
+        print(f"  {status} {name}: {desc}")

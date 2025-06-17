@@ -1,4 +1,4 @@
-"""מנגנון ניהול מפתחות גמיני - פתרון מינימלי"""
+"""Gemini API key management system"""
 
 import os
 import time
@@ -17,157 +17,135 @@ class KeyUsage:
         self.tokens_current_minute = 0
         self.tokens_today = 0
         self.requests_current_minute = 0
-        self.requests_today = 0  # הוספת מעקב בקשות יומי
+        self.requests_today = 0
         self.last_minute_reset = datetime.now()
         self.last_day_reset = datetime.now()
         self.blocked_until = None
 
 class GeminiKeyManager:
-    """מנגנון פשוט לניהול מפתחות גמיני"""
+    """Gemini API key management system"""
     
     def __init__(self):
-        logger.info("🔧 [KEY-MANAGER] ===== INITIALIZING KEY MANAGER =====")
+        logger.info("Initializing Key Manager")
         
-        # 🆕 תמיד השתמש בחיבור ישיר ל-Supabase כדי למנוע בעיות תלות
         self.database_manager = DatabaseKeyManager(use_direct_supabase=True)
         self.api_keys = []
         self.current_key_index = 0
         
-        # 🔄 שנה זאת: בדלה fallback ל-.env אם דאטה בייס לא זמין
         self._load_keys_with_fallback()
         
-        # Initialize usage tracking for each key
         self.usage = {}
         for key in self.api_keys:
             self.usage[key] = KeyUsage()
         
-        # Initialize persistence
         self.persistence = TokenUsagePersistence()
-        logger.info("🔧 [KEY-MANAGER] Persistence initialized")
+        logger.info("Persistence initialized")
         
-        # Load existing data from persistence
-        logger.info("🔧 [KEY-MANAGER] Loading existing usage data...")
+        logger.info("Loading existing usage data...")
         self._load_existing_usage()
         
         self._configure_current_key()
         
-        # Rate limiting configuration
         self.limits = {
             'requests_per_minute': 15,
             'requests_per_day': 1500,
             'tokens_per_day': 1000000
         }
         
-        logger.info(f"🔧 [KEY-MANAGER] Initialized with {len(self.api_keys)} keys, current key: {self.current_key_index}")
-        logger.info("🔧 [KEY-MANAGER] ===== KEY MANAGER INITIALIZATION COMPLETE =====")
+        logger.info(f"Initialized with {len(self.api_keys)} keys, current key: {self.current_key_index}")
 
     def _load_keys_with_fallback(self):
-        """טעינת מפתחות עם fallback ל-.env"""
+        """Load keys with fallback to .env"""
         try:
-            # 🆕 נסה לטעון ישירות מדאטה בייס (ללא תלות בבקאנד)
-            logger.info("🔄 Attempting to load keys directly from Supabase...")
+            logger.info("Attempting to load keys directly from Supabase...")
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             
-            # Timeout של 5 שניות
             future = asyncio.wait_for(self._load_keys_from_database(), timeout=5.0)
             loop.run_until_complete(future)
             
             if self.api_keys:
-                print(f"🔑 Loaded {len(self.api_keys)} keys from database")
+                print(f"Loaded {len(self.api_keys)} keys from database")
                 return
             else:
-                logger.warning("⚠️  No keys found in database, falling back to .env")
+                logger.warning("No keys found in database, falling back to .env")
                 
         except (asyncio.TimeoutError, Exception) as e:
-            logger.warning(f"⚠️  Could not load from database: {e}")
-            logger.info("🔄 Falling back to .env keys...")
+            logger.warning(f"Could not load from database: {e}")
+            logger.info("Falling back to .env keys...")
         
-        # Fallback ל-.env
         self._load_keys_from_env()
 
-
-
     def _load_keys_from_env(self):
-        """טעינת מפתחות מ-.env (fallback)"""
+        """Load keys from .env (fallback)"""
         env_keys = []
         
-        # מפתח יחיד
         main_key = os.getenv('GEMINI_API_KEY')
         if main_key:
             env_keys.append(main_key)
         
-        # מפתחות מרובים
         for i in range(1, 8):
             key = os.getenv(f'GEMINI_API_KEY_{i}')
             if key and key not in env_keys:
                 env_keys.append(key)
         
         self.api_keys = env_keys
-        print(f"🔑 Loaded {len(self.api_keys)} keys from .env")
+        print(f"Loaded {len(self.api_keys)} keys from .env")
 
     async def _load_keys_from_database(self):
-        """טעינת מפתחות מדאטה בייס"""
+        """Load keys from database"""
         await self.database_manager.refresh_keys()
         self.api_keys = [key["api_key"] for key in self.database_manager.api_keys]
-        print(f"🔑 Loaded {len(self.api_keys)} keys from database")
+        print(f"Loaded {len(self.api_keys)} keys from database")
 
     async def get_next_available_key(self):
-        """קבלת מפתח זמין הבא"""
+        """Get next available key"""
         available_key = await self.database_manager.get_available_key()
         if available_key:
-            # 🔥 FIX: Sync local index with database manager
             db_current_index = self.database_manager.current_key_index
             api_key_value = available_key["api_key"]
             
-            # Update local index to match database manager
             self.current_key_index = db_current_index
-            
-            # Configure the current key in genai
             genai.configure(api_key=api_key_value)
             
-            logger.info(f"🔑 [GEMINI-KEY-MANAGER] Using key index {self.current_key_index}: {available_key.get('key_name', 'Unknown')}")
+            logger.info(f"Using key index {self.current_key_index}: {available_key.get('key_name', 'Unknown')}")
             return api_key_value
         return None
 
     def _configure_current_key(self):
-        """הגדרת המפתח הנוכחי ב-genai"""
+        """Configure current key in genai"""
         if self.api_keys:
             current_key = self.api_keys[self.current_key_index]
             genai.configure(api_key=current_key)
             logger.debug(f"Configured key #{self.current_key_index}")
 
     def _reset_counters_if_needed(self, key: str):
-        """איפוס מונים לפי זמן"""
+        """Reset counters based on time"""
         now = datetime.now()
         usage = self.usage[key]
         
-        # איפוס דקה
         if now - usage.last_minute_reset >= timedelta(minutes=1):
             usage.tokens_current_minute = 0
             usage.requests_current_minute = 0
             usage.last_minute_reset = now
         
-        # איפוס יום
         if now.date() > usage.last_day_reset.date():
             usage.tokens_today = 0
-            usage.requests_today = 0  # איפוס בקשות יומי
+            usage.requests_today = 0
             usage.last_day_reset = now
             usage.blocked_until = None
 
     def _check_limits(self, key: str) -> bool:
-        """בדיקה האם המפתח זמין"""
+        """Check if key is available within limits"""
         usage = self.usage[key]
         now = datetime.now()
         
-        # בדיקת חסימה
         if usage.blocked_until and now < usage.blocked_until:
             return False
         
-        # בדיקת גבולות עם מרווח ביטחון (מקטן לטסט)
-        safety_margin = 0.6  # 60% במקום 90% - לבדיקת מעבר מפתחות
+        safety_margin = 0.6
         
-        if (usage.requests_today >= self.limits['requests_per_day'] * safety_margin or  # שונה מ-tokens_current_minute
+        if (usage.requests_today >= self.limits['requests_per_day'] * safety_margin or
             usage.requests_current_minute >= self.limits['requests_per_minute'] * safety_margin or
             usage.tokens_today >= self.limits['tokens_per_day'] * safety_margin):
             
@@ -178,7 +156,7 @@ class GeminiKeyManager:
         return True
 
     def _find_available_key(self) -> Optional[int]:
-        """מציאת מפתח זמין"""
+        """Find available key"""
         for i, key in enumerate(self.api_keys):
             self._reset_counters_if_needed(key)
             if self._check_limits(key):
@@ -186,54 +164,38 @@ class GeminiKeyManager:
         return None
 
     def track_usage(self, tokens_used: int = 100):
-        """עדכון שימוש לאחר בקשה"""
-        # 🔍 DEBUG: לוגים מפורטים
-        logger.info(f"🔢 [TOKEN-TRACK] ===== TRACKING TOKEN USAGE =====")
-        logger.info(f"🔢 [TOKEN-TRACK] Key index: {self.current_key_index}")
-        logger.info(f"🔢 [TOKEN-TRACK] Tokens to add: {tokens_used}")
+        """Update usage after request"""
+        logger.info(f"Tracking token usage: {tokens_used}")
+        logger.info(f"Key index: {self.current_key_index}")
         
         current_key = self.api_keys[self.current_key_index]
         usage = self.usage[current_key]
         
-        # לוג מצב לפני העדכון
-        logger.info(f"🔢 [TOKEN-TRACK] Before update:")
-        logger.info(f"🔢 [TOKEN-TRACK] - Tokens today: {usage.tokens_today}")
-        logger.info(f"🔢 [TOKEN-TRACK] - Tokens current minute: {usage.tokens_current_minute}")
-        logger.info(f"🔢 [TOKEN-TRACK] - Requests today: {usage.requests_today}")
-        logger.info(f"🔢 [TOKEN-TRACK] - Requests current minute: {usage.requests_current_minute}")
+        logger.info(f"Before update - Tokens today: {usage.tokens_today}, Requests today: {usage.requests_today}")
         
         usage.tokens_current_minute += tokens_used
         usage.tokens_today += tokens_used
         usage.requests_current_minute += 1
         usage.requests_today += 1
         
-        # לוג מצב אחרי העדכון
-        logger.info(f"🔢 [TOKEN-TRACK] After update:")
-        logger.info(f"🔢 [TOKEN-TRACK] - Tokens today: {usage.tokens_today}")
-        logger.info(f"🔢 [TOKEN-TRACK] - Tokens current minute: {usage.tokens_current_minute}")
-        logger.info(f"🔢 [TOKEN-TRACK] - Requests today: {usage.requests_today}")
-        logger.info(f"🔢 [TOKEN-TRACK] - Requests current minute: {usage.requests_current_minute}")
+        logger.info(f"After update - Tokens today: {usage.tokens_today}, Requests today: {usage.requests_today}")
         
-        # 🆕 שמירה קבועה (קובץ מקומי)
         try:
-            logger.info(f"🔢 [TOKEN-TRACK] Saving to local persistence...")
+            logger.info("Saving to local persistence...")
             self.persistence.update_usage(
                 key_index=self.current_key_index,
                 tokens_used=tokens_used,
                 requests_count=1
             )
-            logger.info(f"🔢 [TOKEN-TRACK] Successfully saved to local persistence")
+            logger.info("Successfully saved to local persistence")
         except Exception as persistence_err:
-            logger.error(f"❌ [TOKEN-ERROR] Failed to save to local persistence: {persistence_err}")
+            logger.error(f"Failed to save to local persistence: {persistence_err}")
         
-        # 🆕 שמירה בדאטה בייס (async call in background)
         try:
-            logger.info(f"🔢 [TOKEN-TRACK] Scheduling database save...")
+            logger.info("Scheduling database save...")
             if self.database_manager.api_keys and len(self.database_manager.api_keys) > self.current_key_index:
                 current_key_data = self.database_manager.api_keys[self.current_key_index]
                 
-                # רץ ב-background thread כדי לא לחסום
-                import asyncio
                 import threading
                 
                 def run_async_save():
@@ -248,51 +210,46 @@ class GeminiKeyManager:
                             )
                         )
                         loop.close()
-                        logger.info(f"🔢 [TOKEN-TRACK] Successfully saved to database for key ID {current_key_data['id']}")
+                        logger.info(f"Successfully saved to database for key ID {current_key_data['id']}")
                     except Exception as async_err:
-                        logger.error(f"❌ [TOKEN-ERROR] Background database save failed: {async_err}")
+                        logger.error(f"Background database save failed: {async_err}")
                 
                 threading.Thread(target=run_async_save, daemon=True).start()
-                logger.info(f"🔢 [TOKEN-TRACK] Database save scheduled for key ID {current_key_data['id']}")
+                logger.info(f"Database save scheduled for key ID {current_key_data['id']}")
             else:
-                logger.warning(f"🔢 [TOKEN-TRACK] No database key data available for index {self.current_key_index}")
+                logger.warning(f"No database key data available for index {self.current_key_index}")
         except Exception as db_err:
-            logger.error(f"❌ [TOKEN-ERROR] Failed to schedule database save: {db_err}")
+            logger.error(f"Failed to schedule database save: {db_err}")
         
-        # 🆕 בדיקה האם צריך לעבור למפתח אחר אחרי השימוש
-        logger.info(f"🔍 [TOKEN-TRACK] Checking if key switch is needed after usage...")
+        logger.info("Checking if key switch is needed after usage...")
         try:
             if not self._check_limits(current_key):
-                logger.warning(f"🔄 [TOKEN-TRACK] Current key {self.current_key_index} reached limits, attempting switch...")
+                logger.warning(f"Current key {self.current_key_index} reached limits, attempting switch...")
                 available_index = self._find_available_key()
                 if available_index is not None and available_index != self.current_key_index:
                     old_key = self.current_key_index
                     self.current_key_index = available_index
                     self._configure_current_key()
-                    logger.warning(f"🔄 [TOKEN-TRACK] Switched from key {old_key} to key {self.current_key_index}")
+                    logger.warning(f"Switched from key {old_key} to key {self.current_key_index}")
                     
-                    # 🆕 תיעוד החלפה
                     try:
                         self.persistence.log_key_switch(old_key, self.current_key_index)
                     except Exception as log_err:
-                        logger.error(f"❌ [TOKEN-TRACK] Failed to log key switch: {log_err}")
+                        logger.error(f"Failed to log key switch: {log_err}")
                 else:
-                    logger.error(f"❌ [TOKEN-TRACK] No alternative key available!")
+                    logger.error("No alternative key available!")
             else:
-                logger.info(f"✅ [TOKEN-TRACK] Current key {self.current_key_index} still within limits")
+                logger.info(f"Current key {self.current_key_index} still within limits")
         except Exception as switch_err:
-            logger.error(f"❌ [TOKEN-TRACK] Error during key switch check: {switch_err}")
-        
-        logger.info(f"🔢 [TOKEN-TRACK] ===== TOKEN TRACKING COMPLETE =====")
+            logger.error(f"Error during key switch check: {switch_err}")
 
     def ensure_available_key(self) -> bool:
-        """וידוא שיש מפתח זמין"""
+        """Ensure available key exists"""
         self._reset_counters_if_needed(self.api_keys[self.current_key_index])
         
         if self._check_limits(self.api_keys[self.current_key_index]):
             return True
         
-        # חיפוש מפתח חלופי
         available_index = self._find_available_key()
         if available_index is not None:
             self.current_key_index = available_index
@@ -304,7 +261,7 @@ class GeminiKeyManager:
         return False
 
     def get_status(self) -> Dict[str, Any]:
-        """מצב המערכת"""
+        """Get system status"""
         available_keys = sum(1 for key in self.api_keys 
                            if self._check_limits(key))
         
@@ -316,47 +273,39 @@ class GeminiKeyManager:
                 'tokens_today': self.usage[self.api_keys[self.current_key_index]].tokens_today,
                 'tokens_current_minute': self.usage[self.api_keys[self.current_key_index]].tokens_current_minute,
                 'requests_current_minute': self.usage[self.api_keys[self.current_key_index]].requests_current_minute,
-                'requests_today': self.usage[self.api_keys[self.current_key_index]].requests_today  # הוספת בקשות יומי
+                'requests_today': self.usage[self.api_keys[self.current_key_index]].requests_today
             }
         }
 
     def get_detailed_status(self) -> Dict[str, Any]:
-        """מצב מפורט עם נתונים מכל המפתחות"""
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] ===== GET DETAILED STATUS =====")
+        """Get detailed status with all key data"""
+        logger.info("Getting detailed status")
         
-        # 🔧 עדכון מיידי של המונים לפני החזרת הסטטוס
         for i, key in enumerate(self.api_keys):
             self._reset_counters_if_needed(key)
         
-        # טען נתונים עדכניים מהקובץ לזיכרון
         self._load_existing_usage()
         
-        # נתונים מהזיכרון (current)
         memory_status = self.get_status()
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Memory status: {memory_status}")
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Current key index from memory: {self.current_key_index}")
+        logger.info(f"Memory status: {memory_status}")
+        logger.info(f"Current key index from memory: {self.current_key_index}")
         
-        # נתונים קבועים מהקובץ
         all_keys_usage = self.persistence.get_all_keys_usage_today()
         daily_summary = self.persistence.get_daily_summary()
         
-        # שילוב הנתונים
         keys_details = []
         for i in range(len(self.api_keys)):
             key_id = f"key_{i}"
-            is_current = i == self.current_key_index  # 🎯 זה הקריטריון העיקרי
+            is_current = i == self.current_key_index
             
-            # נתונים יומיים מהקובץ
             persistent_data = all_keys_usage.get(key_id, {})
             tokens_today = persistent_data.get("tokens_used", 0)
             requests_today = persistent_data.get("requests_count", 0)
             
-            # נתונים של דקה נוכחית מהקובץ
             minute_usage = self.persistence.get_current_minute_usage(i)
             tokens_minute = minute_usage["tokens"]
             requests_minute = minute_usage["requests"]
             
-            # 🎯 חישוב סטטוס מדויק על בסיס הלימיטים האמיתיים
             is_blocked = self._is_key_blocked(i, tokens_today, requests_today, tokens_minute, requests_minute)
             
             if is_current:
@@ -366,12 +315,7 @@ class GeminiKeyManager:
             else:
                 status = "available"
             
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] Key {i} ({key_id}):")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Today: tokens={tokens_today}, requests={requests_today}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Current minute: tokens={tokens_minute}, requests={requests_minute}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Is current: {is_current}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Is blocked: {is_blocked}")
-            logger.info(f"📊 [KEY-MANAGER-DEBUG] - Final status: {status}")
+            logger.info(f"Key {i} ({key_id}): status={status}, today={tokens_today}t/{requests_today}r, minute={tokens_minute}t/{requests_minute}r")
             
             key_detail = {
                 "id": i,
@@ -383,7 +327,6 @@ class GeminiKeyManager:
                 "requests_current_minute": requests_minute,
                 "last_used": persistent_data.get("last_request"),
                 "first_used_today": persistent_data.get("first_request"),
-                # 🆕 הוספת מידע על הגבלות
                 "limits_info": {
                     "max_requests_per_minute": self.limits['requests_per_minute'],
                     "max_requests_per_day": self.limits['requests_per_day'],
@@ -393,13 +336,12 @@ class GeminiKeyManager:
             
             keys_details.append(key_detail)
         
-        # 🔧 חישוב מחדש של מפתחות זמינים ומחוסמים
         available_count = sum(1 for detail in keys_details if detail['status'] == 'available')
         blocked_count = sum(1 for detail in keys_details if detail['status'] == 'blocked')
         
         result = {
             "total_keys": len(self.api_keys),
-            "available_keys": available_count + 1,  # +1 for current key
+            "available_keys": available_count + 1,
             "blocked_keys": blocked_count,
             "current_key_index": self.current_key_index,
             "keys_status": keys_details,
@@ -408,42 +350,36 @@ class GeminiKeyManager:
             "last_updated": datetime.now().isoformat()
         }
         
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Final result - Current key: {self.current_key_index}")
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] Available keys: {available_count + 1}, Blocked keys: {blocked_count}")
-        logger.info(f"📊 [KEY-MANAGER-DEBUG] ===== GET DETAILED STATUS COMPLETE =====")
+        logger.info(f"Final result - Current key: {self.current_key_index}")
+        logger.info(f"Available keys: {available_count + 1}, Blocked keys: {blocked_count}")
         
         return result
 
     def _is_key_blocked(self, key_index: int, tokens_today: int, requests_today: int, tokens_minute: int, requests_minute: int) -> bool:
-        """בדיקה האם מפתח חסום על בסיס הנתונים הקיימים"""
-        # 🎯 בדיקת לימיטים מדויקת - אם הגיע לליטמיט בדיוק, זה blocked
+        """Check if key is blocked based on existing data"""
         
-        # לימיט בקשות בדקה (15)
         if requests_minute >= self.limits['requests_per_minute']:
-            logger.info(f"🚫 [LIMIT-CHECK] Key {key_index} blocked: requests_minute {requests_minute} >= {self.limits['requests_per_minute']}")
+            logger.info(f"Key {key_index} blocked: requests_minute {requests_minute} >= {self.limits['requests_per_minute']}")
             return True
         
-        # לימיט בקשות ביום (1500)
         if requests_today >= self.limits['requests_per_day']:
-            logger.info(f"🚫 [LIMIT-CHECK] Key {key_index} blocked: requests_today {requests_today} >= {self.limits['requests_per_day']}")
+            logger.info(f"Key {key_index} blocked: requests_today {requests_today} >= {self.limits['requests_per_day']}")
             return True
         
-        # לימיט טוקנים ביום (1,000,000)
         if tokens_today >= self.limits['tokens_per_day']:
-            logger.info(f"🚫 [LIMIT-CHECK] Key {key_index} blocked: tokens_today {tokens_today} >= {self.limits['tokens_per_day']}")
+            logger.info(f"Key {key_index} blocked: tokens_today {tokens_today} >= {self.limits['tokens_per_day']}")
             return True
         
-        logger.info(f"✅ [LIMIT-CHECK] Key {key_index} available: within all limits")
+        logger.info(f"Key {key_index} available: within all limits")
         return False
 
-
     def _load_existing_usage(self):
-        """טעינת נתונים קיימים מהקובץ לזיכרון"""
-        logger.info("🔧 [KEY-MANAGER] Loading existing usage data...")
+        """Load existing data from file to memory"""
+        logger.info("Loading existing usage data...")
         
         try:
             all_keys_usage = self.persistence.get_all_keys_usage_today()
-            logger.info(f"🔧 [KEY-MANAGER] Found usage data for {len(all_keys_usage)} keys")
+            logger.info(f"Found usage data for {len(all_keys_usage)} keys")
             
             for i, key in enumerate(self.api_keys):
                 key_id = f"key_{i}"
@@ -451,15 +387,15 @@ class GeminiKeyManager:
                     persistent_data = all_keys_usage[key_id]
                     self.usage[key].tokens_today = persistent_data.get("tokens_used", 0)
                     self.usage[key].requests_today = persistent_data.get("requests_count", 0)
-                    logger.info(f"🔧 [KEY-MANAGER] Loaded key {i}: {self.usage[key].tokens_today} tokens, {self.usage[key].requests_today} requests")
+                    logger.info(f"Loaded key {i}: {self.usage[key].tokens_today} tokens, {self.usage[key].requests_today} requests")
                 else:
-                    logger.info(f"🔧 [KEY-MANAGER] No existing data for key {i}")
+                    logger.info(f"No existing data for key {i}")
                     
         except Exception as load_err:
-            logger.error(f"❌ [KEY-MANAGER] Error loading existing usage: {load_err}")
+            logger.error(f"Error loading existing usage: {load_err}")
     
     async def record_usage(self, tokens_used: int, requests_count: int = 1):
-        """רישום שימוש"""
+        """Record usage"""
         current_key_data = self.database_manager.api_keys[self.current_key_index]
         await self.database_manager.record_usage(
             current_key_data["id"], 
@@ -468,36 +404,28 @@ class GeminiKeyManager:
         )
 
 async def safe_generate_content(*args, **kwargs) -> Any:
-    """Wrapper בטוח לgenerative content"""
+    """Safe wrapper for generative content"""
     manager = get_key_manager()
     
-    # 🎯 וידוא שיש מפתח זמין ועדכון current_key_index אם צריך
     key = await manager.get_available_key()
     if not key:
         raise Exception("No available Gemini API keys")
     
-    # 🆕 לוג המפתח שבשימוש לפני הבקשה
-    logger.info(f"🔥 [API-CALL] Using key #{manager.current_key_index} for content generation")
+    logger.info(f"Using key #{manager.current_key_index} for content generation")
     
     try:
-        # ביצוע הבקשה
         model = genai.GenerativeModel('gemini-2.0-flash-exp')
         response = model.generate_content(*args, **kwargs)
         
-        # עדכון שימוש (הערכה)
         estimated_tokens = len(str(args)) // 4 if args else 100
         
-        # 🆕 לוג השימוש
-        logger.info(f"🔥 [API-CALL] Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
+        logger.info(f"Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        # Smart tracking for both manager types
         if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            # DatabaseKeyManager - needs key_id and async call
             if manager.api_keys and manager.current_key_index < len(manager.api_keys):
                 current_key_data = manager.api_keys[manager.current_key_index]
                 key_id = current_key_data.get('id')
                 if key_id:
-                    # Run in background thread to avoid blocking
                     import threading
                     def async_track():
                         import asyncio
@@ -510,7 +438,6 @@ async def safe_generate_content(*args, **kwargs) -> Any:
                             logger.error(f"Background tracking failed: {e}")
                     threading.Thread(target=async_track, daemon=True).start()
         else:
-            # Legacy GeminiKeyManager
             manager.track_usage(estimated_tokens)
         
         return response
@@ -520,34 +447,27 @@ async def safe_generate_content(*args, **kwargs) -> Any:
         raise
 
 async def safe_embed_content(*args, **kwargs) -> Any:
-    """Wrapper בטוח לembedding content"""
+    """Safe wrapper for embedding content"""
     manager = get_key_manager()
     
-    # 🎯 וידוא שיש מפתח זמין
     key = await manager.get_available_key()
     if not key:
         raise Exception("No available Gemini API keys")
     
-    # 🆕 לוג המפתח שבשימוש לפני הבקשה
-    logger.info(f"🔥 [API-CALL] Using key #{manager.current_key_index} for embedding")
+    logger.info(f"Using key #{manager.current_key_index} for embedding")
     
     try:
         response = genai.embed_content(*args, **kwargs)
         
-        # עדכון שימוש
         estimated_tokens = len(str(args)) // 4 if args else 50
         
-        # 🆕 לוג השימוש
-        logger.info(f"🔥 [API-CALL] Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
+        logger.info(f"Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        # Smart tracking for both manager types
         if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            # DatabaseKeyManager - needs key_id and async call
             if manager.api_keys and manager.current_key_index < len(manager.api_keys):
                 current_key_data = manager.api_keys[manager.current_key_index]
                 key_id = current_key_data.get('id')
                 if key_id:
-                    # Run in background thread to avoid blocking
                     import threading
                     def async_track():
                         import asyncio
@@ -560,7 +480,6 @@ async def safe_embed_content(*args, **kwargs) -> Any:
                             logger.error(f"Background tracking failed: {e}")
                     threading.Thread(target=async_track, daemon=True).start()
         else:
-            # Legacy GeminiKeyManager
             manager.track_usage(estimated_tokens)
         
         return response
@@ -569,117 +488,25 @@ async def safe_embed_content(*args, **kwargs) -> Any:
         logger.error(f"Gemini Embedding API error: {e}")
         raise
 
-# Instance יחיד גלובלי
 _key_manager = None
 
 def get_key_manager():
-    """קבלת מנגנון הניהול הגלובלי - החל מעכשיו משתמש ב-DatabaseKeyManager"""
+    """Get global key manager instance - now uses DatabaseKeyManager"""
     from .database_key_manager import DatabaseKeyManager
     import threading
     global _key_manager
     
-    # 🔍 DEBUG: מידע מפורט על ה-instance
     thread_id = threading.current_thread().ident
     process_id = os.getpid()
     
-    logger.info(f"🔧 [KEY-MANAGER] get_key_manager called")
-    logger.info(f"🔧 [KEY-MANAGER] Thread ID: {thread_id}")
-    logger.info(f"🔧 [KEY-MANAGER] Process ID: {process_id}")
-    logger.info(f"🔧 [KEY-MANAGER] Current instance: {id(_key_manager) if _key_manager else 'None'}")
+    logger.info(f"get_key_manager called - Thread ID: {thread_id}, Process ID: {process_id}")
+    logger.info(f"Current instance: {id(_key_manager) if _key_manager else 'None'}")
     
     if _key_manager is None:
-        logger.info("🔧 [KEY-MANAGER] Creating NEW Database Key Manager instance")
+        logger.info("Creating NEW Database Key Manager instance")
         _key_manager = DatabaseKeyManager()
-        logger.info(f"🔧 [KEY-MANAGER] Created instance with ID: {id(_key_manager)}")
+        logger.info(f"Created instance with ID: {id(_key_manager)}")
     else:
-        logger.info(f"🔧 [KEY-MANAGER] Using EXISTING Database Key Manager instance ID: {id(_key_manager)}")
+        logger.info(f"Using EXISTING Database Key Manager instance ID: {id(_key_manager)}")
         
     return _key_manager
-
-async def safe_generate_content(*args, **kwargs) -> Any:
-    """Wrapper בטוח לgenerative content"""
-    manager = get_key_manager()
-    
-    key = await manager.get_available_key()
-    if not key:
-        raise Exception("No available Gemini API keys")
-    
-    try:
-        # ביצוע הבקשה
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        response = model.generate_content(*args, **kwargs)
-        
-        # עדכון שימוש (הערכה)
-        estimated_tokens = len(str(args)) // 4 if args else 100
-        
-        # Smart tracking for both manager types
-        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            # DatabaseKeyManager - needs key_id and async call
-            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
-                current_key_data = manager.api_keys[manager.current_key_index]
-                key_id = current_key_data.get('id')
-                if key_id:
-                    # Run in background thread to avoid blocking
-                    import threading
-                    def async_track():
-                        import asyncio
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
-                            loop.close()
-                        except Exception as e:
-                            logger.error(f"Background tracking failed: {e}")
-                    threading.Thread(target=async_track, daemon=True).start()
-        else:
-            # Legacy GeminiKeyManager
-            manager.track_usage(estimated_tokens)
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"Gemini API error: {e}")
-        raise
-
-async def safe_embed_content(*args, **kwargs) -> Any:
-    """Wrapper בטוח לembedding content"""
-    manager = get_key_manager()
-    
-    key = await manager.get_available_key()
-    if not key:
-        raise Exception("No available Gemini API keys")
-    
-    try:
-        response = genai.embed_content(*args, **kwargs)
-        
-        # עדכון שימוש
-        estimated_tokens = len(str(args)) // 4 if args else 50
-        
-        # Smart tracking for both manager types
-        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            # DatabaseKeyManager - needs key_id and async call
-            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
-                current_key_data = manager.api_keys[manager.current_key_index]
-                key_id = current_key_data.get('id')
-                if key_id:
-                    # Run in background thread to avoid blocking
-                    import threading
-                    def async_track():
-                        import asyncio
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
-                            loop.close()
-                        except Exception as e:
-                            logger.error(f"Background tracking failed: {e}")
-                    threading.Thread(target=async_track, daemon=True).start()
-        else:
-            # Legacy GeminiKeyManager
-            manager.track_usage(estimated_tokens)
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"Gemini Embedding API error: {e}")
-        raise
