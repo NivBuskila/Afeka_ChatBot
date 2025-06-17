@@ -6,7 +6,7 @@ from pathlib import Path
 import hashlib
 import json
 import tempfile
-import re # Import re for regex matching
+import re 
 
 import google.generativeai as genai
 # from langchain.text_splitter import SemanticChunker # Old import
