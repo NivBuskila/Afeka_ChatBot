@@ -1,9 +1,10 @@
 import logging
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
-from src.backend.app.repositories.message_repo import SupabaseMessageRepository
 
 from ..core.interfaces import IMessageService
+from ..repositories.interfaces import IMessageRepository
+from ..repositories.message_repo import SupabaseMessageRepository
 from ..core.exceptions import RepositoryError
 
 logger = logging.getLogger(__name__)
@@ -11,9 +12,9 @@ logger = logging.getLogger(__name__)
 class MessageService(IMessageService):
     """Service for message management."""
     
-    def __init__(self):
+    def __init__(self, repository: IMessageRepository = None):
         """Initialize with a repository implementation."""
-        self.repository = SupabaseMessageRepository()
+        self.repository = repository or SupabaseMessageRepository()
         logger.debug("💬 MessageService initialized")
     
     async def create_message(self, data: Dict[str, Any]) -> Dict[str, Any]:

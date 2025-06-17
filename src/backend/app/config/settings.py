@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = Field(
         default_factory=lambda: os.environ.get(
             "ALLOWED_ORIGINS", 
-            "http://localhost:5173,http://localhost:80,http://localhost"
-        ).split(",")
+            "*"
+        ).split(",") if os.environ.get("ALLOWED_ORIGINS") != "*" else ["*"]
     )
     
     # Trusted Hosts for Production

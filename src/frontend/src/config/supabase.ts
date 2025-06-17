@@ -3,6 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 // Manual type definition to avoid import issues
 type Database = any;
 
+// Document type definition
+export interface Document {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // IMPORTANT: Do not use this client directly for data operations.
 // Instead, use the backend proxy endpoints that start with /api/proxy/
 // Direct Supabase usage should be limited to:

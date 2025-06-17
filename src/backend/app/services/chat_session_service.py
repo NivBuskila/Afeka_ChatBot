@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 class ChatSessionService(IChatSessionService):
     """Service for chat session management."""
     
-    def __init__(self):
+    def __init__(self, repository: IChatSessionRepository = None):
         """Initialize with a repository implementation."""
-        self.repository = SupabaseChatSessionRepository()
+        self.repository = repository or SupabaseChatSessionRepository()
         logger.debug("💬 ChatSessionService initialized")
     
     async def create_session(self, user_id: str, title: str) -> Dict[str, Any]:

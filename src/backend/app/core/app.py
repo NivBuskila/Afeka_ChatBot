@@ -9,7 +9,10 @@ from ..middleware.timing import add_process_time_header
 from ..middleware.security import add_security_headers
 from ..middleware.rate_limit import rate_limit_middleware
 from ..api.routes import general, chat, documents, proxy
-from ..api import vector_management
+from ...api import vector_management
+from ..api.routes.rag import router as rag_router
+from ..api.routes.title_generation import router as title_router  
+from ..api.routes.api_keys import router as api_keys_router
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +42,8 @@ class Application:
             CORSMiddleware,
             allow_origins=settings.ALLOWED_ORIGINS,
             allow_credentials=True,
-            allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=["Authorization", "Content-Type", settings.API_KEY_NAME],
+            allow_methods=["*"],
+            allow_headers=["*"],
             max_age=600
         )
         logger.info(f"Configured CORS with allowed origins: {settings.ALLOWED_ORIGINS}")
@@ -64,6 +67,9 @@ class Application:
         self.app.include_router(documents.router)
         self.app.include_router(proxy.router)
         self.app.include_router(vector_management.router)
+        self.app.include_router(rag_router, prefix="/api/rag")
+        self.app.include_router(title_router)
+        self.app.include_router(api_keys_router)
         logger.info("API routers configured")
     
     def _configure_exception_handlers(self):
