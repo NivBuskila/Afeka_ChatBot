@@ -19,9 +19,9 @@ import chatService, { ChatSession } from "../../services/chatService";
 import titleGenerationService from "../../services/titleGenerationService";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../config/supabase";
-import { useThemeClasses } from '../../hooks/useThemeClasses';
-import ThemeButton from '../ui/ThemeButton';
-import ThemeCard from '../ui/ThemeCard';
+import { useThemeClasses } from "../../hooks/useThemeClasses";
+import ThemeButton from "../ui/ThemeButton";
+import ThemeCard from "../ui/ThemeCard";
 
 // Interface for message display
 interface Message {
@@ -37,9 +37,7 @@ interface ChatWindowProps {
   onLogout: () => void;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({
-  onLogout,
-}) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const { t, i18n } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +50,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // UI state
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const { currentTheme, classes, chatContainer, chatSidebar, primaryButton, cardBackground, textPrimary } = useThemeClasses();
+  const {
+    currentTheme,
+    classes,
+    chatContainer,
+    chatSidebar,
+    primaryButton,
+    cardBackground,
+    textPrimary,
+  } = useThemeClasses();
   const [hasStarted, setHasStarted] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -71,7 +77,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Chat search state - for sidebar search
   const [chatSearchQuery, setChatSearchQuery] = useState("");
-  const [filteredChatSessions, setFilteredChatSessions] = useState<ChatSession[]>([]);
+  const [filteredChatSessions, setFilteredChatSessions] = useState<
+    ChatSession[]
+  >([]);
 
   // Load user chat sessions
   useEffect(() => {
@@ -140,31 +148,40 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const session = await chatService.getChatSessionWithMessages(sessionId);
 
       if (session && session.messages && session.messages.length > 0) {
-        const formattedMessages = session.messages.map((msg: any, index: number) => {
-          // זיהוי סוג הודעה עם fallback logic לשיחות ישנות
-          let isBot = false;
-          
-          if (msg.role === "bot" || msg.role === "assistant") {
-            isBot = true;
-          } else if (msg.is_bot === true || msg.is_bot === 1) {
-            isBot = true;
-          } else if (msg.role === "user" && index % 2 === 1) {
-            isBot = true;
-          } else if (msg.content && msg.content.length > 100 && msg.role === "user") {
-            isBot = true;
-          }
-          
-          let messageContent = msg.content || msg.message_text || msg.text || "";
-          const messageId = msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
+        const formattedMessages = session.messages.map(
+          (msg: any, index: number) => {
+            // זיהוי סוג הודעה עם fallback logic לשיחות ישנות
+            let isBot = false;
 
-          return {
-            id: messageId,
-            type: (isBot ? "bot" : "user") as "bot" | "user",
-            content: messageContent,
-            timestamp: new Date(msg.created_at).toLocaleTimeString(),
-            sessionId: msg.chat_session_id || msg.conversation_id || sessionId,
-          };
-        });
+            if (msg.role === "bot" || msg.role === "assistant") {
+              isBot = true;
+            } else if (msg.is_bot === true || msg.is_bot === 1) {
+              isBot = true;
+            } else if (msg.role === "user" && index % 2 === 1) {
+              isBot = true;
+            } else if (
+              msg.content &&
+              msg.content.length > 100 &&
+              msg.role === "user"
+            ) {
+              isBot = true;
+            }
+
+            let messageContent =
+              msg.content || msg.message_text || msg.text || "";
+            const messageId =
+              msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
+
+            return {
+              id: messageId,
+              type: (isBot ? "bot" : "user") as "bot" | "user",
+              content: messageContent,
+              timestamp: new Date(msg.created_at).toLocaleTimeString(),
+              sessionId:
+                msg.chat_session_id || msg.conversation_id || sessionId,
+            };
+          }
+        );
 
         setMessages(formattedMessages);
         setHasStarted(formattedMessages.length > 0);
@@ -190,30 +207,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         setActiveSession(session);
 
         if (session.messages && session.messages.length > 0) {
-          const formattedMessages = session.messages.map((msg: any, index: number) => {
-            let isBot = false;
-            
-            if (msg.role === "bot" || msg.role === "assistant") {
-              isBot = true;
-            } else if (msg.is_bot === true || msg.is_bot === 1) {
-              isBot = true;
-            } else if (msg.role === "user" && index % 2 === 1) {
-              isBot = true;
-            } else if (msg.content && msg.content.length > 100 && msg.role === "user") {
-              isBot = true;
-            }
-            
-            let messageContent = msg.content || msg.message_text || msg.text || "";
-            const messageId = msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
+          const formattedMessages = session.messages.map(
+            (msg: any, index: number) => {
+              let isBot = false;
 
-            return {
-              id: messageId,
-              type: (isBot ? "bot" : "user") as "bot" | "user",
-              content: messageContent,
-              timestamp: new Date(msg.created_at).toLocaleTimeString(),
-              sessionId: msg.chat_session_id || msg.conversation_id || sessionId,
-            };
-          });
+              if (msg.role === "bot" || msg.role === "assistant") {
+                isBot = true;
+              } else if (msg.is_bot === true || msg.is_bot === 1) {
+                isBot = true;
+              } else if (msg.role === "user" && index % 2 === 1) {
+                isBot = true;
+              } else if (
+                msg.content &&
+                msg.content.length > 100 &&
+                msg.role === "user"
+              ) {
+                isBot = true;
+              }
+
+              let messageContent =
+                msg.content || msg.message_text || msg.text || "";
+              const messageId =
+                msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
+
+              return {
+                id: messageId,
+                type: (isBot ? "bot" : "user") as "bot" | "user",
+                content: messageContent,
+                timestamp: new Date(msg.created_at).toLocaleTimeString(),
+                sessionId:
+                  msg.chat_session_id || msg.conversation_id || sessionId,
+              };
+            }
+          );
 
           setMessages(formattedMessages);
           setHasStarted(true);
@@ -337,9 +363,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (!input.trim()) return;
 
     const user = await chatService.getCurrentUser();
-    
+
     if (!user) {
-      setStatusMessage("You are in demo mode. Messages will not be saved. Please log in to save your chats.");
+      setStatusMessage(
+        "You are in demo mode. Messages will not be saved. Please log in to save your chats."
+      );
       setTimeout(() => setStatusMessage(""), 5000);
       return;
     }
@@ -348,9 +376,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (!activeSession) {
       try {
-        const initialTitle = titleGenerationService.generateSimpleTitle(input, 40);
-        const session = await chatService.createChatSession(user.id, initialTitle);
-        
+        const initialTitle = titleGenerationService.generateSimpleTitle(
+          input,
+          40
+        );
+        const session = await chatService.createChatSession(
+          user.id,
+          initialTitle
+        );
+
         if (session) {
           setChatSessions((prev) => [session, ...prev]);
           setActiveSession(session);
@@ -434,15 +468,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     userId: string
   ) => {
     try {
-      // Check if user is authenticated for full RAG, otherwise use demo endpoint
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      // Create a placeholder bot message for streaming
+      const streamingBotReply: Message = {
+        id: `bot-${Date.now().toString()}`,
+        type: "bot",
+        content: "",
+        timestamp: new Date().toLocaleTimeString(),
+        sessionId: sessionId,
+      };
 
-      const BACKEND_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-
-      let response;
+      // Add the placeholder message
+      setMessages((prev) => [...prev, streamingBotReply]);
+      let messageIndex = messages.length + 1; // Position of the bot message
 
       // Prepare chat history for the current session
       const chatHistory = messages.map((msg) => ({
@@ -450,104 +487,109 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         content: msg.content,
       }));
 
-      if (session && session.access_token) {
-        // User is authenticated - use full chat endpoint with history
-        console.log("Using authenticated chat endpoint with history");
-        console.log("Sending chat history:", chatHistory.length, "messages");
-        response = await fetch(`${BACKEND_URL}/api/chat`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: userMessage.content,
+      // Use streaming service
+      await chatService.sendStreamingMessage(
+        userMessage.content,
+        userId,
+        chatHistory,
+
+        // onChunk callback
+        (chunk: string, accumulated: string) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const botMessageIndex = updated.findIndex(
+              (msg) => msg.id === streamingBotReply.id
+            );
+            if (botMessageIndex >= 0) {
+              updated[botMessageIndex] = {
+                ...updated[botMessageIndex],
+                content: accumulated,
+              };
+            }
+            return updated;
+          });
+        },
+
+        // onComplete callback
+        async (fullResponse: string, sources?: any[], chunks?: number) => {
+          // Update final message
+          setMessages((prev) => {
+            const updated = [...prev];
+            const botMessageIndex = updated.findIndex(
+              (msg) => msg.id === streamingBotReply.id
+            );
+            if (botMessageIndex >= 0) {
+              updated[botMessageIndex] = {
+                ...updated[botMessageIndex],
+                content: fullResponse,
+              };
+            }
+            return updated;
+          });
+
+          // Save bot message to database
+          const savedMessage = await chatService.addMessage({
             user_id: userId,
-            history: chatHistory,
-          }),
-          signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
-        });
-      } else {
-        // User not authenticated - use demo endpoint (no auth required)
-        console.log("Using demo RAG endpoint (no auth)");
-        response = await fetch(`${BACKEND_URL}/api/chat/demo`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: userMessage.content,
-          }),
-          signal: AbortSignal.timeout(API_CONFIG.DEFAULT_TIMEOUT),
-        });
-      }
+            chat_session_id: sessionId,
+            content: fullResponse,
+            is_bot: true,
+          });
 
-      let botContent = "";
-      let chunkText = "";
+          // Reload session messages to ensure consistency
+          await loadSessionMessages(sessionId);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Chat API response:", data);
+          // Update chat title
+          const updatedMessages = [
+            ...messages,
+            userMessage,
+            {
+              ...streamingBotReply,
+              content: fullResponse,
+            },
+          ];
+          await updateChatTitle(sessionId, updatedMessages);
+        },
 
-        // Handle different response formats based on endpoint
-        if (session && session.access_token) {
-          // Authenticated endpoint returns { response, sources, chunks }
-          botContent =
-            data.response ||
-            (t("chat.errorProcessing") as string) ||
-            "Sorry, I couldn't process your request.";
-        } else {
-          // Demo endpoint returns { answer, response, chunkText }
-          botContent =
-            data.answer ||
-            data.response ||
-            (t("chat.errorProcessing") as string) ||
-            "Sorry, I couldn't process your request.";
-          chunkText = data.chunkText || "";
+        // onError callback
+        async (error: string) => {
+          console.error("Streaming error:", error);
+          const errorContent =
+            (t("chat.errorRequest") as string) ||
+            "Sorry, I encountered an error while processing your request.";
+
+          setMessages((prev) => {
+            const updated = [...prev];
+            const botMessageIndex = updated.findIndex(
+              (msg) => msg.id === streamingBotReply.id
+            );
+            if (botMessageIndex >= 0) {
+              updated[botMessageIndex] = {
+                ...updated[botMessageIndex],
+                content: errorContent,
+              };
+            }
+            return updated;
+          });
+
+          // Save error message to database
+          try {
+            await chatService.addMessage({
+              user_id: userId,
+              chat_session_id: sessionId,
+              content: errorContent,
+              is_bot: true,
+            });
+          } catch (saveError) {
+            console.error("Error saving error message:", saveError);
+          }
         }
-      } else {
-        console.error("Chat API error:", response.status, response.statusText);
-        botContent =
-          (t("chat.errorRequest") as string) ||
-          "Sorry, I encountered an error while processing your request.";
-      }
-
-      // Create bot reply
-      const botReply: Message = {
-        id: `bot-${Date.now().toString()}`,
-        type: "bot",
-        content: botContent,
-        timestamp: new Date().toLocaleTimeString(),
-        sessionId: sessionId,
-        chunkText: chunkText,
-      };
-
-      setMessages((prev) => [...prev, botReply]);
-
-      // Save bot message to database
-      const savedMessage = await chatService.addMessage({
-        user_id: userId, // Ensure userId is passed correctly
-        chat_session_id: sessionId,
-        content: botContent, // Ensure botContent has a value
-        is_bot: true,
-      });
-
-      // if (savedMessage) {
-      //   console.log('Bot message saved successfully:', savedMessage.id);
-      // } else {
-      //   console.warn('Bot message was not saved, addMessage returned null or undefined');
-      // }
-
-      await loadSessionMessages(sessionId);
-
-      // עדכון title של השיחה לאחר הוספת הודעה חדשה
-      const updatedMessages = [...messages, userMessage, botReply];
-      await updateChatTitle(sessionId, updatedMessages);
+      );
     } catch (error) {
       console.error("Exception while processing bot response:", error);
       const errorContent =
         (t("chat.errorRequest") as string) ||
         "Sorry, I encountered an error while processing your request.";
+
       const botReply: Message = {
         id: `error-${Date.now().toString()}`,
         type: "bot",
@@ -574,10 +616,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  // Search chat sessions function  
+  // Search chat sessions function
   const searchChatSessions = async (query: string) => {
     setChatSearchQuery(query);
-    
+
     if (!query.trim()) {
       setFilteredChatSessions(chatSessions);
       return;
@@ -586,12 +628,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     try {
       const user = await chatService.getCurrentUser();
       if (user) {
-        const searchResults = await chatService.searchChatSessions(user.id, query.trim());
+        const searchResults = await chatService.searchChatSessions(
+          user.id,
+          query.trim()
+        );
         setFilteredChatSessions(searchResults);
       }
     } catch (error) {
-      console.error('Error searching chat sessions:', error);
-      const localResults = chatSessions.filter(session => 
+      console.error("Error searching chat sessions:", error);
+      const localResults = chatSessions.filter((session) =>
         session.title?.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredChatSessions(localResults);
@@ -665,7 +710,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className={`relative h-full w-full ${chatContainer} flex`} data-testid="chat-container">
+    <div
+      className={`relative h-full w-full ${chatContainer} flex`}
+      data-testid="chat-container"
+    >
       {/* Status message toast */}
       {statusMessage && (
         <div className="absolute top-4 right-4 z-50 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-md max-w-md animate-fadeIn">
@@ -694,10 +742,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       )}
 
       {/* Sidebar with navigation and chat history */}
-      <div className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`}>
+      <div
+        className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`}
+      >
         {/* Sidebar header with logo and main actions */}
-        <div className={`p-3 border-b ${classes.border.primary} flex items-center justify-between`}>
-          <div className={`${classes.text.success} font-bold text-lg tracking-wider`}>
+        <div
+          className={`p-3 border-b ${classes.border.primary} flex items-center justify-between`}
+        >
+          <div
+            className={`${classes.text.success} font-bold text-lg tracking-wider`}
+          >
             APEX
           </div>
           <div className="flex items-center space-x-2">
@@ -811,7 +865,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     (t("chat.newChat") as string) ||
                     "ChatGPT"}
                 </h1>
-                
+
                 {/* Search button - minimal style */}
                 <button
                   onClick={() => setShowSearch(!showSearch)}
@@ -927,7 +981,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   />
                   <div ref={messagesEndRef} />
                   {isLoading && (
-                    <div className="max-w-3xl mx-auto px-8 py-4" data-testid="typing-indicator">
+                    <div
+                      className="max-w-3xl mx-auto px-8 py-4"
+                      data-testid="typing-indicator"
+                    >
                       <div className="w-full text-right">
                         <div className="mb-6">
                           <div className="flex justify-end space-x-1 mb-2">
@@ -970,9 +1027,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <ThemeCard className="w-full max-w-md" shadow="lg" padding="none">
             {/* Header */}
-            <div className={`flex items-center justify-between p-6 border-b ${classes.border.primary}`}>
+            <div
+              className={`flex items-center justify-between p-6 border-b ${classes.border.primary}`}
+            >
               <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-xl ${classes.bg.tertiary} flex items-center justify-center`}>
+                <div
+                  className={`w-10 h-10 rounded-xl ${classes.bg.tertiary} flex items-center justify-center`}
+                >
                   <svg
                     className={`w-5 h-5 ${classes.text.success}`}
                     fill="none"
@@ -994,7 +1055,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   </svg>
                 </div>
                 <div>
-                  <h2 className={`text-xl font-semibold ${classes.text.primary}`}>
+                  <h2
+                    className={`text-xl font-semibold ${classes.text.primary}`}
+                  >
                     {i18n.language === "he" ? "הגדרות" : "Settings"}
                   </h2>
                   <p className={`text-sm ${classes.text.secondary}`}>
@@ -1026,9 +1089,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
             {/* Content */}
             <div className="p-6">
-              <UserSettings
-                onClose={() => setShowSettings(false)}
-              />
+              <UserSettings onClose={() => setShowSettings(false)} />
             </div>
           </ThemeCard>
         </div>

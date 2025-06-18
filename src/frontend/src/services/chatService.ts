@@ -399,7 +399,127 @@ const chatService = {
       console.error('Exception deleting chat session:', error);
       return false;
     }
-  }
+  },
+
+  /**
+   * Sends a streaming chat message and handles real-time responses
+   * @param message The message content
+   * @param userId The user ID
+   * @param history Chat history
+   * @param onChunk Callback for receiving streaming chunks
+   * @param onComplete Callback when streaming completes
+   * @param onError Callback for errors
+   */
+  sendStreamingMessage: async (
+    message: string,
+    userId: string,
+    history: Array<{ type: string; content: string }> = [],
+    onChunk?: (chunk: string, accumulated: string) => void,
+    onComplete?: (fullResponse: string, sources?: any[], chunks?: number) => void,
+    onError?: (error: string) => void
+  ): Promise<void> => {
+    try {
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      // Use fetch with streaming
+      const response = await fetch(`${BACKEND_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          user_id: userId,
+          history
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No reader available for streaming response');
+      }
+
+      let accumulatedContent = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.slice(6); // Remove 'data: ' prefix
+                if (jsonStr.trim() === '') continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                switch (data.type) {
+                  case 'start':
+                    // Stream started
+                    console.log('🚀 Stream started');
+                    break;
+                    
+                  case 'chunk':
+                    accumulatedContent = data.accumulated || (accumulatedContent + data.content);
+                    if (onChunk) {
+                      onChunk(data.content, accumulatedContent);
+                    }
+                    break;
+                    
+                  case 'complete':
+                    if (onComplete) {
+                      onComplete(data.content, data.sources, data.chunks);
+                    }
+                    return;
+                    
+                  case 'error':
+                    if (onError) {
+                      onError(data.content || 'Streaming error occurred');
+                    }
+                    return;
+                    
+                  case 'end':
+                    // Stream ended
+                    console.log('✅ Stream ended');
+                    return;
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse streaming data:', parseError);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      
+    } catch (error) {
+      console.error('Streaming error:', error);
+      if (onError) {
+        onError(`Streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  },
 };
 
 export default chatService;
