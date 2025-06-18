@@ -460,14 +460,6 @@ def save_new_profile(profile_id: str, profile_data: Dict[str, Any]) -> bool:
 def delete_profile(profile_id: str) -> bool:
     """Delete a profile from Supabase (soft delete)"""
     try:
-        # Don't allow deletion of built-in profiles
-        built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
-                            "enhanced_testing", "optimized_testing", "maximum_accuracy"}
-        
-        if profile_id in built_in_profiles:
-            logger.warning(f"⚠️ Cannot delete built-in profile: {profile_id}")
-            return False
-        
         manager = get_supabase_profile_manager()
         success = manager.delete_profile(profile_id)
         

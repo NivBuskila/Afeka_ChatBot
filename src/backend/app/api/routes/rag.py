@@ -11,7 +11,7 @@ ai_services_path = Path(__file__).parent.parent.parent.parent.parent / "ai"
 if str(ai_services_path) not in sys.path:
     sys.path.insert(0, str(ai_services_path))
 
-# Import from relative paths - fix for different execution contexts
+# Import from Supabase-enabled modules
 try:
     from src.ai.config.current_profile import get_current_profile, set_current_profile
     from src.ai.config.rag_config_profiles import get_profile, save_new_profile, delete_profile
@@ -37,7 +37,7 @@ except ImportError:
     except ImportError:
         # Fallback functions if AI modules are not available
         def get_current_profile():
-            return "enhanced_testing"
+            return "maximum_accuracy"
         def set_current_profile(profile_name):
             pass
         def get_available_profiles():
@@ -576,7 +576,8 @@ async def delete_rag_profile(profile_id: str, force: bool = False):
             is_custom_profile = profile_id in dynamic_profiles
         except Exception as e:
             logger.warning(f"Could not check profile type: {e}")
-            is_custom_profile = False
+            # For now, consider all profiles as custom since they're all in Supabase
+            is_custom_profile = True
         
         # For built-in profiles, require force=true
         if not is_custom_profile and not force:
@@ -586,15 +587,14 @@ async def delete_rag_profile(profile_id: str, force: bool = False):
             )
         
         # Attempt to delete the profile
-        if is_custom_profile:
-            # Delete custom profile normally
+        # All profiles are now handled by Supabase delete
+        try:
             success = delete_profile(profile_id)
-            profile_type = "custom"
-        else:
-            # For built-in profiles, we'll hide them by adding to hidden list
-            from src.ai.config.rag_config_profiles import hide_builtin_profile
-            success = hide_builtin_profile(profile_id)
-            profile_type = "built-in"
+            profile_type = "profile"
+        except Exception as delete_error:
+            logger.error(f"Error deleting profile {profile_id}: {delete_error}")
+            success = False
+            profile_type = "profile"
         
         if success:
             logger.info(f"Successfully deleted {profile_type} profile: {profile_id}")
