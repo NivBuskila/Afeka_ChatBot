@@ -168,6 +168,37 @@ class SupabaseProfileManager:
             logger.error(f"❌ Error deleting profile '{profile_key}': {e}")
             return False
     
+    def hard_delete_profile(self, profile_key: str) -> bool:
+        """Permanently delete a profile (hard delete) - use with caution!"""
+        try:
+            # First check if profile exists
+            existing = self.supabase.table('rag_profiles').select('id, profile_key, is_custom').eq('profile_key', profile_key).execute()
+            
+            if not existing.data:
+                logger.error(f"❌ Profile '{profile_key}' not found for hard deletion")
+                return False
+            
+            profile = existing.data[0]
+            
+            # Safety check: only allow hard delete of custom profiles
+            if not profile.get('is_custom', True):
+                logger.error(f"❌ Cannot hard delete built-in profile '{profile_key}'")
+                return False
+            
+            # Perform hard delete - completely remove from database
+            response = self.supabase.table('rag_profiles').delete().eq('profile_key', profile_key).execute()
+            
+            if response.data:
+                logger.warning(f"🔥 HARD DELETED profile permanently: {profile_key}")
+                return True
+            else:
+                logger.error(f"❌ Failed to hard delete profile '{profile_key}'")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error hard deleting profile '{profile_key}': {e}")
+            return False
+    
     def get_hidden_profiles(self) -> List[str]:
         """Get list of hidden profile keys"""
         try:

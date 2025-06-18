@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Application:
     """Application factory class for FastAPI setup."""
     
-    def __init__(self):
+    def __init__(self, lifespan=None):
         """Initialize the FastAPI application with all configurations."""
         self.app = FastAPI(
             title=settings.API_TITLE,
@@ -27,7 +27,8 @@ class Application:
             version=settings.API_VERSION,
             docs_url=settings.DOCS_URL,
             redoc_url=settings.REDOC_URL,
-            openapi_url=settings.OPENAPI_URL
+            openapi_url=settings.OPENAPI_URL,
+            lifespan=lifespan
         )
         self._configure_middleware()
         self._configure_routers()
@@ -114,6 +115,6 @@ class Application:
         return self.app
 
 # Application factory function
-def create_application() -> FastAPI:
+def create_application(lifespan=None) -> FastAPI:
     """Create and return a configured FastAPI application."""
-    return Application().get_app()
+    return Application(lifespan=lifespan).get_app()

@@ -556,8 +556,8 @@ async def create_rag_profile(request: Dict[str, Any]):
         raise HTTPException(status_code=500, detail="Error creating RAG profile")
 
 @router.delete("/profiles/{profile_id}")
-async def delete_rag_profile(profile_id: str, force: bool = False):
-    """Delete a RAG profile - both custom and built-in"""
+async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bool = None):
+    """Delete custom profiles permanently or hide built-in profiles"""
     try:
         # Check if profile exists
         available_profiles = get_available_profiles()
@@ -575,69 +575,105 @@ async def delete_rag_profile(profile_id: str, force: bool = False):
                 detail="Cannot delete the currently active profile. Please switch to another profile first."
             )
         
-        # All profiles are now in Supabase and can be deleted
-        # Only check if force is needed for specific system profiles
-        system_profiles = {"maximum_accuracy", "debug", "optimized_testing", "improved"}
+        from src.ai.config.supabase_profile_manager import get_supabase_profile_manager
         
-        if profile_id in system_profiles and not force:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Profile '{profile_id}' is a system profile. Use force=true to delete system profiles."
-            )
+        manager = get_supabase_profile_manager()
         
-        # Attempt to delete the profile using Supabase
-        try:
-            success = delete_profile(profile_id)
-            if success:
-                profile_type = "custom" if profile_id not in system_profiles else "system"
-            else:
+        # Check if it's a built-in profile
+        built_in_profiles = [
+            'high_quality', 'fast', 'balanced', 'improved', 'debug',
+            'enhanced_testing', 'optimized_testing', 'maximum_accuracy'
+        ]
+        
+        is_builtin = profile_id in built_in_profiles
+        
+        if is_builtin:
+            # Built-in profiles can only be hidden, never permanently deleted
+            if permanent is True:
                 raise HTTPException(
-                    status_code=500, 
-                    detail=f"Failed to delete profile '{profile_id}' - operation unsuccessful"
+                    status_code=400,
+                    detail="Built-in profiles cannot be permanently deleted. They can only be hidden."
                 )
-        except Exception as delete_error:
-            logger.error(f"Error deleting profile {profile_id}: {delete_error}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Failed to delete profile: {str(delete_error)}"
-            )
-        
-        # If we reach here, deletion was successful
-        logger.info(f"Successfully deleted {profile_type} profile: {profile_id}")
-        return JSONResponse(
-            content={
-                "message": f"Successfully deleted {profile_type} profile: {profile_id}",
-                "deletedProfile": profile_id,
-                "profileType": profile_type
-            }
-        )
             
-    except HTTPException as http_exc:
-        raise http_exc
+            # Require force for built-in profiles
+            if not force:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Built-in profile deletion requires force=true parameter"
+                )
+            
+            # Hide the built-in profile
+            success = manager.set_profile_hidden(profile_id, True)
+            
+            if success:
+                logger.info(f"Successfully hidden built-in profile: {profile_id}")
+                return {
+                    "message": f"Successfully deleted מובנה profile: {profile_id}",
+                    "profile_id": profile_id,
+                    "action": "hidden"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to hide profile")
+        
+        else:
+            # Custom profiles: hard delete by default, soft delete only if permanent=false explicitly
+            if permanent is False:
+                # Explicitly requested soft delete
+                success = manager.delete_profile(profile_id)
+                action = "soft_deleted"
+                message = f"Successfully soft deleted custom profile: {profile_id}"
+            else:
+                # Default behavior (permanent=None or permanent=True): hard delete custom profiles
+                success = manager.hard_delete_profile(profile_id)
+                action = "permanently_deleted"
+                message = f"Successfully permanently deleted custom profile: {profile_id}"
+            
+            if success:
+                logger.info(f"Successfully {action} custom profile: {profile_id}")
+                return {
+                    "message": message,
+                    "profile_id": profile_id,
+                    "action": action
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to delete profile")
+        
     except Exception as e:
-        logger.exception(f"Error deleting RAG profile {profile_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting profile: {profile_id}")
+        logger.error(f"Error deleting profile {profile_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting profile: {str(e)}")
 
 @router.post("/profiles/{profile_id}/restore")
 async def restore_rag_profile(profile_id: str):
-    """Restore a hidden built-in profile"""
+    """Restore a hidden profile"""
     try:
-        from src.ai.config.rag_config_profiles import restore_builtin_profile
+        from src.ai.config.supabase_profile_manager import get_supabase_profile_manager
         
-        success = restore_builtin_profile(profile_id)
+        manager = get_supabase_profile_manager()
+        
+        # Check if profile is hidden
+        hidden_profiles = manager.get_hidden_profiles()
+        if profile_id not in hidden_profiles:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Profile '{profile_id}' is not hidden or does not exist"
+            )
+        
+        # Restore the profile (set it as visible)
+        success = manager.set_profile_hidden(profile_id, False)
         
         if success:
-            logger.info(f"Successfully restored built-in profile: {profile_id}")
+            logger.info(f"Successfully restored profile: {profile_id}")
             return JSONResponse(
                 content={
-                    "message": f"Successfully restored built-in profile: {profile_id}",
-                    "restoredProfile": profile_id
+                    "message": f"Successfully restored profile: {profile_id}",
+                    "restoredProfile": profile_id,
+                    "note": "Profile is now visible in the profiles list"
                 }
             )
         else:
             raise HTTPException(
-                status_code=404, 
-                detail=f"Profile '{profile_id}' was not hidden or does not exist"
+                status_code=500, 
+                detail=f"Failed to restore profile '{profile_id}'"
             )
             
     except HTTPException as http_exc:
@@ -663,4 +699,65 @@ async def get_hidden_profiles():
         
     except Exception as e:
         logger.exception(f"Error getting hidden profiles: {e}")
-        raise HTTPException(status_code=500, detail="Error retrieving hidden profiles") 
+        raise HTTPException(status_code=500, detail="Error retrieving hidden profiles")
+
+@router.delete("/profiles/{profile_id}/permanent")
+async def permanently_delete_profile(profile_id: str, confirm: bool = False):
+    """Permanently delete a profile from the database (HARD DELETE)"""
+    try:
+        # Safety check - require explicit confirmation
+        if not confirm:
+            raise HTTPException(
+                status_code=400,
+                detail="Permanent deletion requires confirm=true parameter. This action cannot be undone!"
+            )
+        
+        # Check if profile exists
+        available_profiles = get_available_profiles()
+        if profile_id not in available_profiles:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Profile '{profile_id}' not found"
+            )
+        
+        # Check if trying to delete current active profile
+        current_profile = get_current_profile()
+        if profile_id == current_profile:
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot permanently delete the currently active profile. Please switch to another profile first."
+            )
+        
+        from src.ai.config.supabase_profile_manager import get_supabase_profile_manager
+        
+        manager = get_supabase_profile_manager()
+        
+        # Check if it's a built-in profile
+        built_in_profiles = [
+            'high_quality', 'fast', 'balanced', 'improved', 'debug',
+            'enhanced_testing', 'optimized_testing', 'maximum_accuracy'
+        ]
+        
+        if profile_id in built_in_profiles:
+            raise HTTPException(
+                status_code=400,
+                detail="Built-in profiles cannot be permanently deleted. They can only be hidden."
+            )
+        
+        # Perform hard delete
+        success = manager.hard_delete_profile(profile_id)
+        
+        if success:
+            logger.warning(f"🔥 PERMANENTLY DELETED profile: {profile_id}")
+            return {
+                "message": f"Profile '{profile_id}' has been permanently deleted from the database",
+                "profile_id": profile_id,
+                "action": "permanently_deleted",
+                "warning": "This action cannot be undone"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to permanently delete profile")
+        
+    except Exception as e:
+        logger.error(f"Error permanently deleting profile {profile_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error permanently deleting profile: {str(e)}") 

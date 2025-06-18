@@ -47,34 +47,37 @@ async def lifespan(app):
     logger.info("🚀 Starting Afeka ChatBot API...")
     
     # Initialize background services
-    try:
-        # Always start document processor for development
-        logger.info("📄 Starting automatic document processing...")
-        
-        # Import and start the background processor
-        import threading
-        from src.ai.scripts.auto_process_documents import run_processor
-        
-        def background_processor():
-            """Run document processor in background thread"""
-            import asyncio
-            try:
-                # Create new event loop for this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                # Run processor with 30 second intervals
-                loop.run_until_complete(run_processor(interval=30))
-            except Exception as e:
-                logger.error(f"Background processor error: {e}")
-        
-        # Start processor in daemon thread
-        processor_thread = threading.Thread(target=background_processor, daemon=True)
-        processor_thread.start()
-        logger.info("✅ Document processor thread started")
-        
-    except Exception as e:
-        logger.warning(f"⚠️ Background service initialization warning: {e}")
+    # try:
+    #     # Always start document processor for development
+    #     logger.info("📄 Starting automatic document processing...")
+    #     
+    #     # Import and start the background processor
+    #     import threading
+    #     from src.ai.scripts.auto_process_documents import run_processor
+    #     
+    #     def background_processor():
+    #         """Run document processor in background thread"""
+    #         import asyncio
+    #         try:
+    #             # Create new event loop for this thread
+    #             loop = asyncio.new_event_loop()
+    #             asyncio.set_event_loop(loop)
+    #             
+    #             # Run processor with 30 second intervals
+    #             loop.run_until_complete(run_processor(interval=30))
+    #         except Exception as e:
+    #             logger.error(f"Background processor error: {e}")
+    #     
+    #     # Start processor in daemon thread
+    #     processor_thread = threading.Thread(target=background_processor, daemon=True)
+    #     processor_thread.start()
+    #     logger.info("✅ Document processor thread started")
+    #     
+    # except Exception as e:
+    #     logger.warning(f"⚠️ Background service initialization warning: {e}")
+    
+    # Skip background services for now to avoid threading issues
+    logger.info("📄 Background document processing disabled for performance optimization")
     
     logger.info("✅ Application startup complete")
     
@@ -85,10 +88,7 @@ async def lifespan(app):
     logger.info("✅ Application shutdown complete")
 
 # Create the FastAPI application using the modular factory
-app = create_application()
-
-# Add lifespan events
-app.router.lifespan_context = lifespan
+app = create_application(lifespan=lifespan)
 
 # Health check endpoint
 @app.get("/api/health")

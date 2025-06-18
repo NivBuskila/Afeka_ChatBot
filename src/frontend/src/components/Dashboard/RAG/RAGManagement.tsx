@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Brain,
@@ -48,34 +48,117 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const [profilesItemsPerPage, setProfilesItemsPerPage] = useState(10);
   const [profilesCurrentPage, setProfilesCurrentPage] = useState(1);
 
-  const fetchProfiles = async () => {
+  // Add debounce ref to prevent rapid successive calls
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchTime = useRef<number>(0);
+  const MIN_FETCH_INTERVAL = 1000; // Minimum 1 second between fetches
+
+  const fetchProfiles = useCallback(async () => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTime.current;
+    
+    // If too soon since last fetch, debounce
+    if (timeSinceLastFetch < MIN_FETCH_INTERVAL) {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      
+      fetchTimeoutRef.current = setTimeout(async () => {
+        lastFetchTime.current = Date.now();
+        const controller = new AbortController();
+        
+        try {
+          setLoading(true);
+          console.log('Fetching profiles (debounced)...', 'Language:', language);
+          const profilesData = await ragService.getAllProfiles(language);
+          
+          if (!controller.signal.aborted) {
+            setProfiles(profilesData);
+          }
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            console.error("Error fetching profiles:", error);
+            setError("Failed to fetch profiles");
+          }
+        } finally {
+          if (!controller.signal.aborted) {
+            setLoading(false);
+          }
+        }
+      }, MIN_FETCH_INTERVAL - timeSinceLastFetch);
+      return;
+    }
+    
+    lastFetchTime.current = now;
+    const controller = new AbortController();
+    
     try {
       setLoading(true);
+      console.log('Fetching profiles...', 'Language:', language);
       const profilesData = await ragService.getAllProfiles(language);
-      setProfiles(profilesData);
+      
+      // Only update state if not aborted
+      if (!controller.signal.aborted) {
+        setProfiles(profilesData);
+      }
     } catch (error) {
-      console.error("Error fetching profiles:", error);
+      if (!controller.signal.aborted) {
+        console.error("Error fetching profiles:", error);
+        setError("Failed to fetch profiles");
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  };
+    
+    return () => controller.abort();
+  }, [language]);
 
-  const fetchHiddenProfiles = async () => {
+  const fetchHiddenProfiles = useCallback(async () => {
+    const controller = new AbortController();
+    
     try {
       console.log('Fetching hidden profiles...');
       const hiddenProfilesData = await ragService.getHiddenProfiles();
-      console.log('Hidden profiles received:', hiddenProfilesData);
-      setHiddenProfiles(hiddenProfilesData);
+      
+      // Only update state if not aborted
+      if (!controller.signal.aborted) {
+        console.log('Hidden profiles received:', hiddenProfilesData);
+        setHiddenProfiles(hiddenProfilesData);
+      }
     } catch (error) {
-      console.error("Error fetching hidden profiles:", error);
-      setHiddenProfiles([]);
+      if (!controller.signal.aborted) {
+        console.error("Error fetching hidden profiles:", error);
+        setHiddenProfiles([]);
+      }
     }
-  };
+    
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
-    fetchProfiles();
-    fetchHiddenProfiles();
-  }, [language]);
+    // Only fetch if we haven't already or if language changed
+    console.log('RAGManagement useEffect triggered, language:', language);
+    
+    let mounted = true;
+    
+    const loadData = async () => {
+      if (mounted) {
+        await fetchProfiles();
+        await fetchHiddenProfiles();
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      mounted = false;
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, [fetchProfiles, fetchHiddenProfiles]);
 
   // Pagination reset effect
   useEffect(() => {
@@ -1017,7 +1100,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   );
 };
 
-// קומפוננט ליצירת פרופיל חדש
+// קומפונט ליצירת פרופיל חדש
 interface CreateProfileModalProps {
   language: Language;
   onSubmit: (profileData: Partial<RAGProfile>) => void;
