@@ -47,17 +47,20 @@ def get_current_profile() -> str:
         logger.error(f"❌ Error getting current profile from Supabase: {e}")
         return "maximum_accuracy"  # Safe fallback
 
-def set_current_profile(profile_name: str) -> None:
+def set_current_profile(profile_name: str) -> bool:
     """Sets the current active profile in Supabase"""
     try:
         manager = get_supabase_profile_manager()
         success = manager.set_current_profile(profile_name)
         if success:
             logger.info(f"✅ Successfully set current profile to: {profile_name}")
+            return True
         else:
             logger.error(f"❌ Failed to set current profile to: {profile_name}")
+            return False
     except Exception as e:
         logger.error(f"❌ Error setting current profile '{profile_name}': {e}")
+        return False
 
 def get_available_profiles() -> Dict[str, str]:
     """Returns a list of all available profiles from Supabase"""

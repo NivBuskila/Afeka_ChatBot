@@ -377,7 +377,13 @@ async def activate_rag_profile(profile_id: str):
             )
         
         # Set the new profile
-        set_current_profile(profile_id)
+        success = set_current_profile(profile_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to activate profile: {profile_id}"
+            )
         
         logger.info(f"Successfully activated RAG profile: {profile_id}")
         
@@ -569,47 +575,42 @@ async def delete_rag_profile(profile_id: str, force: bool = False):
                 detail="Cannot delete the currently active profile. Please switch to another profile first."
             )
         
-        # Check if it's a custom or built-in profile
-        try:
-            from src.ai.config.rag_config_profiles import load_dynamic_profiles
-            dynamic_profiles = load_dynamic_profiles()
-            is_custom_profile = profile_id in dynamic_profiles
-        except Exception as e:
-            logger.warning(f"Could not check profile type: {e}")
-            # For now, consider all profiles as custom since they're all in Supabase
-            is_custom_profile = True
+        # All profiles are now in Supabase and can be deleted
+        # Only check if force is needed for specific system profiles
+        system_profiles = {"maximum_accuracy", "debug", "optimized_testing", "improved"}
         
-        # For built-in profiles, require force=true
-        if not is_custom_profile and not force:
+        if profile_id in system_profiles and not force:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Profile '{profile_id}' is a built-in profile. Use force=true to delete built-in profiles."
+                detail=f"Profile '{profile_id}' is a system profile. Use force=true to delete system profiles."
             )
         
-        # Attempt to delete the profile
-        # All profiles are now handled by Supabase delete
+        # Attempt to delete the profile using Supabase
         try:
             success = delete_profile(profile_id)
-            profile_type = "profile"
+            if success:
+                profile_type = "custom" if profile_id not in system_profiles else "system"
+            else:
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to delete profile '{profile_id}' - operation unsuccessful"
+                )
         except Exception as delete_error:
             logger.error(f"Error deleting profile {profile_id}: {delete_error}")
-            success = False
-            profile_type = "profile"
-        
-        if success:
-            logger.info(f"Successfully deleted {profile_type} profile: {profile_id}")
-            return JSONResponse(
-                content={
-                    "message": f"Successfully deleted {profile_type} profile: {profile_id}",
-                    "deletedProfile": profile_id,
-                    "profileType": profile_type
-                }
-            )
-        else:
             raise HTTPException(
                 status_code=500, 
-                detail=f"Failed to delete {profile_type} profile"
+                detail=f"Failed to delete profile: {str(delete_error)}"
             )
+        
+        # If we reach here, deletion was successful
+        logger.info(f"Successfully deleted {profile_type} profile: {profile_id}")
+        return JSONResponse(
+            content={
+                "message": f"Successfully deleted {profile_type} profile: {profile_id}",
+                "deletedProfile": profile_id,
+                "profileType": profile_type
+            }
+        )
             
     except HTTPException as http_exc:
         raise http_exc
@@ -647,11 +648,12 @@ async def restore_rag_profile(profile_id: str):
 
 @router.get("/hidden-profiles")
 async def get_hidden_profiles():
-    """Get list of hidden built-in profiles"""
+    """Get list of hidden profiles from Supabase"""
     try:
-        from src.ai.config.rag_config_profiles import load_hidden_profiles
+        from src.ai.config.supabase_profile_manager import get_supabase_profile_manager
         
-        hidden_profiles = load_hidden_profiles()
+        manager = get_supabase_profile_manager()
+        hidden_profiles = manager.get_hidden_profiles()
         
         return JSONResponse(
             content={
