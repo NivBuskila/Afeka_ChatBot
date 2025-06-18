@@ -10,29 +10,8 @@ using only Supabase database, replacing JSON file storage.
 """
 
 import logging
-import sys
-import os
 from typing import Dict, Any
-
-# Add current directory to path for direct imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-try:
-    from supabase_profile_manager import get_supabase_profile_manager
-except ImportError:
-    # Try relative import
-    try:
-        from .supabase_profile_manager import get_supabase_profile_manager
-    except ImportError:
-        # Fallback - import from absolute path
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "supabase_profile_manager",
-            os.path.join(os.path.dirname(__file__), "supabase_profile_manager.py")
-        )
-        supabase_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(supabase_module)
-        get_supabase_profile_manager = supabase_module.get_supabase_profile_manager
+from .supabase_profile_manager import get_supabase_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -77,10 +56,10 @@ def get_available_profiles() -> Dict[str, str]:
 def refresh_profiles():
     """Refreshes the list of available profiles - No-op for Supabase version"""
     try:
-        # Force refresh by getting a new manager instance
-        import importlib
-        manager_module = importlib.import_module('.supabase_profile_manager', package='src.ai.config')
-        importlib.reload(manager_module)
+        manager = get_supabase_profile_manager()
+        # Force refresh by creating a new manager instance
+        global _supabase_manager
+        _supabase_manager = None
         logger.info("🔄 Refreshed Supabase profile manager")
     except Exception as e:
         logger.warning(f"⚠️ Could not refresh profiles: {e}")
@@ -96,4 +75,4 @@ if __name__ == "__main__":
     print(f"\nAvailable profiles ({len(profiles)}):")
     for name, desc in profiles.items():
         status = "🟢 ACTIVE" if name == current else "⚪"
-        print(f"  {status} {name}: {desc}")
+        print(f"  {status} {name}: {desc}") 

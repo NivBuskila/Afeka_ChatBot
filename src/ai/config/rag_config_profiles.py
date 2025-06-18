@@ -2,73 +2,137 @@
 # -*- coding: utf-8 -*-
 
 """
-Configuration profiles for RAG system optimization
-=================================================
+Supabase-Based Configuration profiles for RAG system optimization
+================================================================
 
 This file contains different configuration profiles for optimization and A/B testing.
 Each profile is tailored for different types of usage or performance.
+Now using Supabase database for storage instead of JSON files.
 """
 
 from dataclasses import dataclass, replace
 from typing import Dict, Any, List
 import sys
 import os
-import json
+import logging
 from pathlib import Path
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
+
+# Import the Supabase profile manager
+try:
+    from supabase_profile_manager import get_supabase_profile_manager
+except ImportError:
+    try:
+        from .supabase_profile_manager import get_supabase_profile_manager
+    except ImportError:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "supabase_profile_manager",
+            os.path.join(os.path.dirname(__file__), "supabase_profile_manager.py")
+        )
+        supabase_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(supabase_module)
+        get_supabase_profile_manager = supabase_module.get_supabase_profile_manager
 
 try:
     from rag_config import rag_config, RAGConfig
 except ImportError:
     from .rag_config import rag_config, RAGConfig
 
-DYNAMIC_PROFILES_FILE = Path(current_dir) / "dynamic_profiles.json"
-DYNAMIC_PROFILE_DESCRIPTIONS = {}
+logger = logging.getLogger(__name__)
 
 def load_dynamic_profiles() -> Dict[str, Any]:
-    """Loads dynamic profiles from JSON file"""
-    if not DYNAMIC_PROFILES_FILE.exists():
-        return {}
-    
+    """Load all profiles from Supabase database"""
     try:
-        with open(DYNAMIC_PROFILES_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        manager = get_supabase_profile_manager()
+        profiles = manager.get_all_profiles()
+        logger.info(f"📥 Loaded {len(profiles)} profiles from Supabase")
+        return profiles
     except Exception as e:
-        print(f"Error loading dynamic profiles: {e}")
-        return {}
+        logger.error(f"❌ Error loading profiles from Supabase: {e}")
+        # Return minimal fallback profiles
+        return {
+            "maximum_accuracy": {
+                "id": "maximum_accuracy",
+                "name": "Maximum Accuracy",
+                "description": "Maximum Accuracy - No performance limits (Target: 98-100%)",
+                "config": {
+                    "similarityThreshold": 0.65,
+                    "maxChunks": 25,
+                    "temperature": 0.1,
+                    "modelName": "gemini-2.0-flash",
+                    "chunkSize": 1500,
+                    "chunkOverlap": 200,
+                    "maxContextTokens": 8000,
+                    "targetTokensPerChunk": 300,
+                    "hybridSemanticWeight": 0.7,
+                    "hybridKeywordWeight": 0.3
+                },
+                "characteristics": {
+                    "focus": "Maximum accuracy and comprehensive results",
+                    "expectedSpeed": "Slow",
+                    "expectedQuality": "Highest",
+                    "bestFor": "Critical questions requiring highest accuracy",
+                    "tradeoffs": "Slower response time for maximum accuracy"
+                },
+                "isActive": True,
+                "isCustom": True
+            }
+        }
 
 def save_dynamic_profiles(profiles_data: Dict[str, Any]) -> None:
-    """Saves dynamic profiles to JSON file"""
+    """Save all profiles to Supabase database"""
     try:
-        with open(DYNAMIC_PROFILES_FILE, 'w', encoding='utf-8') as f:
-            json.dump(profiles_data, f, ensure_ascii=False, indent=2)
+        manager = get_supabase_profile_manager()
+        
+        saved_count = 0
+        for profile_key, profile_data in profiles_data.items():
+            if manager.save_profile(profile_key, profile_data):
+                saved_count += 1
+            else:
+                logger.warning(f"⚠️ Failed to save profile: {profile_key}")
+        
+        logger.info(f"💾 Saved {saved_count}/{len(profiles_data)} profiles to Supabase")
+        
     except Exception as e:
-        print(f"Error saving dynamic profiles: {e}")
+        logger.error(f"❌ Error saving profiles to Supabase: {e}")
 
 def load_hidden_profiles() -> List[str]:
-    """Loads list of hidden built-in profiles"""
-    hidden_file = Path(current_dir) / "hidden_profiles.json"
+    """Get the list of hidden profiles from Supabase"""
     try:
-        if hidden_file.exists():
-            with open(hidden_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return data.get('hidden_profiles', [])
-        return []
+        manager = get_supabase_profile_manager()
+        hidden = manager.get_hidden_profiles()
+        logger.info(f"🔒 Retrieved {len(hidden)} hidden profiles from Supabase")
+        return hidden
     except Exception as e:
-        print(f"Error loading hidden profiles: {e}")
-        return []
+        logger.error(f"❌ Error getting hidden profiles from Supabase: {e}")
+        # Return fallback hidden profiles
+        return ["fast", "improved"]  # Default hidden profiles
 
 def save_hidden_profiles(hidden_list: List[str]) -> None:
-    """Saves list of hidden built-in profiles"""
-    hidden_file = Path(current_dir) / "hidden_profiles.json"
+    """Save the list of hidden profiles to Supabase"""
     try:
-        data = {'hidden_profiles': hidden_list}
-        with open(hidden_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        manager = get_supabase_profile_manager()
+        
+        # First, set all profiles as visible
+        all_profiles = manager.get_all_profiles()
+        for profile_key in all_profiles.keys():
+            manager.set_profile_hidden(profile_key, False)
+        
+        # Then set specified profiles as hidden
+        hidden_count = 0
+        for profile_key in hidden_list:
+            if manager.set_profile_hidden(profile_key, True):
+                hidden_count += 1
+            else:
+                logger.warning(f"⚠️ Failed to hide profile: {profile_key}")
+        
+        logger.info(f"🔒 Set {hidden_count}/{len(hidden_list)} profiles as hidden in Supabase")
+        
     except Exception as e:
-        print(f"Error saving hidden profiles: {e}")
+        logger.error(f"❌ Error saving hidden profiles to Supabase: {e}")
 
 def hide_builtin_profile(profile_id: str) -> bool:
     """Hides a built-in profile from the available list"""
@@ -363,42 +427,63 @@ PROFILES = {
     "maximum_accuracy": get_maximum_accuracy_profile,
 }
 
-for profile_id, profile_data in dynamic_profiles_data.items():
-    if profile_id not in PROFILES:
-        PROFILES[profile_id] = lambda data=profile_data: create_profile_from_data(data)
-        DYNAMIC_PROFILE_DESCRIPTIONS[profile_id] = profile_data.get('description', f'Custom profile: {profile_id}')
+# Load dynamic profiles from Supabase
+try:
+    dynamic_profiles_data = load_dynamic_profiles()
+    for profile_id, profile_data in dynamic_profiles_data.items():
+        if profile_id not in PROFILES:
+            PROFILES[profile_id] = lambda data=profile_data: create_profile_from_data(data)
+            logger.info(f"📥 Loaded dynamic profile from Supabase: {profile_id}")
+except Exception as e:
+    logger.error(f"❌ Error loading dynamic profiles: {e}")
+    dynamic_profiles_data = {}
 
-def save_new_profile(profile_id: str, profile_data: Dict[str, Any]) -> None:
-    """Saves new profile to file and adds to memory"""
-    existing_profiles = load_dynamic_profiles()
-    existing_profiles[profile_id] = profile_data
-    save_dynamic_profiles(existing_profiles)
-    
-    PROFILES[profile_id] = lambda: create_profile_from_data(profile_data)
-    DYNAMIC_PROFILE_DESCRIPTIONS[profile_id] = profile_data.get('description', f'Custom profile: {profile_id}')
+def save_new_profile(profile_id: str, profile_data: Dict[str, Any]) -> bool:
+    """Save a new profile to Supabase"""
+    try:
+        manager = get_supabase_profile_manager()
+        success = manager.save_profile(profile_id, profile_data)
+        
+        if success:
+            # Update in-memory profiles
+            PROFILES[profile_id] = lambda: create_profile_from_data(profile_data)
+            logger.info(f"💾 Saved new profile '{profile_id}' to Supabase")
+            return True
+        else:
+            logger.error(f"❌ Failed to save new profile '{profile_id}' to Supabase")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Error saving new profile '{profile_id}' to Supabase: {e}")
+        return False
 
 def delete_profile(profile_id: str) -> bool:
-    """Deletes profile (dynamic profiles only)"""
-    built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
-                        "enhanced_testing", "optimized_testing", "maximum_accuracy"}
-    
-    if profile_id in built_in_profiles:
+    """Delete a profile from Supabase (soft delete)"""
+    try:
+        # Don't allow deletion of built-in profiles
+        built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
+                            "enhanced_testing", "optimized_testing", "maximum_accuracy"}
+        
+        if profile_id in built_in_profiles:
+            logger.warning(f"⚠️ Cannot delete built-in profile: {profile_id}")
+            return False
+        
+        manager = get_supabase_profile_manager()
+        success = manager.delete_profile(profile_id)
+        
+        if success:
+            # Remove from in-memory profiles
+            if profile_id in PROFILES:
+                del PROFILES[profile_id]
+            logger.info(f"🗑️ Deleted profile '{profile_id}' from Supabase")
+            return True
+        else:
+            logger.error(f"❌ Failed to delete profile '{profile_id}' from Supabase")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Error deleting profile '{profile_id}' from Supabase: {e}")
         return False
-    
-    existing_profiles = load_dynamic_profiles()
-    
-    if profile_id in existing_profiles:
-        del existing_profiles[profile_id]
-        save_dynamic_profiles(existing_profiles)
-        
-        if profile_id in PROFILES:
-            del PROFILES[profile_id]
-        if profile_id in DYNAMIC_PROFILE_DESCRIPTIONS:
-            del DYNAMIC_PROFILE_DESCRIPTIONS[profile_id]
-        
-        return True
-    
-    return False
 
 def update_dynamic_profile_description(profile_id: str, description: str) -> None:
     """Update the description for a dynamically created profile"""
@@ -414,33 +499,26 @@ def get_profile(profile_name: str) -> RAGConfig:
     return PROFILES[profile_name]()
 
 def list_profiles() -> Dict[str, str]:
-    """Returns list of profiles with descriptions (excluding hidden profiles)"""
-    hidden_profiles = load_hidden_profiles()
-    
-    static_profiles = {
-        "high_quality": "Maximum quality - high accuracy, lower speed",
-        "fast": "Maximum speed - good performance, reasonable quality",
-        "balanced": "Balanced - improved settings based on analysis",
-        "improved": "Optimized for missing sections - very low threshold, small chunks",
-        "debug": "Debug and development - detailed logs, low thresholds",
-        "enhanced_testing": "Enhanced Testing (AGGRESSIVE) - Based on 66.7% failure analysis",
-        "optimized_testing": "Optimized Testing - Balanced performance & accuracy (73.3% analysis)",
-        "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
-    }
-    
-    visible_static_profiles = {
-        profile_id: description 
-        for profile_id, description in static_profiles.items() 
-        if profile_id not in hidden_profiles
-    }
-    
-    dynamic_profiles = {}
-    for profile_id in PROFILES.keys():
-        if profile_id not in static_profiles:
-            description = DYNAMIC_PROFILE_DESCRIPTIONS.get(profile_id, f"Custom profile: {profile_id}")
-            dynamic_profiles[profile_id] = description
-    
-    return {**visible_static_profiles, **dynamic_profiles}
+    """Returns list of profiles with descriptions (excluding hidden profiles) from Supabase"""
+    try:
+        manager = get_supabase_profile_manager()
+        profiles = manager.list_available_profiles()
+        logger.info(f"📋 Listed {len(profiles)} available profiles from Supabase")
+        return profiles
+    except Exception as e:
+        logger.error(f"❌ Error listing profiles from Supabase: {e}")
+        # Fallback to static profiles only
+        static_profiles = {
+            "high_quality": "Maximum quality - high accuracy, lower speed",
+            "fast": "Maximum speed - good performance, reasonable quality",
+            "balanced": "Balanced - improved settings based on analysis",
+            "improved": "Optimized for missing sections - very low threshold, small chunks",
+            "debug": "Debug and development - detailed logs, low thresholds",
+            "enhanced_testing": "Enhanced Testing (AGGRESSIVE) - Based on 66.7% failure analysis",
+            "optimized_testing": "Optimized Testing - Balanced performance & accuracy (73.3% analysis)",
+            "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
+        }
+        return static_profiles
 
 def compare_profiles(profile1_name: str, profile2_name: str) -> Dict[str, Any]:
     """Compares two profiles"""
