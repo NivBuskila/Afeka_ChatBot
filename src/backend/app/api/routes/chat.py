@@ -1,7 +1,7 @@
 import logging
 import json
 from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from ...core.interfaces import IChatService
 from ...domain.models import ChatRequest
@@ -68,4 +68,71 @@ async def chat(
         raise HTTPException(
             status_code=500, 
             detail="Internal server error processing your request"
+        )
+
+@router.post("/api/chat/stream")
+async def chat_stream(
+    request: Request, 
+    chat_service: IChatService = Depends(get_chat_service)
+):
+    """
+    Process chat messages and return streaming AI responses using Server-Sent Events.
+    """
+    try:
+        # Parse request body
+        try:
+            body_bytes = await request.body()
+            body_str = body_bytes.decode('utf-8', errors='replace')
+            body = json.loads(body_str)
+            chat_data = ChatRequest(**body)
+        except json.JSONDecodeError:
+            logger.warning("Invalid JSON received in chat stream request")
+            raise HTTPException(status_code=400, detail="Invalid JSON format")
+        except Exception as pydantic_err:
+            logger.warning(f"Chat stream request validation failed: {pydantic_err}")
+            raise HTTPException(
+                status_code=422, 
+                detail=f"Invalid chat request data: {pydantic_err}"
+            )
+        
+        # Create a generator function for streaming
+        async def generate_stream():
+            try:
+                # Send initial event
+                yield f"data: {json.dumps({'type': 'start', 'content': ''})}\n\n"
+                
+                # Process the message through the streaming service
+                async for chunk in chat_service.process_chat_message_stream(
+                    chat_data.message, 
+                    chat_data.user_id,
+                    chat_data.history
+                ):
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                
+                # Send end event
+                yield f"data: {json.dumps({'type': 'end'})}\n\n"
+                
+            except Exception as e:
+                logger.exception(f"Error in stream generation: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'content': 'Stream processing error'})}\n\n"
+        
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/plain",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+            }
+        )
+        
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.exception(f"Unexpected error in chat stream router: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Internal server error processing your streaming request"
         )

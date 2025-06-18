@@ -2,7 +2,7 @@ import logging
 import json
 import sys
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, AsyncGenerator
 from fastapi import HTTPException
 from pathlib import Path
 
@@ -40,6 +40,13 @@ from langchain.prompts import (
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from src.ai.core.gemini_key_manager import get_key_manager
 
+# Add Gemini client for streaming
+try:
+    from google import genai
+    GENAI_AVAILABLE = True
+except ImportError:
+    GENAI_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # Log RAG availability after logger is defined
@@ -47,6 +54,11 @@ if RAG_AVAILABLE:
     logger.info("✅ RAG services imported successfully")
 else:
     logger.warning("⚠️ RAG services not available")
+
+if GENAI_AVAILABLE:
+    logger.info("✅ Google Generative AI available for streaming")
+else:
+    logger.warning("⚠️ Google Generative AI not available - streaming disabled")
 
 class ChatService(IChatService):
     """Implementation of chat service interface using LangChain with Google Gemini."""
@@ -397,4 +409,154 @@ class ChatService(IChatService):
                 
         # Only return True for very obvious conversation questions
         return False
+
+    async def process_chat_message_stream(
+        self, 
+        user_message: str, 
+        user_id: str = "anonymous",
+        history: Optional[List[ChatMessageHistoryItem]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Process a chat message using streaming Gemini API and return chunks."""
+        
+        logger.info(f"🚀 [CHAT-STREAM] Processing streaming message for user: {user_id}")
+        
+        if not GENAI_AVAILABLE:
+            logger.error("Google Generative AI not available for streaming")
+            yield {"type": "error", "content": "Streaming not available"}
+            return
+        
+        try:
+            # Get API key
+            key_manager = get_key_manager()
+            current_key = settings.GEMINI_API_KEY
+            
+            if not current_key:
+                logger.error("No GEMINI_API_KEY available for streaming")
+                yield {"type": "error", "content": "API key not available"}
+                return
+            
+            # Configure Gemini client
+            client = genai.Client(api_key=current_key)
+            
+            # Build conversation for context
+            conversation_messages = []
+            if history:
+                for msg in history:
+                    if msg.type == 'user':
+                        conversation_messages.append(f"User: {msg.content}")
+                    elif msg.type == 'bot':
+                        conversation_messages.append(f"Assistant: {msg.content}")
+            
+            # Add current message
+            conversation_messages.append(f"User: {user_message}")
+            full_conversation = "\n".join(conversation_messages)
+            
+            # Detect conversation type
+            is_conversation_question = self._is_conversation_question(user_message)
+            
+            # Handle conversation questions vs information requests
+            if is_conversation_question:
+                logger.info(f"🗣️ Streaming conversation question: '{user_message}'")
+                
+                # Use streaming for conversation
+                response = client.models.generate_content_stream(
+                    model="gemini-2.0-flash-exp",
+                    contents=[full_conversation]
+                )
+                
+                accumulated_text = ""
+                for chunk in response:
+                    if chunk.text:
+                        accumulated_text += chunk.text
+                        yield {
+                            "type": "chunk",
+                            "content": chunk.text,
+                            "accumulated": accumulated_text
+                        }
+                
+                # Track usage
+                await self._track_token_usage(user_message, accumulated_text, "streaming_conversation")
+                
+                yield {
+                    "type": "complete",
+                    "content": accumulated_text,
+                    "sources": [],
+                    "chunks": 0
+                }
+                
+            else:
+                logger.info(f"📚 Streaming information request with RAG: '{user_message}'")
+                
+                # Try RAG first
+                rag_service = self._get_current_rag_service()
+                
+                if rag_service:
+                    try:
+                        rag_response = await rag_service.generate_answer(user_message, search_method="hybrid")
+                        
+                        if rag_response and rag_response.get("answer"):
+                            sources_count = len(rag_response.get("sources", []))
+                            chunks_count = len(rag_response.get("chunks_selected", []))
+                            
+                            if sources_count > 0:
+                                # Stream the RAG response
+                                response_text = rag_response["answer"]
+                                words = response_text.split()
+                                
+                                accumulated_text = ""
+                                for i, word in enumerate(words):
+                                    accumulated_text += word + " "
+                                    yield {
+                                        "type": "chunk",
+                                        "content": word + " ",
+                                        "accumulated": accumulated_text.strip()
+                                    }
+                                    
+                                    # Add small delay for natural streaming effect
+                                    import asyncio
+                                    await asyncio.sleep(0.05)
+                                
+                                await self._track_token_usage(user_message, response_text, "streaming_rag")
+                                
+                                yield {
+                                    "type": "complete",
+                                    "content": response_text,
+                                    "sources": rag_response.get("sources", []),
+                                    "chunks": chunks_count
+                                }
+                                return
+                                
+                    except Exception as e:
+                        logger.warning(f"⚠️ RAG streaming error: {e}")
+                
+                # Fallback to streaming Gemini
+                logger.info("📚 Using streaming Gemini fallback")
+                
+                response = client.models.generate_content_stream(
+                    model="gemini-2.0-flash-exp",
+                    contents=[full_conversation]
+                )
+                
+                accumulated_text = ""
+                for chunk in response:
+                    if chunk.text:
+                        accumulated_text += chunk.text
+                        yield {
+                            "type": "chunk",
+                            "content": chunk.text,
+                            "accumulated": accumulated_text
+                        }
+                
+                await self._track_token_usage(user_message, accumulated_text, "streaming_fallback")
+                
+                yield {
+                    "type": "complete",
+                    "content": accumulated_text,
+                    "sources": [],
+                    "chunks": 0
+                }
+                
+        except Exception as e:
+            logger.exception(f"❌ [CHAT-STREAM] Streaming error: {e}")
+            yield {"type": "error", "content": f"Streaming error: {str(e)}"}
     

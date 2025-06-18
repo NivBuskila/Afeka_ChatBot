@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, AsyncGenerator
 
 # Ensure ChatMessageHistoryItem is imported from the correct location
 from ..domain.models import ChatMessageHistoryItem 
@@ -15,6 +15,16 @@ class IChatService(ABC):
         history: Optional[List[ChatMessageHistoryItem]] = None # Added history parameter
     ) -> Dict[str, Any]:
         """Process a chat message and return an AI response."""
+        pass
+    
+    @abstractmethod
+    async def process_chat_message_stream(
+        self, 
+        user_message: str, 
+        user_id: str = "anonymous",
+        history: Optional[List[ChatMessageHistoryItem]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Process a chat message and return streaming AI response chunks."""
         pass
 
 class IDocumentService(ABC):
