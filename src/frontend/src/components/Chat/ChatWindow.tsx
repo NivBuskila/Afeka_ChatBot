@@ -137,52 +137,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Helper function to load session messages
   const loadSessionMessages = async (sessionId: string) => {
     try {
-      console.log("Reloading session messages for session:", sessionId);
       const session = await chatService.getChatSessionWithMessages(sessionId);
 
       if (session && session.messages && session.messages.length > 0) {
-        console.log(`Successfully loaded ${session.messages.length} messages`);
-        console.log(
-          "First message structure example:",
-          JSON.stringify(session.messages[0])
-        );
-
-        // המר את ההודעות למבנה הנכון עבור ממשק המשתמש
-        const formattedMessages = session.messages.map((msg: any) => {
-          // קביעת תוכן ההודעה - יכול להיות ב-content, request או response
-          let messageContent = "";
-          let isBot = !!msg.is_bot;
-
-          // בדיקה אם יש לנו הודעת משתמש/בוט לפי שדות request/response
-          if (msg.request && msg.request.trim() !== "") {
-            messageContent = msg.request;
-            isBot = false;
-          } else if (msg.response && msg.response.trim() !== "") {
-            messageContent = msg.response;
+        const formattedMessages = session.messages.map((msg: any, index: number) => {
+          // זיהוי סוג הודעה עם fallback logic לשיחות ישנות
+          let isBot = false;
+          
+          if (msg.role === "bot" || msg.role === "assistant") {
             isBot = true;
-          } else if (msg.content) {
-            messageContent = msg.content;
-          } else if (msg.message_text) {
-            messageContent = msg.message_text;
-          } else if (msg.text) {
-            messageContent = msg.text;
+          } else if (msg.is_bot === true || msg.is_bot === 1) {
+            isBot = true;
+          } else if (msg.role === "user" && index % 2 === 1) {
+            isBot = true;
+          } else if (msg.content && msg.content.length > 100 && msg.role === "user") {
+            isBot = true;
           }
-
-          // יצירת מזהה ייחודי אם חסר
-          const messageId = msg.id || msg.message_id || `msg-${Date.now()}`;
-
-          console.log(
-            `Message ${messageId} content source:`,
-            msg.request
-              ? "request"
-              : msg.response
-              ? "response"
-              : msg.content
-              ? "content"
-              : "other",
-            "is_bot:",
-            isBot
-          );
+          
+          let messageContent = msg.content || msg.message_text || msg.text || "";
+          const messageId = msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
 
           return {
             id: messageId,
@@ -193,23 +166,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           };
         });
 
-        console.log(
-          "Formatted messages for display:",
-          formattedMessages.length
-        );
-        console.log(
-          "Message types count:",
-          "bot:",
-          formattedMessages.filter((m) => m.type === "bot").length,
-          "user:",
-          formattedMessages.filter((m) => m.type === "user").length
-        );
-
-        // עדכן את מצב ההודעות בממשק
         setMessages(formattedMessages);
         setHasStarted(formattedMessages.length > 0);
-      } else {
-        console.log("No messages found in session or session is empty");
       }
     } catch (error) {
       console.error("Error reloading session messages:", error);
@@ -217,7 +175,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handleSelectSession = async (sessionId: string) => {
-    // If 'new' is passed, it's a request to start a new chat
     if (sessionId === "new") {
       setActiveSession(null);
       setMessages([]);
@@ -227,90 +184,45 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     try {
-      console.log("Loading session with ID:", sessionId);
       const session = await chatService.getChatSessionWithMessages(sessionId);
 
       if (session) {
-        console.log("Session loaded successfully:", session);
-        console.log("Messages count:", session.messages?.length || 0);
-
-        if (session.messages && session.messages.length > 0) {
-          console.log(
-            "First message structure example:",
-            JSON.stringify(session.messages[0])
-          );
-        }
-
         setActiveSession(session);
 
         if (session.messages && session.messages.length > 0) {
-          // המר את ההודעות למבנה הנכון עבור ממשק המשתמש
-          const formattedMessages = session.messages.map((msg: any) => {
-            // קביעת תוכן ההודעה - יכול להיות ב-content, request או response
-            let messageContent = "";
-            let isBot = !!msg.is_bot;
-
-            // בדיקה אם יש לנו הודעת משתמש/בוט לפי שדות request/response
-            if (msg.request && msg.request.trim() !== "") {
-              messageContent = msg.request;
-              isBot = false;
-            } else if (msg.response && msg.response.trim() !== "") {
-              messageContent = msg.response;
+          const formattedMessages = session.messages.map((msg: any, index: number) => {
+            let isBot = false;
+            
+            if (msg.role === "bot" || msg.role === "assistant") {
               isBot = true;
-            } else if (msg.content) {
-              messageContent = msg.content;
-            } else if (msg.message_text) {
-              messageContent = msg.message_text;
-            } else if (msg.text) {
-              messageContent = msg.text;
+            } else if (msg.is_bot === true || msg.is_bot === 1) {
+              isBot = true;
+            } else if (msg.role === "user" && index % 2 === 1) {
+              isBot = true;
+            } else if (msg.content && msg.content.length > 100 && msg.role === "user") {
+              isBot = true;
             }
-
-            // יצירת מזהה ייחודי אם חסר
-            const messageId = msg.id || msg.message_id || `msg-${Date.now()}`;
-
-            console.log(
-              `Message ${messageId} content source:`,
-              msg.request
-                ? "request"
-                : msg.response
-                ? "response"
-                : msg.content
-                ? "content"
-                : "other",
-              "is_bot:",
-              isBot
-            );
+            
+            let messageContent = msg.content || msg.message_text || msg.text || "";
+            const messageId = msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
 
             return {
               id: messageId,
               type: (isBot ? "bot" : "user") as "bot" | "user",
               content: messageContent,
               timestamp: new Date(msg.created_at).toLocaleTimeString(),
-              sessionId:
-                msg.chat_session_id || msg.conversation_id || sessionId,
+              sessionId: msg.chat_session_id || msg.conversation_id || sessionId,
             };
           });
-
-          console.log("Formatted messages:", formattedMessages.length);
-          console.log(
-            "Message types count:",
-            "bot:",
-            formattedMessages.filter((m) => m.type === "bot").length,
-            "user:",
-            formattedMessages.filter((m) => m.type === "user").length
-          );
 
           setMessages(formattedMessages);
           setHasStarted(true);
         } else {
-          console.log("No messages found in session");
           setMessages([]);
           setHasStarted(false);
         }
 
-        setShowHistory(false); // Hide history after selecting a chat
-      } else {
-        console.error("Failed to load session, session is null");
+        setShowHistory(false);
       }
     } catch (error) {
       console.error("Error loading chat session:", error);
@@ -422,56 +334,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Handle sending messages
   const handleSend = async () => {
-    console.clear(); // Clear the console to make debugging easier
-    console.log("=== Starting handleSend with input ===", input);
+    if (!input.trim()) return;
 
-    if (!input.trim()) {
-      console.log("Empty input, nothing to send");
-      return;
-    }
-
-    // Try to get current user
     const user = await chatService.getCurrentUser();
-    console.log(
-      "Current user:",
-      user ? `${user.id} (logged in)` : "not logged in"
-    );
-
+    
     if (!user) {
-      console.log("No user logged in - using demo mode");
-      setStatusMessage(
-        "You are in demo mode. Messages will not be saved. Please log in to save your chats."
-      );
+      setStatusMessage("You are in demo mode. Messages will not be saved. Please log in to save your chats.");
       setTimeout(() => setStatusMessage(""), 5000);
-      return; // Return early for now to focus on user logged in case
+      return;
     }
 
     let sessionId: string;
 
-    // Create a new session if none exists
     if (!activeSession) {
-      console.log("No active session, creating new chat session...");
       try {
-        // יצירת כותרת ראשונית בהתבסס על ההודעה הראשונה
-        const initialTitle = titleGenerationService.generateSimpleTitle(
-          input,
-          40
-        );
-        console.log("Attempting to create session with title:", initialTitle);
-
-        const session = await chatService.createChatSession(
-          user.id,
-          initialTitle
-        );
-        console.log("Session creation response:", session);
-
+        const initialTitle = titleGenerationService.generateSimpleTitle(input, 40);
+        const session = await chatService.createChatSession(user.id, initialTitle);
+        
         if (session) {
-          console.log("Chat session created successfully:", session.id);
           setChatSessions((prev) => [session, ...prev]);
           setActiveSession(session);
           sessionId = session.id;
 
-          // Create user message
           const userMessage: Message = {
             id: `user-${Date.now().toString()}`,
             type: "user",
@@ -485,21 +369,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           setIsLoading(true);
           setHasStarted(true);
 
-          // Save user message to database
           try {
-            const savedMessage = await chatService.addMessage({
+            await chatService.addMessage({
               user_id: user.id,
               chat_session_id: sessionId,
               content: userMessage.content,
               is_bot: false,
             });
 
-            console.log("User message saved successfully:", savedMessage?.id);
-
-            // Call API for bot response
             await processBotResponse(userMessage, sessionId, user.id);
 
-            // עדכון title לאחר השלמת השיחה הראשונה
             setTimeout(async () => {
               const currentMessages = [...messages, userMessage];
               await updateChatTitle(sessionId, currentMessages);
@@ -508,20 +387,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             console.error("Error saving message:", error);
             setIsLoading(false);
           }
-        } else {
-          console.error(
-            "Failed to create chat session - session response is null"
-          );
         }
       } catch (error) {
         console.error("Exception creating chat session:", error);
       }
     } else {
-      // Use existing session
       sessionId = activeSession.id;
-      console.log("Using existing chat session:", sessionId);
 
-      // Create user message
       const userMessage: Message = {
         id: `user-${Date.now().toString()}`,
         type: "user",
@@ -534,21 +406,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setInput("");
       setIsLoading(true);
 
-      // Save user message to database
       try {
-        const savedMessage = await chatService.addMessage({
+        await chatService.addMessage({
           user_id: user.id,
           chat_session_id: sessionId,
           content: userMessage.content,
           is_bot: false,
         });
 
-        console.log("User message saved successfully:", savedMessage?.id);
-
-        // Call API for bot response
         await processBotResponse(userMessage, sessionId, user.id);
 
-        // עדכון title לאחר הוספת הודעה לשיחה קיימת
         setTimeout(async () => {
           const currentMessages = [...messages, userMessage];
           await updateChatTitle(sessionId, currentMessages);

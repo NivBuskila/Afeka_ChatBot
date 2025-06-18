@@ -311,7 +311,7 @@ async def update_message(request: Request):
             "conversation_id": body.get("conversation_id"),
             "user_id": body.get("user_id"),
             "content": body.get("content", ""),
-            "role": body.get("role", "user"),
+            "role": "bot" if body.get("is_bot", False) else "user",
             "created_at": datetime.utcnow().isoformat() + "Z"
         }
         

@@ -5,6 +5,10 @@ A clean, production-ready FastAPI application for the Afeka ChatBot system.
 Uses modular architecture with separate routers and services.
 """
 
+# Load environment variables FIRST before any other imports
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import sys
 import logging

@@ -224,16 +224,21 @@ select {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Bot message container styling */
-.bot-message-container {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1px solid #bbf7d0;
-  backdrop-filter: blur(8px);
+/* Clean bot messages - no styling overrides needed now */
+[data-testid="bot-message"] {
+  /* Bot messages are completely clean */
 }
 
-.dark .bot-message-container {
-  background: linear-gradient(135deg, rgba(20, 83, 45, 0.2) 0%, rgba(22, 101, 52, 0.15) 100%);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+/* Ensure user messages maintain bubble style */
+[data-testid="user-message"] .bg-white {
+  background: white !important;
+  border-radius: 20px 20px 4px 20px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dark [data-testid="user-message"] .bg-white {
+  background: #1f2937 !important;
+  color: white !important;
 }
 
 /* Print styles
