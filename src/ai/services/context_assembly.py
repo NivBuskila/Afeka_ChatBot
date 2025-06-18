@@ -27,7 +27,7 @@ class ContextBuilder:
     """בונה קונטקסט חכם ומותאם לתקנוני מכללה"""
     
     def __init__(self):
-        # הגדרות זמניות עדכניות (יש לעדכן כל שנה)
+        # Temporal settings
         self.current_academic_year = "2024-2025"
         self.current_semester = "ב'"
         self.current_date = date.today().strftime("%d/%m/%Y")
@@ -83,7 +83,7 @@ class ContextBuilder:
             for def_result in context_bundle.definition_context[:3]:
                 background_parts.append(f"• {def_result.chunk_text[:200]}...")
         
-        # הוספת מידע זמני עדכני לשאלות טמפורליות
+        # Temporal information
         if query_type == 'temporal':
             background_parts.append(f"מידע זמני עדכני:")
             background_parts.append(f"• שנת לימודים נוכחית: {self.current_academic_year}")
@@ -99,11 +99,11 @@ class ContextBuilder:
         hierarchy_parts = []
         hierarchy_parts.append("הקשר היררכי:")
         
-        # פירוק הנתיב ההיררכי
+        # Hierarchical path
         path = context_bundle.main_result.hierarchical_path
         hierarchy_parts.append(f"מיקום: {path}")
         
-        # הוספת הקשר מפרק עליון אם קיים
+        # Upper section context
         if context_bundle.hierarchical_context:
             hierarchy_parts.append("\nהקשר מפרק עליון:")
             for ctx_result in context_bundle.hierarchical_context[:2]:
@@ -117,14 +117,14 @@ class ContextBuilder:
         
         main_parts.append("התוכן הרלוונטי:")
         
-        # הוספת כותרת סעיף אם קיימת
+        # Section title
         if main_result.section_number and main_result.section_title:
             main_parts.append(f"סעיף {main_result.section_number}: {main_result.section_title}")
         
-        # התוכן הראשי
+        # Main content
         main_parts.append(main_result.chunk_text)
         
-        # הוספת תתי-סעיפים קשורים
+        # Related subsections
         if context_bundle.related_subsections:
             main_parts.append("\nתתי-סעיפים קשורים:")
             for sub_result in context_bundle.related_subsections[:3]:
@@ -171,7 +171,7 @@ class ContextBuilder:
             "5. השתמש בשפה ברורה ומקצועית"
         ]
         
-        # הוראות ספציפיות לפי סוג השאלה
+        # Specific instructions for query type
         if query_type == 'temporal':
             base_instructions.extend([
                 "6. לשאלות זמניות: ציין בבירור מועדים ותאריכים",
@@ -196,9 +196,9 @@ class ContextBuilder:
         return "\n".join(base_instructions)
 
     def _trim_context(self, background: str, main: str, additional: str, max_length: int) -> Tuple[str, str, str]:
-        """קיצוץ קונטקסט כשהוא ארוך מדי"""
+        """Trim context when it's too long"""
         
-        # עדיפויות: main_content > background > additional
+        # Preferences: main_content > background > additional
         if len(main) > max_length * 0.6:
             main = main[:int(max_length * 0.6)] + "..."
         

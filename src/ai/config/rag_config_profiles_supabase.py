@@ -20,10 +20,10 @@ def load_dynamic_profiles() -> Dict[str, Any]:
     try:
         manager = get_supabase_profile_manager()
         profiles = manager.get_all_profiles()
-        logger.info(f"📥 Loaded {len(profiles)} profiles from Supabase")
+        logger.info(f"Loaded {len(profiles)} profiles from Supabase")
         return profiles
     except Exception as e:
-        logger.error(f"❌ Error loading profiles from Supabase: {e}")
+        logger.error(f"Error loading profiles from Supabase: {e}")
         # Return minimal fallback profiles
         return {
             "maximum_accuracy": {
@@ -64,22 +64,22 @@ def save_dynamic_profiles(profiles_data: Dict[str, Any]) -> None:
             if manager.save_profile(profile_key, profile_data):
                 saved_count += 1
             else:
-                logger.warning(f"⚠️ Failed to save profile: {profile_key}")
+                logger.warning(f"Failed to save profile: {profile_key}")
         
-        logger.info(f"💾 Saved {saved_count}/{len(profiles_data)} profiles to Supabase")
+        logger.info(f"Saved {saved_count}/{len(profiles_data)} profiles to Supabase")
         
     except Exception as e:
-        logger.error(f"❌ Error saving profiles to Supabase: {e}")
+        logger.error(f"Error saving profiles to Supabase: {e}")
 
 def get_hidden_profiles() -> List[str]:
     """Get the list of hidden profiles from Supabase"""
     try:
         manager = get_supabase_profile_manager()
         hidden = manager.get_hidden_profiles()
-        logger.info(f"🔒 Retrieved {len(hidden)} hidden profiles from Supabase")
+        logger.info(f"Retrieved {len(hidden)} hidden profiles from Supabase")
         return hidden
     except Exception as e:
-        logger.error(f"❌ Error getting hidden profiles from Supabase: {e}")
+        logger.error(f"Error getting hidden profiles from Supabase: {e}")
         # Return fallback hidden profiles
         return ["fast", "improved"]  # Default hidden profiles
 
@@ -99,12 +99,12 @@ def save_hidden_profiles(hidden_list: List[str]) -> None:
             if manager.set_profile_hidden(profile_key, True):
                 hidden_count += 1
             else:
-                logger.warning(f"⚠️ Failed to hide profile: {profile_key}")
+                logger.warning(f"Failed to hide profile: {profile_key}")
         
-        logger.info(f"🔒 Set {hidden_count}/{len(hidden_list)} profiles as hidden in Supabase")
+        logger.info(f"Set {hidden_count}/{len(hidden_list)} profiles as hidden in Supabase")
         
     except Exception as e:
-        logger.error(f"❌ Error saving hidden profiles to Supabase: {e}")
+        logger.error(f"Error saving hidden profiles to Supabase: {e}")
 
 def get_profile_config(profile_name: str) -> Optional[Dict[str, Any]]:
     """Get configuration for a specific profile from Supabase"""
@@ -114,14 +114,14 @@ def get_profile_config(profile_name: str) -> Optional[Dict[str, Any]]:
         
         if profile:
             config = profile.get('config', {})
-            logger.info(f"⚙️ Retrieved config for profile '{profile_name}' from Supabase")
+            logger.info(f"Retrieved config for profile '{profile_name}' from Supabase")
             return config
         else:
-            logger.warning(f"⚠️ Profile '{profile_name}' not found in Supabase")
+            logger.warning(f"Profile '{profile_name}' not found in Supabase")
             return None
             
     except Exception as e:
-        logger.error(f"❌ Error getting profile config '{profile_name}' from Supabase: {e}")
+        logger.error(f"Error getting profile config '{profile_name}' from Supabase: {e}")
         return None
 
 def update_profile_config(profile_name: str, config: Dict[str, Any]) -> bool:
@@ -136,17 +136,17 @@ def update_profile_config(profile_name: str, config: Dict[str, Any]) -> bool:
             success = manager.save_profile(profile_name, profile)
             
             if success:
-                logger.info(f"✅ Updated config for profile '{profile_name}' in Supabase")
+                logger.info(f"Updated config for profile '{profile_name}' in Supabase")
                 return True
             else:
-                logger.error(f"❌ Failed to update config for profile '{profile_name}' in Supabase")
+                logger.error(f"Failed to update config for profile '{profile_name}' in Supabase")
                 return False
         else:
-            logger.warning(f"⚠️ Profile '{profile_name}' not found for config update")
+            logger.warning(f"Profile '{profile_name}' not found for config update")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error updating profile config '{profile_name}' in Supabase: {e}")
+        logger.error(f"Error updating profile config '{profile_name}' in Supabase: {e}")
         return False
 
 def create_new_profile(profile_key: str, name: str, description: str, config: Dict[str, Any], 
@@ -167,14 +167,14 @@ def create_new_profile(profile_key: str, name: str, description: str, config: Di
         success = manager.save_profile(profile_key, profile_data)
         
         if success:
-            logger.info(f"✅ Created new profile '{profile_key}' in Supabase")
+            logger.info(f"Created new profile '{profile_key}' in Supabase")
             return True
         else:
-            logger.error(f"❌ Failed to create profile '{profile_key}' in Supabase")
+            logger.error(f"Failed to create profile '{profile_key}' in Supabase")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error creating profile '{profile_key}' in Supabase: {e}")
+        logger.error(f" Error creating profile '{profile_key}' in Supabase: {e}")
         return False
 
 def delete_profile(profile_key: str) -> bool:
@@ -184,14 +184,14 @@ def delete_profile(profile_key: str) -> bool:
         success = manager.delete_profile(profile_key)
         
         if success:
-            logger.info(f"🗑️ Deleted profile '{profile_key}' from Supabase")
+            logger.info(f"Deleted profile '{profile_key}' from Supabase")
             return True
         else:
-            logger.error(f"❌ Failed to delete profile '{profile_key}' from Supabase")
+            logger.error(f"Failed to delete profile '{profile_key}' from Supabase")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error deleting profile '{profile_key}' from Supabase: {e}")
+        logger.error(f"Error deleting profile '{profile_key}' from Supabase: {e}")
         return False
 
 def save_new_profile(profile_key: str, profile_data: Dict[str, Any]) -> bool:
@@ -201,14 +201,14 @@ def save_new_profile(profile_key: str, profile_data: Dict[str, Any]) -> bool:
         success = manager.save_profile(profile_key, profile_data)
         
         if success:
-            logger.info(f"💾 Saved new profile '{profile_key}' to Supabase")
+            logger.info(f"Saved new profile '{profile_key}' to Supabase")
             return True
         else:
-            logger.error(f"❌ Failed to save new profile '{profile_key}' to Supabase")
+            logger.error(f"Failed to save new profile '{profile_key}' to Supabase")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error saving new profile '{profile_key}' to Supabase: {e}")
+        logger.error(f"Error saving new profile '{profile_key}' to Supabase: {e}")
         return False
 
 def get_available_profile_names() -> List[str]:
@@ -217,10 +217,10 @@ def get_available_profile_names() -> List[str]:
         manager = get_supabase_profile_manager()
         profiles = manager.list_available_profiles()
         profile_names = list(profiles.keys())
-        logger.info(f"📋 Retrieved {len(profile_names)} available profile names from Supabase")
+        logger.info(f"Retrieved {len(profile_names)} available profile names from Supabase")
         return profile_names
     except Exception as e:
-        logger.error(f"❌ Error getting available profile names from Supabase: {e}")
+        logger.error(f"Error getting available profile names from Supabase: {e}")
         return ["maximum_accuracy", "optimized_testing"]  # Fallback
 
 def validate_profile_integrity() -> Dict[str, Any]:
@@ -228,27 +228,27 @@ def validate_profile_integrity() -> Dict[str, Any]:
     try:
         manager = get_supabase_profile_manager()
         integrity_report = manager.validate_data_integrity()
-        logger.info(f"🔍 Profile integrity validation completed")
+        logger.info(f"Profile integrity validation completed")
         return integrity_report
     except Exception as e:
-        logger.error(f"❌ Error validating profile integrity: {e}")
+        logger.error(f"Error validating profile integrity: {e}")
         return {"error": str(e), "status": "failed"}
 
 if __name__ == "__main__":
-    print("🔧 Supabase RAG Config Profiles Management")
+    print("Supabase RAG Config Profiles Management")
     print("=" * 60)
     
     # Test loading profiles
     profiles = load_dynamic_profiles()
-    print(f"\n📥 Loaded {len(profiles)} profiles:")
+    print(f"\nLoaded {len(profiles)} profiles:")
     for key, profile in profiles.items():
-        status = "🟢 ACTIVE" if profile.get('isActive') else "⚪"
+        status = "ACTIVE" if profile.get('isActive') else "INACTIVE"
         print(f"  {status} {key}: {profile['name']}")
     
     # Test hidden profiles
     hidden = get_hidden_profiles()
-    print(f"\n🔒 Hidden profiles ({len(hidden)}): {hidden}")
+    print(f"\nHidden profiles ({len(hidden)}): {hidden}")
     
     # Test integrity
     integrity = validate_profile_integrity()
-    print(f"\n🔍 Integrity Report: {integrity}") 
+    print(f"\nIntegrity Report: {integrity}") 

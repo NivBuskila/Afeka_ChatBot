@@ -48,10 +48,10 @@ def load_dynamic_profiles() -> Dict[str, Any]:
     try:
         manager = get_supabase_profile_manager()
         profiles = manager.get_all_profiles()
-        logger.info(f"📥 Loaded {len(profiles)} profiles from Supabase")
+        logger.info(f"Loaded {len(profiles)} profiles from Supabase")
         return profiles
     except Exception as e:
-        logger.error(f"❌ Error loading profiles from Supabase: {e}")
+        logger.error(f"Error loading profiles from Supabase: {e}")
         # Return minimal fallback profiles
         return {
             "maximum_accuracy": {
@@ -92,22 +92,22 @@ def save_dynamic_profiles(profiles_data: Dict[str, Any]) -> None:
             if manager.save_profile(profile_key, profile_data):
                 saved_count += 1
             else:
-                logger.warning(f"⚠️ Failed to save profile: {profile_key}")
+                logger.warning(f"Failed to save profile: {profile_key}")
         
-        logger.info(f"💾 Saved {saved_count}/{len(profiles_data)} profiles to Supabase")
+        logger.info(f"Saved {saved_count}/{len(profiles_data)} profiles to Supabase")
         
     except Exception as e:
-        logger.error(f"❌ Error saving profiles to Supabase: {e}")
+        logger.error(f"Error saving profiles to Supabase: {e}")
 
 def load_hidden_profiles() -> List[str]:
     """Get the list of hidden profiles from Supabase"""
     try:
         manager = get_supabase_profile_manager()
         hidden = manager.get_hidden_profiles()
-        logger.info(f"🔒 Retrieved {len(hidden)} hidden profiles from Supabase")
+        logger.info(f"Retrieved {len(hidden)} hidden profiles from Supabase")
         return hidden
     except Exception as e:
-        logger.error(f"❌ Error getting hidden profiles from Supabase: {e}")
+        logger.error(f"Error getting hidden profiles from Supabase: {e}")
         # Return fallback hidden profiles
         return ["fast", "improved"]  # Default hidden profiles
 
@@ -127,12 +127,12 @@ def save_hidden_profiles(hidden_list: List[str]) -> None:
             if manager.set_profile_hidden(profile_key, True):
                 hidden_count += 1
             else:
-                logger.warning(f"⚠️ Failed to hide profile: {profile_key}")
+                logger.warning(f"Failed to hide profile: {profile_key}")
         
-        logger.info(f"🔒 Set {hidden_count}/{len(hidden_list)} profiles as hidden in Supabase")
+        logger.info(f"Set {hidden_count}/{len(hidden_list)} profiles as hidden in Supabase")
         
     except Exception as e:
-        logger.error(f"❌ Error saving hidden profiles to Supabase: {e}")
+        logger.error(f"Error saving hidden profiles to Supabase: {e}")
 
 def hide_builtin_profile(profile_id: str) -> bool:
     """Hides a built-in profile from the available list"""
@@ -433,9 +433,9 @@ try:
     for profile_id, profile_data in dynamic_profiles_data.items():
         if profile_id not in PROFILES:
             PROFILES[profile_id] = lambda data=profile_data: create_profile_from_data(data)
-            logger.info(f"📥 Loaded dynamic profile from Supabase: {profile_id}")
+            logger.info(f"Loaded dynamic profile from Supabase: {profile_id}")
 except Exception as e:
-    logger.error(f"❌ Error loading dynamic profiles: {e}")
+    logger.error(f"Error loading dynamic profiles: {e}")
     dynamic_profiles_data = {}
 
 def save_new_profile(profile_id: str, profile_data: Dict[str, Any]) -> bool:
@@ -447,14 +447,14 @@ def save_new_profile(profile_id: str, profile_data: Dict[str, Any]) -> bool:
         if success:
             # Update in-memory profiles
             PROFILES[profile_id] = lambda: create_profile_from_data(profile_data)
-            logger.info(f"💾 Saved new profile '{profile_id}' to Supabase")
+            logger.info(f"Saved new profile '{profile_id}' to Supabase")
             return True
         else:
-            logger.error(f"❌ Failed to save new profile '{profile_id}' to Supabase")
+            logger.error(f"Failed to save new profile '{profile_id}' to Supabase")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error saving new profile '{profile_id}' to Supabase: {e}")
+        logger.error(f"Error saving new profile '{profile_id}' to Supabase: {e}")
         return False
 
 def delete_profile(profile_id: str) -> bool:
@@ -467,14 +467,14 @@ def delete_profile(profile_id: str) -> bool:
             # Remove from in-memory profiles
             if profile_id in PROFILES:
                 del PROFILES[profile_id]
-            logger.info(f"🗑️ Deleted profile '{profile_id}' from Supabase")
+            logger.info(f"Deleted profile '{profile_id}' from Supabase")
             return True
         else:
-            logger.error(f"❌ Failed to delete profile '{profile_id}' from Supabase")
+            logger.error(f"Failed to delete profile '{profile_id}' from Supabase")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error deleting profile '{profile_id}' from Supabase: {e}")
+        logger.error(f"Error deleting profile '{profile_id}' from Supabase: {e}")
         return False
 
 def update_dynamic_profile_description(profile_id: str, description: str) -> None:
@@ -495,10 +495,10 @@ def list_profiles() -> Dict[str, str]:
     try:
         manager = get_supabase_profile_manager()
         profiles = manager.list_available_profiles()
-        logger.info(f"📋 Listed {len(profiles)} available profiles from Supabase")
+        logger.info(f"Listed {len(profiles)} available profiles from Supabase")
         return profiles
     except Exception as e:
-        logger.error(f"❌ Error listing profiles from Supabase: {e}")
+        logger.error(f"Error listing profiles from Supabase: {e}")
         # Fallback to static profiles only
         static_profiles = {
             "high_quality": "Maximum quality - high accuracy, lower speed",
@@ -543,23 +543,23 @@ def compare_profiles(profile1_name: str, profile2_name: str) -> Dict[str, Any]:
     return comparison
 
 if __name__ == "__main__":
-    print("🔧 RAG Configuration Profiles")
+    print("RAG Configuration Profiles")
     print("=" * 50)
     
     profiles_info = list_profiles()
     for name, description in profiles_info.items():
-        print(f"\n📋 {name.upper()}:")
+        print(f"\n{name.upper()}:")
         print(f"   {description}")
         
         profile = get_profile(name)
-        print(f"   📊 Key settings:")
+        print(f"   Key settings:")
         print(f"      Similarity threshold: {profile.search.SIMILARITY_THRESHOLD}")
         print(f"      Max chunks: {profile.search.MAX_CHUNKS_RETRIEVED}")
         print(f"      Context tokens: {profile.context.MAX_CONTEXT_TOKENS}")
         print(f"      Temperature: {profile.llm.TEMPERATURE}")
         print(f"      Semantic/Keyword weights: {profile.search.HYBRID_SEMANTIC_WEIGHT}/{profile.search.HYBRID_KEYWORD_WEIGHT}")
     
-    print(f"\n📈 Comparison: fast vs high_quality")
+    print(f"\nComparison: fast vs high_quality")
     comparison = compare_profiles("fast", "high_quality")
     for metric, values in comparison.items():
         print(f"   {metric}: {values}")

@@ -56,15 +56,15 @@ class RAGService:
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         )
         
-        # 🆕 Replace with Database Key Manager with direct Supabase connection
+        # Replace with Database Key Manager with direct Supabase connection
         self.key_manager = DatabaseKeyManager(use_direct_supabase=True)
         logger.info("🔑 RAG Service using Database Key Manager with direct Supabase connection")
         
-        # 🎯 Load profile from central system
+        # Load profile from central system
         if config_profile is None:
             try:
                 config_profile = get_current_profile()
-                logger.info(f"🎯 Loaded central profile: {config_profile}")
+                logger.info(f"Loaded central profile: {config_profile}")
             except Exception as e:
                 logger.warning(f"Central profile system not found: {e}, using manual profile selection")
         
@@ -78,7 +78,7 @@ class RAGService:
                 self.llm_config = profile_config.llm
                 self.db_config = profile_config.database
                 self.performance_config = profile_config.performance
-                logger.info(f"✅ Using config profile: {config_profile}")
+                logger.info(f"Using config profile: {config_profile}")
             except Exception as e:
                 logger.warning(f"Failed to load profile '{config_profile}': {e}. Using default config.")
                 # Fallback to default settings
@@ -97,27 +97,27 @@ class RAGService:
             self.db_config = get_database_config()
             self.performance_config = get_performance_config()
         
-        # 🔥 Configure Key Manager - keys will be loaded when first needed in ensure_available_key()
+        # Configure Key Manager - keys will be loaded when first needed in ensure_available_key()
         # Note: Keys will be loaded when first needed in ensure_available_key()
-        logger.info("🔑 Database Key Manager configured - keys will be loaded on first use")
+        logger.info("Database Key Manager configured - keys will be loaded on first use")
         
-        # 🔥 Create Gemini model - fallback to environment
+        # Create Gemini model - fallback to environment
         # Try to get key from environment first (safe init approach)
         fallback_key = os.getenv("GEMINI_API_KEY")
         if fallback_key:
             genai.configure(api_key=fallback_key)
-            logger.info("🔑 Using GEMINI_API_KEY from environment for initialization")
+            logger.info("Using GEMINI_API_KEY from environment for initialization")
         else:
             # Try to use Key Manager for initialization
             try:
                 if self.key_manager:
                     # Just configure with environment key for now, database keys will be loaded lazily
-                    logger.info("🔑 Database Key Manager configured - will use environment key for init")
+                    logger.info("Database Key Manager configured - will use environment key for init")
                     # Will switch to database keys when needed
                 else:
                     raise Exception("No API keys available from Database or environment")
             except Exception as e:
-                logger.error(f"❌ Key initialization failed: {e}")
+                logger.error(f"Key initialization failed: {e}")
                 raise Exception("No API keys available")
         
         # Create Gemini model with settings from config
@@ -129,7 +129,7 @@ class RAGService:
             )
         )
         
-        logger.info(f"🚀 RAG Service initialized with profile '{config_profile or 'default'}' - "
+        logger.info(f"RAG Service initialized with profile '{config_profile or 'default'}' - "
                    f"Similarity threshold: {self.search_config.SIMILARITY_THRESHOLD}, "
                    f"Max chunks: {self.search_config.MAX_CHUNKS_RETRIEVED}, "
                    f"Model: {self.llm_config.MODEL_NAME}")
@@ -147,7 +147,7 @@ class RAGService:
         if cache_key in self._embedding_cache:
             entry = self._embedding_cache[cache_key]
             if self._is_cache_valid(entry):
-                logger.info(f"⚡ Using cached embedding for key: {cache_key[:8]}")
+                logger.info(f"Using cached embedding for key: {cache_key[:8]}")
                 return entry['embedding']
             else:
                 # Remove expired cache entry
@@ -171,46 +171,46 @@ class RAGService:
         """Track token usage for embedding generation"""
         # Estimate tokens for embedding (much smaller than generation)
         estimated_tokens = len(text) // 8  # Embeddings use fewer tokens
-        logger.info(f"🔢 [RAG-EMBED-TRACK] Estimated {estimated_tokens} tokens for embedding")
+        logger.info(f"Estimated {estimated_tokens} tokens for embedding")
         
-        # 🔥 FIX: Actually track usage with key manager
+        # FIX: Actually track usage with key manager
         try:
             if self.key_manager and key_id:
                 await self.key_manager.record_usage(key_id, estimated_tokens, 1)
-                logger.info(f"🔢 [RAG-EMBED-TRACK] Successfully tracked {estimated_tokens} tokens for key {key_id}")
+                logger.info(f"Successfully tracked {estimated_tokens} tokens for key {key_id}")
             else:
-                logger.warning("⚠️ [RAG-EMBED-TRACK] No key_id provided or key_manager not available")
+                logger.warning("No key_id provided or key_manager not available")
         except Exception as e:
-            logger.error(f"❌ [RAG-EMBED-TRACK] Failed to track usage: {e}")
+            logger.error(f"Failed to track usage: {e}")
 
     async def _track_generation_usage(self, prompt: str, response: str, key_id: int = None):
         """Track token usage for text generation"""
         input_tokens = len(prompt) // 4
         output_tokens = len(response) // 4
         total_tokens = input_tokens + output_tokens
-        logger.info(f"🔢 [RAG-GEN-TRACK] Estimated {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
+        logger.info(f"Estimated {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
         
-        # 🔥 FIX: Actually track usage with key manager
+        # FIX: Actually track usage with key manager
         try:
             if self.key_manager and key_id:
                 await self.key_manager.record_usage(key_id, total_tokens, 1)
-                logger.info(f"🔢 [RAG-GEN-TRACK] Successfully tracked {total_tokens} tokens for key {key_id}")
+                logger.info(f"Successfully tracked {total_tokens} tokens for key {key_id}")
             else:
-                logger.warning("⚠️ [RAG-GEN-TRACK] No key_id provided or key_manager not available")
+                logger.warning("No key_id provided or key_manager not available")
         except Exception as e:
-            logger.error(f"❌ [RAG-GEN-TRACK] Failed to track usage: {e}")
+            logger.error(f"Failed to track usage: {e}")
     
     async def generate_query_embedding(self, query: str) -> List[float]:
         """Create embedding for query with caching"""
         cache_key = self._get_cache_key(query)
         
-        # ⚡ Check cache first
+        # Check cache first
         cached_embedding = self._get_from_cache(cache_key)
         if cached_embedding:
             return cached_embedding
         
         try:
-            # 🔥 Ensure we're using current key if Key Manager available
+            # Ensure we're using current key if Key Manager available
             key_id = None
             if self.key_manager:
                 available_key = await self.key_manager.get_available_key()
@@ -220,9 +220,9 @@ class RAGService:
                 # Configure with the available key
                 genai.configure(api_key=available_key['api_key'])
                 key_id = available_key.get('id')
-                logger.info(f"🔑 Using key {available_key.get('key_name', 'unknown')} for embedding")
+                logger.info(f"Using key {available_key.get('key_name', 'unknown')} for embedding")
             
-            # ⏱️ Generate embedding
+            # Generate embedding
             start_time = time.time()
             embedding_model = genai.embed_content(
                 model=self.embedding_config.MODEL_NAME,
@@ -233,13 +233,13 @@ class RAGService:
             embedding = embedding_model['embedding']
             generation_time = int((time.time() - start_time) * 1000)
             
-            # ⚡ Cache the result
+            # Cache the result
             self._cache_embedding(cache_key, embedding)
             
-            # 🔥 Track usage
+            # Track usage
             await self._track_embedding_usage(query, key_id)
             
-            logger.info(f"🔍 Embedding generated in {generation_time}ms (cached for future use)")
+            logger.info(f"Embedding generated in {generation_time}ms (cached for future use)")
             return embedding
             
         except Exception as e:
@@ -423,10 +423,10 @@ class RAGService:
         """Build context from search results and return also the chunks that were actually included"""
         context_chunks = []
         citations = []
-        included_chunks = []  # 🆕 List of chunks that were actually included in the context
+        included_chunks = []  # List of chunks that were actually included in the context
         total_tokens = 0
         
-        # ✅ Remove hard-coding! Now rely on smart algorithm only
+        # Remove hard-coding! Now rely on smart algorithm only
         # Search is already ranked by relevance - keep this order
         reordered_results = search_results
         
@@ -456,7 +456,7 @@ class RAGService:
             
             context_chunks.append(f"מקור {len(included_chunks)+1} - {document_name}{similarity_info}:\n{chunk_content}")
             citations.append(document_name)
-            included_chunks.append(result)  # 🆕 Save the chunk that was actually included
+            included_chunks.append(result)  # Save the chunk that was actually included
             total_tokens += estimated_tokens
         
         context = "\n\n".join(context_chunks)
@@ -467,7 +467,7 @@ class RAGService:
     def _find_best_chunk_for_display(self, search_results: List[Dict[str, Any]], query: str) -> Dict[str, Any]:
         """Find the most relevant chunk for display in UI - smart search with emphasis on exact phrases
         
-        ⚠️ DEPRECATED: This function is no longer used. Instead, the model cites the sources it uses
+        DEPRECATED: This function is no longer used. Instead, the model cites the sources it uses
         using _extract_cited_sources and _get_cited_chunks.
         """
         if not search_results:
@@ -475,7 +475,7 @@ class RAGService:
         
         query_lower = query.lower()
         
-        # 🎯 First, search for exact phrases from the question
+        # First, search for exact phrases from the question
         exact_phrases = []
         if 'מן המניין' in query_lower:
             exact_phrases.append('מן המניין')
@@ -490,7 +490,7 @@ class RAGService:
                 chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
                 for phrase in exact_phrases:
                     if phrase in chunk_text:
-                        logger.info(f"🎯 Found exact phrase '{phrase}' in chunk - selecting it")
+                        logger.info(f"Found exact phrase '{phrase}' in chunk - selecting it")
                         return chunk
         
         # Topic keywords for different topics
@@ -548,7 +548,7 @@ class RAGService:
             best_chunk = max(search_results, 
                            key=lambda x: x.get('similarity_score', x.get('similarity', 0)))
         
-        logger.info(f"🎯 Selected chunk with score: {best_score}")
+        logger.info(f"Selected chunk with score: {best_score}")
         return best_chunk
 
     def _create_rag_prompt(self, query: str, context: str) -> str:
@@ -560,7 +560,7 @@ class RAGService:
 
 שאלת המשתמש: {query}
 
-⚠️ CRITICAL: ציטוט מקורות הוא חובה אבסולוטית ובלתי משתמעת! ללא חריגים!
+CRITICAL: ציטוט מקורות הוא חובה אבסולוטית ובלתי משתמעת! ללא חריגים!
 
 הנחיות למתן תשובה:
 1. קרא בקפידה את כל המידע שניתן מהקשר לעיל
@@ -571,26 +571,26 @@ class RAGService:
 6. אם השאלה לא קשורה לתקנונים כלל, ציין שאין לך מידע על הנושא
 7. במקרה של מלגות, זכויות או הטבות - פרט את כל התנאים והסכומים הרלוונטיים
 
-🔥 MANDATORY SOURCE CITATION FORMAT:
+MANDATORY SOURCE CITATION FORMAT:
 בסוף כל תשובה, חייב לכלול ציטוט מקורות בפורמט הזה בדיוק:
 [מקורות: מקור X, מקור Y]
 
-⭐ REQUIRED EXAMPLES:
-✅ CORRECT: "הקנס על חניה הוא 150 ₪. [מקורות: מקור 1, מקור 3]"
-✅ CORRECT: "זמן הלימודים לתואר בהנדסה הוא 4 שנים. [מקורות: מקור 2]"
-✅ CORRECT: "תנאי הזכאות למלגה כוללים... [מקורות: מקור 5, מקור 12]"
+REQUIRED EXAMPLES:
+CORRECT: "הקנס על חניה הוא 150 ₪. [מקורות: מקור 1, מקור 3]"
+CORRECT: "זמן הלימודים לתואר בהנדסה הוא 4 שנים. [מקורות: מקור 2]"
+CORRECT: "תנאי הזכאות למלגה כוללים... [מקורות: מקור 5, מקור 12]"
 
-❌ WRONG: תשובה ללא ציטוט = תשובה לא תקינה!
-❌ WRONG: "מקור: מסמך X" - פורמט שגוי!
-❌ WRONG: "[מקור 1]" - חסר המילה "מקורות"!
+WRONG: תשובה ללא ציטוט = תשובה לא תקינה!
+WRONG: "מקור: מסמך X" - פורמט שגוי!
+WRONG: "[מקור 1]" - חסר המילה "מקורות"!
 
-🎯 STEP-BY-STEP INSTRUCTION:
+STEP-BY-STEP INSTRUCTION:
 1. כתב את התשובה המלאה
 2. זהה איזה מקורות (מקור 1, מקור 2, וכו') השתמשת בהם
 3. הוסף בסוף: [מקורות: מקור X, מקור Y]
 4. בדוק שהפורמט מדויק!
 
-⚠️ זכור: המערכת תדחה כל תשובה ללא ציטוט מקורות במדויק הפורמט הנדרש!
+זכור: המערכת תדחה כל תשובה ללא ציטוט מקורות במדויק הפורמט הנדרש!
 
 תשובה:"""
 
@@ -615,13 +615,13 @@ class RAGService:
             if match:
                 sources_text = match.group(1)
                 pattern_used = i + 1
-                logger.info(f"🔍 Sources found with pattern #{pattern_used}: {sources_text}")
+                logger.info(f"Sources found with pattern #{pattern_used}: {sources_text}")
                 break
         
         if not sources_text:
             # Critical warning - Gemini didn't cite sources
-            logger.error("🚨 CRITICAL: No sources cited in the answer! Gemini didn't follow the instructions!")
-            logger.error(f"📝 Full answer: {answer}")
+            logger.error("CRITICAL: No sources cited in the answer! Gemini didn't follow the instructions!")
+            logger.error(f"Full answer: {answer}")
             return []
         
         # Extract source numbers with advanced validation
@@ -635,15 +635,15 @@ class RAGService:
                 if 1 <= source_num <= 100:  # Reasonable number of sources
                     source_numbers.append(source_num)
                 else:
-                    logger.warning(f"⚠️ Invalid source number: {source_num}")
+                    logger.warning(f"Invalid source number: {source_num}")
             except ValueError:
-                logger.warning(f"⚠️ Cannot convert to number: {match}")
+                logger.warning(f"Cannot convert to number: {match}")
                 continue
         
         if not source_numbers:
-            logger.error(f"🚨 No valid source numbers found in text: {sources_text}")
+            logger.error(f"No valid source numbers found in text: {sources_text}")
         else:
-            logger.info(f"✅ Sources cited successfully: {source_numbers}")
+            logger.info(f"Sources cited successfully: {source_numbers}")
         
         return source_numbers
 
@@ -651,7 +651,7 @@ class RAGService:
         """Return the chunks that were actually cited by the model from the chunks that were included in the context"""
         if not cited_source_numbers:
             # If no citations, find the most relevant chunk using semantic similarity
-            logger.warning("⚠️ No citations found from the model - find a relevant chunk using semantic similarity")
+            logger.warning("No citations found from the model - find a relevant chunk using semantic similarity")
             return await self._find_best_fallback_chunk_semantic(included_chunks, answer)
         
         # Collect all the chunks that were cited
@@ -661,17 +661,17 @@ class RAGService:
             index = source_num - 1
             if 0 <= index < len(included_chunks):
                 cited_chunks.append(included_chunks[index])
-                logger.info(f"✅ Found cited source {source_num} (out of {len(included_chunks)} chunks in context)")
+                logger.info(f"Found cited source {source_num} (out of {len(included_chunks)} chunks in context)")
             else:
-                logger.warning(f"⚠️ Source {source_num} not found in context (only {len(included_chunks)} sources)")
+                logger.warning(f"Source {source_num} not found in context (only {len(included_chunks)} sources)")
         
         if not cited_chunks:
-            logger.warning("⚠️ No valid chunks found from the citations - go to semantic fallback")
+            logger.warning("No valid chunks found from the citations - go to semantic fallback")
             return await self._find_best_fallback_chunk_semantic(included_chunks, answer)
         
-        # 🎯 If there is more than one cited source, choose the most relevant for the answer
+        # If there is more than one cited source, choose the most relevant for the answer
         if len(cited_chunks) > 1:
-            logger.info(f"🔍 Found {len(cited_chunks)} cited sources - choose the most relevant for the answer")
+            logger.info(f"Found {len(cited_chunks)} cited sources - choose the most relevant for the answer")
             best_chunk = await self._find_best_among_cited_chunks(cited_chunks, answer)
             return [best_chunk]
         
@@ -680,7 +680,7 @@ class RAGService:
     async def _find_best_among_cited_chunks(self, cited_chunks: List[Dict[str, Any]], answer: str) -> Dict[str, Any]:
         """Choose the most relevant chunk from the chunks that were cited by the LLM"""
         if not cited_chunks or not answer:
-            logger.warning("⚠️ Cannot select from cited chunks - return first")
+            logger.warning("Cannot select from cited chunks - return first")
             return cited_chunks[0] if cited_chunks else None
         
         if len(cited_chunks) == 1:
@@ -734,7 +734,7 @@ class RAGService:
                     # Combined score
                     combined_score = similarity + content_score
                     
-                    logger.info(f"🔍 Cited chunk {chunk_id} - similarity: {similarity:.3f}, content: {content_score:.3f}, combined: {combined_score:.3f}")
+                    logger.info(f"Cited chunk {chunk_id} - similarity: {similarity:.3f}, content: {content_score:.3f}, combined: {combined_score:.3f}")
                     
                     scored_chunks.append((chunk, combined_score, similarity))
             
@@ -742,14 +742,14 @@ class RAGService:
                 # Select the best by combined score
                 best_chunk, best_combined, best_similarity = max(scored_chunks, key=lambda x: x[1])
                 chunk_id = best_chunk.get('id', 'unknown')
-                logger.info(f"🎯 Selected cited chunk {chunk_id} with combined score {best_combined:.3f} (similarity: {best_similarity:.3f})")
+                logger.info(f"Selected cited chunk {chunk_id} with combined score {best_combined:.3f} (similarity: {best_similarity:.3f})")
                 return best_chunk
             else:
-                logger.warning("⚠️ Cannot calculate scores - return first")
+                logger.warning("Cannot calculate scores - return first")
                 return cited_chunks[0]
                 
         except Exception as e:
-            logger.error(f"❌ Error selecting cited chunk: {e}")
+            logger.error(f"Error selecting cited chunk: {e}")
             return cited_chunks[0]
 
     def _extract_relevant_chunk_segment(self, chunk_text: str, query: str, answer: str, max_length: int = 500) -> str:
@@ -801,7 +801,7 @@ class RAGService:
                     score -= 2
                 
                 scored_sentences.append((sentence, score, i))
-                logger.debug(f"📝 Sentence {i}: score={score:.2f}, length={length}")
+                logger.debug(f"Sentence {i}: score={score:.2f}, length={length}")
             
             # Sort by score
             scored_sentences.sort(key=lambda x: x[1], reverse=True)
@@ -817,7 +817,7 @@ class RAGService:
                     selected_sentences.append((sentence, index))
                     used_indices.add(index)
                     current_length += len(sentence) + 1  # +1 for space
-                    logger.debug(f"✅ Selected sentence {index} with score {score:.2f}")
+                    logger.debug(f"Selected sentence {index} with score {score:.2f}")
                 
                 if current_length >= max_length * 0.8:  # Filled 80% of the space
                     break
@@ -836,11 +836,11 @@ class RAGService:
             if len(result) >= max_length:
                 result = result[:max_length].rsplit(' ', 1)[0] + "..."
             
-            logger.info(f"🎯 Extracted relevant segment of {len(result)} characters out of {len(chunk_text)} original characters")
+            logger.info(f"Extracted relevant segment of {len(result)} characters out of {len(chunk_text)} original characters")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Error extracting relevant segment: {e}")
+            logger.error(f"Error extracting relevant segment: {e}")
             # In case of error, return the simple truncated text
             return chunk_text[:max_length] + ("..." if len(chunk_text) > max_length else "")
 
@@ -887,7 +887,7 @@ class RAGService:
                     # Special bonus for chunks with precise information about the topic
                     if topic == 'time_limits' and any(phrase in content for phrase in ['מניין שנות', 'שנתיים מעבר', 'תוכנית בת', 'זמן מותר', 'משך מקסימלי']):
                         bonus *= 3  # 3x for chunks with precise information about time
-                        logger.info(f"🎯 Found special chunk for time limits with relevant expressions")
+                        logger.info(f"Found special chunk for time limits with relevant expressions")
                     
                     score += bonus
             
@@ -903,19 +903,19 @@ class RAGService:
         best_chunk = scored_chunks[0][0]
         best_score = scored_chunks[0][1]
         
-        logger.info(f"🎯 Selected chunk fallback with score {best_score:.1f}")
+        logger.info(f"Selected chunk fallback with score {best_score:.1f}")
         
         return [best_chunk]
 
     async def _find_best_fallback_chunk_semantic(self, included_chunks: List[Dict[str, Any]], answer: str) -> List[Dict[str, Any]]:
         """Find the most similar chunk to the answer using cosine similarity"""
         if not included_chunks or not answer:
-            logger.warning("⚠️ Cannot perform semantic similarity - no chunks or answer")
+            logger.warning("Cannot perform semantic similarity - no chunks or answer")
             return included_chunks[:1] if included_chunks else []
         
         try:
             # Create embedding for the final answer
-            logger.info("🧠 Creating embedding for the final answer for semantic comparison")
+            logger.info("Creating embedding for the final answer for semantic comparison")
             answer_embedding = await self.generate_query_embedding(answer)
             
             # Calculate cosine similarity for each chunk
@@ -931,20 +931,20 @@ class RAGService:
                         np.linalg.norm(answer_embedding) * np.linalg.norm(chunk_embedding)
                     )
                     similarities.append((chunk, similarity))
-                    logger.info(f"🔍 Chunk {chunk.get('id', 'unknown')} semantic similarity: {similarity:.3f}")
+                    logger.info(f"Chunk {chunk.get('id', 'unknown')} semantic similarity: {similarity:.3f}")
             
             if not similarities:
-                logger.warning("⚠️ Cannot calculate similarities - return first chunk")
+                logger.warning("Cannot calculate similarities - return first chunk")
                 return included_chunks[:1]
             
             # Select the chunk with the highest similarity
             best_chunk, best_similarity = max(similarities, key=lambda x: x[1])
-            logger.info(f"🎯 Selected chunk {best_chunk.get('id', 'unknown')} with semantic similarity {best_similarity:.3f}")
+            logger.info(f"Selected chunk {best_chunk.get('id', 'unknown')} with semantic similarity {best_similarity:.3f}")
             
             return [best_chunk]
             
         except Exception as e:
-            logger.error(f"❌ Error in semantic similarity fallback: {e}")
+            logger.error(f"Error in semantic similarity fallback: {e}")
             # In case of error, return the previous method
             return included_chunks[:1] if included_chunks else []
 
@@ -994,19 +994,19 @@ class RAGService:
             # Create the prompt
             prompt = self._create_rag_prompt(query, context)
             
-            # 🔍 Debug: log the chunks being used
-            logger.info(f"🔍 [CHUNKS-DEBUG] Using {len(search_results)} total chunks, {len(included_chunks)} included in context")
+            # Debug: log the chunks being used
+            logger.info(f"Using {len(search_results)} total chunks, {len(included_chunks)} included in context")
             for i, chunk in enumerate(included_chunks[:5]):  # Log first 5 chunks that were included
                 similarity = chunk.get('similarity_score') or chunk.get('similarity', 0)
                 chunk_preview = chunk.get('chunk_text', chunk.get('content', ''))[:100]
-                logger.info(f"🔍 [CONTEXT-CHUNK-{i+1}] Similarity: {similarity:.3f} | Preview: {chunk_preview}")
+                logger.info(f"[CONTEXT-CHUNK-{i+1}] Similarity: {similarity:.3f} | Preview: {chunk_preview}")
             
             # Use the new citation system instead of the complex chunk selection algorithm
             
             # Create the answer with retry logic
             answer = await self._generate_with_retry(prompt)
             
-            # 🎯 Extract the sources the model actually used
+            # Extract the sources the model actually used
             cited_source_numbers = self._extract_cited_sources(answer)
             cited_chunks = await self._get_cited_chunks(included_chunks, cited_source_numbers, query, answer)
             
@@ -1014,7 +1014,7 @@ class RAGService:
             import re
             clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
             
-            # 🎯 Add a relevant segment to each chunk that was selected
+            # Add a relevant segment to each chunk that was selected
             for chunk in cited_chunks:
                 chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
                 if chunk_text:
@@ -1022,7 +1022,7 @@ class RAGService:
                         chunk_text, query, clean_answer, max_length=500
                     )
                     chunk['relevant_segment'] = relevant_segment
-                    logger.info(f"🎯 Added relevant segment to chunk {chunk.get('id', 'unknown')}: {len(relevant_segment)} characters")
+                    logger.info(f"Added relevant segment to chunk {chunk.get('id', 'unknown')}: {len(relevant_segment)} characters")
             
             response_time = int((time.time() - start_time) * 1000)
             
@@ -1059,7 +1059,7 @@ class RAGService:
         """Create content with retry logic for rate limiting"""
         for attempt in range(max_retries):
             try:
-                # 🔥 Ensure we're using current key if Key Manager available
+                # Ensure we're using current key if Key Manager available
                 if self.key_manager:
                     available_key = await self.key_manager.get_available_key()
                     if not available_key:
@@ -1077,21 +1077,21 @@ class RAGService:
                         )
                     )
                 
-                logger.info(f"🔢 [RAG-GEN-DEBUG] Generating response for prompt length: {len(prompt)}")
+                logger.info(f"[RAG-GEN-DEBUG] Generating response for prompt length: {len(prompt)}")
                 
                 # Debug: Log first part of prompt to check content
-                logger.info(f"🔍 [PROMPT-DEBUG] First 500 chars: {prompt[:500]}")
-                logger.info(f"🔍 [PROMPT-DEBUG] Last 200 chars: {prompt[-200:]}")
+                logger.info(f"[PROMPT-DEBUG] First 500 chars: {prompt[:500]}")
+                logger.info(f"[PROMPT-DEBUG] Last 200 chars: {prompt[-200:]}")
                 
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text
                 
-                logger.info(f"🔍 [RESPONSE-DEBUG] Raw response: {response_text[:200]}")
+                logger.info(f"[RESPONSE-DEBUG] Raw response: {response_text[:200]}")
                 
-                # 🔥 Track usage  
+                # Track usage  
                 await self._track_generation_usage(prompt, response_text, available_key.get('id'))
                 
-                logger.info(f"🔢 [RAG-GEN-DEBUG] Generated response length: {len(response_text)}")
+                logger.info(f"[RAG-GEN-DEBUG] Generated response length: {len(response_text)}")
                 return response_text
                 
             except Exception as e:

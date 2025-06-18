@@ -1,6 +1,6 @@
 """
-מעבד מסמכים משודרג לתקנוני מכללה
-משלב את כל רכיבי התוכנית האסטרטגית: Smart Chunking + Advanced Retrieval + Context Assembly
+Enhanced document processor
+Combines all strategic components: Smart Chunking + Advanced Retrieval + Context Assembly
 """
 
 import logging
@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import sys
 
-# הוספת הנתיב לתיקיית backend
+# Add backend path
 backend_path = Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 

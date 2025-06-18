@@ -215,7 +215,7 @@ rag_config = RAGConfig()
 
 config_errors = rag_config.validate_config()
 if config_errors:
-    print("⚠️ RAG Configuration Errors:")
+    print("RAG Configuration Errors:")
     for error in config_errors:
         print(f"  - {error}")
     print("Please fix the configuration in rag_config.py")
@@ -255,13 +255,13 @@ def get_optimization_config() -> OptimizationConfig:
 
 
 if __name__ == "__main__":
-    print("🔧 RAG System Configuration:")
+    print("RAG System Configuration:")
     print("=" * 50)
     
     config_dict = rag_config.get_config_dict()
     for section, settings in config_dict.items():
-        print(f"\n📋 {section.upper()}:")
+        print(f"\n{section.upper()}:")
         for key, value in settings.items():
             print(f"  {key}: {value}")
     
-    print(f"\n✅ Configuration valid: {len(config_errors) == 0}")
+    print(f"\nConfiguration valid: {len(config_errors) == 0}")

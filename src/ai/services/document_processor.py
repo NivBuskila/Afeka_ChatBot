@@ -355,7 +355,7 @@ class DocumentProcessor:
             raise
 
     def _extract_pdf_text(self, file_path: str) -> str:
-        """חילוץ טקסט מקובץ PDF"""
+        """Extract text from PDF file"""
         logger.debug(f"Starting _extract_pdf_text for: {file_path}")
         text = ""
         try:
@@ -375,7 +375,7 @@ class DocumentProcessor:
         return text
 
     def _extract_docx_text(self, file_path: str) -> str:
-        """חילוץ טקסט מקובץ DOCX"""
+        """Extract text from DOCX file"""
         logger.debug(f"Starting _extract_docx_text for: {file_path}")
         try:
             doc = DocxDocument(file_path)

@@ -27,7 +27,7 @@ class SupabaseProfileManager:
         )
         if not self.supabase:
             raise ValueError("Failed to initialize Supabase client")
-        logger.info("🔗 SupabaseProfileManager initialized successfully")
+        logger.info("SupabaseProfileManager initialized successfully")
     
     def get_current_profile(self) -> str:
         """Get the currently active profile"""
@@ -36,16 +36,16 @@ class SupabaseProfileManager:
             
             if response.data:
                 profile_key = response.data['profile_key']
-                logger.info(f"🎯 Current active profile: {profile_key}")
+                logger.info(f"Current active profile: {profile_key}")
                 return profile_key
             else:
                 # No active profile found, set default
-                logger.warning("⚠️ No active profile found, setting default to 'maximum_accuracy'")
+                logger.warning("No active profile found, setting default to 'maximum_accuracy'")
                 self.set_current_profile('maximum_accuracy')
                 return 'maximum_accuracy'
                 
         except Exception as e:
-            logger.error(f"❌ Error getting current profile: {e}")
+            logger.error(f"Error getting current profile: {e}")
             return 'maximum_accuracy'  # Safe fallback
     
     def set_current_profile(self, profile_key: str) -> bool:
@@ -60,14 +60,14 @@ class SupabaseProfileManager:
             }).eq('profile_key', profile_key).is_('deleted_at', 'null').execute()
             
             if response.data:
-                logger.info(f"✅ Successfully set current profile to: {profile_key}")
+                logger.info(f"Successfully set current profile to: {profile_key}")
                 return True
             else:
-                logger.error(f"❌ Profile '{profile_key}' not found")
+                logger.error(f"Profile '{profile_key}' not found")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Error setting current profile to '{profile_key}': {e}")
+            logger.error(f"Error setting current profile to '{profile_key}': {e}")
             return False
     
     def get_all_profiles(self) -> Dict[str, Dict[str, Any]]:
@@ -87,11 +87,11 @@ class SupabaseProfileManager:
                     'characteristics': profile['characteristics'] or {}
                 }
             
-            logger.info(f"📋 Retrieved {len(profiles)} profiles from Supabase")
+            logger.info(f"Retrieved {len(profiles)} profiles from Supabase")
             return profiles
             
         except Exception as e:
-            logger.error(f"❌ Error getting all profiles: {e}")
+            logger.error(f"Error getting all profiles: {e}")
             return {}
     
     def get_profile_by_key(self, profile_key: str) -> Optional[Dict[str, Any]]:
@@ -113,7 +113,7 @@ class SupabaseProfileManager:
             return None
             
         except Exception as e:
-            logger.error(f"❌ Error getting profile '{profile_key}': {e}")
+            logger.error(f"Error getting profile '{profile_key}': {e}")
             return None
     
     def save_profile(self, profile_key: str, profile_data: Dict[str, Any]) -> bool:
@@ -137,16 +137,16 @@ class SupabaseProfileManager:
                 # Update existing profile
                 profile_record['updated_at'] = 'now()'
                 response = self.supabase.table('rag_profiles').update(profile_record).eq('profile_key', profile_key).is_('deleted_at', 'null').execute()
-                logger.info(f"🔄 Updated existing profile: {profile_key}")
+                logger.info(f"Updated existing profile: {profile_key}")
             else:
                 # Create new profile
                 response = self.supabase.table('rag_profiles').insert(profile_record).execute()
-                logger.info(f"➕ Created new profile: {profile_key}")
+                logger.info(f"Created new profile: {profile_key}")
             
             return response.data is not None
             
         except Exception as e:
-            logger.error(f"❌ Error saving profile '{profile_key}': {e}")
+            logger.error(f"Error saving profile '{profile_key}': {e}")
             return False
     
     def delete_profile(self, profile_key: str) -> bool:
@@ -158,14 +158,14 @@ class SupabaseProfileManager:
             }).eq('profile_key', profile_key).is_('deleted_at', 'null').execute()
             
             if response.data:
-                logger.info(f"🗑️ Soft deleted profile: {profile_key}")
+                logger.info(f"Soft deleted profile: {profile_key}")
                 return True
             else:
-                logger.error(f"❌ Profile '{profile_key}' not found for deletion")
+                logger.error(f"Profile '{profile_key}' not found for deletion")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Error deleting profile '{profile_key}': {e}")
+            logger.error(f"Error deleting profile '{profile_key}': {e}")
             return False
     
     def hard_delete_profile(self, profile_key: str) -> bool:
@@ -175,28 +175,28 @@ class SupabaseProfileManager:
             existing = self.supabase.table('rag_profiles').select('id, profile_key, is_custom').eq('profile_key', profile_key).execute()
             
             if not existing.data:
-                logger.error(f"❌ Profile '{profile_key}' not found for hard deletion")
+                logger.error(f"Profile '{profile_key}' not found for hard deletion")
                 return False
             
             profile = existing.data[0]
             
             # Safety check: only allow hard delete of custom profiles
             if not profile.get('is_custom', True):
-                logger.error(f"❌ Cannot hard delete built-in profile '{profile_key}'")
+                logger.error(f"Cannot hard delete built-in profile '{profile_key}'")
                 return False
             
             # Perform hard delete - completely remove from database
             response = self.supabase.table('rag_profiles').delete().eq('profile_key', profile_key).execute()
             
             if response.data:
-                logger.warning(f"🔥 HARD DELETED profile permanently: {profile_key}")
+                logger.warning(f"HARD DELETED profile permanently: {profile_key}")
                 return True
             else:
-                logger.error(f"❌ Failed to hard delete profile '{profile_key}'")
+                logger.error(f"Failed to hard delete profile '{profile_key}'")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Error hard deleting profile '{profile_key}': {e}")
+            logger.error(f"Error hard deleting profile '{profile_key}': {e}")
             return False
     
     def get_hidden_profiles(self) -> List[str]:
@@ -205,11 +205,11 @@ class SupabaseProfileManager:
             response = self.supabase.table('rag_profiles').select('profile_key').eq('is_hidden', True).is_('deleted_at', 'null').execute()
             
             hidden_profiles = [profile['profile_key'] for profile in response.data]
-            logger.info(f"🔒 Retrieved {len(hidden_profiles)} hidden profiles")
+            logger.info(f"Retrieved {len(hidden_profiles)} hidden profiles")
             return hidden_profiles
             
         except Exception as e:
-            logger.error(f"❌ Error getting hidden profiles: {e}")
+            logger.error(f"Error getting hidden profiles: {e}")
             return []
     
     def set_profile_hidden(self, profile_key: str, is_hidden: bool) -> bool:
@@ -221,14 +221,14 @@ class SupabaseProfileManager:
             
             if response.data:
                 visibility = "hidden" if is_hidden else "visible"
-                logger.info(f"👁️ Set profile '{profile_key}' to {visibility}")
+                logger.info(f"Set profile '{profile_key}' to {visibility}")
                 return True
             else:
-                logger.error(f"❌ Profile '{profile_key}' not found")
+                logger.error(f"Profile '{profile_key}' not found")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Error setting profile visibility for '{profile_key}': {e}")
+            logger.error(f"Error setting profile visibility for '{profile_key}': {e}")
             return False
     
     def list_available_profiles(self) -> Dict[str, str]:
@@ -240,11 +240,11 @@ class SupabaseProfileManager:
             for profile in response.data:
                 profiles[profile['profile_key']] = profile['description'] or profile['name']
             
-            logger.info(f"📋 Listed {len(profiles)} available profiles")
+            logger.info(f"Listed {len(profiles)} available profiles")
             return profiles
             
         except Exception as e:
-            logger.error(f"❌ Error listing available profiles: {e}")
+            logger.error(f"Error listing available profiles: {e}")
             return {}
     
     def validate_data_integrity(self) -> Dict[str, Any]:
@@ -271,7 +271,7 @@ class SupabaseProfileManager:
             return report
             
         except Exception as e:
-            logger.error(f"❌ Error validating data integrity: {e}")
+            logger.error(f"Error validating data integrity: {e}")
             return {'error': str(e)}
 
 # Create global instance
@@ -317,7 +317,7 @@ if __name__ == "__main__":
     # Test the new system
     manager = get_supabase_profile_manager()
     
-    print("🧪 Testing Supabase Profile Manager")
+    print("Testing Supabase Profile Manager")
     print("=" * 50)
     
     # Test data integrity
