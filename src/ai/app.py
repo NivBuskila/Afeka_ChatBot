@@ -10,6 +10,9 @@ import dotenv
 from flask_cors import CORS
 from core.gemini_key_manager import safe_generate_content
 from core.gemini_key_manager import get_key_manager
+import asyncio
+import traceback
+import requests
 
 # Add backend path for RAG module access
 backend_path = Path(__file__).parent.parent / "backend"
@@ -92,7 +95,6 @@ def rag_search():
         results = doc_processor.search_documents(query, limit, threshold)
         
         # Wait for results as this is an async function
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         results = loop.run_until_complete(results)
@@ -125,7 +127,6 @@ def rag_hybrid_search():
         results = doc_processor.hybrid_search(query, limit, threshold)
         
         # Wait for results as this is an async function
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         results = loop.run_until_complete(results)
@@ -156,7 +157,6 @@ def rag_enhanced_search():
             return jsonify({"error": "Query cannot be empty"}), 400
         
         # Perform advanced search
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -238,7 +238,6 @@ def rag_reprocess_document(document_id):
         return jsonify({"error": "RAG modules not available"}), 503
     
     try:
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -441,7 +440,6 @@ async def chat():
         if has_rag and enhanced_processor and ('use_rag' not in data or data.get('use_rag', True)):
             try:
                 logger.info("Using enhanced RAG system for response generation")
-                import asyncio
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
@@ -515,7 +513,7 @@ async def chat():
         return response
         
     except Exception as e:
-        import traceback
+        
         logger.error(f"Unexpected error in chat endpoint: {str(e)}")
         logger.error(traceback.format_exc())
         response = jsonify({
@@ -531,7 +529,6 @@ def key_status():
     """Key management status"""
     try:
         # Simple solution: call backend API instead of handling database directly
-        import requests
         backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
         
         response = requests.get(f"{backend_url}/api/keys/", timeout=10)
@@ -561,7 +558,6 @@ def key_status():
             }
         }), 500
     except Exception as e:
-        import traceback
         traceback.print_exc()
         
         return jsonify({
@@ -578,7 +574,6 @@ def key_status():
 def debug_key_status():
     """Debug key status"""
     try:
-        from core.gemini_key_manager import get_key_manager
         manager = get_key_manager()
         
         # Direct system status check

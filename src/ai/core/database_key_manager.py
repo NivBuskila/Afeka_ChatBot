@@ -3,8 +3,8 @@ import logging
 import os
 import time
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-from supabase import create_client, Client
+from supabase import create_client
+from datetime import date, timezone, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +254,6 @@ class DatabaseKeyManager:
             self._initial_load_done = True
         
         try:
-            from datetime import date, timezone, datetime
             today = date.today().isoformat()
             current_minute_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
             

@@ -9,6 +9,7 @@ import google.generativeai as genai
 from .token_persistence import TokenUsagePersistence
 import asyncio
 from .database_key_manager import DatabaseKeyManager
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -421,25 +422,8 @@ async def safe_generate_content(*args, **kwargs) -> Any:
         
         logger.info(f"Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
-                current_key_data = manager.api_keys[manager.current_key_index]
-                key_id = current_key_data.get('id')
-                if key_id:
-                    import threading
-                    def async_track():
-                        import asyncio
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
-                            loop.close()
-                        except Exception as e:
-                            logger.error(f"Background tracking failed: {e}")
-                    threading.Thread(target=async_track, daemon=True).start()
-        else:
-            manager.track_usage(estimated_tokens)
-        
+        _estimate_tokens(manager, estimated_tokens)
+                
         return response
             
     except Exception as e:
@@ -463,24 +447,7 @@ async def safe_embed_content(*args, **kwargs) -> Any:
         
         logger.info(f"Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
-                current_key_data = manager.api_keys[manager.current_key_index]
-                key_id = current_key_data.get('id')
-                if key_id:
-                    import threading
-                    def async_track():
-                        import asyncio
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
-                            loop.close()
-                        except Exception as e:
-                            logger.error(f"Background tracking failed: {e}")
-                    threading.Thread(target=async_track, daemon=True).start()
-        else:
-            manager.track_usage(estimated_tokens)
+        _estimate_tokens(manager, estimated_tokens)
         
         return response
         
@@ -510,3 +477,21 @@ def get_key_manager():
         logger.info(f"Using EXISTING Database Key Manager instance ID: {id(_key_manager)}")
         
     return _key_manager
+
+def _estimate_tokens(manager: DatabaseKeyManager, estimated_tokens: int):
+    if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
+            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
+                current_key_data = manager.api_keys[manager.current_key_index]
+                key_id = current_key_data.get('id')
+                if key_id:
+                    def async_track():
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
+                            loop.close()
+                        except Exception as e:
+                            logger.error(f"Background tracking failed: {e}")
+                    threading.Thread(target=async_track, daemon=True).start()
+    else:
+        manager.track_usage(estimated_tokens)

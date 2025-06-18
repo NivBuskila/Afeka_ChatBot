@@ -1,6 +1,6 @@
 """
-מודול חיפוש מתקדם (Advanced Retrieval) לתקנוני מכללה
-מממש את השלב השלישי בתוכנית האסטרטגית: Multi-Stage Retrieval עם Re-ranking
+Advanced Retrieval module for Afeka College regulations
+Implements the third stage of the strategic plan: Multi-Stage Retrieval with Re-ranking
 """
 
 import re
@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SearchResult:
-    """תוצאת חיפוש מורחבת"""
     chunk_id: int
     chunk_text: str
     section_number: str
@@ -31,7 +30,6 @@ class SearchResult:
 
 @dataclass
 class ContextBundle:
-    """חבילת קונטקסט מלא למענה"""
     main_result: SearchResult
     hierarchical_context: List[SearchResult]
     related_subsections: List[SearchResult]
@@ -40,10 +38,8 @@ class ContextBundle:
     total_context_length: int
 
 class AdvancedRetriever:
-    """מחלק מתקדם לחיפוש רב-שלבי עם re-ranking חכם"""
     
     def __init__(self):
-        # משקלים לחישוב הציון הסופי
         self.scoring_weights = {
             'semantic_similarity': 0.4,
             'exact_match_bonus': 0.3,
@@ -51,7 +47,6 @@ class AdvancedRetriever:
             'recency_factor': 0.1
         }
         
-        # דפוסי זיהוי שאלות על מספרי סעיפים
         self.section_query_patterns = [
             r'סעיף\s+(\d+(?:\.\d+)*)',
             r'(\d+(?:\.\d+)*)\s*(?:\.|\-|\s)',
@@ -59,7 +54,6 @@ class AdvancedRetriever:
             r'תקנה\s+(\d+(?:\.\d+)*)'
         ]
         
-        # מילות מפתח לזיהוי סוג השאלה
         self.query_type_keywords = {
             'temporal': ['מתי', 'מועד', 'תאריך', 'זמן', 'שנה', 'סמסטר'],
             'procedural': ['איך', 'כיצד', 'תהליך', 'הליך', 'בקשה'],
@@ -72,52 +66,52 @@ class AdvancedRetriever:
                                 query: str, 
                                 max_results: int = 10,
                                 semantic_threshold: float = 0.8) -> List[SearchResult]:
-        """חיפוש רב-שלבי מתקדם"""
         
-        logger.info(f"מתחיל חיפוש רב-שלבי עבור: '{query}'")
+        
+        logger.info(f"Starting multi-stage search for: '{query}'")
         
         all_results = []
         
-        # Stage 1: Exact Match - חיפוש ישיר על מספרי סעיפים
+        # Stage 1: Exact Match - Direct search on section numbers
         exact_results = await self._exact_match_search(query)
         all_results.extend(exact_results)
-        logger.info(f"Stage 1 (Exact): {len(exact_results)} תוצאות")
+        logger.info(f"Stage 1 (Exact): {len(exact_results)} results")
         
-        # Stage 2: Semantic Search - חיפוש סמנטי  
+        # Stage 2: Semantic Search - Semantic search
         if len(all_results) < max_results:
             semantic_results = await self._semantic_search(query, semantic_threshold, max_results - len(all_results))
             all_results.extend(semantic_results)
-            logger.info(f"Stage 2 (Semantic): {len(semantic_results)} תוצאות")
+            logger.info(f"Stage 2 (Semantic): {len(semantic_results)} results")
         
-        # Re-ranking - דירוג מחדש
+        # Re-ranking - Re-ranking
         ranked_results = self._rerank_results(all_results, query)
         
-        # הסרת כפילויות והחזרת התוצאות הטובות ביותר
+        # Remove duplicates and return the best results
         unique_results = self._remove_duplicates(ranked_results)
         final_results = unique_results[:max_results]
         
-        logger.info(f"סיים חיפוש רב-שלבי: {len(final_results)} תוצאות סופיות")
+        logger.info(f"Multi-stage search completed: {len(final_results)} final results")
         return final_results
 
     async def _exact_match_search(self, query: str) -> List[SearchResult]:
-        """חיפוש ישיר על מספרי סעיפים"""
+        """Direct search on section numbers"""
         results = []
-        # מימוש בסיסי - יורחב בהמשך
+        # Basic implementation - will be expanded later
         return results
 
     async def _semantic_search(self, query: str, threshold: float, limit: int) -> List[SearchResult]:
-        """חיפוש סמנטי באמצעות embeddings"""
+        """Semantic search using embeddings"""
         results = []
-        # מימוש בסיסי - יורחב בהמשך
+        # Basic implementation - will be expanded later
         return results
 
     def _rerank_results(self, results: List[SearchResult], query: str) -> List[SearchResult]:
-        """דירוג מחדש של התוצאות עם חישוב ציון סופי"""
+        """Re-ranking of results with final score calculation"""
         
         query_type = self._classify_query_type(query)
         
         for result in results:
-            # התאמת משקלים לפי סוג השאלה
+            # Match weights by question type
             weights = self.scoring_weights.copy()
             
             if query_type == 'temporal' and result.content_type == 'temporal':
@@ -130,7 +124,7 @@ class AdvancedRetriever:
                 weights['semantic_similarity'] = 0.6
                 weights['exact_match_bonus'] = 0.2
             
-            # חישוב ציון סופי
+            # Calculate final score
             result.final_score = (
                 result.similarity_score * weights['semantic_similarity'] +
                 result.exact_match_bonus * weights['exact_match_bonus'] +
@@ -138,11 +132,11 @@ class AdvancedRetriever:
                 result.recency_factor * weights['recency_factor']
             )
         
-        # מיון לפי ציון סופי
+        # Sort by final score
         return sorted(results, key=lambda x: x.final_score, reverse=True)
 
     def _classify_query_type(self, query: str) -> str:
-        """סיווג סוג השאלה"""
+        """Classify question type"""
         query_lower = query.lower()
         
         for query_type, keywords in self.query_type_keywords.items():
@@ -153,7 +147,7 @@ class AdvancedRetriever:
         return 'general'
 
     def _remove_duplicates(self, results: List[SearchResult]) -> List[SearchResult]:
-        """הסרת כפילויות לפי chunk_id"""
+        """Remove duplicates by chunk_id"""
         seen_ids = set()
         unique_results = []
         

@@ -9,10 +9,10 @@ import tempfile
 import re 
 
 import google.generativeai as genai
-# from langchain.text_splitter import SemanticChunker # Old import
-from langchain_experimental.text_splitter import SemanticChunker # New import
+
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter # Added for more reliable chunking
+from langchain.text_splitter import RecursiveCharacterTextSplitter 
 import tiktoken
 from supabase import create_client, Client
 import PyPDF2
@@ -22,7 +22,6 @@ from ..core.gemini_key_manager import get_key_manager, safe_embed_content
 # Import SemanticChunker and Gemini Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-# ייבוא קובץ ההגדרות החדש
 from ..config.rag_config import (
     get_embedding_config,
     get_chunk_config,
@@ -44,7 +43,7 @@ class DocumentProcessor:
         )
         logger.debug(f"Supabase client initialized for URL: {os.getenv('SUPABASE_URL')}")
         
-        # קבלת הגדרות מהconfig החדש
+        # Get settings from config
         self.embedding_config = get_embedding_config()
         self.chunk_config = get_chunk_config()
         self.db_config = get_database_config()
@@ -72,10 +71,8 @@ class DocumentProcessor:
             logger.error(f"Failed to initialize GoogleGenerativeAIEmbeddings: {e_emb_init}", exc_info=True)
             raise
 
-        # Initialize both text splitters
         logger.debug("Initializing text splitters...")
         
-        # SemanticChunker for backup
         self.semantic_splitter = SemanticChunker(
             embeddings=gemini_embeddings, 
             breakpoint_threshold_type="percentile"
@@ -258,12 +255,11 @@ class DocumentProcessor:
                 await self._update_document_status(document_id, "failed", final_status_reason)
                 return {"success": False, "document_id": document_id, "chunks_created": successful_rpc_inserts, "error": final_status_reason}
             
-            # If we reach here, all RPC inserts to '{self.db_config.CHUNKS_TABLE}' were successful.
+          
             logger.info(f"All {successful_rpc_inserts} chunks for document ID {document_id} saved successfully to '{self.db_config.CHUNKS_TABLE}' via RPC.")
             
-            # --- Backward Compatibility: Save to 'embeddings' table ---
-            # This uses 'chunk_meta_info_for_bc' and 'processed_chunks_for_db' which should be aligned.
-            if successful_rpc_inserts > 0: # Only proceed if primary chunks were saved
+            
+            if successful_rpc_inserts > 0: 
                 logger.info(f"Attempting to save {len(chunk_meta_info_for_bc)} items to 'embeddings' table for backward compatibility (doc ID: {document_id}).")
                 bc_inserts_count = 0
                 for i, meta_info in enumerate(chunk_meta_info_for_bc):
@@ -283,7 +279,6 @@ class DocumentProcessor:
                                 bc_inserts_count += 1
                             elif hasattr(bc_response, 'error') and bc_response.error:
                                 logger.error(f"BC Save: Error inserting item {i+1} to 'embeddings' for doc {document_id}: {bc_response.error.message}")
-                            # else: log warning for no data/no error if necessary
                         except Exception as e_bc_insert_exc:
                             logger.error(f"BC Save: Exception inserting item {i+1} to 'embeddings' for doc {document_id}: {e_bc_insert_exc}", exc_info=True)
                     else:
@@ -291,10 +286,8 @@ class DocumentProcessor:
                 
                 logger.info(f"Backward compatibility: Saved {bc_inserts_count}/{len(chunk_meta_info_for_bc)} items to 'embeddings' table for doc ID: {document_id}.")
             
-            # Update main document status and content (if all primary chunks saved)
             await self._update_document_status(document_id, "completed")
             
-            # Only try to update document content if we processed fewer than MAX_VECTORS_PER_DOCUMENT
             if len(raw_chunks) <= self.chunk_config.MAX_CHUNKS_PER_DOCUMENT:
                 await self._update_document_content(document_id, raw_chunks)
             else:
@@ -327,7 +320,7 @@ class DocumentProcessor:
                 "file_name": Path(file_path).name
             }
             
-            # Extract text based on file type
+           
             file_extension = Path(file_path).suffix.lower()
             if file_extension == '.pdf':
                 doc_text_content = self._extract_pdf_text(file_path)
@@ -347,14 +340,11 @@ class DocumentProcessor:
 
             logger.debug(f"Splitting text content (length: {len(doc_text_content)}) using {type(self.text_splitter).__name__}'s split_documents method...")
             
-            # Create a Document object
             doc = type('Document', (), {'page_content': doc_text_content, 'metadata': original_metadata})()
             
-            # Use split_documents which returns List[Document]
             chunks = self.text_splitter.split_documents([doc])
             logger.info(f"Successfully split document {file_path} into {len(chunks)} chunks.")
 
-            # Add metadata for each chunk
             for i, chunk in enumerate(chunks):
                 chunk.metadata["chunk_index"] = i
                 
@@ -393,7 +383,7 @@ class DocumentProcessor:
             logger.debug(f"DOCX file has {len(doc.paragraphs)} paragraphs.")
             for i, paragraph in enumerate(doc.paragraphs):
                 text += paragraph.text + "\n"
-                # Add less verbose logging here, maybe every N paragraphs or by text length
+                
             logger.info(f"Finished extracting text from DOCX: {file_path}. Total length: {len(text)}")
             return text
         except Exception as e:
@@ -401,7 +391,7 @@ class DocumentProcessor:
             raise
 
     async def _generate_embedding(self, text: str, is_query: bool = False) -> Optional[List[float]]:
-        """יצירת embedding לטקסט"""
+        """Create embedding for text"""
         task_type = "retrieval_query" if is_query else "retrieval_document"
         cleaned_text = text[:50].replace('\n', ' ')
         logger.debug(f"Attempting to generate embedding for text (first 50 chars): '{cleaned_text}' with task_type: {task_type}")
@@ -410,17 +400,13 @@ class DocumentProcessor:
             logger.warning(f"Cannot generate embedding for empty or whitespace-only text. Task type: {task_type}")
             return None
         
-        # Ensure API key is available (it should be, from __init__ or process_document)
+       
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             logger.error("GEMINI_API_KEY not found when trying to generate embedding.")
             return None
-        # genai.configure(api_key=api_key) # Potentially redundant if globally configured, but safe.
         
         try:
-            # The model name for embeddings might be different from generative models.
-            # Using the model specified for embeddings, e.g., "models/embedding-001"
-            # Task types: "retrieval_query", "retrieval_document", "semantic_similarity", "classification", "clustering"
             logger.debug(f"Calling genai.embed_content with model {self.embedding_config.MODEL_NAME} and task_type {task_type}")
             result = await safe_embed_content(
                 model=self.embedding_config.MODEL_NAME,
@@ -434,7 +420,7 @@ class DocumentProcessor:
             return None
 
     async def _update_document_status(self, document_id: int, status: str, note: Optional[str] = None):
-        """עדכון סטטוס המסמך במסד הנתונים"""
+        """Update document status in database"""
         logger.info(f"Updating status for document ID {document_id} to '{status}'. Note: '{note or ''}'")
         try:
             update_data = {"processing_status": status}
@@ -442,7 +428,7 @@ class DocumentProcessor:
                 update_data["processing_notes"] = note
             
             response = self.supabase.table(self.db_config.DOCUMENTS_TABLE).update(update_data).eq("id", document_id).execute()
-            # Check response for errors (Supabase client specific)
+           
             if hasattr(response, 'data') and response.data:
                 logger.debug(f"Successfully updated status for document ID {document_id} to {status}. Response: {response.data}")
             elif hasattr(response, 'error') and response.error is not None:
@@ -462,7 +448,7 @@ class DocumentProcessor:
         deleted_chunks_count = 0
         deleted_advanced_chunks_count = 0
         try:
-            # Delete chunks from 'advanced_document_chunks' table (new system)
+           
             logger.debug(f"Deleting chunks for document_id: {document_id} from 'advanced_document_chunks' table.")
             delete_advanced_chunks_response = self.supabase.table("advanced_document_chunks").delete().eq("document_id", document_id).execute()
             
@@ -470,7 +456,7 @@ class DocumentProcessor:
                 deleted_advanced_chunks_count = len(delete_advanced_chunks_response.data)
                 logger.info(f"Successfully deleted {deleted_advanced_chunks_count} advanced chunks for document_id: {document_id}.")
             
-            # Delete chunks from 'document_chunks' table (old system - for cleanup)
+           
             logger.debug(f"Deleting chunks for document_id: {document_id} from 'document_chunks' table.")
             delete_chunks_response = self.supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
             
@@ -478,7 +464,7 @@ class DocumentProcessor:
                 deleted_chunks_count = len(delete_chunks_response.data)
                 logger.info(f"Successfully deleted {deleted_chunks_count} old chunks for document_id: {document_id}.")
 
-            # Delete the document from 'documents' table
+           
             logger.debug(f"Deleting document record for document_id: {document_id} from 'documents' table.")
             delete_document_response = self.supabase.table(self.db_config.DOCUMENTS_TABLE).delete().eq("id", document_id).execute()
 
@@ -505,21 +491,21 @@ class DocumentProcessor:
         """
         logger.info(f"Attempting to delete all embeddings/chunks for document_id: {document_id}")
         try:
-            # Delete from new advanced_document_chunks table
+           
             logger.info(f"Deleting chunks from 'advanced_document_chunks' for document_id: {document_id}")
             delete_advanced_response = self.supabase.table("advanced_document_chunks").delete().eq("document_id", document_id).execute()
             
             advanced_deleted_count = len(delete_advanced_response.data) if delete_advanced_response.data else 0
             logger.info(f"Deleted {advanced_deleted_count} chunks from 'advanced_document_chunks' for document_id: {document_id}")
 
-            # Delete from old document_chunks table
+           
             logger.info(f"Deleting chunks from 'document_chunks' for document_id: {document_id}")
             delete_old_response = self.supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
             
             old_deleted_count = len(delete_old_response.data) if delete_old_response.data else 0
             logger.info(f"Deleted {old_deleted_count} chunks from 'document_chunks' for document_id: {document_id}")
 
-            # Also delete from the old 'embeddings' table for cleanup
+           
             try:
                 logger.info(f"Attempting to delete old embeddings from 'embeddings' table for document_id: {document_id}.")
                 delete_old_embeddings_response = self.supabase.table("embeddings").delete().eq("document_id", document_id).execute()
@@ -540,17 +526,17 @@ class DocumentProcessor:
             return {"success": False, "message": str(e)}
 
     async def search_documents(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
-        """חיפוש סמנטי במסמכים באמצעות המערכת החדשה"""
+        """Semantic search in documents using the new system"""
         logger.info(f"Starting enhanced search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # Use the enhanced processor for search
+           
             results = await self.enhanced_processor.search(query, limit)
             logger.info(f"Enhanced search returned {len(results)} results")
             return results
             
         except Exception as e:
             logger.error(f"Error during enhanced search: {e}", exc_info=True)
-            # Fallback to direct embedding search
+           
             try:
                 logger.info("Falling back to direct embedding search")
                 query_embedding = await self._generate_embedding(query, is_query=True)
@@ -577,10 +563,10 @@ class DocumentProcessor:
                 return []
 
     async def hybrid_search(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
-        """חיפוש היברידי במסמכים באמצעות המערכת החדשה"""
+        """Hybrid search in documents using the new system"""
         logger.info(f"Starting enhanced hybrid search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # Use the enhanced processor for hybrid search
+           
             results = await self.enhanced_processor.search(query, limit)
             logger.info(f"Enhanced hybrid search returned {len(results)} results")
             return results

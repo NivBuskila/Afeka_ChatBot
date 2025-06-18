@@ -1,6 +1,6 @@
 """
-מודול חלוקה חכמה (Smart Chunking) לתקנוני מכללה
-מממש את השלב השני בתוכנית האסטרטגית: אלגוריתם חלוקה היררכי מתקדם
+Smart Chunking module for Afeka College regulations
+Implements the second stage of the strategic plan: Advanced hierarchical chunking algorithm
 """
 
 import re
@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ChunkMetadata:
-    """מטא-דטה מלא לכל chunk"""
     document_name: str
     document_version: str
     chapter: str
@@ -29,7 +28,6 @@ class ChunkMetadata:
 
 @dataclass
 class ProcessedChunk:
-    """chunk מעובד עם כל המטא-דטה"""
     text: str
     metadata: ChunkMetadata
     size: int
@@ -37,17 +35,16 @@ class ProcessedChunk:
     token_count: int
 
 class SmartChunker:
-    """מחלק חכם למסמכי תקנון עם זיהוי היררכיה ומטא-דטה מתקדם"""
     
     def __init__(self):
-        # דפוסי זיהוי סעיפים ופרקים
+        # Section and chapter detection patterns
         self.section_patterns = [
             r'^\s*(\d+(?:\.\d+)*)\s*[.\-]?\s*(.+?)(?:\n|$)',  # 1.2.3 כותרת
             r'^\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*(.+?)(?:\n|$)',  # סעיף 1.2.3:
             r'^\s*פרק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)',  # פרק ראשון:
         ]
         
-        # דפוסי זיהוי הפניות צולבות
+        # Cross-reference detection patterns
         self.cross_ref_patterns = [
             r'כמפורט בסעיף\s+(\d+(?:\.\d+)*)',
             r'בהתאם לסעיף\s+(\d+(?:\.\d+)*)',
@@ -57,7 +54,7 @@ class SmartChunker:
             r'סעיף\s+(\d+(?:\.\d+)*)\s+להלן',
         ]
         
-        # מילות מפתח קריטיות לזיהוי סוג תוכן
+        # Critical keywords for content type identification
         self.content_type_keywords = {
             'rule': ['חובה', 'אסור', 'יש', 'אין', 'רשאי', 'חייב', 'מותר'],
             'procedure': ['בקשה', 'תהליך', 'הליך', 'מועד', 'הגשה', 'אישור'],
@@ -66,7 +63,7 @@ class SmartChunker:
             'temporal': ['מועד', 'תאריך', 'שנה', 'סמסטר', 'חודש', 'יום', 'שעה']
         }
         
-        # מילות מפתח טמפורליות מתקדמות
+        # Advanced temporal keywords
         self.temporal_keywords = [
             r'\d+\s*ימים?', r'\d+\s*שבועות?', r'\d+\s*חודשים?',
             r'סמסטר\s+[אב]', r'שנת\s+לימודים', r'מועד\s+[אב]',
@@ -75,21 +72,21 @@ class SmartChunker:
         ]
 
     def normalize_hebrew_text(self, text: str) -> str:
-        """ניקוי ונירמול טקסט עברית"""
-        # הסרת ניקוד
+        """Cleaning and normalizing Hebrew text"""
+        # Remove diacritics
         text = unicodedata.normalize('NFD', text)
         text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
         
-        # ניקוי תווים מיוחדים אך שמירה על מספרים ופיסוק חשוב
+        # Clean special characters but preserve numbers and important punctuation
         text = re.sub(r'[^\u05D0-\u05EA\u0590-\u05FF0-9a-zA-Z\s\.\-:()"]', ' ', text)
         text = re.sub(r'\s+', ' ', text)
         
         return text.strip()
 
     def extract_section_info(self, text: str) -> Tuple[Optional[str], Optional[str]]:
-        """חילוץ מספר סעיף וכותרת - שיפור לזיהוי סעיפים מורכבים"""
+        """Extract section number and title - improved section detection"""
         
-        # דפוסים מורחבים לזיהוי סעיפים
+        # Enhanced section detection patterns
         enhanced_patterns = [
             # דפוס רגיל: מספר סעיף עם כותרת
             r'^\s*(\d+(?:\.\d+)*)\s*[.\-:]?\s*(.+?)(?:\n|$)',
@@ -105,27 +102,26 @@ class SmartChunker:
             r'^\s*(\d+(?:\.\d+)*)\s+([^\n]+?)(?:\n|$)',
         ]
         
-        # בדיקת הדפוסים הקיימים
+        # Check existing patterns
         for pattern in self.section_patterns + enhanced_patterns:
-            match = re.search(pattern, text[:500], re.MULTILINE | re.UNICODE)  # חיפוש ב-500 תווים ראשונים
+            match = re.search(pattern, text[:500], re.MULTILINE | re.UNICODE)  # Search in first 500 characters
             if match:
                 section_number = match.group(1)
                 section_title = match.group(2).strip() if len(match.groups()) > 1 else ""
                 
-                # ניקוי כותרת מתווים מיותרים
+                # Clean title from extra characters
                 section_title = re.sub(r'^[:\-\.\s]+', '', section_title)
                 section_title = re.sub(r'[:\-\.\s]+$', '', section_title)
                 
                 return section_number, section_title
         
-        # ניסיון נוסף - חיפוש מספרי סעיפים בכל הטקסט
+        # Additional attempt - search for section numbers in the entire text
         section_number_pattern = r'\b(\d+(?:\.\d+){1,3})\b'
         matches = re.findall(section_number_pattern, text[:200])
         if matches:
-            # נבחר את המספר הראשון שנראה כמו מספר סעיף
+            # Select the first number that looks like a section number
             for match in matches:
-                if '.' in match:  # זה נראה כמו מספר סעיף
-                    # ננסה לחלץ כותרת מהמשפט הראשון
+                if '.' in match:
                     first_line = text.split('\n')[0][:100]
                     title = re.sub(r'\d+(?:\.\d+)*\s*[:\-\.]?\s*', '', first_line).strip()
                     return match, title if title else ""
@@ -133,19 +129,19 @@ class SmartChunker:
         return None, None
 
     def find_cross_references(self, text: str) -> List[str]:
-        """זיהוי הפניות צולבות לסעיפים אחרים"""
+        """Identify cross-references to other sections"""
         cross_refs = []
         for pattern in self.cross_ref_patterns:
             matches = re.findall(pattern, text, re.UNICODE)
             cross_refs.extend(matches)
-        return list(set(cross_refs))  # הסרת כפילויות
+        return list(set(cross_refs))  # Remove duplicates
 
     def extract_keywords(self, text: str) -> List[str]:
-        """חילוץ מילות מפתח רלוונטיות"""
+        """Extract relevant keywords"""
         keywords = []
         normalized_text = self.normalize_hebrew_text(text.lower())
         
-        # מילות מפתח חשובות
+        # Important keywords
         important_words = [
             'נוכחות', 'ציון', 'מעבר', 'נקודות זכות', 'תוכנית לימודים',
             'מעבדה', 'פרויקט', 'עבודה', 'מטלה', 'בחינה', 'מבחן',
@@ -156,21 +152,21 @@ class SmartChunker:
             if word in normalized_text:
                 keywords.append(word)
         
-        # זיהוי אחוזים וציונים
+        # Identify percentages and grades
         percentages = re.findall(r'\d+%|\d+\s+אחוז', text)
         keywords.extend(percentages)
         
-        # זיהוי ציונים
+        # Identify grades
         grades = re.findall(r'\d+\s+ומעלה|\d+\s+נקודות', text)
         keywords.extend(grades)
         
         return keywords
 
     def classify_content_type(self, text: str) -> str:
-        """סיווג סוג התוכן"""
+        """Classify content type"""
         normalized_text = self.normalize_hebrew_text(text.lower())
         
-        # בדיקה לפי מילות מפתח
+        # Check by keywords
         type_scores = {content_type: 0 for content_type in self.content_type_keywords}
         
         for content_type, keywords in self.content_type_keywords.items():
@@ -178,29 +174,29 @@ class SmartChunker:
                 if keyword in normalized_text:
                     type_scores[content_type] += 1
         
-        # החזרת הסוג עם הציון הגבוה ביותר
+        # Return the type with the highest score
         max_score = max(type_scores.values())
         if max_score > 0:
             return max(type_scores, key=type_scores.get)
         
-        return 'rule'  # ברירת מחדל
+        return 'rule'  # Default
 
     def is_temporal_content(self, text: str) -> bool:
-        """בדיקה האם התוכן מכיל מידע זמני"""
+        """Check if the content contains temporal information"""
         for pattern in self.temporal_keywords:
             if re.search(pattern, text, re.UNICODE):
                 return True
         return False
 
     def build_hierarchical_path(self, section_number: str, chapter: str = "") -> str:
-        """בניית נתיב היררכי"""
+        """Build hierarchical path"""
         if not section_number:
             return chapter if chapter else ""
         
         parts = section_number.split('.')
         path_parts = []
         
-        # בניית נתיב הדרגתי
+        # Build hierarchical path
         for i in range(len(parts)):
             path_parts.append('.'.join(parts[:i+1]))
         
@@ -209,7 +205,7 @@ class SmartChunker:
         return " > ".join(path_parts)
 
     def smart_split_text(self, text: str, max_chunk_size: int = 600, overlap: int = 100) -> List[Tuple[str, int]]:
-        """חלוקה חכמה של טקסט לפי גודל אמיתי תוך שמירה על קוהרנטיות"""
+        """Smart text splitting by real size while preserving coherence"""
         if len(text) <= max_chunk_size:
             return [(text, 0)]
         
@@ -226,14 +222,14 @@ class SmartChunker:
                 
             sentence_size = len(sentence)
             
-            # אם המשפט גדול מדי לבד, נחלק אותו
+            # If the sentence is too long, split it
             if sentence_size > max_chunk_size:
                 if current_chunk:
                     chunks.append((current_chunk.strip(), overlap if len(chunks) > 0 else 0))
                     current_chunk = ""
                     current_size = 0
                 
-                # חלוקת משפט ארוך
+                # Split long sentence
                 words = sentence.split()
                 temp_chunk = ""
                 for word in words:
@@ -249,12 +245,12 @@ class SmartChunker:
                     current_size = len(current_chunk)
                 continue
             
-            # בדיקה אם הוספת המשפט תחרוג מהגודל המקסימלי
+            # Check if adding the sentence would exceed the maximum size
             if current_size + sentence_size + 1 > max_chunk_size:
                 if current_chunk:
                     chunks.append((current_chunk.strip(), overlap if len(chunks) > 0 else 0))
                 
-                # התחלת chunk חדש עם חפיפה
+                # Start new chunk with overlap
                 overlap_text = current_chunk[-overlap:] if len(current_chunk) > overlap else current_chunk
                 current_chunk = overlap_text + " " + sentence if overlap_text else sentence
                 current_size = len(current_chunk)
@@ -262,7 +258,7 @@ class SmartChunker:
                 current_chunk += " " + sentence if current_chunk else sentence
                 current_size += sentence_size + (1 if current_chunk else 0)
         
-        # הוספת ה-chunk האחרון
+        # Add the last chunk
         if current_chunk.strip():
             chunks.append((current_chunk.strip(), overlap if len(chunks) > 0 else 0))
         
@@ -274,27 +270,27 @@ class SmartChunker:
                         document_version: str = "",
                         max_chunk_size: int = 600,
                         overlap: int = 100) -> List[ProcessedChunk]:
-        """עיבוד מסמך מלא לחלקים חכמים עם מטא-דטה מלא"""
+        """Process full document into smart chunks with full metadata"""
         
-        logger.info(f"מתחיל עיבוד מסמך: {document_name}")
+        logger.info(f"Starting document processing: {document_name}")
         
         processed_chunks = []
         
-        # חלוקה ראשונית לפרקים/סעיפים
+        # Initial split into sections/subsections
         sections = self._split_into_sections(document_text)
         
         for section_text, section_info in sections:
-            # חילוץ מידע על הסעיף
+            # Extract section information
             section_number, section_title = self.extract_section_info(section_text)
             
-            # זיהוי פרק
+            # Identify chapter
             chapter = self._identify_chapter(section_text, section_info)
             
-            # חלוקה חכמה לחלקים
+            # Smart split into chunks
             text_chunks = self.smart_split_text(section_text, max_chunk_size, overlap)
             
             for i, (chunk_text, chunk_overlap) in enumerate(text_chunks):
-                # יצירת מטא-דטה מלא
+                # Create full metadata
                 metadata = ChunkMetadata(
                     document_name=document_name,
                     document_version=document_version,
@@ -310,7 +306,7 @@ class SmartChunker:
                     chunk_type='primary' if i == 0 else 'secondary'
                 )
                 
-                # יצירת chunk מעובד
+                # Create processed chunk
                 processed_chunk = ProcessedChunk(
                     text=chunk_text,
                     metadata=metadata,
@@ -321,13 +317,13 @@ class SmartChunker:
                 
                 processed_chunks.append(processed_chunk)
         
-        logger.info(f"סיים עיבוד מסמך {document_name}: {len(processed_chunks)} chunks נוצרו")
+        logger.info(f"Document processing completed: {document_name} - {len(processed_chunks)} chunks created")
         return processed_chunks
 
     def _split_into_sections(self, text: str) -> List[Tuple[str, Dict]]:
-        """חלוקה ראשונית לסעיפים - שיפור לזיהוי סעיפים קטנים"""
+        """Initial split into sections - improved small section detection"""
         
-        # דפוסים מרובים לזיהוי סעיפים
+        # Multiple section detection patterns
         section_patterns = [
             # סעיפים ברמה הראשית: 1. 2. 3.
             r'(?:^|\n)\s*(\d+)\.?\s+([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
@@ -344,14 +340,14 @@ class SmartChunker:
         all_sections = []
         used_positions = set()
         
-        # חיפוש לפי כל הדפוסים
+        # Search by all patterns
         for pattern in section_patterns:
             matches = list(re.finditer(pattern, text, re.MULTILINE | re.UNICODE))
             for match in matches:
                 start_pos = match.start()
                 end_pos = match.end()
                 
-                # בדיקה שהמיקום לא נתפס כבר
+                # Check if the position is not already used
                 if not any(start_pos <= pos <= end_pos for pos in used_positions):
                     section_number = match.group(1)
                     section_content = match.group(2)
@@ -366,11 +362,11 @@ class SmartChunker:
                     
                     all_sections.append((full_text, section_info))
                     
-                    # סימון הטווח כתפוס
+                    # Mark the range as used
                     for pos in range(start_pos, end_pos + 1):
                         used_positions.add(pos)
         
-        # אם לא נמצאו סעיפים, חלוקה פשוטה לפי פסקאות
+        # If no sections found, simple split by paragraphs
         if not all_sections:
             paragraphs = text.split('\n\n')
             result = []
@@ -380,10 +376,10 @@ class SmartChunker:
                     result.append((para.strip(), section_info))
             return result if result else [(text, {'type': 'full_document'})]
         
-        # מיון לפי מיקום במסמך
+        # Sort by position in the document
         all_sections.sort(key=lambda x: x[1]['start_pos'])
         
-        # הסרת כפילויות לפי מספר סעיף
+        # Remove duplicates by section number
         seen_numbers = set()
         unique_sections = []
         for section_text, section_info in all_sections:
@@ -392,26 +388,26 @@ class SmartChunker:
                 seen_numbers.add(section_number)
                 unique_sections.append((section_text, section_info))
         
-        logger.info(f"נמצאו {len(unique_sections)} סעיפים מזוהים: {[s[1].get('number') for s in unique_sections]}")
+        logger.info(f"Found {len(unique_sections)} identified sections: {[s[1].get('number') for s in unique_sections]}")
         
         return unique_sections
 
     def _identify_chapter(self, text: str, section_info: Dict) -> str:
-        """זיהוי פרק מהטקסט"""
+        """Identify chapter from text"""
         chapter_patterns = [
             r'פרק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)',
             r'חלק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)'
         ]
         
         for pattern in chapter_patterns:
-            match = re.search(pattern, text[:200], re.UNICODE)  # חיפוש רק בתחילת הטקסט
+            match = re.search(pattern, text[:200], re.UNICODE)  # Search only in the beginning of the text
             if match:
                 return f"פרק {match.group(1)} - {match.group(2).strip()}"
         
         return "לא זוהה פרק"
 
     def _estimate_token_count(self, text: str) -> int:
-        """הערכת מספר טוקנים בטקסט עברית"""
-        # הערכה גסה: כ-0.75 טוקן למילה בעברית
+        """Estimate token count in Hebrew text"""
+        # Rough estimate: 0.75 tokens per word in Hebrew
         words = len(text.split())
         return int(words * 0.75) 

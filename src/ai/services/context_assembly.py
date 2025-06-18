@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PromptTemplate:
-    """תבנית prompt מותאמת לסוג השאלה"""
+
     background_info: str
     hierarchical_context: str
     main_content: str
@@ -37,35 +37,27 @@ class ContextBuilder:
                              query: str,
                              query_type: str = 'general',
                              max_context_length: int = 4000) -> PromptTemplate:
-        """בניית קונטקסט מותאם ומיטבי"""
         
-        logger.info(f"בונה קונטקסט מתקדם עבור שאלה מסוג: {query_type}")
+        logger.info(f"Building advanced context for query type: {query_type}")
         
-        # 1. הכנת מידע רקע רלוונטי
         background_info = self._build_background_info(context_bundle, query_type)
         
-        # 2. בניית הקשר היררכי
         hierarchical_context = self._build_hierarchical_context(context_bundle)
         
-        # 3. הכנת התוכן הראשי
         main_content = self._build_main_content(context_bundle)
         
-        # 4. מידע נוסף קשור
         additional_info = self._build_additional_info(context_bundle)
         
-        # 5. הפניות צולבות
         cross_references = self._build_cross_references(context_bundle)
         
-        # 6. הוראות למודל
         instructions = self._build_instructions(query_type, query)
         
-        # בדיקת אורך ובקרה
         total_length = (len(background_info) + len(hierarchical_context) + 
                        len(main_content) + len(additional_info) + 
                        len(cross_references) + len(instructions) + len(query))
         
         if total_length > max_context_length:
-            logger.warning(f"קונטקסט ארוך מדי ({total_length} תווים), מקצץ...")
+            logger.warning(f"Context too long ({total_length} characters), trimming...")
             background_info, main_content, additional_info = self._trim_context(
                 background_info, main_content, additional_info, max_context_length - 1000
             )
@@ -80,14 +72,12 @@ class ContextBuilder:
             question=query
         )
         
-        logger.info(f"קונטקסט נבנה בהצלחה: {total_length} תווים")
+        logger.info(f"Context built successfully: {total_length} characters")
         return prompt_template
 
     def _build_background_info(self, context_bundle: ContextBundle, query_type: str) -> str:
-        """בניית מידע רקע רלוונטי"""
         background_parts = []
         
-        # הוספת הגדרות רלוונטיות
         if context_bundle.definition_context:
             background_parts.append("הגדרות רלוונטיות:")
             for def_result in context_bundle.definition_context[:3]:
@@ -103,7 +93,6 @@ class ContextBuilder:
         return "\n".join(background_parts) if background_parts else ""
 
     def _build_hierarchical_context(self, context_bundle: ContextBundle) -> str:
-        """בניית הקשר היררכי"""
         if not context_bundle.main_result.hierarchical_path:
             return ""
         
@@ -123,7 +112,6 @@ class ContextBuilder:
         return "\n".join(hierarchy_parts)
 
     def _build_main_content(self, context_bundle: ContextBundle) -> str:
-        """בניית התוכן הראשי"""
         main_parts = []
         main_result = context_bundle.main_result
         
@@ -147,7 +135,6 @@ class ContextBuilder:
         return "\n".join(main_parts)
 
     def _build_additional_info(self, context_bundle: ContextBundle) -> str:
-        """בניית מידע נוסף קשור"""
         if not context_bundle.cross_referenced_content:
             return ""
         
@@ -162,7 +149,6 @@ class ContextBuilder:
         return "\n".join(additional_parts)
 
     def _build_cross_references(self, context_bundle: ContextBundle) -> str:
-        """בניית הפניות צולבות"""
         cross_refs = context_bundle.main_result.cross_references
         if not cross_refs:
             return ""
@@ -176,7 +162,6 @@ class ContextBuilder:
         return "\n".join(ref_parts)
 
     def _build_instructions(self, query_type: str, query: str) -> str:
-        """בניית הוראות מותאמות למודל"""
         base_instructions = [
             "הוראות למענה:",
             "1. ענה בהתבסס על התקנון בלבד - אל תוסיף מידע חיצוני",
@@ -230,7 +215,6 @@ class ContextBuilder:
         return background, main, additional
 
     def format_final_prompt(self, template: PromptTemplate) -> str:
-        """עיצוב ה-prompt הסופי"""
         prompt_parts = []
         
         if template.background_info:

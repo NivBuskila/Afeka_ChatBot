@@ -14,7 +14,6 @@ from supabase import create_client, Client
 import numpy as np
 
 try:
-    # Try relative import first (when running from AI module)
     from ..config.current_profile import get_current_profile
     from ..config.rag_config_profiles import get_profile
     from ..config.rag_config import (
@@ -27,7 +26,6 @@ try:
         get_performance_config
     )
 except ImportError:
-    # Fallback to absolute import (when running from outside AI module)
     from src.ai.config.current_profile import get_current_profile
     from src.ai.config.rag_config_profiles import get_profile
     from src.ai.config.rag_config import (
@@ -40,12 +38,9 @@ except ImportError:
         get_performance_config
     )
 
-# בייבוא החדש
 try:
-    # Try relative import first
     from ..core.database_key_manager import DatabaseKeyManager
 except ImportError:
-    # Fallback to absolute import
     from src.ai.core.database_key_manager import DatabaseKeyManager
 
 logger = logging.getLogger(__name__)
@@ -61,11 +56,11 @@ class RAGService:
             os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         )
         
-        # 🆕 החלף ל-Database Key Manager עם חיבור ישיר ל-Supabase
+        # 🆕 Replace with Database Key Manager with direct Supabase connection
         self.key_manager = DatabaseKeyManager(use_direct_supabase=True)
         logger.info("🔑 RAG Service using Database Key Manager with direct Supabase connection")
         
-        # 🎯 טעינת פרופיל מהמערכת המרכזית
+        # 🎯 Load profile from central system
         if config_profile is None:
             try:
                 config_profile = get_current_profile()
@@ -73,7 +68,7 @@ class RAGService:
             except Exception as e:
                 logger.warning(f"Central profile system not found: {e}, using manual profile selection")
         
-        # טעינת הגדרות לפי פרופיל או ברירת מחדל
+        # Load settings by profile or default
         if config_profile:
             try:
                 profile_config = get_profile(config_profile)
@@ -86,7 +81,7 @@ class RAGService:
                 logger.info(f"✅ Using config profile: {config_profile}")
             except Exception as e:
                 logger.warning(f"Failed to load profile '{config_profile}': {e}. Using default config.")
-                # חזרה להגדרות ברירת מחדל
+                # Fallback to default settings
                 self.search_config = get_search_config()
                 self.embedding_config = get_embedding_config()
                 self.context_config = get_context_config()
@@ -94,7 +89,7 @@ class RAGService:
                 self.db_config = get_database_config()
                 self.performance_config = get_performance_config()
         else:
-            # קבלת הגדרות מהconfig החדש
+            # Get settings from new config
             self.search_config = get_search_config()
             self.embedding_config = get_embedding_config()
             self.context_config = get_context_config()
@@ -102,18 +97,18 @@ class RAGService:
             self.db_config = get_database_config()
             self.performance_config = get_performance_config()
         
-        # 🔥 הגדר Key Manager - נטען מפתחות בצורה lazy
+        # 🔥 Configure Key Manager - keys will be loaded when first needed in ensure_available_key()
         # Note: Keys will be loaded when first needed in ensure_available_key()
         logger.info("🔑 Database Key Manager configured - keys will be loaded on first use")
         
-        # 🔥 יצירת מודל Gemini - יש fallback לסביבה
+        # 🔥 Create Gemini model - fallback to environment
         # Try to get key from environment first (safe init approach)
         fallback_key = os.getenv("GEMINI_API_KEY")
         if fallback_key:
             genai.configure(api_key=fallback_key)
             logger.info("🔑 Using GEMINI_API_KEY from environment for initialization")
         else:
-            # Try to use Key Manager for initialization (keys loaded lazily) 
+            # Try to use Key Manager for initialization
             try:
                 if self.key_manager:
                     # Just configure with environment key for now, database keys will be loaded lazily
@@ -125,7 +120,7 @@ class RAGService:
                 logger.error(f"❌ Key initialization failed: {e}")
                 raise Exception("No API keys available")
         
-        # יצירת מודל Gemini עם הגדרות מהconfig
+        # Create Gemini model with settings from config
         self.model = genai.GenerativeModel(
             self.llm_config.MODEL_NAME,
             generation_config=genai.types.GenerationConfig(
@@ -206,7 +201,7 @@ class RAGService:
             logger.error(f"❌ [RAG-GEN-TRACK] Failed to track usage: {e}")
     
     async def generate_query_embedding(self, query: str) -> List[float]:
-        """יוצר embedding עבור שאילתה עם caching"""
+        """Create embedding for query with caching"""
         cache_key = self._get_cache_key(query)
         
         # ⚡ Check cache first
@@ -257,14 +252,14 @@ class RAGService:
         document_id: Optional[int] = None,
         max_results: int = None
     ) -> List[Dict[str, Any]]:
-        """חיפוש סמנטי במסמכים"""
+        """Semantic search in documents"""
         start_time = time.time()
         
         try:
-            # יצירת embedding עבור השאילתה
+            # Create embedding for the query
             query_embedding = await self.generate_query_embedding(query)
             
-            # ביצוע חיפוש באמצעות RPC
+            # Perform search using RPC
             max_results = max_results or self.search_config.MAX_CHUNKS_RETRIEVED
             
             response = self.supabase.rpc(self.db_config.SEMANTIC_SEARCH_FUNCTION, {
@@ -277,7 +272,7 @@ class RAGService:
             results = response.data or []
             response_time = int((time.time() - start_time) * 1000)
             
-            # רישום analytics
+            # Log analytics
             if self.performance_config.LOG_SEARCH_ANALYTICS:
                 await self._log_search_analytics(
                     query, 
@@ -302,13 +297,13 @@ class RAGService:
         semantic_weight: float = None,
         keyword_weight: float = None
     ) -> List[Dict[str, Any]]:
-        """חיפוש היברידי (סמנטי + מילות מפתח)"""
+        """Hybrid search (semantic + keyword)"""
         start_time = time.time()
         
         try:
             query_embedding = await self.generate_query_embedding(query)
             
-            # שימוש במשקלים מהconfig אם לא סופקו
+            # Use weights from config if not provided
             semantic_weight = semantic_weight or self.search_config.HYBRID_SEMANTIC_WEIGHT
             keyword_weight = keyword_weight or self.search_config.HYBRID_KEYWORD_WEIGHT
             
@@ -348,7 +343,7 @@ class RAGService:
         section_filter: Optional[str] = None,
         content_type_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """חיפוש מותנה לפי הקשר"""
+        """Contextual search"""
         try:
             query_embedding = await self.generate_query_embedding(query)
             
@@ -371,16 +366,16 @@ class RAGService:
         query: str,
         target_section: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """חיפוש מיוחד למספרי סעיפים ספציפיים"""
+        """Section-specific search"""
         try:
             start_time = time.time()
             
-            # זיהוי מספר סעיף בשאלה
+            # Identify section number in the question
             section_patterns = [
                 r'סעיף\s+(\d+(?:\.\d+)*)',
                 r'בסעיף\s+(\d+(?:\.\d+)*)',
                 r'מה\s+(?:אומר|כתוב|נאמר)\s+(?:ב)?סעיף\s+(\d+(?:\.\d+)*)',
-                r'(\d+(?:\.\d+)+)(?:\s|$)',  # מספרי סעיפים כמו 1.5.1
+                r'(\d+(?:\.\d+)+)(?:\s|$)',  # Section numbers like 1.5.1
             ]
             
             extracted_section = target_section
@@ -393,19 +388,19 @@ class RAGService:
                         break
             
             if extracted_section:
-                # חיפוש מיוחד לסעיפים עם pattern matching
+                # Special search for sections with pattern matching
                 query_embedding = await self.generate_query_embedding(query)
                 
                 response = self.supabase.rpc(self.db_config.SECTION_SEARCH_FUNCTION, {
                     'query_embedding': query_embedding,
                     'section_number': extracted_section,
-                    'similarity_threshold': 0.3,  # סף נמוך יותר לחיפוש סעיפים
+                    'similarity_threshold': 0.3,  # Lower threshold for section search
                     'max_results': self.search_config.MAX_CHUNKS_FOR_CONTEXT
                 }).execute()
                 
                 section_results = response.data or []
                 
-                # אם לא נמצא דבר, חפש גם חיפוש היברידי רגיל
+                # If no results, perform regular hybrid search
                 if not section_results:
                     logger.info(f"No section-specific results found for {extracted_section}, falling back to hybrid search")
                     section_results = await self.hybrid_search(query)
@@ -415,27 +410,27 @@ class RAGService:
                 
                 return section_results
             else:
-                # אם לא נמצא מספר סעיף, חזור לחיפוש רגיל
+                # If no section number, fall back to regular hybrid search
                 logger.info("No section number detected, falling back to hybrid search")
                 return await self.hybrid_search(query)
                 
         except Exception as e:
             logger.error(f"Error in section specific search: {e}")
-            # חזרה לחיפוש רגיל במקרה של שגיאה
+            # Fall back to regular hybrid search in case of error
             return await self.hybrid_search(query)
 
     def _build_context(self, search_results: List[Dict[str, Any]]) -> Tuple[str, List[str], List[Dict[str, Any]]]:
-        """בונה קונטקסט מתוצאות החיפוש ומחזיר גם את הchunks שבפועל נכללו"""
+        """Build context from search results and return also the chunks that were actually included"""
         context_chunks = []
         citations = []
-        included_chunks = []  # 🆕 רשימת החלקים שבפועל נכללו בקונטקסט
+        included_chunks = []  # 🆕 List of chunks that were actually included in the context
         total_tokens = 0
         
-        # ✅ הסרה של hard-coding! עכשיו נסתמך על אלגוריתם חכם בלבד
-        # החיפוש כבר מדורג לפי רלוונטיות - נשמור על הסדר הזה
+        # ✅ Remove hard-coding! Now rely on smart algorithm only
+        # Search is already ranked by relevance - keep this order
         reordered_results = search_results
         
-        # מגביל למספר chunks מקסימלי ולגבול tokens
+        # Limit number of chunks and token limit
         max_chunks_for_context = min(
             len(reordered_results), 
             self.search_config.MAX_CHUNKS_FOR_CONTEXT
@@ -445,14 +440,14 @@ class RAGService:
             chunk_content = result.get('chunk_text', result.get('content', ''))
             document_name = result.get('document_name', f'מסמך {i+1}')
             
-            # הערכת tokens (בקירוב)
+            # Estimate tokens (approximately)
             estimated_tokens = len(chunk_content.split()) * 1.3
             
             if total_tokens + estimated_tokens > self.context_config.MAX_CONTEXT_TOKENS:
                 logger.info(f"Context token limit reached at chunk {i}")
                 break
             
-            # הוספת מידע על הציון דומיות אם זמין
+            # Add similarity score information if available
             similarity_info = ""
             if 'similarity_score' in result:
                 similarity_info = f" (דומיות: {result['similarity_score']:.3f})"
@@ -461,7 +456,7 @@ class RAGService:
             
             context_chunks.append(f"מקור {len(included_chunks)+1} - {document_name}{similarity_info}:\n{chunk_content}")
             citations.append(document_name)
-            included_chunks.append(result)  # 🆕 שמירת החלק שנכלל
+            included_chunks.append(result)  # 🆕 Save the chunk that was actually included
             total_tokens += estimated_tokens
         
         context = "\n\n".join(context_chunks)
@@ -470,17 +465,17 @@ class RAGService:
         return context, citations, included_chunks
 
     def _find_best_chunk_for_display(self, search_results: List[Dict[str, Any]], query: str) -> Dict[str, Any]:
-        """מוצא את החלק הכי רלוונטי להצגה ב-UI - חיפוש חכם עם דגש על ביטויים מדויקים
+        """Find the most relevant chunk for display in UI - smart search with emphasis on exact phrases
         
-        ⚠️ DEPRECATED: פונקציה זו לא בשימוש יותר. במקום זה, המודל מצטט את המקורות שהוא משתמש בהם
-        באמצעות _extract_cited_sources ו-_get_cited_chunks.
+        ⚠️ DEPRECATED: This function is no longer used. Instead, the model cites the sources it uses
+        using _extract_cited_sources and _get_cited_chunks.
         """
         if not search_results:
             return None
         
         query_lower = query.lower()
         
-        # 🎯 קודם כל - חיפוש ביטויים מדויקים מהשאלה
+        # 🎯 First, search for exact phrases from the question
         exact_phrases = []
         if 'מן המניין' in query_lower:
             exact_phrases.append('מן המניין')
@@ -489,7 +484,7 @@ class RAGService:
         if 'ועדת מלגות' in query_lower:
             exact_phrases.append('ועדת מלגות')
         
-        # אם יש ביטוי מדויק, חפש אותו ראשון
+        # If there is an exact phrase, search for it first
         if exact_phrases:
             for chunk in search_results:
                 chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
@@ -498,7 +493,7 @@ class RAGService:
                         logger.info(f"🎯 Found exact phrase '{phrase}' in chunk - selecting it")
                         return chunk
         
-        # מילות מפתח לנושאים שונים
+        # Topic keywords for different topics
         topic_keywords = {
             'parking': ['חני', 'חנה', 'קנס', 'מגרש', 'רכב'],
             'scholarships': ['מלגה', 'מלגות', 'ועדת', 'סיוע', 'בקשה'],
@@ -508,7 +503,7 @@ class RAGService:
             'student_status': ['מן המניין', 'על תנאי', 'סטודנט', 'מעמד']
         }
         
-        # זיהוי נושא השאלה
+        # Identify the question topic
         query_topic = None
         for topic, keywords in topic_keywords.items():
             if any(keyword in query_lower for keyword in keywords):
@@ -524,23 +519,23 @@ class RAGService:
             
             score = 0
             
-            # בונוס גבוה מאוד לביטויים מדויקים
+            # Bonus for exact phrases
             for phrase in exact_phrases:
                 if phrase in chunk_text:
-                    score += 100  # משקל מאוד גבוה
+                    score += 100  # Very high bonus
             
-            # אם זיהינו נושא, חפש מילות מפתח רלוונטיות
+            # If we identified a topic, search for relevant keywords
             if query_topic and query_topic in topic_keywords:
                 relevant_keywords = topic_keywords[query_topic]
                 topic_matches = sum(1 for keyword in relevant_keywords if keyword in chunk_lower)
                 score += topic_matches * 10
             
-            # בונוס למילות מפתח מהשאלה עצמה
+            # Bonus for keywords from the question itself
             query_words = [word.strip() for word in query.split() if len(word.strip()) > 2]
             direct_matches = sum(1 for word in query_words if word in chunk_text)
             score += direct_matches * 5
             
-            # בונוס לדומיות גבוהה (משקל נמוך יותר)
+            # Bonus for high similarity (lower weight)
             similarity = chunk.get('similarity_score', chunk.get('similarity', 0))
             score += similarity * 2
             
@@ -548,7 +543,7 @@ class RAGService:
                 best_score = score
                 best_chunk = chunk
         
-        # אם לא נמצא match טוב, קח את זה עם הדומיות הגבוהה ביותר
+        # If no good match, take the one with the highest similarity
         if best_chunk is None and search_results:
             best_chunk = max(search_results, 
                            key=lambda x: x.get('similarity_score', x.get('similarity', 0)))
@@ -557,7 +552,7 @@ class RAGService:
         return best_chunk
 
     def _create_rag_prompt(self, query: str, context: str) -> str:
-        """יוצר prompt מותאם לשאלות תקנונים עם הנחיה לציטוט מקורות"""
+        """Create prompt for RAG questions with instructions to cite sources"""
         return f"""אתה עוזר אקדמי המתמחה בתקנוני מכללת אפקה. ענה על השאלה בהתבסס על המידע הרלוונטי שניתן.
 
 הקשר רלוונטי מהתקנונים:
@@ -600,10 +595,10 @@ class RAGService:
 תשובה:"""
 
     def _extract_cited_sources(self, answer: str) -> List[int]:
-        """מחלץ את המקורות שציטט המודל מהתשובה עם validation חזק"""
+        """Extract the sources cited by the model from the answer with strong validation"""
         import re
         
-        # פטרנים חלופיים לזיהוי ציטוטים
+        # Alternative patterns for source identification
         patterns = [
             r'\[מקורות:\s*([^\]]+)\]',  # הפטרן הסטנדרטי
             r'\[מקור:\s*([^\]]+)\]',    # ללא ס' ברבים
@@ -620,16 +615,16 @@ class RAGService:
             if match:
                 sources_text = match.group(1)
                 pattern_used = i + 1
-                logger.info(f"🔍 מקורות נמצאו עם פטרן #{pattern_used}: {sources_text}")
+                logger.info(f"🔍 Sources found with pattern #{pattern_used}: {sources_text}")
                 break
         
         if not sources_text:
-            # אזהרה חמורה - Gemini לא ציטט מקורות
-            logger.error("🚨 CRITICAL: לא נמצאו מקורות מצוטטים בתשובה! Gemini לא ציית להוראות!")
-            logger.error(f"📝 תשובה מלאה: {answer}")
+            # Critical warning - Gemini didn't cite sources
+            logger.error("🚨 CRITICAL: No sources cited in the answer! Gemini didn't follow the instructions!")
+            logger.error(f"📝 Full answer: {answer}")
             return []
         
-        # חילוץ מספרי המקורות עם validation מתקדם
+        # Extract source numbers with advanced validation
         source_numbers = []
         source_pattern = r'מקור\s*(\d+)'
         source_matches = re.findall(source_pattern, sources_text, re.IGNORECASE)
@@ -637,65 +632,65 @@ class RAGService:
         for match in source_matches:
             try:
                 source_num = int(match)
-                if 1 <= source_num <= 100:  # validation סביר למספר מקורות
+                if 1 <= source_num <= 100:  # Reasonable number of sources
                     source_numbers.append(source_num)
                 else:
-                    logger.warning(f"⚠️ מספר מקור לא סביר: {source_num}")
+                    logger.warning(f"⚠️ Invalid source number: {source_num}")
             except ValueError:
-                logger.warning(f"⚠️ לא ניתן להמיר למספר: {match}")
+                logger.warning(f"⚠️ Cannot convert to number: {match}")
                 continue
         
         if not source_numbers:
-            logger.error(f"🚨 לא נמצאו מספרי מקורות תקינים בטקסט: {sources_text}")
+            logger.error(f"🚨 No valid source numbers found in text: {sources_text}")
         else:
-            logger.info(f"✅ מקורות מצוטטים בהצלחה: {source_numbers}")
+            logger.info(f"✅ Sources cited successfully: {source_numbers}")
         
         return source_numbers
 
     async def _get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_numbers: List[int], query: str = "", answer: str = "") -> List[Dict[str, Any]]:
-        """מחזיר את הchunks שבאמת צוטטו על ידי המודל מתוך הchunks שנכללו בקונטקסט"""
+        """Return the chunks that were actually cited by the model from the chunks that were included in the context"""
         if not cited_source_numbers:
-            # אם לא נמצאו ציטוטים, מצא את הchunk הכי רלוונטי באמצעות semantic similarity
-            logger.warning("⚠️ לא נמצאו ציטוטים מהמודל - מחפש chunk רלוונטי לתשובה באמצעות דמיון סמנטי")
+            # If no citations, find the most relevant chunk using semantic similarity
+            logger.warning("⚠️ No citations found from the model - find a relevant chunk using semantic similarity")
             return await self._find_best_fallback_chunk_semantic(included_chunks, answer)
         
-        # אסוף את כל הchunks שצוטטו
+        # Collect all the chunks that were cited
         cited_chunks = []
         for source_num in cited_source_numbers:
-            # המקורות מתחילים מ-1, אבל האינדקס מתחיל מ-0
+            # Sources start from 1, but the index starts from 0
             index = source_num - 1
             if 0 <= index < len(included_chunks):
                 cited_chunks.append(included_chunks[index])
-                logger.info(f"✅ מצא מקור מצוטט {source_num} (מתוך {len(included_chunks)} chunks בקונטקסט)")
+                logger.info(f"✅ Found cited source {source_num} (out of {len(included_chunks)} chunks in context)")
             else:
-                logger.warning(f"⚠️ מקור {source_num} לא קיים בקונטקסט (יש רק {len(included_chunks)} מקורות)")
+                logger.warning(f"⚠️ Source {source_num} not found in context (only {len(included_chunks)} sources)")
         
         if not cited_chunks:
-            logger.warning("⚠️ לא נמצאו chunks תקינים מהציטוטים - עובר ל-semantic fallback")
+            logger.warning("⚠️ No valid chunks found from the citations - go to semantic fallback")
             return await self._find_best_fallback_chunk_semantic(included_chunks, answer)
         
-        # 🎯 אם יש יותר ממקור אחד שצוטט, בחר את הכי רלוונטי לתשובה
+        # 🎯 If there is more than one cited source, choose the most relevant for the answer
         if len(cited_chunks) > 1:
-            logger.info(f"🔍 נמצאו {len(cited_chunks)} מקורות מצוטטים - בוחר את הכי רלוונטי לתשובה")
+            logger.info(f"🔍 Found {len(cited_chunks)} cited sources - choose the most relevant for the answer")
             best_chunk = await self._find_best_among_cited_chunks(cited_chunks, answer)
             return [best_chunk]
         
         return cited_chunks
 
     async def _find_best_among_cited_chunks(self, cited_chunks: List[Dict[str, Any]], answer: str) -> Dict[str, Any]:
-        """בוחר את הchunk הכי רלוונטי מבין הchunks שצוטטו על ידי הLLM"""
+        """Choose the most relevant chunk from the chunks that were cited by the LLM"""
         if not cited_chunks or not answer:
-            logger.warning("⚠️ לא ניתן לבחור מבין cited chunks - מחזיר ראשון")
+            logger.warning("⚠️ Cannot select from cited chunks - return first")
             return cited_chunks[0] if cited_chunks else None
         
         if len(cited_chunks) == 1:
             return cited_chunks[0]
             
         try:
-            # יצירת embedding לתשובה
+            # Create embedding for the answer
             answer_embedding = await self.generate_query_embedding(answer)
             
-            # חישוב similarity עבור כל chunk מצוטט + ניתוח תוכן
+            # Calculate similarity for each cited chunk + content analysis
             scored_chunks = []
             
             for chunk in cited_chunks:
@@ -703,26 +698,26 @@ class RAGService:
                 chunk_id = chunk.get('id', 'unknown')
                 
                 if chunk_text:
-                    # יצירת embedding לchunk
+                    # Create embedding for the chunk
                     chunk_embedding = await self.generate_query_embedding(chunk_text)
                     
-                    # חישוב cosine similarity
+                    # Calculate cosine similarity
                     similarity = np.dot(answer_embedding, chunk_embedding) / (
                         np.linalg.norm(answer_embedding) * np.linalg.norm(chunk_embedding)
                     )
                     
-                    # ניתוח תוכן להגברת דיוק
+                    # Content analysis for precision enhancement
                     content_score = 0
                     chunk_lower = chunk_text.lower()
                     answer_lower = answer.lower()
                     
-                    # בונוס למילים משותפות
+                    # Bonus for shared words
                     answer_words = set(answer_lower.split())
                     chunk_words = set(chunk_lower.split())
                     common_words = answer_words.intersection(chunk_words)
                     content_score += len(common_words) * 0.01
                     
-                    # בונוס למילות מפתח חשובות
+                    # Bonus for important keywords
                     key_phrases = {
                         'מן המניין': 0.15,
                         'על תנאי': 0.1,
@@ -736,7 +731,7 @@ class RAGService:
                         if phrase in chunk_lower and phrase in answer_lower:
                             content_score += weight
                     
-                    # ציון משולב
+                    # Combined score
                     combined_score = similarity + content_score
                     
                     logger.info(f"🔍 Cited chunk {chunk_id} - similarity: {similarity:.3f}, content: {content_score:.3f}, combined: {combined_score:.3f}")
@@ -744,61 +739,61 @@ class RAGService:
                     scored_chunks.append((chunk, combined_score, similarity))
             
             if scored_chunks:
-                # בחירת הטוב ביותר לפי ציון משולב
+                # Select the best by combined score
                 best_chunk, best_combined, best_similarity = max(scored_chunks, key=lambda x: x[1])
                 chunk_id = best_chunk.get('id', 'unknown')
-                logger.info(f"🎯 נבחר cited chunk {chunk_id} עם ציון משולב {best_combined:.3f} (similarity: {best_similarity:.3f})")
+                logger.info(f"🎯 Selected cited chunk {chunk_id} with combined score {best_combined:.3f} (similarity: {best_similarity:.3f})")
                 return best_chunk
             else:
-                logger.warning("⚠️ לא ניתן לחשב scores - מחזיר chunk ראשון")
+                logger.warning("⚠️ Cannot calculate scores - return first")
                 return cited_chunks[0]
                 
         except Exception as e:
-            logger.error(f"❌ שגיאה בבחירת cited chunk: {e}")
+            logger.error(f"❌ Error selecting cited chunk: {e}")
             return cited_chunks[0]
 
     def _extract_relevant_chunk_segment(self, chunk_text: str, query: str, answer: str, max_length: int = 500) -> str:
-        """מחלץ את הקטע הכי רלוונטי מהchunk להצגה בממשק"""
+        """Extract the most relevant segment from the chunk for display in the UI"""
         if not chunk_text or len(chunk_text) <= max_length:
             return chunk_text
         
         try:
-            # פיצול הטקסט למשפטים
+            # Split the text into sentences
             sentences = [s.strip() for s in re.split(r'[.!?]\s+', chunk_text) if s.strip()]
             if not sentences:
                 return chunk_text[:max_length] + "..."
             
-            # מילות מפתח מהשאלה והתשובה
+            # Keywords from the question and answer
             query_words = set(re.findall(r'\b\w+\b', query.lower()))
             answer_words = set(re.findall(r'\b\w+\b', answer.lower()))
             key_words = query_words.union(answer_words)
             
-            # מילות מפתח חשובות לתחום
+            # Important keywords for the domain
             domain_keywords = {
                 'מן המניין', 'על תנאי', 'עומד בתנאי', 'דרישות', 'קבלה', 
                 'תוכנית לימודים', 'ציון', 'ממוצע', 'סטודנט', 'חניה', 'מלגה',
                 'זמן', 'שנים', 'תקופה', 'משך', 'לימודים'
             }
             
-            # ציון לכל משפט
+            # Score for each sentence
             scored_sentences = []
             for i, sentence in enumerate(sentences):
                 sentence_lower = sentence.lower()
                 score = 0
                 
-                # בונוס למילים מהשאלה/תשובה
+                # Bonus for words from the question/answer
                 word_matches = sum(1 for word in key_words if word in sentence_lower and len(word) > 2)
                 score += word_matches * 2
                 
-                # בונוס למילות מפתח של התחום
+                # Bonus for domain keywords
                 domain_matches = sum(1 for keyword in domain_keywords if keyword in sentence_lower)
                 score += domain_matches * 3
                 
-                # בונוס למיקום (משפטים ראשונים יותר חשובים)
+                # Bonus for position (first sentences are more important)
                 position_bonus = max(0, 3 - i * 0.5)
                 score += position_bonus
                 
-                # בונוס לאורך מתאים (לא קצר מדי, לא ארוך מדי)
+                # Bonus for appropriate length (not too short, not too long)
                 length = len(sentence)
                 if 50 <= length <= 200:
                     score += 1
@@ -806,57 +801,57 @@ class RAGService:
                     score -= 2
                 
                 scored_sentences.append((sentence, score, i))
-                logger.debug(f"📝 משפט {i}: score={score:.2f}, length={length}")
+                logger.debug(f"📝 Sentence {i}: score={score:.2f}, length={length}")
             
-            # מיון לפי ציון
+            # Sort by score
             scored_sentences.sort(key=lambda x: x[1], reverse=True)
             
-            # בניית הקטע הרלוונטי
+            # Build the relevant segment
             selected_sentences = []
             current_length = 0
             used_indices = set()
             
-            # הוספת המשפטים הטובים ביותר עד לאורך המקסימלי
+            # Add the best sentences up to the maximum length
             for sentence, score, index in scored_sentences:
                 if current_length + len(sentence) <= max_length:
                     selected_sentences.append((sentence, index))
                     used_indices.add(index)
                     current_length += len(sentence) + 1  # +1 for space
-                    logger.debug(f"✅ נבחר משפט {index} עם ציון {score:.2f}")
+                    logger.debug(f"✅ Selected sentence {index} with score {score:.2f}")
                 
-                if current_length >= max_length * 0.8:  # מלא 80% מהמקום
+                if current_length >= max_length * 0.8:  # Filled 80% of the space
                     break
             
             if not selected_sentences:
-                # במקרה שלא נמצא כלום, קח את המשפט הראשון
+                # If nothing is found, take the first sentence
                 return sentences[0][:max_length] + ("..." if len(sentences[0]) > max_length else "")
             
-            # מיון לפי סדר המקורי בטקסט
+            # Sort by original order in the text
             selected_sentences.sort(key=lambda x: x[1])
             
-            # בניית הטקסט הסופי
+            # Build the final text
             result = " ".join([sentence for sentence, _ in selected_sentences])
             
-            # וידוא שהטקסט לא חתוך באמצע מילה
+            # Verify the text is not cut in the middle of a word
             if len(result) >= max_length:
                 result = result[:max_length].rsplit(' ', 1)[0] + "..."
             
-            logger.info(f"🎯 הופק קטע רלוונטי באורך {len(result)} תווים מתוך {len(chunk_text)} המקוריים")
+            logger.info(f"🎯 Extracted relevant segment of {len(result)} characters out of {len(chunk_text)} original characters")
             return result
             
         except Exception as e:
-            logger.error(f"❌ שגיאה בחילוץ קטע רלוונטי: {e}")
-            # במקרה של שגיאה, חזור לטקסט הקצור הפשוט
+            logger.error(f"❌ Error extracting relevant segment: {e}")
+            # In case of error, return the simple truncated text
             return chunk_text[:max_length] + ("..." if len(chunk_text) > max_length else "")
 
     def _find_best_fallback_chunk(self, included_chunks: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
-        """מוצא את הchunk הכי רלוונטי כאשר אין ציטוטים מפורשים"""
+        """Find the most relevant chunk when there are no explicit citations"""
         if not included_chunks:
             return []
         
         query_lower = query.lower()
         
-        # מילות מפתח לזיהוי נושאים
+        # Keywords for identifying topics
         topic_keywords = {
             'time_limits': ['זמן', 'שנים', 'שנה', 'מקסימלי', 'משך', 'תקופה', 'לימודים', 'סיום', 'הנדסה', 'מדעים', 'תוכנית', 'יום', 'ערב', 'שנתיים מעבר', 'מניין שנות'],
             'parking': ['חני', 'חנה', 'קנס', 'רכב', 'מגרש'],
@@ -866,72 +861,72 @@ class RAGService:
             'fees': ['תשלום', 'שכר לימוד', 'דמי', 'עלות']
         }
         
-        # ✅ הסרה של hard-coding! אלגוריתם חכם בלבד
-        # אין עוד hard-coded chunk IDs
+        # ✅ Removal of hard-coding! Only smart algorithm
+        # No more hard-coded chunk IDs
         
-        # חפש chunks עם מילות מפתח רלוונטיות
+        # Search chunks with relevant keywords
         scored_chunks = []
         for chunk in included_chunks:
             content = chunk.get('chunk_text', chunk.get('content', '')).lower()
             score = 0
             chunk_id = chunk.get('id')
             
-            # ✅ הסרה של hard-coding! אין עוד חשיבות לפי ID
+            # ✅ Removal of hard-coding! No more importance by ID
             
-            # ציון בסיסי לפי similarity
+            # Basic score by similarity
             base_score = chunk.get('similarity_score', chunk.get('combined_score', 0))
             score += base_score * 100
             
-            # בונוס עבור מילות מפתח רלוונטיות
+            # Bonus for relevant keywords
             for topic, keywords in topic_keywords.items():
                 topic_matches = sum(1 for keyword in keywords if keyword in query_lower)
                 if topic_matches > 0:
                     content_matches = sum(1 for keyword in keywords if keyword in content)
                     bonus = content_matches * topic_matches * 20
                     
-                    # בונוס מיוחד לחלקים עם מידע מדויק על הנושא
+                    # Special bonus for chunks with precise information about the topic
                     if topic == 'time_limits' and any(phrase in content for phrase in ['מניין שנות', 'שנתיים מעבר', 'תוכנית בת', 'זמן מותר', 'משך מקסימלי']):
-                        bonus *= 3  # פי 3 לצ'אנקים עם מידע מדויק על זמן
-                        logger.info(f"🎯 נמצא צ'אנק מיוחד לזמן לימודים עם ביטויים רלוונטיים")
+                        bonus *= 3  # 3x for chunks with precise information about time
+                        logger.info(f"🎯 Found special chunk for time limits with relevant expressions")
                     
                     score += bonus
             
-            # בונוס נוסף למילים מהשאלה שמופיעות בתוכן
+            # Additional bonus for words from the question that appear in the content
             query_words = [word for word in query_lower.split() if len(word) > 2]
             word_matches = sum(1 for word in query_words if word in content)
             score += word_matches * 10
             
             scored_chunks.append((chunk, score))
         
-        # מיין לפי ציון ובחר את הטוב ביותר
+        # Sort by score and select the best
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         best_chunk = scored_chunks[0][0]
         best_score = scored_chunks[0][1]
         
-        logger.info(f"🎯 נבחר chunk fallback עם ציון {best_score:.1f}")
+        logger.info(f"🎯 Selected chunk fallback with score {best_score:.1f}")
         
         return [best_chunk]
 
     async def _find_best_fallback_chunk_semantic(self, included_chunks: List[Dict[str, Any]], answer: str) -> List[Dict[str, Any]]:
-        """מוצא את הchunk הכי דומה לתשובה שנוצרה באמצעות cosine similarity"""
+        """Find the most similar chunk to the answer using cosine similarity"""
         if not included_chunks or not answer:
-            logger.warning("⚠️ לא ניתן לבצע semantic similarity - אין chunks או תשובה")
+            logger.warning("⚠️ Cannot perform semantic similarity - no chunks or answer")
             return included_chunks[:1] if included_chunks else []
         
         try:
-            # יצירת embedding לתשובה הסופית
-            logger.info("🧠 יוצר embedding לתשובה הסופית לצורך השוואה סמנטית")
+            # Create embedding for the final answer
+            logger.info("🧠 Creating embedding for the final answer for semantic comparison")
             answer_embedding = await self.generate_query_embedding(answer)
             
-            # חישוב cosine similarity עבור כל chunk
+            # Calculate cosine similarity for each chunk
             similarities = []
             for chunk in included_chunks:
                 chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
                 if chunk_text:
-                    # יצירת embedding לchunk
+                    # Create embedding for the chunk
                     chunk_embedding = await self.generate_query_embedding(chunk_text)
                     
-                    # חישוב cosine similarity
+                    # Calculate cosine similarity
                     similarity = np.dot(answer_embedding, chunk_embedding) / (
                         np.linalg.norm(answer_embedding) * np.linalg.norm(chunk_embedding)
                     )
@@ -939,18 +934,18 @@ class RAGService:
                     logger.info(f"🔍 Chunk {chunk.get('id', 'unknown')} semantic similarity: {similarity:.3f}")
             
             if not similarities:
-                logger.warning("⚠️ לא ניתן לחשב similarities - מחזיר chunk ראשון")
+                logger.warning("⚠️ Cannot calculate similarities - return first chunk")
                 return included_chunks[:1]
             
-            # בחירת הchunk עם הsimilarity הגבוה ביותר
+            # Select the chunk with the highest similarity
             best_chunk, best_similarity = max(similarities, key=lambda x: x[1])
-            logger.info(f"🎯 נבחר chunk {best_chunk.get('id', 'unknown')} עם semantic similarity {best_similarity:.3f}")
+            logger.info(f"🎯 Selected chunk {best_chunk.get('id', 'unknown')} with semantic similarity {best_similarity:.3f}")
             
             return [best_chunk]
             
         except Exception as e:
-            logger.error(f"❌ שגיאה ב-semantic similarity fallback: {e}")
-            # במקרה של שגיאה, חזור לשיטה הקודמת
+            logger.error(f"❌ Error in semantic similarity fallback: {e}")
+            # In case of error, return the previous method
             return included_chunks[:1] if included_chunks else []
 
     async def generate_answer(
@@ -959,17 +954,17 @@ class RAGService:
         search_method: str = 'hybrid',
         document_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """יוצר תשובה מלאה לשאילתה"""
+        """Create a full answer for the query"""
         start_time = time.time()
         
         try:
             logger.info(f"Generating answer for query: {query[:100]}...")
             
-            # זיהוי אם זו שאלה על סעיף ספציפי
+            # Identify if this is a specific section question
             section_keywords = ['סעיף', 'בסעיף', 'פרק', 'תקנה']
             is_section_query = any(keyword in query for keyword in section_keywords)
             
-            # ביצוע חיפוש לפי השיטה המבוקשת
+            # Perform search based on the requested method
             if is_section_query:
                 logger.info("Detected section-specific query, using enhanced search")
                 search_results = await self.section_specific_search(query)
@@ -993,10 +988,10 @@ class RAGService:
                     "query": query
                 }
             
-            # בניית הקשר
+            # Build the context
             context, citations, included_chunks = self._build_context(search_results)
             
-            # יצירת prompt
+            # Create the prompt
             prompt = self._create_rag_prompt(query, context)
             
             # 🔍 Debug: log the chunks being used
@@ -1006,20 +1001,20 @@ class RAGService:
                 chunk_preview = chunk.get('chunk_text', chunk.get('content', ''))[:100]
                 logger.info(f"🔍 [CONTEXT-CHUNK-{i+1}] Similarity: {similarity:.3f} | Preview: {chunk_preview}")
             
-            # שימוש במערכת ציטוט מקורות חדשה במקום אלגוריתם בחירת chunks מורכב
+            # Use the new citation system instead of the complex chunk selection algorithm
             
-            # יצירת תשובה עם retry logic
+            # Create the answer with retry logic
             answer = await self._generate_with_retry(prompt)
             
-            # 🎯 חילוץ המקורות שהמודל בפועל השתמש בהם
+            # 🎯 Extract the sources the model actually used
             cited_source_numbers = self._extract_cited_sources(answer)
             cited_chunks = await self._get_cited_chunks(included_chunks, cited_source_numbers, query, answer)
             
-            # הסרת ציטוט המקורות מהתשובה הסופית (אופציונלי)
+            # Remove the citations from the final answer (optional)
             import re
             clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
             
-            # 🎯 הוספת קטע רלוונטי לכל chunk שנבחר
+            # 🎯 Add a relevant segment to each chunk that was selected
             for chunk in cited_chunks:
                 chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
                 if chunk_text:
@@ -1027,7 +1022,7 @@ class RAGService:
                         chunk_text, query, clean_answer, max_length=500
                     )
                     chunk['relevant_segment'] = relevant_segment
-                    logger.info(f"🎯 הוספת קטע רלוונטי לchunk {chunk.get('id', 'unknown')}: {len(relevant_segment)} תווים")
+                    logger.info(f"🎯 Added relevant segment to chunk {chunk.get('id', 'unknown')}: {len(relevant_segment)} characters")
             
             response_time = int((time.time() - start_time) * 1000)
             
@@ -1039,7 +1034,7 @@ class RAGService:
                 "response_time_ms": response_time,
                 "search_method": search_method,
                 "query": query,
-                "cited_sources": cited_source_numbers,  # מידע נוסף על המקורות שצוטטו
+                "cited_sources": cited_source_numbers,  # Additional information about the sources cited
                 "config_used": {
                     "similarity_threshold": self.search_config.SIMILARITY_THRESHOLD,
                     "max_chunks": self.search_config.MAX_CHUNKS_RETRIEVED,
@@ -1048,7 +1043,7 @@ class RAGService:
                 }
             }
             
-            # בדיקת ביצועים
+            # Check performance
             if response_time > self.performance_config.MAX_GENERATION_TIME_MS:
                 logger.warning(f"Generation time {response_time}ms exceeds target "
                              f"{self.performance_config.MAX_GENERATION_TIME_MS}ms")
@@ -1061,7 +1056,7 @@ class RAGService:
             raise
 
     async def _generate_with_retry(self, prompt: str, max_retries: int = 3) -> str:
-        """יוצר תוכן עם retry logic למקרה של rate limiting"""
+        """Create content with retry logic for rate limiting"""
         for attempt in range(max_retries):
             try:
                 # 🔥 Ensure we're using current key if Key Manager available
@@ -1102,7 +1097,7 @@ class RAGService:
             except Exception as e:
                 error_str = str(e)
                 
-                # בדיקה אם זה rate limiting error
+                # Check if this is a rate limiting error
                 if "429" in error_str or "quota" in error_str.lower():
                     if attempt < max_retries - 1:
                         wait_time = (2 ** attempt) * 5  # exponential backoff: 5, 10, 20 seconds
@@ -1113,7 +1108,7 @@ class RAGService:
                         logger.error(f"Max retries reached for rate limiting")
                         return "מצטער, המערכת עמוסה כרגע. אנא נסה שוב בעוד כמה דקות."
                 else:
-                    # שגיאה אחרת - העלה מיד
+                    # Other error - raise immediately
                     raise
     
     async def _log_search_analytics(
@@ -1125,7 +1120,7 @@ class RAGService:
         response_time_ms: int,
         document_id: Optional[int] = None
     ):
-        """רושם נתוני חיפוש לטבלת analytics"""
+        """Log search analytics to the analytics table"""
         try:
             analytics_data = {
                 "query_text": query,
@@ -1160,9 +1155,9 @@ class RAGService:
                  logger.warning(f"Failed to log search analytics: {e}")
     
     async def get_search_statistics(self, days_back: int = 30) -> Dict[str, Any]:
-        """מחזיר סטטיסטיקות חיפוש"""
+        """Get search statistics"""
         try:
-            # בדיקה אם analytics מופעל
+            # Check if analytics is enabled
             if not self.performance_config.LOG_SEARCH_ANALYTICS:
                 return {"error": "Analytics disabled in configuration"}
                 
@@ -1177,12 +1172,11 @@ class RAGService:
             return {"error": str(e)}
     
     def get_current_config(self) -> Dict[str, Any]:
-        """מחזיר את ההגדרות הנוכחיות"""
+        """Get the current configuration"""
         return rag_config.get_config_dict()
 
 
-# --- Dependency Injection (if using Flask-Injector or similar) ---
-# You might use a framework for dependency injection, or a simple factory
+
 _rag_service_instance = None
 
 def get_rag_service() -> RAGService:
