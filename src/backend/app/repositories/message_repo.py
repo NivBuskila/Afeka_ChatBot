@@ -20,37 +20,73 @@ class SupabaseMessageRepository(IMessageRepository):
     
     async def create_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new message"""
-        logger.debug(f"Creating message for conversation: {data.get('conversation_id', 'unknown')}")
+        logger.info(f"Creating message for conversation: {data.get('conversation_id', 'unknown')}")
+        logger.info(f"Message data keys: {list(data.keys())}")
+        logger.info(f"Raw data: {data}")
         
         try:
+            # Use the data as-is since it's already cleaned by the service
+            insert_data = data.copy()
+            logger.info(f"Insert data: {insert_data}")
+            
             # Check if messages table exists - minimal check
             test_query = self.client.table(self.table_name).select("count").limit(1).execute()
+            logger.info(f"Table {self.table_name} test query successful")
             
             # Proceed with normal insert
-            result = self.client.table(self.table_name).insert(data).execute()
+            logger.info(f"🚀 Attempting to insert message with data: {insert_data}")
+            result = self.client.table(self.table_name).insert(insert_data).execute()
+            
+            logger.info(f"🔍 Insert result type: {type(result)}")
+            logger.info(f"🔍 Insert result attributes: {dir(result) if result else 'None'}")
+            logger.info(f"🔍 Insert result data: {getattr(result, 'data', 'No data attr') if result else 'No result'}")
+            logger.info(f"🔍 Insert result error: {getattr(result, 'error', 'No error attr') if result else 'No result'}")
             
             if result.data and len(result.data) > 0:
-                logger.debug(f"✅ Created message with ID: {result.data[0].get('id') or result.data[0].get('message_id')}")
-                return result.data[0]
+                created_message = result.data[0]
+                logger.info(f"✅ Successfully created message with ID: {created_message.get('id') or created_message.get('message_id')}")
+                
+                # Return in a format the frontend expects
+                return {
+                    "id": str(created_message.get('message_id') or created_message.get('id')),
+                    "conversation_id": created_message.get('conversation_id'),
+                    "user_id": created_message.get('user_id'),
+                    "content": created_message.get('request') or created_message.get('response') or "",
+                    "role": "bot" if created_message.get('response') else "user",
+                    "created_at": created_message.get('created_at')
+                }
             else:
+                logger.error(f"❌ Insert successful but no data returned. Result: {result}")
+                logger.error(f"❌ Result data is: {result.data if hasattr(result, 'data') else 'No data attribute'}")
+                logger.error(f"❌ Result error is: {result.error if hasattr(result, 'error') else 'No error attribute'}")
+                
                 # Return a mock response if no data returned but no error
-                mock_id = data.get('id', f"mock-{int(time.time())}")
+                mock_id = f"msg-{int(time.time() * 1000)}"
                 mock_response = {
                     "id": mock_id,
                     "conversation_id": data.get('conversation_id', 'unknown'),
-                    "created_at": data.get('created_at', datetime.now().isoformat()),
-                    "message_text": data.get('message_text', '')
+                    "created_at": datetime.now().isoformat() + "Z",
+                    "content": data.get('request') or data.get('response') or data.get('content', ''),
+                    "role": "bot" if data.get('response') else "user",
+                    "error": "Insert successful but no data returned"
                 }
-                logger.debug(f"🎭 Returning mock message response with ID: {mock_id}")
+                logger.warning(f"🎭 Returning mock message response with ID: {mock_id}")
                 return mock_response
                 
         except Exception as e:
             logger.error(f"❌ Error creating message: {e}")
+            logger.error(f"❌ Error type: {type(e)}")
+            logger.error(f"❌ Error details: {str(e)}")
+            logger.error(f"❌ Data that failed: {data}")
+            
             # Return a mock response on error to prevent app crash
-            mock_id = f"mock-{int(time.time())}"
+            mock_id = f"msg-{int(time.time() * 1000)}"
             return {
                 "id": mock_id,
-                "created_at": datetime.now().isoformat(),
+                "conversation_id": data.get('conversation_id', 'unknown'),
+                "created_at": datetime.now().isoformat() + "Z",
+                "content": data.get('request') or data.get('response') or data.get('content', ''),
+                "role": "bot" if data.get('response') else "user",
                 "error": str(e)
             }
     
@@ -144,30 +180,3 @@ class SupabaseMessageRepository(IMessageRepository):
         """Legacy method - delegates to get_message_schema"""
         columns = await self.get_message_schema()
         return {"columns": columns}
-    
-    def _clean_data_for_insert(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Clean and prepare data for insertion or update."""
-        cleaned_data = {}
-        
-        # Remove None values and empty strings
-        for key, value in data.items():
-            if value is not None and value != "" and key != "":
-                # Convert JSON fields if needed
-                if key in ['request_payload', 'response_payload', 'metadata'] and isinstance(value, dict):
-                    try:
-                        cleaned_data[key] = json.dumps(value)
-                    except Exception as e:
-                        logger.warning(f"Could not serialize JSON field {key}: {e}")
-                        # Use original value if conversion fails
-                        cleaned_data[key] = str(value)
-                else:
-                    cleaned_data[key] = value
-        
-        # Ensure IDs are strings
-        if 'conversation_id' in cleaned_data and not isinstance(cleaned_data['conversation_id'], str):
-            cleaned_data['conversation_id'] = str(cleaned_data['conversation_id'])
-            
-        if 'user_id' in cleaned_data and not isinstance(cleaned_data['user_id'], str):
-            cleaned_data['user_id'] = str(cleaned_data['user_id'])
-            
-        return cleaned_data

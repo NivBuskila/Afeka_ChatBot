@@ -155,103 +155,55 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
 
             if (msg.role === "bot" || msg.role === "assistant") {
               isBot = true;
-            } else if (msg.is_bot === true || msg.is_bot === 1) {
-              isBot = true;
-            } else if (msg.role === "user" && index % 2 === 1) {
-              isBot = true;
-            } else if (
-              msg.content &&
-              msg.content.length > 100 &&
-              msg.role === "user"
-            ) {
+            } else if (msg.role === "user") {
+              isBot = false;
+            } else if (msg.is_bot !== undefined) {
+              isBot = msg.is_bot;
+            } else if (index % 2 === 1) {
               isBot = true;
             }
 
-            let messageContent =
-              msg.content || msg.message_text || msg.text || "";
-            const messageId =
-              msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
+            // חיפוש תוכן ההודעה עם fallback לשדות שונים
+            const content =
+              msg.content ||
+              msg.message_text ||
+              msg.text ||
+              (msg.request && !msg.response ? msg.request : "") ||
+              (msg.response && !msg.request ? msg.response : "") ||
+              "";
 
             return {
-              id: messageId,
-              type: (isBot ? "bot" : "user") as "bot" | "user",
-              content: messageContent,
-              timestamp: new Date(msg.created_at).toLocaleTimeString(),
-              sessionId:
-                msg.chat_session_id || msg.conversation_id || sessionId,
+              id: msg.id || `msg-${index}`,
+              content,
+              isBot,
+              timestamp: msg.created_at || new Date().toISOString(),
             };
           }
         );
 
         setMessages(formattedMessages);
-        setHasStarted(formattedMessages.length > 0);
+      } else {
+        setMessages([]);
       }
     } catch (error) {
-      console.error("Error reloading session messages:", error);
+      console.error("Error loading session messages:", error);
+      setMessages([]);
     }
   };
 
-  const handleSelectSession = async (sessionId: string) => {
-    if (sessionId === "new") {
-      setActiveSession(null);
-      setMessages([]);
-      setHasStarted(false);
-      setShowHistory(false);
-      return;
-    }
-
-    try {
-      const session = await chatService.getChatSessionWithMessages(sessionId);
-
-      if (session) {
-        setActiveSession(session);
-
-        if (session.messages && session.messages.length > 0) {
-          const formattedMessages = session.messages.map(
-            (msg: any, index: number) => {
-              let isBot = false;
-
-              if (msg.role === "bot" || msg.role === "assistant") {
-                isBot = true;
-              } else if (msg.is_bot === true || msg.is_bot === 1) {
-                isBot = true;
-              } else if (msg.role === "user" && index % 2 === 1) {
-                isBot = true;
-              } else if (
-                msg.content &&
-                msg.content.length > 100 &&
-                msg.role === "user"
-              ) {
-                isBot = true;
-              }
-
-              let messageContent =
-                msg.content || msg.message_text || msg.text || "";
-              const messageId =
-                msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
-
-              return {
-                id: messageId,
-                type: (isBot ? "bot" : "user") as "bot" | "user",
-                content: messageContent,
-                timestamp: new Date(msg.created_at).toLocaleTimeString(),
-                sessionId:
-                  msg.chat_session_id || msg.conversation_id || sessionId,
-              };
-            }
-          );
-
-          setMessages(formattedMessages);
-          setHasStarted(true);
-        } else {
-          setMessages([]);
-          setHasStarted(false);
-        }
-
-        setShowHistory(false);
+  const handleSelectSession = async (session: any) => {
+    if (session && session.id) {
+      setCurrentSessionId(session.id);
+      setCurrentSessionTitle(session.title || 'שיחה חדשה');
+      
+      await loadSessionMessages(session.id);
+      
+      // Update the current session in chat history
+      try {
+        await chatService.updateChatSessionTitle(session.id, { last_opened: new Date().toISOString() });
+      } catch (error) {
+        console.warn('Failed to update session last_opened timestamp:', error);
       }
-    } catch (error) {
-      console.error("Error loading chat session:", error);
     }
   };
 
@@ -806,7 +758,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         <div className="flex-1 overflow-y-auto">
           <ChatHistory
             sessions={filteredChatSessions}
-            onSelectSession={(session) => handleSelectSession(session.id)}
+            onSelectSession={(session) => handleSelectSession(session)}
             onCreateNewSession={() => handleSelectSession("new")}
             onDeleteSession={handleDeleteSession}
             onEditSessionTitle={handleEditSessionTitle}

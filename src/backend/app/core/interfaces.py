@@ -101,8 +101,15 @@ class IMessageService(ABC):
     """Interface for message services."""
     
     @abstractmethod
-    async def create_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new message."""
+    async def create_message(
+        self, 
+        user_id: str = None, 
+        conversation_id: str = None, 
+        content: str = None, 
+        is_bot: bool = False, 
+        data: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Create a new message - supports both individual parameters and data dict."""
         pass
     
     @abstractmethod
@@ -121,6 +128,6 @@ class IMessageService(ABC):
         pass
     
     @abstractmethod
-    async def get_message_schema(self) -> Dict[str, Any]:
+    async def get_schema(self) -> List[str]:
         """Get message table schema (column names)."""
         pass
