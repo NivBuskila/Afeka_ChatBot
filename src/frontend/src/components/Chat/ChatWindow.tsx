@@ -473,7 +473,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         id: `bot-${Date.now().toString()}`,
         type: "bot",
         content: "",
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: "", // Empty timestamp until streaming completes
         sessionId: sessionId,
       };
 
@@ -512,7 +512,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
 
         // onComplete callback
         async (fullResponse: string, sources?: any[], chunks?: number) => {
-          // Update final message
+          // Update final message with timestamp when complete
           setMessages((prev) => {
             const updated = [...prev];
             const botMessageIndex = updated.findIndex(
@@ -522,6 +522,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               updated[botMessageIndex] = {
                 ...updated[botMessageIndex],
                 content: fullResponse,
+                timestamp: new Date().toLocaleTimeString(), // Add timestamp only when complete
               };
             }
             return updated;
@@ -566,6 +567,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               updated[botMessageIndex] = {
                 ...updated[botMessageIndex],
                 content: errorContent,
+                timestamp: new Date().toLocaleTimeString(), // Add timestamp even for errors
               };
             }
             return updated;
@@ -594,7 +596,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         id: `error-${Date.now().toString()}`,
         type: "bot",
         content: errorContent,
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: new Date().toLocaleTimeString(), // Show timestamp for error messages too
         sessionId: sessionId,
       };
 
@@ -980,29 +982,38 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                     showChunkText={false}
                   />
                   <div ref={messagesEndRef} />
-                  {isLoading && (
-                    <div
-                      className="max-w-3xl mx-auto px-8 py-4"
-                      data-testid="typing-indicator"
-                    >
-                      <div className="w-full text-right">
-                        <div className="mb-6">
-                          <div className="flex justify-end space-x-1 mb-2">
-                            {[...Array(3)].map((_, i) => (
-                              <div
-                                key={i}
-                                className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
-                                style={{ animationDelay: `${i * 0.2}s` }}
-                              />
-                            ))}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-500 opacity-60">
-                            מכין תשובה...
+                  {isLoading && (() => {
+                    // Check if the last message is a bot message with content (streaming has started)
+                    const lastMessage = messages[messages.length - 1];
+                    const isBotStreaming = lastMessage && lastMessage.type === 'bot' && lastMessage.content.length > 0;
+                    
+                    // Only show "מכין תשובה" if no bot message is streaming yet
+                    return !isBotStreaming && (
+                      <div
+                        className="max-w-3xl mx-auto px-8 py-4"
+                        data-testid="typing-indicator"
+                      >
+                        <div className="w-full">
+                          <div className="mb-6">
+                            <div className="flex items-center gap-2 ml-auto w-fit">
+                              <div className="flex gap-1">
+                                {[...Array(3)].map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
+                                    style={{ animationDelay: `${i * 0.2}s` }}
+                                  />
+                                ))}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-500 opacity-60">
+                                {(t("chat.preparingResponse") as string) || "מכין תשובה..."}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </>
               )}
             </div>

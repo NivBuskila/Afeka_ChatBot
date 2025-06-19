@@ -159,7 +159,8 @@
     "close": "Close",
     "noActiveSession": "Welcome to Afeka Chatbot!",
     "startNewChatPrompt": "Here you can ask questions about academic regulations, faculty procedures, and other information related to your studies at Afeka. Start a new conversation to begin!",
-    "showHistory": "Show history"
+    "showHistory": "Show history",
+    "preparingResponse": "Preparing response..."
   },
   "admin": {
     "loading": "Loading Dashboard",

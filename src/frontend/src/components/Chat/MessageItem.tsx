@@ -101,10 +101,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
-        {/* Timestamp - subtle and small */}
-        <div className={`mt-2 text-xs text-gray-500 dark:text-gray-500 opacity-60`}>
-          {message.timestamp}
-        </div>
+        {/* Timestamp - subtle and small - only show if timestamp exists */}
+        {message.timestamp && (
+          <div className={`mt-2 text-xs text-gray-500 dark:text-gray-500 opacity-60`}>
+            {message.timestamp}
+          </div>
+        )}
 
         {/* Show chunk text for bot messages if available and enabled */}
         {!isUser && message.chunkText && showChunkText && (
