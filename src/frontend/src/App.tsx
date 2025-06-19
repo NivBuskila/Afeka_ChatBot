@@ -48,9 +48,9 @@ const App: React.FC = () => {
           // בדיקה אם המשתמש הוא admin
           const { data: adminData } = await supabase
             .from("admins")
-            .select("*")
+            .select("id")
             .eq("user_id", session.user.id)
-            .single();
+            .maybeSingle();
 
           const isAdminUser = !!adminData;
           setIsLoggedIn(true);

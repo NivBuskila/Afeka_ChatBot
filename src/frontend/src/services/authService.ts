@@ -90,18 +90,7 @@ export const authService = {
   
   async checkIsAdmin(userId: string): Promise<boolean> {
     try {
-      // Try direct access to admins table
-      const { data: adminData, error: adminError } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (!adminError && adminData) {
-        return true;
-      }
-      
-      // If direct access failed, try using RPC
+      // Try using RPC first (more reliable)
       try {
         const { data: isAdminResult, error: isAdminError } = await supabase
           .rpc('is_admin', { user_id: userId });
@@ -110,10 +99,21 @@ export const authService = {
           return true;
         }
       } catch (rpcError) {
-        console.error('Error calling is_admin RPC:', rpcError);
+        console.warn('RPC is_admin failed, trying direct table access:', rpcError);
       }
       
-      // Check user metadata as fallback
+      // Fallback to direct access with specific select
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (!adminError && adminData) {
+        return true;
+      }
+      
+      // Check user metadata as final fallback
       const { data: userData } = await supabase.auth.getUser();
       const isAdminFromMetadata = userData?.user?.user_metadata?.role === 'admin';
       
@@ -203,6 +203,18 @@ export const authService = {
       const userMeta = userData.user.user_metadata;
       if (userMeta?.is_admin === true || userMeta?.role === 'admin') {
         return true;
+      }
+      
+      // Try RPC first
+      try {
+        const { data: isAdminResult } = await supabase
+          .rpc('is_admin', { user_id: userData.user.id });
+        
+        if (isAdminResult === true) {
+          return true;
+        }
+      } catch (rpcError) {
+        console.warn('RPC failed, using direct table access');
       }
       
       const { data: adminData } = await supabase

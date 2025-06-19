@@ -86,7 +86,24 @@ async def get_chat_session(
         session = await session_service.get_session(session_id)
         
         if session:
-            logger.info(f"Found session {session_id} with {len(session.get('messages', []))} messages")
+            logger.info(f"Found session {session_id}")
+            # Log the messages structure for debugging
+            if 'messages' in session:
+                logger.info(f"Session has {len(session.get('messages', []))} messages")
+                if len(session.get('messages', [])) > 0:
+                    logger.info(f"First message sample: {session['messages'][0]}")
+            else:
+                logger.info("Session has no messages key")
+            
+            # Log the full session structure (without sensitive data)
+            session_info = {
+                'id': session.get('id'),
+                'title': session.get('title'),
+                'has_messages': 'messages' in session,
+                'message_count': len(session.get('messages', [])) if 'messages' in session else 0
+            }
+            logger.info(f"Session structure: {session_info}")
+            
             return JSONResponse(content=session)
         else:
             logger.warning(f"Session {session_id} not found")
