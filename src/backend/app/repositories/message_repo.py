@@ -34,8 +34,13 @@ class SupabaseMessageRepository(IMessageRepository):
             logger.info(f"Table {self.table_name} test query successful")
             
             # Proceed with normal insert
-            logger.info(f"Attempting to insert message with data: {insert_data}")
+            logger.info(f"🚀 Attempting to insert message with data: {insert_data}")
             result = self.client.table(self.table_name).insert(insert_data).execute()
+            
+            logger.info(f"🔍 Insert result type: {type(result)}")
+            logger.info(f"🔍 Insert result attributes: {dir(result) if result else 'None'}")
+            logger.info(f"🔍 Insert result data: {getattr(result, 'data', 'No data attr') if result else 'No result'}")
+            logger.info(f"🔍 Insert result error: {getattr(result, 'error', 'No error attr') if result else 'No result'}")
             
             if result.data and len(result.data) > 0:
                 created_message = result.data[0]

@@ -41,7 +41,7 @@ class MessageService(IMessageService):
                 "is_bot": is_bot,
             }
         
-        logger.info(f"Creating message for conversation: {message_data.get('conversation_id')}")
+        logger.info(f"Creating message for conversation: {message_data.get('conversation_id')} - is_bot: {is_bot}")
         
         # Clean data for insertion
         cleaned_data = self._clean_message_data(message_data)
@@ -56,6 +56,7 @@ class MessageService(IMessageService):
                     message_data['conversation_id'], 
                     {'updated_at': datetime.utcnow().isoformat() + "Z"}
                 )
+                logger.info(f"📌 Updated chat session {message_data['conversation_id']} timestamp")
             except Exception as e:
                 logger.warning(f"Failed to update chat session timestamp: {e}")
         

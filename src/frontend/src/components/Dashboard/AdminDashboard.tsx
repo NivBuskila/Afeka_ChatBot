@@ -178,7 +178,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         console.log("Users found:", analyticsData.recentUsers.length);
         console.log("Admins found:", analyticsData.recentAdmins.length);
         console.log("Documents found:", docs.length);
-                setDocuments(docs);
+        console.log("🔍 [DEBUG] Raw documents data:", docs);
+        console.log("🔍 [DEBUG] Documents array:", Array.isArray(docs));
+        console.log("🔍 [DEBUG] First document:", docs[0]);
+
+        setDocuments(docs);
+        console.log("🔍 [DEBUG] Documents set to state");
         setAnalytics(analyticsData);
       } catch (error) {
         console.error("Error fetching data:", error);

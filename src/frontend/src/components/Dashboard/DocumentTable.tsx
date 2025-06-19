@@ -25,7 +25,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // 🔍 Debug information
-
+  console.log("🔍 [DocumentTable] Received documents:", documents);
+  console.log("🔍 [DocumentTable] Documents length:", documents?.length || 0);
+  console.log("🔍 [DocumentTable] Is array:", Array.isArray(documents));
+  console.log("🔍 [DocumentTable] First document:", documents?.[0]);
 
   const getFileType = (type: string): string => {
     const mimeMap: Record<string, string> = {

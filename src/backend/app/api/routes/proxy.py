@@ -86,20 +86,20 @@ async def get_chat_session(
         session = await session_service.get_session(session_id)
         
         if session:
-            logger.info(f"Found session {session_id}")
+            logger.info(f"Found session {session_id} with {len(session.get('messages', []))} messages")
             return JSONResponse(content=session)
         else:
             logger.warning(f"Session {session_id} not found")
             return JSONResponse(
                 status_code=404,
-                content={"error": f"Session {session_id} not found"}
+                content={"error": "Chat session not found"}
             )
-            
+        
     except Exception as e:
         logger.error(f"Error in get_chat_session: {str(e)}")
         return JSONResponse(
-            status_code=500,
-            content={"error": f"Internal server error: {str(e)}"}
+            status_code=404,
+            content={"error": "Chat session not found"}
         )
 
 @router.patch("/api/proxy/chat_session/{session_id}")
@@ -250,11 +250,12 @@ async def update_message(
     try:
         body_bytes = await request.body()
         body_str = body_bytes.decode("utf-8", errors="replace")
+        logger.info(f"🚀 PUT /api/proxy/message with body: {body_str[:100]}")
         
         try:
             body = json.loads(body_str)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON body: {e}")
+            logger.error(f"❌ Failed to parse JSON body: {e}")
             return JSONResponse(
                 status_code=400,
                 content={"error": f"Invalid JSON in request body: {str(e)}"}
@@ -266,14 +267,17 @@ async def update_message(
         content = body.get("content", "")
         is_bot = body.get("is_bot", False)
         
+        logger.info(f"🔍 Extracted fields: conversation_id={conversation_id}, user_id={user_id}, content={content[:50]}..., is_bot={is_bot}")
+        
         if not conversation_id or not user_id:
-            logger.error("Missing required fields: conversation_id or user_id")
+            logger.error("❌ Missing required fields: conversation_id or user_id")
             return JSONResponse(
                 status_code=400,
                 content={"error": "conversation_id and user_id are required"}
             )
         
         # Use the actual message service to create the message
+        logger.info(f"🚀 Calling message_service.create_message...")
         message = await message_service.create_message(
             user_id=user_id,
             conversation_id=conversation_id,
@@ -281,18 +285,20 @@ async def update_message(
             is_bot=is_bot
         )
         
+        logger.info(f"🔍 Message service returned: {message}")
+        
         if message:
-            logger.info(f"Created message {message.get('id')} for session {conversation_id}")
+            logger.info(f"✅ Created message {message.get('id')} for session {conversation_id}")
             return JSONResponse(content=message)
         else:
-            logger.error("Failed to create message via message service")
+            logger.error("❌ Failed to create message via message service")
             return JSONResponse(
                 status_code=500,
                 content={"error": "Failed to create message"}
             )
             
     except Exception as e:
-        logger.error(f"Error in update_message: {str(e)}", exc_info=True)
+        logger.error(f"❌ Error in update_message: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": f"Internal server error: {str(e)}"}
