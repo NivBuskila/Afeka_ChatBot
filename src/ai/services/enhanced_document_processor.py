@@ -8,6 +8,7 @@ import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import sys
+import os
 
 # הוספת הנתיב לתיקיית backend
 backend_path = Path(__file__).parent.parent.parent / "backend"
@@ -16,7 +17,7 @@ sys.path.insert(0, str(backend_path))
 try:
     from app.core.database import get_supabase_client
     import google.generativeai as genai
-    import os
+    from supabase import create_client, Client
     has_supabase = True
 except ImportError as e:
     logging.warning(f"Could not import Supabase modules: {e}")
@@ -25,6 +26,9 @@ except ImportError as e:
 from .smart_chunker import SmartChunker, ProcessedChunk
 from .retrieval import AdvancedRetriever, SearchResult, ContextBundle
 from .context_assembly import ContextBuilder, PromptTemplate
+
+# Import vector utilities
+from ..utils.vector_utils import ensure_768_dimensions, log_vector_info
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +173,23 @@ class EnhancedDocumentProcessor:
                 content=text,
                 task_type="retrieval_document"
             )
-            return result["embedding"]
+            
+            raw_embedding = result["embedding"] if result and 'embedding' in result else None
+            if not raw_embedding:
+                logger.error("No embedding returned from API")
+                return None
+            
+            # וידוא שה-vector הוא בדיוק 768 dimensions
+            embedding = ensure_768_dimensions(raw_embedding)
+            
+            # רישום מידע לdebug אם יש בעיה עם גודל הvector
+            if len(raw_embedding) != 768:
+                logger.warning(f"Enhanced processor embedding dimension adjusted from {len(raw_embedding)} to 768")
+                log_vector_info(raw_embedding, "Original enhanced embedding")
+                log_vector_info(embedding, "Adjusted enhanced embedding")
+            
+            return embedding
+            
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             return None

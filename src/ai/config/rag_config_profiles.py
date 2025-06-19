@@ -32,6 +32,8 @@ except ImportError:
             "supabase_profile_manager",
             os.path.join(os.path.dirname(__file__), "supabase_profile_manager.py")
         )
+        if spec is None or spec.loader is None:
+            raise ImportError("Could not load supabase_profile_manager module")
         supabase_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(supabase_module)
         get_supabase_profile_manager = supabase_module.get_supabase_profile_manager
@@ -175,24 +177,61 @@ def create_profile_from_data(profile_data: Dict[str, Any]) -> RAGConfig:
     
     config_data = profile_data.get('config', {})
     
+    # Basic search configuration
     config.search.SIMILARITY_THRESHOLD = float(config_data.get("similarityThreshold", 0.4))
+    config.search.SECTION_SEARCH_THRESHOLD = float(config_data.get("sectionSearchThreshold", 0.3))
     config.search.MAX_CHUNKS_RETRIEVED = int(config_data.get("maxChunks", 15))
     config.search.MAX_CHUNKS_FOR_CONTEXT = int(config_data.get("maxChunks", 15))
+    
+    # Advanced search scoring parameters
+    config.search.EXACT_PHRASE_BONUS = float(config_data.get("exactPhraseBonus", 100.0))
+    config.search.TOPIC_MATCH_BONUS = float(config_data.get("topicMatchBonus", 10.0))
+    config.search.DIRECT_MATCH_BONUS = float(config_data.get("directMatchBonus", 5.0))
+    config.search.SIMILARITY_WEIGHT_FACTOR = float(config_data.get("similarityWeightFactor", 2.0))
+    config.search.POSITION_BONUS_BASE = float(config_data.get("positionBonusBase", 3.0))
+    config.search.POSITION_BONUS_DECAY = float(config_data.get("positionBonusDecay", 0.5))
+    
+    # LLM configuration
     config.llm.TEMPERATURE = float(config_data.get("temperature", 0.1))
     config.llm.MODEL_NAME = config_data.get("modelName", "gemini-2.0-flash")
     
+    # Chunking configuration
     if "chunkSize" in config_data:
         config.chunk.DEFAULT_CHUNK_SIZE = int(config_data["chunkSize"])
     if "chunkOverlap" in config_data:
         config.chunk.DEFAULT_CHUNK_OVERLAP = int(config_data["chunkOverlap"])
-    if "maxContextTokens" in config_data:
-        config.context.MAX_CONTEXT_TOKENS = int(config_data["maxContextTokens"])
     if "targetTokensPerChunk" in config_data:
         config.chunk.TARGET_TOKENS_PER_CHUNK = int(config_data["targetTokensPerChunk"])
+    
+    # Context configuration
+    if "maxContextTokens" in config_data:
+        config.context.MAX_CONTEXT_TOKENS = int(config_data["maxContextTokens"])
+    if "mainContentRatio" in config_data:
+        config.context.MAIN_CONTENT_RATIO = float(config_data["mainContentRatio"])
+    if "backgroundRatio" in config_data:
+        config.context.BACKGROUND_RATIO = float(config_data["backgroundRatio"])
+    
+    # Hybrid search weights
     if "hybridSemanticWeight" in config_data:
         config.search.HYBRID_SEMANTIC_WEIGHT = float(config_data["hybridSemanticWeight"])
     if "hybridKeywordWeight" in config_data:
         config.search.HYBRID_KEYWORD_WEIGHT = float(config_data["hybridKeywordWeight"])
+    
+    # Performance configuration
+    if "tokenEstimationMultiplier" in config_data:
+        config.performance.TOKEN_ESTIMATION_MULTIPLIER = float(config_data["tokenEstimationMultiplier"])
+    if "hebrewTokenRatio" in config_data:
+        config.performance.HEBREW_TOKEN_RATIO = float(config_data["hebrewTokenRatio"])
+    if "contextTrimThreshold" in config_data:
+        config.performance.CONTEXT_TRIM_THRESHOLD = float(config_data["contextTrimThreshold"])
+    if "retryBackoffBase" in config_data:
+        config.performance.RETRY_BACKOFF_BASE = int(config_data["retryBackoffBase"])
+    
+    # Embedding configuration
+    if "defaultSimilarityThreshold" in config_data:
+        config.embedding.DEFAULT_SIMILARITY_THRESHOLD = float(config_data["defaultSimilarityThreshold"])
+    if "defaultHybridThreshold" in config_data:
+        config.embedding.DEFAULT_HYBRID_THRESHOLD = float(config_data["defaultHybridThreshold"])
     
     return config
 
@@ -320,7 +359,7 @@ def get_enhanced_testing_profile() -> RAGConfig:
     
     config.context.MAX_CONTEXT_TOKENS = 15000    
     config.context.RESERVED_TOKENS_FOR_RESPONSE = 4000  
-    config.context.CONTEXT_OVERLAP_TOKENS = 200  
+    # Context overlap removed - using ratios instead  
     
     config.llm.TEMPERATURE = 0.02  
     config.llm.MAX_OUTPUT_TOKENS = 5000  
@@ -334,9 +373,10 @@ def get_enhanced_testing_profile() -> RAGConfig:
     config.search.SEARCH_TIMEOUT_SECONDS = 120 
     config.llm.GENERATION_TIMEOUT_SECONDS = 240
     
-    config.search.USE_QUERY_EXPANSION = True
-    config.search.ENABLE_FUZZY_MATCHING = True
-    config.optimization.ENABLE_CHUNK_RERANKING = True
+    # Advanced features commented out - not implemented yet
+    # config.search.USE_QUERY_EXPANSION = True
+    # config.search.ENABLE_FUZZY_MATCHING = True
+    # config.optimization.ENABLE_CHUNK_RERANKING = True
     
     return config
 
@@ -358,7 +398,7 @@ def get_optimized_testing_profile() -> RAGConfig:
     
     config.context.MAX_CONTEXT_TOKENS = 12000
     config.context.RESERVED_TOKENS_FOR_RESPONSE = 3500
-    config.context.CONTEXT_OVERLAP_TOKENS = 250
+    # Context overlap removed - using ratios instead
     
     config.llm.TEMPERATURE = 0.03
     config.llm.MAX_OUTPUT_TOKENS = 4000
@@ -393,11 +433,11 @@ def get_maximum_accuracy_profile() -> RAGConfig:
     
     config.context.MAX_CONTEXT_TOKENS = 20000
     config.context.RESERVED_TOKENS_FOR_RESPONSE = 6000
-    config.context.CONTEXT_OVERLAP_TOKENS = 500
+    # Context overlap removed - using ratios instead
     
     config.llm.TEMPERATURE = 0.01
     config.llm.MAX_OUTPUT_TOKENS = 6000
-    config.llm.TOP_P = 0.9
+    # config.llm.TOP_P = 0.9  # Not implemented yet
     
     config.performance.TARGET_SEARCH_TIME_MS = 10000
     config.performance.TARGET_GENERATION_TIME_MS = 15000
@@ -405,14 +445,106 @@ def get_maximum_accuracy_profile() -> RAGConfig:
     config.optimization.ENABLE_DETAILED_LOGGING = True
     config.performance.LOG_SEARCH_ANALYTICS = True
     config.performance.LOG_PERFORMANCE_METRICS = True
-    config.optimization.ENABLE_CHUNK_RERANKING = True
+    # config.optimization.ENABLE_CHUNK_RERANKING = True  # Not implemented yet
     
     config.search.SEARCH_TIMEOUT_SECONDS = 300
     config.llm.GENERATION_TIMEOUT_SECONDS = 600
     
-    config.search.USE_QUERY_EXPANSION = True
-    config.search.ENABLE_FUZZY_MATCHING = True
-    config.context.ENABLE_CONTEXT_RERANKING = True
+    # Advanced features commented out - not implemented yet
+    # config.search.USE_QUERY_EXPANSION = True
+    # config.search.ENABLE_FUZZY_MATCHING = True
+    # config.context.ENABLE_CONTEXT_RERANKING = True
+    
+    return config
+
+def get_professional_profile() -> RAGConfig:
+    """
+    פרופיל מקצועי מושלם ללא hard-coded values
+    Professional profile with fully configurable parameters
+    """
+    config = RAGConfig()
+    
+    # Search configuration - fully configurable
+    config.search.SIMILARITY_THRESHOLD = 0.65
+    config.search.SECTION_SEARCH_THRESHOLD = 0.35  # Lower for section searches
+    config.search.HIGH_QUALITY_THRESHOLD = 0.85
+    config.search.LOW_QUALITY_THRESHOLD = 0.45
+    config.search.MAX_CHUNKS_RETRIEVED = 12
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 6
+    config.search.MAX_RESULTS_EXTENDED = 20
+    
+    # Hybrid search weights
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.65
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.35
+    
+    # Advanced scoring parameters
+    config.search.EXACT_PHRASE_BONUS = 150.0
+    config.search.TOPIC_MATCH_BONUS = 12.0
+    config.search.DIRECT_MATCH_BONUS = 6.0
+    config.search.SIMILARITY_WEIGHT_FACTOR = 2.5
+    config.search.POSITION_BONUS_BASE = 4.0
+    config.search.POSITION_BONUS_DECAY = 0.4
+    
+    # Embedding configuration
+    config.embedding.DEFAULT_SIMILARITY_THRESHOLD = 0.75
+    config.embedding.DEFAULT_HYBRID_THRESHOLD = 0.72
+    config.embedding.MAX_RETRIES = 3
+    config.embedding.RETRY_DELAY_SECONDS = 1.5
+    
+    # Chunking configuration
+    config.chunk.DEFAULT_CHUNK_SIZE = 2200
+    config.chunk.DEFAULT_CHUNK_OVERLAP = 250
+    config.chunk.MAX_CHUNKS_PER_DOCUMENT = 400
+    config.chunk.TARGET_TOKENS_PER_CHUNK = 380
+    config.chunk.MAX_TOKENS_PER_CHUNK = 520
+    config.chunk.MIN_TOKENS_PER_CHUNK = 60
+    
+    # Context configuration
+    config.context.MAX_CONTEXT_TOKENS = 7000
+    config.context.RESERVED_TOKENS_FOR_QUERY = 600
+    config.context.RESERVED_TOKENS_FOR_RESPONSE = 1800
+    config.context.MAIN_CONTENT_RATIO = 0.65
+    config.context.BACKGROUND_RATIO = 0.55
+    config.context.ADDITIONAL_INFO_RATIO = 0.45
+    config.context.RELEVANT_SEGMENT_MAX_LENGTH = 600
+    config.context.SEGMENT_CONTEXT_WINDOW = 60
+    
+    # LLM configuration
+    config.llm.MODEL_NAME = "gemini-2.0-flash"
+    config.llm.TEMPERATURE = 0.05  # Very precise
+    config.llm.MAX_OUTPUT_TOKENS = 2500
+    config.llm.GENERATION_TIMEOUT_SECONDS = 50
+    
+    # Performance configuration
+    config.performance.TOKEN_ESTIMATION_MULTIPLIER = 1.35
+    config.performance.HEBREW_TOKEN_RATIO = 0.78
+    config.performance.CONTEXT_TRIM_THRESHOLD = 0.82
+    config.performance.MAX_RETRIES = 3
+    config.performance.RETRY_BACKOFF_BASE = 6
+    
+    # Performance targets
+    config.performance.MAX_SEARCH_TIME_MS = 4500
+    config.performance.MAX_EMBEDDING_TIME_MS = 2800
+    config.performance.MAX_GENERATION_TIME_MS = 9000
+    config.performance.TARGET_SEARCH_TIME_MS = 2200
+    config.performance.TARGET_EMBEDDING_TIME_MS = 1200
+    config.performance.TARGET_GENERATION_TIME_MS = 4500
+    
+    # Cache settings
+    config.performance.ENABLE_EMBEDDING_CACHE = True
+    config.performance.EMBEDDING_CACHE_SIZE = 1500
+    config.performance.EMBEDDING_CACHE_TTL_SECONDS = 4800  # 80 minutes
+    
+    # Database configuration
+    config.database.MAX_CONNECTIONS = 25
+    config.database.CONNECTION_TIMEOUT = 35
+    
+    # Optimization settings
+    config.optimization.ENABLE_DETAILED_LOGGING = True
+    config.optimization.LOG_SEARCH_ANALYTICS = True
+    config.optimization.LOG_PERFORMANCE_METRICS = True
+    config.optimization.AUTO_ADJUST_THRESHOLDS = False
+    config.optimization.MIN_SEARCH_RESULTS_FOR_ADJUSTMENT = 150
     
     return config
 
@@ -425,6 +557,7 @@ PROFILES = {
     "enhanced_testing": get_enhanced_testing_profile,
     "optimized_testing": get_optimized_testing_profile,
     "maximum_accuracy": get_maximum_accuracy_profile,
+    "professional": get_professional_profile,  # ✅ פרופיל מקצועי חדש ללא hard-coded values
 }
 
 # Load dynamic profiles from Supabase
@@ -477,6 +610,9 @@ def delete_profile(profile_id: str) -> bool:
         logger.error(f"❌ Error deleting profile '{profile_id}' from Supabase: {e}")
         return False
 
+# Global variable for dynamic profile descriptions
+DYNAMIC_PROFILE_DESCRIPTIONS: Dict[str, str] = {}
+
 def update_dynamic_profile_description(profile_id: str, description: str) -> None:
     """Update the description for a dynamically created profile"""
     global DYNAMIC_PROFILE_DESCRIPTIONS
@@ -509,6 +645,7 @@ def list_profiles() -> Dict[str, str]:
             "enhanced_testing": "Enhanced Testing (AGGRESSIVE) - Based on 66.7% failure analysis",
             "optimized_testing": "Optimized Testing - Balanced performance & accuracy (73.3% analysis)",
             "maximum_accuracy": "Maximum Accuracy - No performance limits (Target: 98-100%)",
+            "professional": "Professional Configuration - Zero hard-coded values, fully configurable and optimized",
         }
         return static_profiles
 

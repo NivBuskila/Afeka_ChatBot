@@ -18,19 +18,31 @@ from dataclasses import dataclass, field
 class SearchConfig:
     """Search configuration for RAG system"""
     
-    SIMILARITY_THRESHOLD: float = 0.5
+    # 🔥 AGGRESSIVE TUNING - Much lower thresholds for more results
+    SIMILARITY_THRESHOLD: float = 0.15  # ⬇️ Much lower for more matches
     HIGH_QUALITY_THRESHOLD: float = 0.85
-    LOW_QUALITY_THRESHOLD: float = 0.60
+    LOW_QUALITY_THRESHOLD: float = 0.40  # ⬇️ Lower to catch more results
+    SECTION_SEARCH_THRESHOLD: float = 0.08  # ⬇️ Very aggressive for sections
     
-    MAX_CHUNKS_RETRIEVED: int = 8
-    MAX_CHUNKS_FOR_CONTEXT: int = 5
-    MAX_RESULTS_EXTENDED: int = 15
+    # 🔥 AGGRESSIVE TUNING - More chunks for better coverage
+    MAX_CHUNKS_RETRIEVED: int = 70  # ⬆️ Much more content
+    MAX_CHUNKS_FOR_CONTEXT: int = 12  # ⬆️ More context
+    MAX_RESULTS_EXTENDED: int = 50  # ⬆️ More extended results
     
-    HYBRID_SEMANTIC_WEIGHT: float = 0.7
-    HYBRID_KEYWORD_WEIGHT: float = 0.3
+    # 🔥 AGGRESSIVE TUNING - Favor keyword search over semantic
+    HYBRID_SEMANTIC_WEIGHT: float = 0.2  # ⬇️ Less semantic
+    HYBRID_KEYWORD_WEIGHT: float = 0.8  # ⬆️ Strong keyword focus
     
     SEARCH_TIMEOUT_SECONDS: int = 30
     EMBEDDING_TIMEOUT_SECONDS: int = 15
+    
+    # 🔥 AGGRESSIVE TUNING - Higher bonuses for exact matches
+    EXACT_PHRASE_BONUS: float = 500.0  # ⬆️ Huge bonus for exact phrases
+    TOPIC_MATCH_BONUS: float = 25.0  # ⬆️ Better topic matching
+    DIRECT_MATCH_BONUS: float = 15.0  # ⬆️ Better direct matching
+    SIMILARITY_WEIGHT_FACTOR: float = 1.0  # ⬇️ Less emphasis on similarity
+    POSITION_BONUS_BASE: float = 5.0  # ⬆️ Better position bonus
+    POSITION_BONUS_DECAY: float = 0.3  # ⬇️ Slower decay
 
 
 @dataclass
@@ -47,6 +59,10 @@ class EmbeddingConfig:
     
     MAX_RETRIES: int = 3
     RETRY_DELAY_SECONDS: float = 1.0
+    
+    # Default similarity thresholds for document processor
+    DEFAULT_SIMILARITY_THRESHOLD: float = 0.78
+    DEFAULT_HYBRID_THRESHOLD: float = 0.78
 
 
 @dataclass
@@ -89,6 +105,15 @@ class ContextConfig:
     
     CHUNK_SEPARATOR: str = "\n\n---\n\n"
     CITATION_SEPARATOR: str = " | "
+    
+    # Context assembly ratios
+    MAIN_CONTENT_RATIO: float = 0.6  # Main content can take up to 60% of available space
+    BACKGROUND_RATIO: float = 0.6    # Background info can take up to 60% of remaining space
+    ADDITIONAL_INFO_RATIO: float = 0.4  # Additional info ratio
+    
+    # Relevance extraction parameters
+    RELEVANT_SEGMENT_MAX_LENGTH: int = 500
+    SEGMENT_CONTEXT_WINDOW: int = 50  # Characters around relevant text
 
 
 @dataclass
@@ -145,6 +170,15 @@ class PerformanceConfig:
     
     LOG_SEARCH_ANALYTICS: bool = True
     LOG_PERFORMANCE_METRICS: bool = True
+    
+    # Token estimation parameters
+    TOKEN_ESTIMATION_MULTIPLIER: float = 1.3  # Multiplier for converting words to tokens
+    HEBREW_TOKEN_RATIO: float = 0.75  # Hebrew words to tokens ratio
+    
+    # Context processing parameters
+    CONTEXT_TRIM_THRESHOLD: float = 0.8  # When to start trimming context (80% full)
+    MAX_RETRIES: int = 3
+    RETRY_BACKOFF_BASE: int = 5  # Base seconds for exponential backoff
 
 
 @dataclass
@@ -197,6 +231,21 @@ class RAGConfig:
         
         if not 0.0 <= self.search.SIMILARITY_THRESHOLD <= 1.0:
             errors.append("SIMILARITY_THRESHOLD must be between 0.0 and 1.0")
+        
+        if not 0.0 <= self.search.SECTION_SEARCH_THRESHOLD <= 1.0:
+            errors.append("SECTION_SEARCH_THRESHOLD must be between 0.0 and 1.0")
+        
+        if self.search.HYBRID_SEMANTIC_WEIGHT + self.search.HYBRID_KEYWORD_WEIGHT != 1.0:
+            errors.append("HYBRID_SEMANTIC_WEIGHT + HYBRID_KEYWORD_WEIGHT must equal 1.0")
+        
+        if self.chunk.MIN_CHUNK_SIZE > self.chunk.MAX_CHUNK_SIZE:
+            errors.append("MIN_CHUNK_SIZE cannot be greater than MAX_CHUNK_SIZE")
+        
+        if self.performance.TOKEN_ESTIMATION_MULTIPLIER <= 0:
+            errors.append("TOKEN_ESTIMATION_MULTIPLIER must be positive")
+        
+        if self.performance.HEBREW_TOKEN_RATIO <= 0:
+            errors.append("HEBREW_TOKEN_RATIO must be positive")
         
         if self.chunk.MIN_CHUNK_SIZE >= self.chunk.MAX_CHUNK_SIZE:
             errors.append("MIN_CHUNK_SIZE must be less than MAX_CHUNK_SIZE")

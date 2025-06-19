@@ -1,0 +1,13 @@
+{
+  "id": "sample_test",
+  "name": "פרופיל דוגמה לבדיקה",
+  "description": "פרופיל דוגמה שנוצר אוטומטית לצורך בדיקה",
+  "config": {
+    "id": "sample_test",
+    "similarityThreshold": 0.6,
+    "maxChunks": 10,
+    "temperature": 0.1,
+    "chunkSize": 2000,
+    "maxContextTokens": 6000
+  }
+}

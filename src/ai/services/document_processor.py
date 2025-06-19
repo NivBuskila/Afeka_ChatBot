@@ -1,7 +1,7 @@
 import os
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 import hashlib
 import json
@@ -10,17 +10,18 @@ import re
 
 import google.generativeai as genai
 # from langchain.text_splitter import SemanticChunker # Old import
-from langchain_experimental.text_splitter import SemanticChunker # New import
+# from langchain_experimental.text_splitter import SemanticChunker # New import - REMOVED due to auth issues
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter # Added for more reliable chunking
+from langchain_core.documents.base import Document
 import tiktoken
 from supabase import create_client, Client
 import PyPDF2
 from docx import Document as DocxDocument
 from ..core.gemini_key_manager import get_key_manager, safe_embed_content
 
-# Import SemanticChunker and Gemini Embeddings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+# Import SemanticChunker and Gemini Embeddings - REMOVED to fix auth issues
+# from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 # ייבוא קובץ ההגדרות החדש
 from ..config.rag_config import (
@@ -30,6 +31,9 @@ from ..config.rag_config import (
     get_performance_config
 )
 
+# Import vector utilities
+from ..utils.vector_utils import ensure_768_dimensions, log_vector_info
+
 
 key_manager = get_key_manager()
 
@@ -38,11 +42,18 @@ logger = logging.getLogger(__name__)
 class DocumentProcessor:
     def __init__(self):
         logger.debug("Initializing DocumentProcessor...")
-        self.supabase: Client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-        )
-        logger.debug(f"Supabase client initialized for URL: {os.getenv('SUPABASE_URL')}")
+        
+        # Get environment variables with proper error handling
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+        
+        if not supabase_url:
+            raise ValueError("SUPABASE_URL environment variable is required")
+        if not supabase_key:
+            raise ValueError("SUPABASE_SERVICE_KEY or SUPABASE_KEY environment variable is required")
+            
+        self.supabase: Client = create_client(supabase_url, supabase_key)
+        logger.debug(f"Supabase client initialized for URL: {supabase_url}")
         
         # קבלת הגדרות מהconfig החדש
         self.embedding_config = get_embedding_config()
@@ -53,33 +64,21 @@ class DocumentProcessor:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             logger.warning("GEMINI_API_KEY not found in environment variables during DocumentProcessor init.")
+            raise ValueError("GEMINI_API_KEY environment variable is required")
         else:
             logger.info("GEMINI_API_KEY found in environment during DocumentProcessor init.")
             
-        genai.configure(api_key=api_key)
-        logger.debug("genai configured with API key.")
-        
-        # Initialize Gemini Embeddings for SemanticChunker
-        logger.debug("Initializing GoogleGenerativeAIEmbeddings...")
+        # Configure genai properly - FIXED
         try:
-            gemini_embeddings = GoogleGenerativeAIEmbeddings(
-                model=self.embedding_config.MODEL_NAME, 
-                task_type=self.embedding_config.TASK_TYPE_DOCUMENT,
-                google_api_key=api_key
-            )
-            logger.debug(f"GoogleGenerativeAIEmbeddings initialized successfully with model {self.embedding_config.MODEL_NAME}.")
-        except Exception as e_emb_init:
-            logger.error(f"Failed to initialize GoogleGenerativeAIEmbeddings: {e_emb_init}", exc_info=True)
-            raise
-
-        # Initialize both text splitters
-        logger.debug("Initializing text splitters...")
+            genai.configure(api_key=api_key)
+            logger.debug("genai configured with API key.")
+        except AttributeError:
+            # Alternative configuration method if configure not available
+            os.environ["GOOGLE_API_KEY"] = api_key
+            logger.debug("GOOGLE_API_KEY set in environment as fallback.")
         
-        # SemanticChunker for backup
-        self.semantic_splitter = SemanticChunker(
-            embeddings=gemini_embeddings, 
-            breakpoint_threshold_type="percentile"
-        )
+        # Initialize text splitters - REMOVED SemanticChunker due to auth issues
+        logger.debug("Initializing text splitters...")
         
         # Primary text splitter: RecursiveCharacterTextSplitter
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -89,11 +88,14 @@ class DocumentProcessor:
             separators=["\n\n", "\n", ". ", " ", ""]
         )
         
-        logger.debug(f"Text splitters initialized with chunk_size={self.chunk_config.DEFAULT_CHUNK_SIZE}, "
+        logger.debug(f"Text splitter initialized with chunk_size={self.chunk_config.DEFAULT_CHUNK_SIZE}, "
                     f"overlap={self.chunk_config.DEFAULT_CHUNK_OVERLAP}")
         
         self.encoding = tiktoken.get_encoding("cl100k_base")
         logger.debug("tiktoken encoding cl100k_base loaded.")
+        
+        # Initialize enhanced processor placeholder - FIXED
+        self.enhanced_processor = None
         
         logger.info(f"DocumentProcessor initialized successfully with config - "
                    f"Max chunks per doc: {self.chunk_config.MAX_CHUNKS_PER_DOCUMENT}, "
@@ -234,16 +236,13 @@ class DocumentProcessor:
                         inserted_chunk_id = rpc_response.data[0].get('id', 'N/A') # RPC returns the inserted row
                         logger.info(f"Successfully inserted chunk {i+1}/{len(processed_chunks_for_db)} via RPC for doc ID: {document_id}. Inserted '{self.db_config.CHUNKS_TABLE}' ID: {inserted_chunk_id}")
                         successful_rpc_inserts += 1
-                    elif hasattr(rpc_response, 'error') and rpc_response.error:
-                        error_msg = f"RPC call error for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}): Code: {rpc_response.error.code}, Message: {rpc_response.error.message}, Details: {rpc_response.error.details}, Hint: {rpc_response.error.hint}"
+                    else:
+                        # Handle error cases more robustly
+                        error_msg = f"RPC call for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}) returned no data"
                         logger.error(error_msg)
                         any_rpc_insert_failed = True
-                        if not first_rpc_error_message: first_rpc_error_message = error_msg
-                    else:
-                        warn_msg = f"RPC call for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}) returned no data and no explicit error. Status: {rpc_response.status_code if hasattr(rpc_response, 'status_code') else 'N/A'}. Resp: {rpc_response}"
-                        logger.warning(warn_msg)
-                        any_rpc_insert_failed = True # Treat as failure for safety
-                        if not first_rpc_error_message: first_rpc_error_message = warn_msg
+                        if not first_rpc_error_message: 
+                            first_rpc_error_message = error_msg
                 except Exception as e_rpc_call:
                     error_msg = f"Exception during RPC call for '{self.db_config.CHUNKS_TABLE}' chunk {i+1} (doc ID: {document_id}): {e_rpc_call}"
                     logger.error(error_msg, exc_info=True)
@@ -281,9 +280,8 @@ class DocumentProcessor:
                             bc_response = self.supabase.table("embeddings").insert(embedding_data_for_bc_table).execute()
                             if hasattr(bc_response, 'data') and bc_response.data:
                                 bc_inserts_count += 1
-                            elif hasattr(bc_response, 'error') and bc_response.error:
-                                logger.error(f"BC Save: Error inserting item {i+1} to 'embeddings' for doc {document_id}: {bc_response.error.message}")
-                            # else: log warning for no data/no error if necessary
+                            else:
+                                logger.error(f"BC Save: Error inserting item {i+1} to 'embeddings' for doc {document_id}")
                         except Exception as e_bc_insert_exc:
                             logger.error(f"BC Save: Exception inserting item {i+1} to 'embeddings' for doc {document_id}: {e_bc_insert_exc}", exc_info=True)
                     else:
@@ -313,7 +311,7 @@ class DocumentProcessor:
             await self._update_document_status(document_id, "failed", str(e))
             return {"success": False, "document_id": document_id, "chunks_created": 0, "error": str(e)}
 
-    async def _load_and_split_document(self, file_path: str) -> List[Any]:
+    async def _load_and_split_document(self, file_path: str) -> List[Document]:
         """
         Loads a document from file_path and splits it into chunks.
         Returns list of Document objects with metadata.
@@ -347,8 +345,8 @@ class DocumentProcessor:
 
             logger.debug(f"Splitting text content (length: {len(doc_text_content)}) using {type(self.text_splitter).__name__}'s split_documents method...")
             
-            # Create a Document object
-            doc = type('Document', (), {'page_content': doc_text_content, 'metadata': original_metadata})()
+            # Create a proper Document object using langchain's Document class
+            doc = Document(page_content=doc_text_content, metadata=original_metadata)
             
             # Use split_documents which returns List[Document]
             chunks = self.text_splitter.split_documents([doc])
@@ -415,7 +413,6 @@ class DocumentProcessor:
         if not api_key:
             logger.error("GEMINI_API_KEY not found when trying to generate embedding.")
             return None
-        # genai.configure(api_key=api_key) # Potentially redundant if globally configured, but safe.
         
         try:
             # The model name for embeddings might be different from generative models.
@@ -427,8 +424,24 @@ class DocumentProcessor:
                 content=text,
                 task_type=task_type
             )
-            logger.debug(f"Successfully received embedding result from Gemini API for task_type: {task_type}. Embedding length: {len(result['embedding']) if result and 'embedding' in result else 'N/A'}")
-            return result["embedding"]
+            
+            raw_embedding = result["embedding"] if result and 'embedding' in result else None
+            if not raw_embedding:
+                logger.error(f"No embedding returned from API for task_type: {task_type}")
+                return None
+            
+            # וידוא שה-vector הוא בדיוק 768 dimensions
+            embedding = ensure_768_dimensions(raw_embedding)
+            
+            # רישום מידע לdebug אם יש בעיה עם גודל הvector
+            if len(raw_embedding) != 768:
+                logger.warning(f"Vector dimension adjusted from {len(raw_embedding)} to 768 for task_type: {task_type}")
+                log_vector_info(raw_embedding, f"Original {task_type} embedding")
+                log_vector_info(embedding, f"Adjusted {task_type} embedding")
+            
+            logger.debug(f"Successfully generated embedding for task_type: {task_type}. Final embedding length: {len(embedding)}")
+            return embedding
+            
         except Exception as e:
             logger.error(f"Error generating Gemini embedding for task_type {task_type}: {e}", exc_info=True)
             return None
@@ -445,12 +458,32 @@ class DocumentProcessor:
             # Check response for errors (Supabase client specific)
             if hasattr(response, 'data') and response.data:
                 logger.debug(f"Successfully updated status for document ID {document_id} to {status}. Response: {response.data}")
-            elif hasattr(response, 'error') and response.error is not None:
-                logger.error(f"Supabase error updating status for document ID {document_id}: Code: {response.error.code}, Message: {response.error.message}")
             else:
                 logger.warning(f"Unknown Supabase response or no data returned when updating status for document ID {document_id}: {response}")
         except Exception as e:
             logger.error(f"Exception updating document status for ID {document_id} to {status}: {e}", exc_info=True)
+
+    async def _update_document_content(self, document_id: int, raw_chunks: List[Document]) -> None:
+        """עדכון תוכן המסמך במסד הנתונים"""
+        logger.debug(f"Updating document content for ID: {document_id} with {len(raw_chunks)} chunks")
+        try:
+            # Create a summary of the document content
+            content_summary = "\n".join([chunk.page_content[:200] + "..." if len(chunk.page_content) > 200 else chunk.page_content for chunk in raw_chunks[:5]])
+            
+            update_data = {
+                "content_summary": content_summary,
+                "total_chunks": len(raw_chunks)
+            }
+            
+            response = self.supabase.table(self.db_config.DOCUMENTS_TABLE).update(update_data).eq("id", document_id).execute()
+            
+            if hasattr(response, 'data') and response.data:
+                logger.debug(f"Successfully updated content for document ID {document_id}")
+            else:
+                logger.warning(f"Failed to update content for document ID {document_id}")
+                
+        except Exception as e:
+            logger.error(f"Exception updating document content for ID {document_id}: {e}", exc_info=True)
 
     async def delete_document_and_all_chunks(self, document_id: int) -> Dict[str, Any]:
         """
@@ -539,51 +572,62 @@ class DocumentProcessor:
             logger.error(f"General error in delete_document_embeddings for document_id {document_id}: {str(e)}", exc_info=True)
             return {"success": False, "message": str(e)}
 
-    async def search_documents(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
+    async def search_documents(self, query: str, limit: int = 10, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         """חיפוש סמנטי במסמכים באמצעות המערכת החדשה"""
         logger.info(f"Starting enhanced search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # Use the enhanced processor for search
-            results = await self.enhanced_processor.search(query, limit)
-            logger.info(f"Enhanced search returned {len(results)} results")
-            return results
+            # השתמש בdefault threshold מ-config אם לא סופק
+            if threshold is None:
+                threshold = self.embedding_config.DEFAULT_SIMILARITY_THRESHOLD
+            
+            # Enhanced processor is not implemented yet, use fallback
+            logger.info("Using fallback search")
+            return await self._fallback_search(query, limit, threshold)
             
         except Exception as e:
             logger.error(f"Error during enhanced search: {e}", exc_info=True)
-            # Fallback to direct embedding search
-            try:
-                logger.info("Falling back to direct embedding search")
-                query_embedding = await self._generate_embedding(query, is_query=True)
-                if not query_embedding:
-                    logger.error("Failed to generate query embedding for fallback")
-                    return []
-                
-                response = self.supabase.rpc(
-                    "advanced_semantic_search",
-                    {
-                        "query_embedding": query_embedding,
-                        "similarity_threshold": threshold,
-                        "match_count": limit,
-                    },
-                ).execute()
-                
-                if response.data:
-                    logger.info(f"Fallback search found {len(response.data)} results")
-                    return response.data
-                return []
-                    
-            except Exception as fallback_e:
-                logger.error(f"Fallback search also failed: {fallback_e}", exc_info=True)
-                return []
+            # Fallback to direct embedding search with default threshold
+            fallback_threshold = threshold or self.embedding_config.DEFAULT_SIMILARITY_THRESHOLD
+            return await self._fallback_search(query, limit, fallback_threshold)
 
-    async def hybrid_search(self, query: str, limit: int = 10, threshold: float = 0.78) -> List[Dict[str, Any]]:
+    async def _fallback_search(self, query: str, limit: int, threshold: float) -> List[Dict[str, Any]]:
+        """Fallback search method using direct embedding search"""
+        try:
+            logger.info("Performing fallback search using direct embedding")
+            query_embedding = await self._generate_embedding(query, is_query=True)
+            if not query_embedding:
+                logger.error("Failed to generate query embedding for fallback")
+                return []
+            
+            response = self.supabase.rpc(
+                "advanced_semantic_search",
+                {
+                    "query_embedding": query_embedding,
+                    "similarity_threshold": threshold,
+                    "match_count": limit,
+                },
+            ).execute()
+            
+            if response.data:
+                logger.info(f"Fallback search found {len(response.data)} results")
+                return response.data
+            return []
+                
+        except Exception as fallback_e:
+            logger.error(f"Fallback search also failed: {fallback_e}", exc_info=True)
+            return []
+
+    async def hybrid_search(self, query: str, limit: int = 10, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         """חיפוש היברידי במסמכים באמצעות המערכת החדשה"""
         logger.info(f"Starting enhanced hybrid search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # Use the enhanced processor for hybrid search
-            results = await self.enhanced_processor.search(query, limit)
-            logger.info(f"Enhanced hybrid search returned {len(results)} results")
-            return results
+            # השתמש בdefault threshold מ-config אם לא סופק
+            if threshold is None:
+                threshold = self.embedding_config.DEFAULT_HYBRID_THRESHOLD
+            
+            # Enhanced processor not implemented yet, use fallback
+            logger.info("Enhanced processor not available for hybrid search, using fallback")
+            return await self.search_documents(query, limit, threshold)
                 
         except Exception as e:
             logger.error(f"Error during enhanced hybrid search: {e}", exc_info=True)

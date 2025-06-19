@@ -1,0 +1,34 @@
+RAG TEST PRO - TEST REPORT SUMMARY
+==================================================
+
+Session ID: 20250618_224627
+Timestamp: 2025-06-18T22:46:27.253292+00:00
+
+CONFIGURATION
+--------------------
+Question Set: All Questions Combined (90 questions)
+RAG Profile: דיוק מושלם + כיסוי מקסימלי
+Description: פרופיל מתקדם המשלב דיוק מקסימלי עם כיסוי רחב - פותר את בעיות המציאת מידע (יעד: 95-98% דיוק)
+
+RAG PARAMETERS
+--------------------
+name: דיוק מושלם + כיסוי מקסימלי
+description: פרופיל מתקדם המשלב דיוק מקסימלי עם כיסוי רחב - פותר את בעיות המציאת מידע (יעד: 95-98% דיוק)
+author: צוות Afeka ChatBot - גרסה משופרת
+created: 2025-06-19
+version: 1.0
+config: {'id': 'perfect_accuracy_plus_coverage', 'similarityThreshold': 0.45, 'sectionSearchThreshold': 0.25, 'maxChunks': 35, 'temperature': 0.05, 'modelName': 'gemini-2.0-flash', 'chunkSize': 2500, 'chunkOverlap': 350, 'maxContextTokens': 9000, 'targetTokensPerChunk': 420, 'hybridSemanticWeight': 0.55, 'hybridKeywordWeight': 0.45, 'exactPhraseBonus': 200.0, 'topicMatchBonus': 18.0, 'directMatchBonus': 10.0, 'similarityWeightFactor': 3.0, 'positionBonusBase': 5.0, 'positionBonusDecay': 0.3}
+characteristics: {'focus': 'דיוק מושלם + כיסוי מקסימלי של מידע', 'expectedSpeed': 'איטי יותר (8-12 שניות)', 'expectedQuality': 'הגבוהה ביותר עם כיסוי מלא', 'bestFor': 'שאלות קריטיות הדורשות דיוק מושלם ומציאת כל המידע הרלוונטי', 'tradeoffs': 'זמן תגובה איטי יותר תמורת כיסוי מקסימלי ודיוק מושלם'}
+improvements: ['🔍 ספי חיפוש נמוכים יותר - למציאת מידע שהוחמץ', '📚 35% יותר תוכן וקונטקסט - כיסוי רחב יותר', '🎯 חיפוש היברידי משופר - יותר מילות מפתח', '💪 בונוסים חזקים יותר - זיהוי מדויק של מידע רלוונטי', '⚖️ אלגוריתם ניקוד משופר - עדיפות למידע איכותי', '🔧 chunks גדולים יותר עם חפיפה טובה יותר']
+target_fixes: ["❌ פתרון 'אין מידע' כשיש מידע (שאלות 19,28,29,79,81,90)", '❌ פתרון אי עקביות בתשובות (שאלות 14 vs 25)', '❌ תיקון שגיאות חמורות (שאלה 61 על משך לימודים)', '✅ שיפור מציאת סעיפים ספציפיים', '✅ כיסוי מקסימלי של כל המידע במסמכים']
+usage_notes: ['מומלץ לכל השאלות הקריטיות והחשובות', 'פותר את בעיות המציאת מידע מהפרופיל הקודם', 'יכול לקחת 8-12 שניות לתשובה (איטי יותר)', 'מתאים במיוחד לבדיקות איכותיות מתקדמות', 'מבטיח כיסוי מקסימלי של כל המידע הרלוונטי']
+
+RESULTS SUMMARY
+--------------------
+Total Questions: 90
+Successful: 90
+Failed: 0
+Success Rate: 100.0%
+Total Time: 347.32s
+Average Response Time: 3.75s
+Total Tokens: 13500

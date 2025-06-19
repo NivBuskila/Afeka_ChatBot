@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "name": "RAG Test Pro",
+    "version": "1.0.0",
+    "description": "מערכת בדיקה מתקדמת ופשוטה ל-RAG",
+    "author": "צוות Afeka ChatBot",
+    "created": "2025-06-19",
+    "last_updated": "2025-06-19"
+  },
+  "directories": {
+    "test_questions": "test_questions",
+    "rag_profiles": "rag_profiles", 
+    "results": "results",
+    "logs": "logs"
+  },
+  "default_settings": {
+    "max_retries": 3,
+    "default_timeout": 30,
+    "log_level": "INFO",
+    "auto_save_results": true,
+    "backup_results": true
+  },
+  "file_patterns": {
+    "questions": "*.json",
+    "profiles": "*.json",
+    "results": "test_results_*.json"
+  },
+  "supported_formats": {
+    "questions": ["json"],
+    "profiles": ["json"],
+    "results": ["json"]
+  },
+  "limits": {
+    "max_questions_per_set": 1000,
+    "max_profiles": 100,
+    "max_results_to_keep": 500
+  }
+} 

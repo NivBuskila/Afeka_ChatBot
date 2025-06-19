@@ -9,6 +9,12 @@ from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 import unicodedata
 
+# Import configuration
+try:
+    from ..config.rag_config import get_performance_config
+except ImportError:
+    from src.ai.config.rag_config import get_performance_config
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -40,6 +46,7 @@ class SmartChunker:
     """מחלק חכם למסמכי תקנון עם זיהוי היררכיה ומטא-דטה מתקדם"""
     
     def __init__(self):
+        self.performance_config = get_performance_config()
         # דפוסי זיהוי סעיפים ופרקים
         self.section_patterns = [
             r'^\s*(\d+(?:\.\d+)*)\s*[.\-]?\s*(.+?)(?:\n|$)',  # 1.2.3 כותרת
@@ -181,7 +188,7 @@ class SmartChunker:
         # החזרת הסוג עם הציון הגבוה ביותר
         max_score = max(type_scores.values())
         if max_score > 0:
-            return max(type_scores, key=type_scores.get)
+            return max(type_scores.keys(), key=lambda k: type_scores[k])
         
         return 'rule'  # ברירת מחדל
 
@@ -301,7 +308,7 @@ class SmartChunker:
                     chapter=chapter,
                     section_number=section_number or "",
                     section_title=section_title or "",
-                    hierarchical_path=self.build_hierarchical_path(section_number, chapter),
+                    hierarchical_path=self.build_hierarchical_path(section_number or "", chapter),
                     parent_context=section_info.get('parent_context', ''),
                     cross_references=self.find_cross_references(chunk_text),
                     keywords=self.extract_keywords(chunk_text),
@@ -412,6 +419,6 @@ class SmartChunker:
 
     def _estimate_token_count(self, text: str) -> int:
         """הערכת מספר טוקנים בטקסט עברית"""
-        # הערכה גסה: כ-0.75 טוקן למילה בעברית
+        # הערכה גסה: טוקן למילה בעברית לפי ההגדרות
         words = len(text.split())
-        return int(words * 0.75) 
+        return int(words * self.performance_config.HEBREW_TOKEN_RATIO) 

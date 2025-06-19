@@ -10,6 +10,12 @@ from datetime import datetime, date
 import re
 from .retrieval import SearchResult, ContextBundle
 
+# Import configuration
+try:
+    from ..config.rag_config import get_context_config
+except ImportError:
+    from src.ai.config.rag_config import get_context_config
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -27,6 +33,7 @@ class ContextBuilder:
     """בונה קונטקסט חכם ומותאם לתקנוני מכללה"""
     
     def __init__(self):
+        self.context_config = get_context_config()
         # הגדרות זמניות עדכניות (יש לעדכן כל שנה)
         self.current_academic_year = "2024-2025"
         self.current_semester = "ב'"
@@ -214,13 +221,13 @@ class ContextBuilder:
         """קיצוץ קונטקסט כשהוא ארוך מדי"""
         
         # עדיפויות: main_content > background > additional
-        if len(main) > max_length * 0.6:
-            main = main[:int(max_length * 0.6)] + "..."
+        if len(main) > max_length * self.context_config.MAIN_CONTENT_RATIO:
+            main = main[:int(max_length * self.context_config.MAIN_CONTENT_RATIO)] + "..."
         
         remaining_length = max_length - len(main)
         
-        if len(background) > remaining_length * 0.6:
-            background = background[:int(remaining_length * 0.6)] + "..."
+        if len(background) > remaining_length * self.context_config.BACKGROUND_RATIO:
+            background = background[:int(remaining_length * self.context_config.BACKGROUND_RATIO)] + "..."
         
         remaining_length -= len(background)
         

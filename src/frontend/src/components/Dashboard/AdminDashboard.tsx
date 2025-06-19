@@ -1,40 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  LayoutDashboard,
-  MessageSquare,
-  BarChart3,
-  Users,
-  UserCog,
-  FileText,
-  Upload,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Bell,
-  Search,
-  Filter,
-  Download,
   Trash2,
-  Edit,
   Plus,
   X,
   AlertTriangle,
   CheckCircle,
   AlertCircle,
-  Brain,
-  Cpu,
-  TrendingUp,
   Sun,
   Moon,
   Globe,
-  Coins,
 } from "lucide-react";
 import "./AdminDashboard.css";
-import { translations } from "./translations";
 import ChatWindow from "../Chat/ChatWindow";
-import { useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { AnalyticsOverview } from "./AnalyticsOverview";
@@ -50,38 +28,16 @@ import {
   analyticsService,
   DashboardAnalytics,
 } from "../../services/analyticsService";
-import { Pagination, usePagination } from "../common/Pagination";
+import { Pagination } from "../common/Pagination";
 import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
 import { useTheme } from "../../contexts/ThemeContext";
-// import { TokensUsageDashboard } from "./TokensUsageDashboard"; // Not used
 import TokenUsageAnalytics from "./TokenUsageAnalytics";
 import type { Document } from "../../config/supabase";
 import { supabase } from "../../config/supabase";
-import i18n from "i18next";
 import { cacheService } from "../../services/cacheService";
 import LoadingScreen from "../LoadingScreen";
 
 type Language = "he" | "en";
-
-interface MenuItem {
-  id: string;
-  title: string;
-  icon: React.ReactNode;
-  subItems?: {
-    id: string;
-    title: string;
-    icon: React.ReactNode;
-  }[];
-}
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  is_admin: boolean;
-  lastLogin: string;
-  status: "active" | "inactive";
-}
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -93,7 +49,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeItem, setActiveItem] = useState("chatbot");
   const [activeSubItem, setActiveSubItem] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
@@ -115,8 +70,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [language, setLanguage] = useState<Language>(i18n.language as Language);
   const { theme, setTheme } = useTheme();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string>("chatbot");
 
   // הוספת מערכת הודעות
   const [successMessage, setSuccessMessage] = useState<string>("");
@@ -225,11 +178,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         console.log("Users found:", analyticsData.recentUsers.length);
         console.log("Admins found:", analyticsData.recentAdmins.length);
         console.log("Documents found:", docs.length);
+        console.log("🔍 [DEBUG] Raw documents data:", docs);
+        console.log("🔍 [DEBUG] Documents array:", Array.isArray(docs));
+        console.log("🔍 [DEBUG] First document:", docs[0]);
 
         setDocuments(docs);
+        console.log("🔍 [DEBUG] Documents set to state");
         setAnalytics(analyticsData);
       } catch (error) {
         console.error("Error fetching data:", error);
+        console.error("🚨 [DEBUG] Failed to fetch documents");
       } finally {
         setIsInitialLoading(false);
       }
@@ -251,144 +209,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
-
-  const menuItems: MenuItem[] = [
-    {
-      id: "chatbot",
-      title: t("admin.sidebar.chatbotPreview"),
-      icon: <MessageSquare className="w-5 h-5" />,
-    },
-    {
-      id: "analytics",
-      title: t("admin.sidebar.analytics"),
-      icon: <BarChart3 className="w-5 h-5" />,
-      subItems: [
-        {
-          id: "overview",
-          title: t("admin.sidebar.overview"),
-          icon: <BarChart3 className="w-4 h-4" />,
-        },
-        {
-          id: "token-usage",
-          title: t("analytics.token.usage"),
-          icon: <Coins className="w-4 h-4" />,
-        },
-        {
-          id: "users",
-          title: t("admin.sidebar.users"),
-          icon: <Users className="w-4 h-4" />,
-        },
-        {
-          id: "admins",
-          title: t("admin.sidebar.administrators"),
-          icon: <UserCog className="w-4 h-4" />,
-        },
-      ],
-    },
-    {
-      id: "documents",
-      title: t("admin.sidebar.knowledgeBase"),
-      icon: <FileText className="w-5 h-5" />,
-      subItems: [
-        {
-          id: "upload",
-          title: t("admin.sidebar.uploadDocuments"),
-          icon: <Upload className="w-4 h-4" />,
-        },
-        {
-          id: "active",
-          title: t("admin.sidebar.activeDocuments"),
-          icon: <FileText className="w-4 h-4" />,
-        },
-      ],
-    },
-    {
-      id: "rag",
-      title: t("rag.management"),
-      icon: <Brain className="w-5 h-5" />,
-      subItems: [
-        {
-          id: "overview",
-          title: t("rag.overview"),
-          icon: <Brain className="w-4 h-4" />,
-        },
-        {
-          id: "profiles",
-          title: t("rag.profile.selector"),
-          icon: <Cpu className="w-4 h-4" />,
-        },
-        {
-          id: "performance",
-          title: t("rag.performanceMonitor"),
-          icon: <TrendingUp className="w-4 h-4" />,
-        },
-        {
-          id: "test",
-          title: t("rag.test.center"),
-          icon: <Search className="w-4 h-4" />,
-        },
-      ],
-    },
-    {
-      id: "settings",
-      title: t("admin.sidebar.settings"),
-      icon: <Settings className="w-5 h-5" />,
-    },
-  ];
-
-  const mockUsers: User[] = [
-    {
-      id: 1,
-      name: "ישראל ישראלי",
-      email: "israel@afeka.ac.il",
-      is_admin: true,
-      lastLogin: "2024-03-25 10:30",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "שרה כהן",
-      email: "sara@afeka.ac.il",
-      is_admin: false,
-      lastLogin: "2024-03-25 09:15",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "דוד לוי",
-      email: "david@afeka.ac.il",
-      is_admin: false,
-      lastLogin: "2024-03-24 15:45",
-      status: "inactive",
-    },
-  ];
-
-  const mockDocuments: any[] = [
-    {
-      id: 1,
-      name: i18n.language === "he" ? "תקנון אקדמי" : "Academic Regulations",
-      type: "pdf",
-      size: 2.5 * 1024 * 1024,
-      url: "#",
-      created_at: "2024-03-20",
-    },
-    {
-      id: 2,
-      name: i18n.language === "he" ? "מדריך למשתמש" : "User Guide",
-      type: "pdf",
-      size: 1.8 * 1024 * 1024,
-      url: "#",
-      created_at: "2024-03-18",
-    },
-    {
-      id: 3,
-      name: i18n.language === "he" ? "לוח זמנים" : "Schedule",
-      type: "pdf",
-      size: 3.2 * 1024 * 1024,
-      url: "#",
-      created_at: "2024-03-15",
-    },
-  ];
 
   // Manual data refresh function
   const refreshData = async () => {
@@ -440,18 +260,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } else {
       setActiveSubItem(null);
     }
-
-    setActiveTab(itemId);
   };
 
   const handleSubItemClick = (itemId: string, subItemId: string) => {
     console.log(`Setting active item to: ${itemId}, subItem to: ${subItemId}`);
     setActiveItem(itemId);
     setActiveSubItem(subItemId);
-  };
-
-  const handleLogout = () => {
-    onLogout();
   };
 
   const handleEditDocument = (document: Document) => {
@@ -462,12 +276,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleDeleteDocument = (document: Document) => {
     setSelectedDocument(document);
     setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = () => {
-    // Add delete logic here
-    setShowDeleteModal(false);
-    setSelectedDocument(null);
   };
 
   const handleUpload = async (file: File) => {
@@ -1003,12 +811,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {activeSubItem === "upload"
-                  ? i18n.language === "he"
-                    ? "העלאת מסמכים"
-                    : "Upload Documents"
-                  : i18n.language === "he"
-                  ? "מסמכים פעילים"
-                  : "Active Documents"}
+                  ? t("admin.sidebar.uploadDocuments")
+                  : t("admin.sidebar.activeDocuments")}
               </h2>
               {activeSubItem === "active" && (
                 <button
@@ -1056,7 +860,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     )}
                   </div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-green-400">
-                    {i18n.language === "he" ? "ערכת נושא" : "Theme"}
+                    {t("settings.theme") || "Theme"}
                   </h3>
                 </div>
 
@@ -1071,7 +875,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       }`}
                     >
                       <Sun className="w-4 h-4 mr-2" />
-                      {i18n.language === "he" ? "בהיר" : "Light"}
+                      {t("settings.light") || "Light"}
                     </button>
                     <button
                       onClick={() => handleThemeChange("dark")}
@@ -1082,7 +886,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       }`}
                     >
                       <Moon className="w-4 h-4 mr-2" />
-                      {i18n.language === "he" ? "כהה" : "Dark"}
+                      {t("settings.dark") || "Dark"}
                     </button>
                   </div>
                 </div>
@@ -1095,7 +899,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-green-400">
-                    {i18n.language === "he" ? "שפה" : "Language"}
+                    {t("settings.language") || "Language"}
                   </h3>
                 </div>
 

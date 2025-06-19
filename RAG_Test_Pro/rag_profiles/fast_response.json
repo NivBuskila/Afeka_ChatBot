@@ -1,0 +1,40 @@
+{
+  "id": "fast_response",
+  "name": "תגובה מהירה",
+  "description": "פרופיל מהיר למענה מהיר - מותאם לנפח גבוה של שאלות",
+  "author": "צוות Afeka ChatBot",
+  "created": "2025-06-19",
+  "config": {
+    "id": "fast_response",
+    "similarityThreshold": 0.45,
+    "sectionSearchThreshold": 0.25,
+    "maxChunks": 8,
+    "temperature": 0.1,
+    "modelName": "gemini-2.0-flash",
+    "chunkSize": 1500,
+    "chunkOverlap": 150,
+    "maxContextTokens": 4000,
+    "targetTokensPerChunk": 250,
+    "hybridSemanticWeight": 0.6,
+    "hybridKeywordWeight": 0.4,
+    "exactPhraseBonus": 80.0,
+    "topicMatchBonus": 8.0,
+    "directMatchBonus": 4.0,
+    "similarityWeightFactor": 1.8,
+    "positionBonusBase": 2.5,
+    "positionBonusDecay": 0.6
+  },
+  "characteristics": {
+    "focus": "מהירות תגובה וחיסכון בטוקנים",
+    "expectedSpeed": "מהיר",
+    "expectedQuality": "טובה",
+    "bestFor": "שאלות פשוטות ונפח גבוה",
+    "tradeoffs": "דיוק מעט פחות תמורת מהירות"
+  },
+  "usage_notes": [
+    "מתאים לבדיקות נפח גבוה",
+    "חיסכון בטוקנים",
+    "תגובה מהירה",
+    "טוב לשאלות בסיסיות"
+  ]
+} 

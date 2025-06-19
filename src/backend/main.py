@@ -13,6 +13,8 @@ import os
 import sys
 import logging
 import uvicorn
+import threading
+import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -30,15 +32,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Background task for document processing
-def run_document_processor():
-    """Background task for automatic document processing"""
+# Background document processor
+def background_document_processor():
+    """Run document processor in background thread"""
+    import asyncio
     try:
-        from src.ai.scripts.auto_process_documents import process_all_documents
-        process_all_documents()
-        logger.info("✅ Document processor completed successfully")
+        # Create new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Import and run processor with 30 second intervals
+        from src.ai.scripts.auto_process_documents import run_processor
+        loop.run_until_complete(run_processor(interval=30))
     except Exception as e:
-        logger.error(f"❌ Document processor failed: {e}")
+        logger.error(f"Background document processor error: {e}")
+    finally:
+        try:
+            loop.close()
+        except:
+            pass
 
 @asynccontextmanager
 async def lifespan(app):
@@ -46,38 +58,17 @@ async def lifespan(app):
     # Startup
     logger.info("🚀 Starting Afeka ChatBot API...")
     
-    # Initialize background services
-    # try:
-    #     # Always start document processor for development
-    #     logger.info("📄 Starting automatic document processing...")
-    #     
-    #     # Import and start the background processor
-    #     import threading
-    #     from src.ai.scripts.auto_process_documents import run_processor
-    #     
-    #     def background_processor():
-    #         """Run document processor in background thread"""
-    #         import asyncio
-    #         try:
-    #             # Create new event loop for this thread
-    #             loop = asyncio.new_event_loop()
-    #             asyncio.set_event_loop(loop)
-    #             
-    #             # Run processor with 30 second intervals
-    #             loop.run_until_complete(run_processor(interval=30))
-    #         except Exception as e:
-    #             logger.error(f"Background processor error: {e}")
-    #     
-    #     # Start processor in daemon thread
-    #     processor_thread = threading.Thread(target=background_processor, daemon=True)
-    #     processor_thread.start()
-    #     logger.info("✅ Document processor thread started")
-    #     
-    # except Exception as e:
-    #     logger.warning(f"⚠️ Background service initialization warning: {e}")
-    
-    # Skip background services for now to avoid threading issues
-    logger.info("📄 Background document processing disabled for performance optimization")
+    # Initialize background document processing service
+    try:
+        logger.info("📄 Starting automatic document processing service...")
+        
+        # Start processor in daemon thread
+        processor_thread = threading.Thread(target=background_document_processor, daemon=True)
+        processor_thread.start()
+        logger.info("✅ Document processor thread started successfully")
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Background document processor initialization warning: {e}")
     
     logger.info("✅ Application startup complete")
     

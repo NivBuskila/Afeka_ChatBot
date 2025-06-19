@@ -24,6 +24,12 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   const { t, i18n } = useTranslation();
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // 🔍 Debug information
+  console.log("🔍 [DocumentTable] Received documents:", documents);
+  console.log("🔍 [DocumentTable] Documents length:", documents?.length || 0);
+  console.log("🔍 [DocumentTable] Is array:", Array.isArray(documents));
+  console.log("🔍 [DocumentTable] First document:", documents?.[0]);
+
   const getFileType = (type: string): string => {
     const mimeMap: Record<string, string> = {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -151,97 +157,112 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-black/20 divide-y divide-gray-100 dark:divide-green-500/20">
-            {paginatedDocuments.map((doc) => (
-              <tr
-                key={doc.id}
-                className="hover:bg-gray-50 dark:hover:bg-green-500/5 transition-colors"
-              >
+            {paginatedDocuments.length === 0 ? (
+              <tr>
                 <td
-                  className={`px-6 py-4 whitespace-nowrap ${
-                    i18n.language === "en" ? "text-left" : "text-right"
-                  }`}
+                  colSpan={6}
+                  className="px-6 py-4 text-center text-gray-500 dark:text-green-400/70"
                 >
-                  <div
-                    className={`flex items-center ${
-                      i18n.language === "en" ? "flex-row" : "flex-row-reverse"
-                    }`}
-                  >
-                    <FileText className="h-5 w-5 text-gray-600 dark:text-green-400/70" />
-                    <div className={i18n.language === "en" ? "ml-4" : "mr-4"}>
-                      <div className="text-sm font-medium text-gray-800 dark:text-green-400">
-                        {doc.name}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap ${
-                    i18n.language === "en" ? "text-left" : "text-right"
-                  }`}
-                >
-                  <div className="text-sm text-gray-700 dark:text-green-400/80">
-                    {getFileType(doc.type)}
-                  </div>
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap ${
-                    i18n.language === "en" ? "text-left" : "text-right"
-                  }`}
-                >
-                  <div className="text-sm text-gray-700 dark:text-green-400/80">
-                    {(doc.size / 1024 / 1024).toFixed(2)} MB
-                  </div>
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap ${
-                    i18n.language === "en" ? "text-left" : "text-right"
-                  }`}
-                >
-                  <div className="text-sm text-gray-700 dark:text-green-400/80">
-                    {new Date(doc.created_at).toLocaleDateString()}
-                  </div>
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap ${
-                    i18n.language === "en" ? "text-left" : "text-right"
-                  }`}
-                >
-                  <ProcessingProgressBar documentId={doc.id} />
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    i18n.language === "en" ? "text-left" : "text-right"
-                  }`}
-                >
-                  <div
-                    className={`flex items-center ${
-                      i18n.language === "en"
-                        ? "space-x-4"
-                        : "space-x-4 space-x-reverse"
-                    }`}
-                  >
-                    <button
-                      onClick={() => downloadFile(doc.url, doc.name)}
-                      className="text-gray-600 dark:text-green-400/80 hover:text-gray-800 dark:hover:text-green-400 transition-colors"
-                    >
-                      <Download className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => onEdit(doc)}
-                      className="text-yellow-600 dark:text-yellow-400/80 hover:text-yellow-700 dark:hover:text-yellow-400 transition-colors"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(doc)}
-                      className="text-red-600 dark:text-red-400/80 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
+                  {filteredDocuments.length === 0
+                    ? documents.length === 0
+                      ? "אין מסמכים במערכת"
+                      : "לא נמצאו מסמכים התואמים לחיפוש"
+                    : "אין מסמכים לעמוד זה"}
                 </td>
               </tr>
-            ))}
+            ) : (
+              paginatedDocuments.map((doc) => (
+                <tr
+                  key={doc.id}
+                  className="hover:bg-gray-50 dark:hover:bg-green-500/5 transition-colors"
+                >
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap ${
+                      i18n.language === "en" ? "text-left" : "text-right"
+                    }`}
+                  >
+                    <div
+                      className={`flex items-center ${
+                        i18n.language === "en" ? "flex-row" : "flex-row-reverse"
+                      }`}
+                    >
+                      <FileText className="h-5 w-5 text-gray-600 dark:text-green-400/70" />
+                      <div className={i18n.language === "en" ? "ml-4" : "mr-4"}>
+                        <div className="text-sm font-medium text-gray-800 dark:text-green-400">
+                          {doc.name}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap ${
+                      i18n.language === "en" ? "text-left" : "text-right"
+                    }`}
+                  >
+                    <div className="text-sm text-gray-700 dark:text-green-400/80">
+                      {getFileType(doc.type)}
+                    </div>
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap ${
+                      i18n.language === "en" ? "text-left" : "text-right"
+                    }`}
+                  >
+                    <div className="text-sm text-gray-700 dark:text-green-400/80">
+                      {(doc.size / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap ${
+                      i18n.language === "en" ? "text-left" : "text-right"
+                    }`}
+                  >
+                    <div className="text-sm text-gray-700 dark:text-green-400/80">
+                      {new Date(doc.created_at).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap ${
+                      i18n.language === "en" ? "text-left" : "text-right"
+                    }`}
+                  >
+                    <ProcessingProgressBar documentId={doc.id} />
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      i18n.language === "en" ? "text-left" : "text-right"
+                    }`}
+                  >
+                    <div
+                      className={`flex items-center ${
+                        i18n.language === "en"
+                          ? "space-x-4"
+                          : "space-x-4 space-x-reverse"
+                      }`}
+                    >
+                      <button
+                        onClick={() => downloadFile(doc.url, doc.name)}
+                        className="text-gray-600 dark:text-green-400/80 hover:text-gray-800 dark:hover:text-green-400 transition-colors"
+                      >
+                        <Download className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => onEdit(doc)}
+                        className="text-yellow-600 dark:text-yellow-400/80 hover:text-yellow-700 dark:hover:text-yellow-400 transition-colors"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => onDelete(doc)}
+                        className="text-red-600 dark:text-red-400/80 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

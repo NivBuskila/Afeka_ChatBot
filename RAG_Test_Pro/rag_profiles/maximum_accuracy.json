@@ -1,0 +1,40 @@
+{
+  "id": "maximum_accuracy",
+  "name": "דיוק מקסימלי",
+  "description": "פרופיל לדיוק מקסימלי - ללא מגבלות ביצועים (יעד: 98-100% דיוק)",
+  "author": "צוות Afeka ChatBot",
+  "created": "2025-06-19",
+  "config": {
+    "id": "maximum_accuracy",
+    "similarityThreshold": 0.65,
+    "sectionSearchThreshold": 0.35,
+    "maxChunks": 25,
+    "temperature": 0.05,
+    "modelName": "gemini-2.0-flash",
+    "chunkSize": 2200,
+    "chunkOverlap": 250,
+    "maxContextTokens": 7000,
+    "targetTokensPerChunk": 380,
+    "hybridSemanticWeight": 0.65,
+    "hybridKeywordWeight": 0.35,
+    "exactPhraseBonus": 150.0,
+    "topicMatchBonus": 12.0,
+    "directMatchBonus": 6.0,
+    "similarityWeightFactor": 2.5,
+    "positionBonusBase": 4.0,
+    "positionBonusDecay": 0.4
+  },
+  "characteristics": {
+    "focus": "דיוק מקסימלי ותוצאות מקיפות",
+    "expectedSpeed": "איטי",
+    "expectedQuality": "הגבוהה ביותר",
+    "bestFor": "שאלות קריטיות הדורשות דיוק מקסימלי",
+    "tradeoffs": "זמן תגובה איטי יותר תמורת דיוק מקסימלי"
+  },
+  "usage_notes": [
+    "מומלץ לשאלות מורכבות ורגישות",
+    "משתמש בהרבה טוקנים",
+    "יכול לקחת זמן רב יותר",
+    "מתאים לבדיקות איכותיות"
+  ]
+} 

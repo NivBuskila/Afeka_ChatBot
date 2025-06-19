@@ -9,6 +9,10 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
   // Get current session
   const { data: { session } } = await supabase.auth.getSession();
   
+  console.log("🔍 [ApiRequest] URL:", url);
+  console.log("🔍 [ApiRequest] Session exists:", !!session);
+  console.log("🔍 [ApiRequest] Access token exists:", !!session?.access_token);
+  
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
@@ -20,14 +24,18 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
     ...options,
   });
   
+  console.log("🔍 [ApiRequest] Response status:", response.status);
+  console.log("🔍 [ApiRequest] Response ok:", response.ok);
+  
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   
-  return response.json();
+  const result = await response.json();
+  console.log("🔍 [ApiRequest] Response data:", result);
+  return result;
 };
 
-type Document = Database['public']['Tables']['documents']['Row'];
 type DocumentInsert = Database['public']['Tables']['documents']['Insert'];
 type DocumentUpdate = Database['public']['Tables']['documents']['Update'];
 
@@ -39,14 +47,22 @@ export const documentService = {
     // Use cache busting query parameter if cache is stale
     const cacheBuster = isCacheStale ? `?cache=${Date.now()}` : '';
     
+    console.log("🔍 [DocumentService] Getting all documents...");
+    console.log("🔍 [DocumentService] Cache stale:", isCacheStale);
+    console.log("🔍 [DocumentService] Cache buster:", cacheBuster);
+    
     try {
       const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents${cacheBuster}`);
+      console.log("🔍 [DocumentService] API Response:", response);
+      console.log("🔍 [DocumentService] Response type:", typeof response);
+      console.log("🔍 [DocumentService] Is array:", Array.isArray(response));
+      
       if (!response) {
         throw new Error('No data returned from documents request');
       }
       return response;
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error('🚨 [DocumentService] Error fetching documents:', error);
       throw error;
     }
   },

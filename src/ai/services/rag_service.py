@@ -26,6 +26,8 @@ try:
         get_database_config,
         get_performance_config
     )
+    # Import vector utilities
+    from ..utils.vector_utils import ensure_768_dimensions, log_vector_info
 except ImportError:
     # Fallback to absolute import (when running from outside AI module)
     from src.ai.config.current_profile import get_current_profile
@@ -39,6 +41,8 @@ except ImportError:
         get_database_config,
         get_performance_config
     )
+    # Import vector utilities
+    from src.ai.utils.vector_utils import ensure_768_dimensions, log_vector_info
 
 # בייבוא החדש
 try:
@@ -56,51 +60,26 @@ class RAGService:
     _cache_ttl = 300  # 5 minutes TTL
     
     def __init__(self, config_profile: Optional[str] = None):
-        self.supabase: Client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-        )
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+        
+        if not supabase_url or not supabase_key:
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
+        
+        self.supabase: Client = create_client(supabase_url, supabase_key)
         
         # 🆕 החלף ל-Database Key Manager עם חיבור ישיר ל-Supabase
         self.key_manager = DatabaseKeyManager(use_direct_supabase=True)
         logger.info("🔑 RAG Service using Database Key Manager with direct Supabase connection")
         
-        # 🎯 טעינת פרופיל מהמערכת המרכזית
-        if config_profile is None:
-            try:
-                config_profile = get_current_profile()
-                logger.info(f"🎯 Loaded central profile: {config_profile}")
-            except Exception as e:
-                logger.warning(f"Central profile system not found: {e}, using manual profile selection")
-        
-        # טעינת הגדרות לפי פרופיל או ברירת מחדל
-        if config_profile:
-            try:
-                profile_config = get_profile(config_profile)
-                self.search_config = profile_config.search
-                self.embedding_config = profile_config.embedding
-                self.context_config = profile_config.context
-                self.llm_config = profile_config.llm
-                self.db_config = profile_config.database
-                self.performance_config = profile_config.performance
-                logger.info(f"✅ Using config profile: {config_profile}")
-            except Exception as e:
-                logger.warning(f"Failed to load profile '{config_profile}': {e}. Using default config.")
-                # חזרה להגדרות ברירת מחדל
-                self.search_config = get_search_config()
-                self.embedding_config = get_embedding_config()
-                self.context_config = get_context_config()
-                self.llm_config = get_llm_config()
-                self.db_config = get_database_config()
-                self.performance_config = get_performance_config()
-        else:
-            # קבלת הגדרות מהconfig החדש
-            self.search_config = get_search_config()
-            self.embedding_config = get_embedding_config()
-            self.context_config = get_context_config()
-            self.llm_config = get_llm_config()
-            self.db_config = get_database_config()
-            self.performance_config = get_performance_config()
+        # 🔥 FORCE AGGRESSIVE CONFIG - Skip profile system, use direct config
+        logger.info("🔥 Using AGGRESSIVE tuned config - bypassing profile system")
+        self.search_config = get_search_config()
+        self.embedding_config = get_embedding_config()
+        self.context_config = get_context_config()
+        self.llm_config = get_llm_config()
+        self.db_config = get_database_config()
+        self.performance_config = get_performance_config()
         
         # 🔥 הגדר Key Manager - נטען מפתחות בצורה lazy
         # Note: Keys will be loaded when first needed in ensure_available_key()
@@ -172,7 +151,7 @@ class RAGService:
             for key, _ in sorted_items[:100]:
                 del self._embedding_cache[key]
 
-    async def _track_embedding_usage(self, text: str, key_id: int = None):
+    async def _track_embedding_usage(self, text: str, key_id: Optional[int] = None):
         """Track token usage for embedding generation"""
         # Estimate tokens for embedding (much smaller than generation)
         estimated_tokens = len(text) // 8  # Embeddings use fewer tokens
@@ -188,7 +167,7 @@ class RAGService:
         except Exception as e:
             logger.error(f"❌ [RAG-EMBED-TRACK] Failed to track usage: {e}")
 
-    async def _track_generation_usage(self, prompt: str, response: str, key_id: int = None):
+    async def _track_generation_usage(self, prompt: str, response: str, key_id: Optional[int] = None):
         """Track token usage for text generation"""
         input_tokens = len(prompt) // 4
         output_tokens = len(response) // 4
@@ -235,8 +214,17 @@ class RAGService:
                 task_type=self.embedding_config.TASK_TYPE_QUERY
             )
             
-            embedding = embedding_model['embedding']
+            raw_embedding = embedding_model['embedding']
             generation_time = int((time.time() - start_time) * 1000)
+            
+            # וידוא שה-vector הוא בדיוק 768 dimensions
+            embedding = ensure_768_dimensions(raw_embedding)
+            
+            # רישום מידע לdebug אם יש בעיה עם גודל הvector
+            if len(raw_embedding) != 768:
+                logger.warning(f"Query embedding dimension adjusted from {len(raw_embedding)} to 768")
+                log_vector_info(raw_embedding, "Original query embedding")
+                log_vector_info(embedding, "Adjusted query embedding")
             
             # ⚡ Cache the result
             self._cache_embedding(cache_key, embedding)
@@ -244,7 +232,7 @@ class RAGService:
             # 🔥 Track usage
             await self._track_embedding_usage(query, key_id)
             
-            logger.info(f"🔍 Embedding generated in {generation_time}ms (cached for future use)")
+            logger.info(f"🔍 Embedding generated in {generation_time}ms (cached for future use, final dimensions: {len(embedding)})")
             return embedding
             
         except Exception as e:
@@ -255,7 +243,7 @@ class RAGService:
         self, 
         query: str, 
         document_id: Optional[int] = None,
-        max_results: int = None
+        max_results: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """חיפוש סמנטי במסמכים"""
         start_time = time.time()
@@ -299,8 +287,8 @@ class RAGService:
         self, 
         query: str, 
         document_id: Optional[int] = None,
-        semantic_weight: float = None,
-        keyword_weight: float = None
+        semantic_weight: Optional[float] = None,
+        keyword_weight: Optional[float] = None
     ) -> List[Dict[str, Any]]:
         """חיפוש היברידי (סמנטי + מילות מפתח)"""
         start_time = time.time()
@@ -312,15 +300,21 @@ class RAGService:
             semantic_weight = semantic_weight or self.search_config.HYBRID_SEMANTIC_WEIGHT
             keyword_weight = keyword_weight or self.search_config.HYBRID_KEYWORD_WEIGHT
             
-            response = self.supabase.rpc(self.db_config.HYBRID_SEARCH_FUNCTION, {
+            # Build parameters for the hybrid search function
+            search_params = {
                 'query_text': query,
                 'query_embedding': query_embedding,
                 'match_threshold': self.search_config.SIMILARITY_THRESHOLD,
                 'match_count': self.search_config.MAX_CHUNKS_RETRIEVED,
-                'target_document_id': document_id,
                 'semantic_weight': semantic_weight,
                 'keyword_weight': keyword_weight
-            }).execute()
+            }
+            
+            # Add document_id parameter only if provided (for backward compatibility)
+            if document_id is not None:
+                search_params['target_document_id'] = document_id
+            
+            response = self.supabase.rpc(self.db_config.HYBRID_SEARCH_FUNCTION, search_params).execute()
             
             results = response.data or []
             response_time = int((time.time() - start_time) * 1000)
@@ -396,10 +390,10 @@ class RAGService:
                 # חיפוש מיוחד לסעיפים עם pattern matching
                 query_embedding = await self.generate_query_embedding(query)
                 
-                response = self.supabase.rpc(self.db_config.SECTION_SEARCH_FUNCTION, {
+                response = self.supabase.rpc('section_specific_search', {
                     'query_embedding': query_embedding,
                     'section_number': extracted_section,
-                    'similarity_threshold': 0.3,  # סף נמוך יותר לחיפוש סעיפים
+                    'similarity_threshold': self.search_config.SECTION_SEARCH_THRESHOLD,
                     'max_results': self.search_config.MAX_CHUNKS_FOR_CONTEXT
                 }).execute()
                 
@@ -446,7 +440,7 @@ class RAGService:
             document_name = result.get('document_name', f'מסמך {i+1}')
             
             # הערכת tokens (בקירוב)
-            estimated_tokens = len(chunk_content.split()) * 1.3
+            estimated_tokens = len(chunk_content.split()) * self.performance_config.TOKEN_ESTIMATION_MULTIPLIER
             
             if total_tokens + estimated_tokens > self.context_config.MAX_CONTEXT_TOKENS:
                 logger.info(f"Context token limit reached at chunk {i}")
@@ -469,7 +463,7 @@ class RAGService:
         logger.info(f"Built context from {len(context_chunks)} chunks, ~{int(total_tokens)} tokens")
         return context, citations, included_chunks
 
-    def _find_best_chunk_for_display(self, search_results: List[Dict[str, Any]], query: str) -> Dict[str, Any]:
+    def _find_best_chunk_for_display(self, search_results: List[Dict[str, Any]], query: str) -> Optional[Dict[str, Any]]:
         """מוצא את החלק הכי רלוונטי להצגה ב-UI - חיפוש חכם עם דגש על ביטויים מדויקים
         
         ⚠️ DEPRECATED: פונקציה זו לא בשימוש יותר. במקום זה, המודל מצטט את המקורות שהוא משתמש בהם
@@ -527,22 +521,22 @@ class RAGService:
             # בונוס גבוה מאוד לביטויים מדויקים
             for phrase in exact_phrases:
                 if phrase in chunk_text:
-                    score += 100  # משקל מאוד גבוה
+                    score += self.search_config.EXACT_PHRASE_BONUS
             
             # אם זיהינו נושא, חפש מילות מפתח רלוונטיות
             if query_topic and query_topic in topic_keywords:
                 relevant_keywords = topic_keywords[query_topic]
                 topic_matches = sum(1 for keyword in relevant_keywords if keyword in chunk_lower)
-                score += topic_matches * 10
+                score += topic_matches * self.search_config.TOPIC_MATCH_BONUS
             
             # בונוס למילות מפתח מהשאלה עצמה
             query_words = [word.strip() for word in query.split() if len(word.strip()) > 2]
             direct_matches = sum(1 for word in query_words if word in chunk_text)
-            score += direct_matches * 5
+            score += direct_matches * self.search_config.DIRECT_MATCH_BONUS
             
             # בונוס לדומיות גבוהה (משקל נמוך יותר)
             similarity = chunk.get('similarity_score', chunk.get('similarity', 0))
-            score += similarity * 2
+            score += similarity * self.search_config.SIMILARITY_WEIGHT_FACTOR
             
             if score > best_score:
                 best_score = score
@@ -684,9 +678,12 @@ class RAGService:
 
     async def _find_best_among_cited_chunks(self, cited_chunks: List[Dict[str, Any]], answer: str) -> Dict[str, Any]:
         """בוחר את הchunk הכי רלוונטי מבין הchunks שצוטטו על ידי הLLM"""
-        if not cited_chunks or not answer:
+        if not cited_chunks:
+            raise ValueError("Cannot find best chunk from empty list")
+        
+        if not answer:
             logger.warning("⚠️ לא ניתן לבחור מבין cited chunks - מחזיר ראשון")
-            return cited_chunks[0] if cited_chunks else None
+            return cited_chunks[0]
         
         if len(cited_chunks) == 1:
             return cited_chunks[0]
@@ -795,7 +792,7 @@ class RAGService:
                 score += domain_matches * 3
                 
                 # בונוס למיקום (משפטים ראשונים יותר חשובים)
-                position_bonus = max(0, 3 - i * 0.5)
+                position_bonus = max(0, self.search_config.POSITION_BONUS_BASE - i * self.search_config.POSITION_BONUS_DECAY)
                 score += position_bonus
                 
                 # בונוס לאורך מתאים (לא קצר מדי, לא ארוך מדי)
@@ -824,7 +821,7 @@ class RAGService:
                     current_length += len(sentence) + 1  # +1 for space
                     logger.debug(f"✅ נבחר משפט {index} עם ציון {score:.2f}")
                 
-                if current_length >= max_length * 0.8:  # מלא 80% מהמקום
+                if current_length >= max_length * self.performance_config.CONTEXT_TRIM_THRESHOLD:  # מלא מעתה של הקונטקסט
                     break
             
             if not selected_sentences:
@@ -1094,7 +1091,8 @@ class RAGService:
                 logger.info(f"🔍 [RESPONSE-DEBUG] Raw response: {response_text[:200]}")
                 
                 # 🔥 Track usage  
-                await self._track_generation_usage(prompt, response_text, available_key.get('id'))
+                key_id = available_key.get('id') if available_key else None
+                await self._track_generation_usage(prompt, response_text, key_id)
                 
                 logger.info(f"🔢 [RAG-GEN-DEBUG] Generated response length: {len(response_text)}")
                 return response_text
@@ -1105,7 +1103,7 @@ class RAGService:
                 # בדיקה אם זה rate limiting error
                 if "429" in error_str or "quota" in error_str.lower():
                     if attempt < max_retries - 1:
-                        wait_time = (2 ** attempt) * 5  # exponential backoff: 5, 10, 20 seconds
+                        wait_time = (2 ** attempt) * self.performance_config.RETRY_BACKOFF_BASE  # exponential backoff
                         logger.warning(f"Rate limit hit, waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
                         await asyncio.sleep(wait_time)
                         continue
@@ -1115,6 +1113,10 @@ class RAGService:
                 else:
                     # שגיאה אחרת - העלה מיד
                     raise
+        
+        # אם הגענו לכאן, חרגנו מכל הניסיונות
+        logger.error("Exhausted all retry attempts")
+        return "מצטער, המערכת נתקלה בבעיה טכנית. אנא נסה שוב מאוחר יותר."
     
     async def _log_search_analytics(
         self, 
