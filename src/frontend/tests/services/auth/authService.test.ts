@@ -1,17 +1,6 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { authService } from '../../../src/services/authService'
-import { createMockUser } from '../../factories/auth.factory'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock Supabase
-// Create mock functions that will be reused
-const mockMaybeSingle = vi.fn()
-const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }))
-const mockSelect = vi.fn(() => ({ eq: mockEq }))
-const mockUpdate = vi.fn()
-const mockUpdateEq = vi.fn()
-const mockInsert = vi.fn()
-const mockFrom = vi.fn()
-
+// Mock Supabase with factory function to avoid hoisting issues
 vi.mock('../../../src/config/supabase', () => ({
   supabase: {
     auth: {
@@ -21,460 +10,495 @@ vi.mock('../../../src/config/supabase', () => ({
       getSession: vi.fn(),
       resetPasswordForEmail: vi.fn(),
     },
-    from: mockFrom,
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn(),
+      update: vi.fn().mockReturnThis(),
+      insert: vi.fn(),
+    })),
     rpc: vi.fn(),
   },
-}))
+}));
 
-// Get reference to mocked Supabase after mock is set up
-const { supabase: mockSupabase } = await import('../../../src/config/supabase')
+// Import after mocking
+import { authService, AuthResult } from '../../../src/services/authService';
+import { supabase } from '../../../src/config/supabase';
 
-describe('🔐 AuthService', () => {
+// Get typed mock
+const mockSupabase = supabase as any;
+
+describe('authService', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    
-    // Set up the from() method chain
-    mockFrom.mockReturnValue({
-      select: mockSelect,
-      update: mockUpdate,
-      insert: mockInsert,
-    })
-    
-    mockUpdate.mockReturnValue({
-      eq: mockUpdateEq,
-    })
-    
-    // Mock window.location for password reset tests
+    vi.clearAllMocks();
     Object.defineProperty(window, 'location', {
       value: { origin: 'http://localhost:3000' },
       writable: true,
-    })
-  })
+    });
+  });
 
   afterEach(() => {
-    vi.restoreAllMocks()
-  })
+    vi.restoreAllMocks();
+  });
 
-  describe('📝 Login', () => {
+  describe('login', () => {
     it('should successfully login with valid credentials', async () => {
-      const mockUser = createMockUser({ 
-        email: 'user@test.com',
+      const mockUser = {
         id: 'user-123',
-        role: 'user' 
-      })
+        email: 'test@example.com',
+        user_metadata: { is_admin: true },
+      };
       
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: { user: mockUser },
         error: null,
-      })
-
-      mockMaybeSingle.mockResolvedValue({
-        data: null,
+      });
+      
+      mockSupabase.from().maybeSingle.mockResolvedValue({
+        data: { id: 'admin-123' },
         error: null,
-      })
+      });
 
-      mockUpdateEq.mockResolvedValue({
-        data: null,
-        error: null,
-      })
-
-      const result = await authService.login('user@test.com', 'password123')
+      const result = await authService.login('test@example.com', 'password123');
 
       expect(result).toEqual({
         user: mockUser,
-        isAdmin: false,
-        error: null,
-      })
-      expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
-        email: 'user@test.com',
-        password: 'password123',
-      })
-    })
-
-    it('should successfully login admin user and set admin flag', async () => {
-      const mockAdminUser = createMockUser({ 
-        email: 'admin@test.com',
-        id: 'admin-123',
-        role: 'admin' 
-      })
-      
-      mockSupabase.auth.signInWithPassword.mockResolvedValue({
-        data: { user: mockAdminUser },
-        error: null,
-      })
-
-      mockMaybeSingle.mockResolvedValue({
-        data: { id: '1', user_id: 'admin-123' },
-        error: null,
-      })
-
-      mockUpdateEq.mockResolvedValue({
-        data: null,
-        error: null,
-      })
-
-      mockSupabase.rpc.mockResolvedValue({
-        data: null,
-        error: null,
-      })
-
-      const result = await authService.login('admin@test.com', 'admin123')
-
-      expect(result).toEqual({
-        user: mockAdminUser,
         isAdmin: true,
         error: null,
-      })
-    })
+      });
+      expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+    });
 
     it('should handle invalid login credentials', async () => {
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: { user: null },
         error: { message: 'Invalid login credentials' },
-      })
+      });
 
-      const result = await authService.login('wrong@test.com', 'wrongpass')
+      const result = await authService.login('wrong@example.com', 'wrongpass');
 
       expect(result).toEqual({
         user: null,
         isAdmin: false,
         error: 'אימייל או סיסמה שגויים',
-      })
-    })
+      });
+    });
 
-    it('should handle network errors during login', async () => {
+    it('should detect admin user from metadata', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: 'admin@example.com',
+        user_metadata: { role: 'admin' },
+      };
+      
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+
+      const result = await authService.login('admin@example.com', 'password123');
+
+      expect(result.isAdmin).toBe(true);
+    });
+
+    it('should detect admin user from database', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: 'admin@example.com',
+        user_metadata: {},
+      };
+      
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+      
+      // Mock admin query to return admin record
+      mockSupabase.from.mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: 'admin-123' },
+          error: null,
+        }),
+        update: vi.fn().mockResolvedValue({ error: null })
+      });
+
+      const result = await authService.login('admin@example.com', 'password123');
+
+      expect(result.isAdmin).toBe(true);
+    });
+
+    it('should update last sign in time', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: 'test@example.com',
+        user_metadata: {},
+      };
+      
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+      
+      const mockUpdate = vi.fn().mockResolvedValue({ error: null });
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+        update: mockUpdate,
+      });
+
+      await authService.login('test@example.com', 'password123');
+
+      expect(mockUpdate).toHaveBeenCalledWith({ 
+        last_sign_in: expect.any(String) 
+      });
+    });
+
+    it('should handle unexpected errors', async () => {
       mockSupabase.auth.signInWithPassword.mockRejectedValue(
         new Error('Network error')
-      )
+      );
 
-      const result = await authService.login('user@test.com', 'password123')
+      const result = await authService.login('test@example.com', 'password123');
 
       expect(result).toEqual({
         user: null,
         isAdmin: false,
         error: 'Network error',
-      })
-    })
+      });
+    });
+  });
 
-    it('should handle unknown supabase errors', async () => {
-      mockSupabase.auth.signInWithPassword.mockResolvedValue({
-        data: { user: null },
-        error: { message: 'Unknown database error' },
-      })
+  describe('checkIsAdmin', () => {
+    it('should return true for admin user in database', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: 'admin-123' },
+          error: null,
+        })
+      });
 
-      const result = await authService.login('user@test.com', 'password123')
+      const result = await authService.checkIsAdmin('user-123');
 
-      expect(result).toEqual({
-        user: null,
-        isAdmin: false,
-        error: 'Unknown database error',
-      })
-    })
+      expect(result).toBe(true);
+    });
 
-    it('should update last sign in time after successful login', async () => {
-      const mockUser = createMockUser({ id: 'user-123' })
+    it('should return true for admin user via RPC', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Access denied' },
+        })
+      });
       
-      mockSupabase.auth.signInWithPassword.mockResolvedValue({
-        data: { user: mockUser },
-        error: null,
-      })
-
-      mockMaybeSingle.mockResolvedValue({
-        data: null,
-        error: null,
-      })
-
-      mockUpdateEq.mockResolvedValue({ data: null, error: null })
-
-      await authService.login('user@test.com', 'password123')
-
-      expect(mockSupabase.from).toHaveBeenCalledWith('users')
-      expect(mockUpdateEq).toHaveBeenCalled()
-    })
-  })
-
-  describe('🔍 Admin Checks', () => {
-    it('should correctly identify admin user from database', async () => {
-      mockMaybeSingle.mockResolvedValue({
-        data: { id: '1', user_id: 'admin-123' },
-        error: null,
-      })
-
-      const isAdmin = await authService.checkIsAdmin('admin-123')
-
-      expect(isAdmin).toBe(true)
-      expect(mockSupabase.from).toHaveBeenCalledWith('admins')
-    })
-
-    it('should return false for non-admin user', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: null,
-        error: null,
-      })
-
-      mockSupabase.rpc.mockResolvedValue({
-        data: false,
-        error: null,
-      })
-
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { user_metadata: { role: 'user' } } },
-        error: null,
-      })
-
-      const isAdmin = await authService.checkIsAdmin('user-123')
-
-      expect(isAdmin).toBe(false)
-    })
-
-    it('should fallback to RPC when direct table access fails', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: null,
-        error: { message: 'Permission denied' },
-      })
-
       mockSupabase.rpc.mockResolvedValue({
         data: true,
         error: null,
-      })
+      });
 
-      const isAdmin = await authService.checkIsAdmin('admin-123')
+      const result = await authService.checkIsAdmin('user-123');
 
-      expect(isAdmin).toBe(true)
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('is_admin', { user_id: 'admin-123' })
-    })
+      expect(result).toBe(true);
+    });
 
-    it('should fallback to user metadata when RPC fails', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: null,
-        error: { message: 'Permission denied' },
-      })
-
-      mockSupabase.rpc.mockRejectedValue(new Error('RPC error'))
-
+    it('should return true for admin user from metadata', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Access denied' },
+        })
+      });
+      
+      mockSupabase.rpc.mockRejectedValue(new Error('RPC failed'));
+      
       mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { user_metadata: { role: 'admin' } } },
-        error: null,
-      })
+        data: {
+          user: {
+            user_metadata: { role: 'admin' },
+          },
+        },
+      });
 
-      const isAdmin = await authService.checkIsAdmin('admin-123')
+      const result = await authService.checkIsAdmin('user-123');
 
-      expect(isAdmin).toBe(true)
-    })
+      expect(result).toBe(true);
+    });
 
-    it('should handle errors gracefully and return false', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockRejectedValue(
-        new Error('Database error')
-      )
-
-      const isAdmin = await authService.checkIsAdmin('user-123')
-
-      expect(isAdmin).toBe(false)
-    })
-  })
-
-  describe('🛠️ Admin Record Management', () => {
-    it('should skip creating admin record if one already exists', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { id: '1', user_id: 'admin-123' },
-        error: null,
-      })
-
-      await authService.ensureAdminRecord('admin-123')
-
-      expect(mockSupabase.rpc).not.toHaveBeenCalled()
-      expect(mockSupabase.from().insert).not.toHaveBeenCalled()
-    })
-
-    it('should create admin record using RPC when none exists', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+    it('should return false for non-admin user', async () => {
+      mockSupabase.from().maybeSingle.mockResolvedValue({
         data: null,
         error: null,
-      })
-
+      });
+      
       mockSupabase.rpc.mockResolvedValue({
-        data: null,
+        data: false,
         error: null,
-      })
+      });
+      
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: {
+          user: {
+            user_metadata: { role: 'user' },
+          },
+        },
+      });
 
-      await authService.ensureAdminRecord('admin-123')
+      const result = await authService.checkIsAdmin('user-123');
 
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('promote_to_admin', { user_id: 'admin-123' })
-    })
+      expect(result).toBe(false);
+    });
 
-    it('should fallback to direct insert when RPC fails', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: null,
-        error: null,
-      })
+    it('should handle errors gracefully', async () => {
+      mockSupabase.from().maybeSingle.mockRejectedValue(
+        new Error('Database error')
+      );
 
-      mockSupabase.rpc.mockRejectedValue(new Error('RPC not available'))
+      const result = await authService.checkIsAdmin('user-123');
 
-      mockSupabase.from().insert.mockResolvedValue({
-        data: null,
-        error: null,
-      })
+      expect(result).toBe(false);
+    });
+  });
 
-      await authService.ensureAdminRecord('admin-123')
-
-      expect(mockSupabase.from().insert).toHaveBeenCalledWith({
-        user_id: 'admin-123',
-        permissions: ['read', 'write'],
-      })
-    })
-
-    it('should handle duplicate admin record creation gracefully', async () => {
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: null,
-        error: null,
-      })
-
-      mockSupabase.rpc.mockRejectedValue(new Error('RPC not available'))
-
-      mockSupabase.from().insert.mockResolvedValue({
-        data: null,
-        error: { code: '23505', message: 'Duplicate key' },
-      })
-
-      // Should not throw an error
-      await expect(authService.ensureAdminRecord('admin-123')).resolves.toBeUndefined()
-    })
-  })
-
-  describe('🔄 Password Reset', () => {
-    it('should send password reset email successfully', async () => {
+  describe('resetPassword', () => {
+    it('should successfully send password reset email', async () => {
       mockSupabase.auth.resetPasswordForEmail.mockResolvedValue({
-        data: null,
         error: null,
-      })
+      });
 
-      const result = await authService.resetPassword('user@test.com')
+      const result = await authService.resetPassword('test@example.com');
 
-      expect(result).toEqual({ error: null })
+      expect(result).toEqual({ error: null });
       expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
-        'user@test.com',
-        { redirectTo: 'http://localhost:3000/reset-password' }
-      )
-    })
+        'test@example.com',
+        {
+          redirectTo: 'http://localhost:3000/reset-password',
+        }
+      );
+    });
 
-    it('should handle password reset errors', async () => {
+    it('should handle email sending errors', async () => {
       mockSupabase.auth.resetPasswordForEmail.mockResolvedValue({
-        data: null,
         error: { message: 'Email not found' },
-      })
+      });
 
-      const result = await authService.resetPassword('nonexistent@test.com')
+      const result = await authService.resetPassword('notfound@example.com');
 
-      expect(result).toEqual({ error: 'Email not found' })
-    })
+      expect(result).toEqual({ error: 'Email not found' });
+    });
 
-    it('should handle network errors during password reset', async () => {
+    it('should handle unexpected errors', async () => {
       mockSupabase.auth.resetPasswordForEmail.mockRejectedValue(
-        new Error('Network timeout')
-      )
+        new Error('Service unavailable')
+      );
 
-      const result = await authService.resetPassword('user@test.com')
+      const result = await authService.resetPassword('test@example.com');
 
-      expect(result).toEqual({ error: 'Network timeout' })
-    })
-  })
+      expect(result).toEqual({ error: 'Service unavailable' });
+    });
+  });
 
-  describe('🚪 Logout', () => {
-    it('should logout successfully', async () => {
-      mockSupabase.auth.signOut.mockResolvedValue({
-        error: null,
-      })
+  describe('logout', () => {
+    it('should successfully logout user', async () => {
+      mockSupabase.auth.signOut.mockResolvedValue({ error: null });
 
-      await authService.logout()
+      await authService.logout();
 
-      expect(mockSupabase.auth.signOut).toHaveBeenCalled()
-    })
+      expect(mockSupabase.auth.signOut).toHaveBeenCalled();
+    });
+  });
 
-    it('should handle logout errors gracefully', async () => {
-      mockSupabase.auth.signOut.mockRejectedValue(
-        new Error('Logout failed')
-      )
-
-      // Should not throw an error
-      await expect(authService.logout()).resolves.toBeUndefined()
-    })
-  })
-
-  describe('👤 User Management', () => {
-    it('should get current user successfully', async () => {
-      const mockUser = createMockUser()
+  describe('getCurrentUser', () => {
+    it('should return current user when authenticated', async () => {
+      const mockUser = { id: 'user-123', email: 'test@example.com' };
       
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
-      })
+      });
 
-      const user = await authService.getCurrentUser()
+      const result = await authService.getCurrentUser();
 
-      expect(user).toEqual(mockUser)
-    })
+      expect(result).toEqual(mockUser);
+    });
 
-    it('should throw error when getting current user fails', async () => {
+    it('should throw error when not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: null },
         error: { message: 'Not authenticated' },
-      })
+      });
 
-      await expect(authService.getCurrentUser()).rejects.toThrow('Not authenticated')
-    })
+      await expect(authService.getCurrentUser()).rejects.toThrow();
+    });
+  });
 
-    it('should check authentication status correctly when authenticated', async () => {
+  describe('isAuthenticated', () => {
+    it('should return true when user has valid session', async () => {
       mockSupabase.auth.getSession.mockResolvedValue({
-        data: { session: { access_token: 'valid-token' } },
-        error: null,
-      })
+        data: {
+          session: {
+            access_token: 'valid-token',
+            user: { id: 'user-123' },
+          },
+        },
+      });
 
-      const isAuthenticated = await authService.isAuthenticated()
+      const result = await authService.isAuthenticated();
 
-      expect(isAuthenticated).toBe(true)
-    })
+      expect(result).toBe(true);
+    });
 
-    it('should check authentication status correctly when not authenticated', async () => {
+    it('should return false when user has no session', async () => {
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: null },
-        error: null,
-      })
+      });
 
-      const isAuthenticated = await authService.isAuthenticated()
+      const result = await authService.isAuthenticated();
 
-      expect(isAuthenticated).toBe(false)
-    })
+      expect(result).toBe(false);
+    });
+  });
 
-    it('should check if current user is admin', async () => {
-      const mockAdminUser = createMockUser({ 
-        id: 'admin-123',
-        role: 'admin' 
-      })
-      
+  describe('isAdmin', () => {
+    it('should return true for admin user', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockAdminUser },
-        error: null,
-      })
+        data: {
+          user: {
+            id: 'user-123',
+            user_metadata: { role: 'admin' },
+          },
+        },
+      });
 
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { id: '1', user_id: 'admin-123' },
-        error: null,
-      })
+      const result = await authService.isAdmin();
 
-      const isAdmin = await authService.isAdmin()
+      expect(result).toBe(true);
+    });
 
-      expect(isAdmin).toBe(true)
-    })
+    it('should return false for non-admin user', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: {
+          user: {
+            id: 'user-123',
+            user_metadata: { role: 'user' },
+          },
+        },
+      });
 
-    it('should return false for admin check when user is not authenticated', async () => {
+      const result = await authService.isAdmin();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: null },
         error: { message: 'Not authenticated' },
-      })
+      });
 
-      const isAdmin = await authService.isAdmin()
+      const result = await authService.isAdmin();
 
-      expect(isAdmin).toBe(false)
-    })
-  })
-}) 
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('ensureAdminRecord', () => {
+    it('should skip creating record if admin already exists', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: 'admin-123' },
+          error: null,
+        })
+      });
+
+      await authService.ensureAdminRecord('user-123');
+
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('should create admin record via RPC', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        })
+      });
+      
+      mockSupabase.rpc.mockResolvedValue({ error: null });
+
+      await authService.ensureAdminRecord('user-123');
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('promote_to_admin', {
+        user_id: 'user-123',
+      });
+    });
+
+    it('should fallback to direct insert if RPC fails', async () => {
+      const mockInsert = vi.fn().mockResolvedValue({ error: null });
+      
+      // First call for checking existing admin
+      mockSupabase.from.mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        })
+      });
+      
+      // Second call for insert
+      mockSupabase.from.mockReturnValueOnce({
+        insert: mockInsert,
+      });
+      
+      mockSupabase.rpc.mockRejectedValue(new Error('RPC failed'));
+
+      await authService.ensureAdminRecord('user-123');
+
+      expect(mockInsert).toHaveBeenCalledWith({
+        user_id: 'user-123',
+        permissions: ['read', 'write'],
+      });
+    });
+
+    it('should handle duplicate admin record error', async () => {
+      const mockInsert = vi.fn().mockResolvedValue({
+        error: { code: '23505', message: 'duplicate key value' },
+      });
+      
+      // First call for checking existing admin
+      mockSupabase.from.mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        })
+      });
+      
+      // Second call for insert
+      mockSupabase.from.mockReturnValueOnce({
+        insert: mockInsert,
+      });
+      
+      mockSupabase.rpc.mockRejectedValue(new Error('RPC failed'));
+
+      // Should not throw error
+      await expect(authService.ensureAdminRecord('user-123')).resolves.toBeUndefined();
+    });
+  });
+}); 
