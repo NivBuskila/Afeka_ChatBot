@@ -323,10 +323,31 @@ class ChatService(IChatService):
         logger.debug(f"Using RAG service with profile: {self.current_profile_cache}")
         
         try:
-            # Get RAG response
+            # Get RAG response WITH CONVERSATION HISTORY
             if rag_service:
                 logger.info(f"🔍 Calling RAG service for question: '{user_message}'")
-                rag_response = await rag_service.generate_answer(user_message, search_method="hybrid")
+                
+                # 🔥 תיקון קריטי: העברת היסטוריית השיחה ל-RAG
+                conversation_context = ""
+                if history and len(history) > 0:
+                    context_messages = []
+                    for msg in history[-10:]:  # רק 10 הודעות אחרונות למניעת overflow
+                        if msg.type == 'user':
+                            context_messages.append(f"משתמש: {msg.content}")
+                        elif msg.type == 'bot':
+                            context_messages.append(f"מערכת: {msg.content}")
+                    conversation_context = "\n".join(context_messages)
+                    logger.info(f"🔄 העברת {len(history[-10:])} הודעות קונטקסט ל-RAG")
+                
+                # שליחת השאלה עם קונטקסט השיחה
+                if conversation_context:
+                    enhanced_query = f"היסטוריית השיחה:\n{conversation_context}\n\nשאלה נוכחית: {user_message}"
+                    logger.info(f"🔗 Enhanced query length: {len(enhanced_query)} chars")
+                else:
+                    enhanced_query = user_message
+                    logger.info("📝 No conversation history, using original query")
+                
+                rag_response = await rag_service.generate_answer(enhanced_query, search_method="hybrid")
                 logger.info(f"📋 RAG response received: {rag_response is not None}")
                 if rag_response:
                     logger.info(f"📋 RAG response keys: {list(rag_response.keys()) if isinstance(rag_response, dict) else 'Not a dict'}")
@@ -382,6 +403,59 @@ class ChatService(IChatService):
     def _is_conversation_question(self, message: str) -> bool:
         """Determine if a message is asking about information from previous conversation or general chat"""
         message = message.lower().strip()
+        
+        # אם ההודעה מתחילה ב"היסטוריית השיחה:" - זה בוודאי מיועד ל-RAG
+        if "היסטוריית השיחה:" in message:
+            return False  # שלח ל-RAG לא ל-conversation
+        
+        # זיהוי התייחסויות למידע קודם או מספרים (כללי)
+        import re
+        
+        # דפוסים כלליים להתייחסות למידע קודם
+        reference_patterns = [
+            r"הציון שלי",
+            r"המספר שלי", 
+            r"הטווח שלי",
+            r"ציון \d+",  # ציון + מספר כלשהו
+            r"\d+ זה",   # מספר + "זה"
+            r"עם הציון",
+            r"עם המספר",
+            r"הציון הזה",
+            r"המספר הזה"
+        ]
+        
+        # ביטויים להתייחסות למידע קודם
+        reference_phrases = [
+            "אמרת", "ציינת", "למה", "איך זה יכול", "איך יכול להיות",
+            "לא הבנתי", "סתירה", "אבל קודם", "אבל אמרת", "אבל ציינת",
+            "כתבת", "הסברת", "נאמר", "קודם אמרת", "בתשובה הקודמת"
+        ]
+        
+        # ביטויים לנושאים אקדמיים שצריכים RAG
+        academic_terms = [
+            "ציון", "רמה", "רמות", "טווח", "טווחים", "דרגה", "קטגוריה",
+            "באנגלית", "ברמה", "מתקדמים", "בסיסי", "בינוני", "גבוה",
+            "מבחן", "בחינה", "הערכה", "פסיכומטרי", "אמיר"
+        ]
+        
+        # בדיקת דפוסים בביטויים רגולריים
+        for pattern in reference_patterns:
+            if re.search(pattern, message):
+                return False  # שלח ל-RAG
+        
+        # בדיקת ביטויי התייחסות
+        for phrase in reference_phrases:
+            if phrase in message:
+                return False  # שלח ל-RAG
+        
+        # בדיקת מונחים אקדמיים
+        for term in academic_terms:
+            if term in message:
+                return False  # שלח ל-RAG
+        
+        # זיהוי מספרים בהודעה (כל מספר שיכול להיות ציון)
+        if re.search(r'\b\d{2,3}\b', message):  # מספרים של 2-3 ספרות (ציונים אפשריים)
+            return False  # שלח ל-RAG
         
         # Very specific conversation questions only
         # Questions about personal information from conversation history
@@ -439,123 +513,43 @@ class ChatService(IChatService):
             client = genai.Client(api_key=current_key)
             
             # Build conversation for context
-            conversation_messages = []
+            conversation_parts = []
             if history:
                 for msg in history:
                     if msg.type == 'user':
-                        conversation_messages.append(f"User: {msg.content}")
+                        conversation_parts.append({"role": "user", "parts": [msg.content]})
                     elif msg.type == 'bot':
-                        conversation_messages.append(f"Assistant: {msg.content}")
+                        conversation_parts.append({"role": "model", "parts": [msg.content]})
             
             # Add current message
-            conversation_messages.append(f"User: {user_message}")
-            full_conversation = "\n".join(conversation_messages)
+            conversation_parts.append({"role": "user", "parts": [user_message]})
             
-            # Detect conversation type
-            is_conversation_question = self._is_conversation_question(user_message)
+            # Use proper conversation format instead of text concatenation
+            response = client.models.generate_content_stream(
+                model="gemini-2.0-flash-exp",
+                contents=conversation_parts  # Use structured conversation format
+            )
             
-            # Handle conversation questions vs information requests
-            if is_conversation_question:
-                logger.info(f"🗣️ Streaming conversation question: '{user_message}'")
-                
-                # Use streaming for conversation
-                response = client.models.generate_content_stream(
-                    model="gemini-2.0-flash-exp",
-                    contents=[full_conversation]
-                )
-                
-                accumulated_text = ""
-                for chunk in response:
-                    if chunk.text:
-                        accumulated_text += chunk.text
-                        yield {
-                            "type": "chunk",
-                            "content": chunk.text,
-                            "accumulated": accumulated_text
-                        }
-                
-                # Track usage
-                await self._track_token_usage(user_message, accumulated_text, "streaming_conversation")
-                
-                yield {
-                    "type": "complete",
-                    "content": accumulated_text,
-                    "sources": [],
-                    "chunks": 0
-                }
-                
-            else:
-                logger.info(f"📚 Streaming information request with RAG: '{user_message}'")
-                
-                # Try RAG first
-                rag_service = self._get_current_rag_service()
-                
-                if rag_service:
-                    try:
-                        rag_response = await rag_service.generate_answer(user_message, search_method="hybrid")
-                        
-                        if rag_response and rag_response.get("answer"):
-                            sources_count = len(rag_response.get("sources", []))
-                            chunks_count = len(rag_response.get("chunks_selected", []))
-                            
-                            if sources_count > 0:
-                                # Stream the RAG response
-                                response_text = rag_response["answer"]
-                                words = response_text.split()
-                                
-                                accumulated_text = ""
-                                for i, word in enumerate(words):
-                                    accumulated_text += word + " "
-                                    yield {
-                                        "type": "chunk",
-                                        "content": word + " ",
-                                        "accumulated": accumulated_text.strip()
-                                    }
-                                    
-                                    # Add small delay for natural streaming effect
-                                    import asyncio
-                                    await asyncio.sleep(0.05)
-                                
-                                await self._track_token_usage(user_message, response_text, "streaming_rag")
-                                
-                                yield {
-                                    "type": "complete",
-                                    "content": response_text,
-                                    "sources": rag_response.get("sources", []),
-                                    "chunks": chunks_count
-                                }
-                                return
-                                
-                    except Exception as e:
-                        logger.warning(f"⚠️ RAG streaming error: {e}")
-                
-                # Fallback to streaming Gemini
-                logger.info("📚 Using streaming Gemini fallback")
-                
-                response = client.models.generate_content_stream(
-                    model="gemini-2.0-flash-exp",
-                    contents=[full_conversation]
-                )
-                
-                accumulated_text = ""
-                for chunk in response:
-                    if chunk.text:
-                        accumulated_text += chunk.text
-                        yield {
-                            "type": "chunk",
-                            "content": chunk.text,
-                            "accumulated": accumulated_text
-                        }
-                
-                await self._track_token_usage(user_message, accumulated_text, "streaming_fallback")
-                
-                yield {
-                    "type": "complete",
-                    "content": accumulated_text,
-                    "sources": [],
-                    "chunks": 0
-                }
-                
+            accumulated_text = ""
+            for chunk in response:
+                if chunk.text:
+                    accumulated_text += chunk.text
+                    yield {
+                        "type": "chunk",
+                        "content": chunk.text,
+                        "accumulated": accumulated_text
+                    }
+            
+            # Track usage
+            await self._track_token_usage(user_message, accumulated_text, "streaming_conversation")
+            
+            yield {
+                "type": "complete",
+                "content": accumulated_text,
+                "sources": [],
+                "chunks": 0
+            }
+            
         except Exception as e:
             logger.exception(f"❌ [CHAT-STREAM] Streaming error: {e}")
             yield {"type": "error", "content": f"Streaming error: {str(e)}"}

@@ -18,14 +18,44 @@ sys.path.insert(0, str(backend_path))
 # Load environment variables
 dotenv.load_dotenv(override=True)
 
-# RAG modules import - temporarily disabled until issues are fixed
-# Chat will work with Gemini alone without RAG
-has_rag = False
-enhanced_processor = None
-get_supabase_client = None
-doc_processor = None
-
-logging.warning("RAG modules disabled - chat will use Gemini without document search")
+# RAG modules import - re-enabled for full functionality
+try:
+    from services.enhanced_document_processor import EnhancedDocumentProcessor
+    from services.document_processor import DocumentProcessor
+    from services.rag_service import RAGService
+    
+    # Import Supabase client with correct path
+    try:
+        # Add parent path to sys.path for backend imports
+        parent_path = Path(__file__).parent.parent
+        if str(parent_path) not in sys.path:
+            sys.path.insert(0, str(parent_path))
+        
+        from backend.app.core.database import get_supabase_client
+    except ImportError:
+        try:
+            from backend.core.dependencies import get_supabase_client
+        except ImportError:
+            # Fallback - define a simple get_supabase_client function
+            from supabase import create_client, Client
+            import os
+            def get_supabase_client():
+                return create_client(
+                    os.getenv("SUPABASE_URL"),
+                    os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+                )
+    
+    enhanced_processor = EnhancedDocumentProcessor()
+    doc_processor = DocumentProcessor()
+    has_rag = True
+    logging.info("✅ RAG modules loaded successfully - document search enabled")
+except ImportError as e:
+    logging.warning(f"⚠️ Could not import RAG modules: {e}")
+    logging.warning("RAG modules disabled - chat will use Gemini without document search")
+    has_rag = False
+    enhanced_processor = None
+    get_supabase_client = None
+    doc_processor = None
 
 # Configure logging
 logging.basicConfig(
@@ -438,25 +468,46 @@ async def chat():
         rag_used = False
         rag_count = 0
         
-        if has_rag and enhanced_processor and ('use_rag' not in data or data.get('use_rag', True)):
+        if has_rag and ('use_rag' not in data or data.get('use_rag', True)):
             try:
-                logger.info("Using enhanced RAG system for response generation")
+                logger.info("Using RAG system for response generation")
                 import asyncio
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
-                # Use the enhanced search and answer function
-                enhanced_result = loop.run_until_complete(
-                    enhanced_processor.search_and_answer(user_message, max_results=3)
-                )
-                
-                ai_response = enhanced_result.get('answer', ai_response)
-                rag_used = True
-                rag_count = len(enhanced_result.get('sources', []))
-                logger.info(f"Enhanced RAG generated response with {rag_count} sources")
+                # Try RAG Service first (most complete system)
+                try:
+                    rag_service = RAGService()
+                    rag_result = loop.run_until_complete(
+                        rag_service.generate_answer(user_message, search_method="hybrid")
+                    )
+                    
+                    if rag_result and rag_result.get('answer'):
+                        ai_response = rag_result['answer']
+                        rag_used = True
+                        rag_count = len(rag_result.get('sources', []))
+                        logger.info(f"RAG Service generated response with {rag_count} sources")
+                    else:
+                        raise Exception("RAG Service returned empty result")
+                        
+                except Exception as rag_service_err:
+                    logger.warning(f"RAG Service failed: {rag_service_err}, trying enhanced processor")
+                    
+                    # Fallback to enhanced processor
+                    if enhanced_processor:
+                        enhanced_result = loop.run_until_complete(
+                            enhanced_processor.search_and_answer(user_message, max_results=3)
+                        )
+                        
+                        ai_response = enhanced_result.get('answer', ai_response)
+                        rag_used = True
+                        rag_count = len(enhanced_result.get('sources', []))
+                        logger.info(f"Enhanced RAG generated response with {rag_count} sources")
+                    else:
+                        raise Exception("No RAG processors available")
                 
             except Exception as rag_err:
-                logger.error(f"Error using enhanced RAG: {str(rag_err)}")
+                logger.error(f"Error using RAG system: {str(rag_err)}")
                 # Fallback to regular Gemini without RAG
                 try:
                     # Use Key Manager

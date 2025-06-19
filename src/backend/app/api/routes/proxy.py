@@ -182,20 +182,42 @@ async def update_chat_session(
         body = await request.json()
         logger.info(f"PATCH /api/proxy/chat_session/{session_id} with body: {body}")
         
-        # Update session in our mock store
-        if session_id in mock_sessions_store:
-            current_session = mock_sessions_store[session_id]
-            current_session.update(body)
-            current_session["updated_at"] = datetime.utcnow().isoformat() + "Z"
-            logger.info(f"Updated session {session_id} in mock store")
-        else:
-            logger.warning(f"Session {session_id} not found in mock store, skipping update")
+        # Validate allowed fields for session updates
+        allowed_fields = {"title", "user_id", "updated_at", "metadata"}
+        received_fields = set(body.keys())
+        invalid_fields = received_fields - allowed_fields
         
-        return JSONResponse(content={"success": True, "data": None})
+        if invalid_fields:
+            logger.warning(f"Invalid fields received: {invalid_fields}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid fields: {', '.join(invalid_fields)}"}
+            )
+        
+        # Check if session exists
+        if session_id not in mock_sessions_store:
+            logger.warning(f"Session {session_id} not found in mock store")
+            return JSONResponse(
+                status_code=404,
+                content={"error": "Session not found"}
+            )
+        
+        # Update session in our mock store with validated fields only
+        current_session = mock_sessions_store[session_id]
+        for field in allowed_fields:
+            if field in body:
+                current_session[field] = body[field]
+        current_session["updated_at"] = datetime.utcnow().isoformat() + "Z"
+        logger.info(f"Updated session {session_id} in mock store")
+        
+        return JSONResponse(content={"success": True, "data": current_session})
         
     except Exception as e:
         logger.error(f"Error in update_chat_session: {str(e)}")
-        return JSONResponse(content={"success": True, "data": None})
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
 
 @router.patch("/api/proxy/chat_sessions/{session_id}")
 async def update_chat_sessions_plural(

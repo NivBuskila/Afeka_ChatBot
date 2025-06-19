@@ -22,8 +22,9 @@ sys.path.insert(0, str(src_path))
 # Set test environment variables
 os.environ["ENVIRONMENT"] = "test"
 os.environ["JWT_SECRET"] = "test-jwt-secret-key-for-testing-only"
-os.environ["SUPABASE_URL"] = "https://test.supabase.co"
-os.environ["SUPABASE_KEY"] = "test-key"
+# Use real Supabase credentials for tests
+os.environ["SUPABASE_URL"] = "https://cqvicgimmzrffvarlokq.supabase.co"
+os.environ["SUPABASE_KEY"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxdmljZ2ltbXpyZmZ2YXJsb2txIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzI0MTQyOCwiZXhwIjoyMDYyODE3NDI4fQ.PHooMfnh-y1-gkld0qB0Ju7rXbXgYeP-6Vg6UuDrg7Q"
 os.environ["AI_SERVICE_URL"] = "http://localhost:5000"
 os.environ["INTERNAL_API_KEY"] = "test-internal-api-key"
 

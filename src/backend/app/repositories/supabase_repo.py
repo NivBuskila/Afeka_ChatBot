@@ -49,6 +49,13 @@ class SupabaseDocumentRepository(IDocumentRepository):
         except Exception as e:
             if isinstance(e, RepositoryError):
                 raise e
+            
+            # Handle Supabase specific "no rows" error
+            error_str = str(e)
+            if "PGRST116" in error_str or "0 rows" in error_str or "multiple (or no) rows returned" in error_str:
+                logger.warning(f"Document with ID {doc_id} not found (Supabase: no rows)")
+                raise RepositoryError(f"Document {doc_id} not found", status_code=404)
+                
             logger.error(f"Error retrieving document {doc_id}: {e}")
             raise RepositoryError(f"Failed to retrieve document: {e}")
     

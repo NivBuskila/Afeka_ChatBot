@@ -551,47 +551,48 @@ class RAGService:
         return best_chunk
 
     def _create_rag_prompt(self, query: str, context: str) -> str:
-        """יוצר prompt מותאם לשאלות תקנונים עם הנחיה לציטוט מקורות"""
-        return f"""אתה עוזר אקדמי המתמחה בתקנוני מכללת אפקה. ענה על השאלה בהתבסס על המידע הרלוונטי שניתן.
+        """יוצר prompt מותאם לשאלות תקנונים עם הנחיה לציטוט מקורות והבנת הקשר שיחה"""
+        
+        # בדיקה אם יש היסטוריית שיחה בשאילתה
+        has_conversation_history = "היסטוריית השיחה:" in query
+        
+        conversation_instruction = ""
+        if has_conversation_history:
+            conversation_instruction = """
+🔗 CONVERSATION CONTEXT DETECTED!
+- Read the conversation history carefully
+- If user refers to previous information (scores, numbers, "you said") - give consistent answer
+- Use phrases like "as I mentioned", "with the score you mentioned"
+"""
 
-הקשר רלוונטי מהתקנונים:
+        # ציטוט מקורות FIRST AND FOREMOST
+        base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
+NO EXCEPTIONS! This format is MANDATORY!
+
+אתה עוזר אקדמי של מכללת אפקה.{conversation_instruction}
+
+📚 מידע מהתקנונים:
 {context}
 
-שאלת המשתמש: {query}
+❓ שאלה: {query}
 
-⚠️ CRITICAL: ציטוט מקורות הוא חובה אבסולוטית ובלתי משתמעת! ללא חריגים!
+INSTRUCTIONS:
+1. Read all information above
+2. Answer in Hebrew based on the information
+3. For scores/ranges - check where the number falls
+4. Give detailed accurate answer
+5. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] ⚠️
 
-הנחיות למתן תשובה:
-1. קרא בקפידה את כל המידע שניתן מהקשר לעיל
-2. ענה בעברית בצורה ברורה ומפורטת, כולל פרטים ספציפיים כמו סכומים, אחוזים, תנאים
-3. אם המידע קיים בקשר - תן תשובה מלאה ומדויקת
-4. אם השאלה נוגעת לסעיף ספציפי, צטט אותו במדויק
-5. אם המידע חלקי או לא ברור, ציין זאת ותן את המידע שכן קיים
-6. אם השאלה לא קשורה לתקנונים כלל, ציין שאין לך מידע על הנושא
-7. במקרה של מלגות, זכויות או הטבות - פרט את כל התנאים והסכומים הרלוונטיים
+EXAMPLES OF CORRECT FORMAT:
+"הטווח לרמה מתקדמים ב' הוא 120-133. ציון 125 נופל בטווח הזה. [מקורות: מקור 1]"
+"שכר הלימוד 5000 ש"ח לסמסטר. [מקורות: מקור 2, מקור 3]"
 
-🔥 MANDATORY SOURCE CITATION FORMAT:
-בסוף כל תשובה, חייב לכלול ציטוט מקורות בפורמט הזה בדיוק:
-[מקורות: מקור X, מקור Y]
-
-⭐ REQUIRED EXAMPLES:
-✅ CORRECT: "הקנס על חניה הוא 150 ₪. [מקורות: מקור 1, מקור 3]"
-✅ CORRECT: "זמן הלימודים לתואר בהנדסה הוא 4 שנים. [מקורות: מקור 2]"
-✅ CORRECT: "תנאי הזכאות למלגה כוללים... [מקורות: מקור 5, מקור 12]"
-
-❌ WRONG: תשובה ללא ציטוט = תשובה לא תקינה!
-❌ WRONG: "מקור: מסמך X" - פורמט שגוי!
-❌ WRONG: "[מקור 1]" - חסר המילה "מקורות"!
-
-🎯 STEP-BY-STEP INSTRUCTION:
-1. כתב את התשובה המלאה
-2. זהה איזה מקורות (מקור 1, מקור 2, וכו') השתמשת בהם
-3. הוסף בסוף: [מקורות: מקור X, מקור Y]
-4. בדוק שהפורמט מדויק!
-
-⚠️ זכור: המערכת תדחה כל תשובה ללא ציטוט מקורות במדויק הפורמט הנדרש!
+⚠️ תשובה ללא [מקורות: ...] = תשובה שגויה! ⚠️
 
 תשובה:"""
+
+        return base_prompt
 
     def _extract_cited_sources(self, answer: str) -> List[int]:
         """מחלץ את המקורות שציטט המודל מהתשובה עם validation חזק"""
@@ -803,7 +804,6 @@ class RAGService:
                     score -= 2
                 
                 scored_sentences.append((sentence, score, i))
-                logger.debug(f"📝 משפט {i}: score={score:.2f}, length={length}")
             
             # מיון לפי ציון
             scored_sentences.sort(key=lambda x: x[1], reverse=True)
@@ -819,7 +819,6 @@ class RAGService:
                     selected_sentences.append((sentence, index))
                     used_indices.add(index)
                     current_length += len(sentence) + 1  # +1 for space
-                    logger.debug(f"✅ נבחר משפט {index} עם ציון {score:.2f}")
                 
                 if current_length >= max_length * self.performance_config.CONTEXT_TRIM_THRESHOLD:  # מלא מעתה של הקונטקסט
                     break
@@ -863,17 +862,12 @@ class RAGService:
             'fees': ['תשלום', 'שכר לימוד', 'דמי', 'עלות']
         }
         
-        # ✅ הסרה של hard-coding! אלגוריתם חכם בלבד
-        # אין עוד hard-coded chunk IDs
-        
         # חפש chunks עם מילות מפתח רלוונטיות
         scored_chunks = []
         for chunk in included_chunks:
             content = chunk.get('chunk_text', chunk.get('content', '')).lower()
             score = 0
             chunk_id = chunk.get('id')
-            
-            # ✅ הסרה של hard-coding! אין עוד חשיבות לפי ID
             
             # ציון בסיסי לפי similarity
             base_score = chunk.get('similarity_score', chunk.get('combined_score', 0))
@@ -996,15 +990,6 @@ class RAGService:
             # יצירת prompt
             prompt = self._create_rag_prompt(query, context)
             
-            # 🔍 Debug: log the chunks being used
-            logger.info(f"🔍 [CHUNKS-DEBUG] Using {len(search_results)} total chunks, {len(included_chunks)} included in context")
-            for i, chunk in enumerate(included_chunks[:5]):  # Log first 5 chunks that were included
-                similarity = chunk.get('similarity_score') or chunk.get('similarity', 0)
-                chunk_preview = chunk.get('chunk_text', chunk.get('content', ''))[:100]
-                logger.info(f"🔍 [CONTEXT-CHUNK-{i+1}] Similarity: {similarity:.3f} | Preview: {chunk_preview}")
-            
-            # שימוש במערכת ציטוט מקורות חדשה במקום אלגוריתם בחירת chunks מורכב
-            
             # יצירת תשובה עם retry logic
             answer = await self._generate_with_retry(prompt)
             
@@ -1081,20 +1066,13 @@ class RAGService:
                 
                 logger.info(f"🔢 [RAG-GEN-DEBUG] Generating response for prompt length: {len(prompt)}")
                 
-                # Debug: Log first part of prompt to check content
-                logger.info(f"🔍 [PROMPT-DEBUG] First 500 chars: {prompt[:500]}")
-                logger.info(f"🔍 [PROMPT-DEBUG] Last 200 chars: {prompt[-200:]}")
-                
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text
-                
-                logger.info(f"🔍 [RESPONSE-DEBUG] Raw response: {response_text[:200]}")
                 
                 # 🔥 Track usage  
                 key_id = available_key.get('id') if available_key else None
                 await self._track_generation_usage(prompt, response_text, key_id)
                 
-                logger.info(f"🔢 [RAG-GEN-DEBUG] Generated response length: {len(response_text)}")
                 return response_text
                 
             except Exception as e:

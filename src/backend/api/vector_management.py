@@ -14,8 +14,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/vector", tags=["Vector Management"])
 
-# Initialize document processor
-doc_processor = DocumentProcessor()
+# Lazy initialization of document processor
+doc_processor = None
+
+def get_doc_processor():
+    """Get document processor instance with lazy initialization"""
+    global doc_processor
+    if doc_processor is None:
+        doc_processor = DocumentProcessor()
+    return doc_processor
 
 @router.post("/upload-document")
 async def upload_document(
@@ -99,7 +106,7 @@ async def process_document_background(document_id: int, file_path: str):
     """עיבוד מסמך ברקע"""
     try:
         logger.info(f"Starting background processing for document {document_id} at path {file_path}")
-        result = await doc_processor.process_document(document_id, file_path)
+        result = await get_doc_processor().process_document(document_id, file_path)
         logger.info(f"Background processing completed for document {document_id}: {result}")
         
         # Update document status to completed if successful
@@ -391,7 +398,7 @@ async def semantic_search(
         if not query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-        results = await doc_processor.search_documents(query, limit, threshold)
+        results = await get_doc_processor().search_documents(query, limit, threshold)
         
         return {
             "query": query,
@@ -419,7 +426,7 @@ async def hybrid_search(
         if not query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-        results = await doc_processor.hybrid_search(query, limit, threshold)
+        results = await get_doc_processor().hybrid_search(query, limit, threshold)
         
         return {
             "query": query,
@@ -487,7 +494,7 @@ async def reprocess_document(
         document = result.data[0]
         
         # Delete existing embeddings
-        await doc_processor.delete_document_embeddings(document_id)
+        await get_doc_processor().delete_document_embeddings(document_id)
         
         # Check if we have the original file
         if document["url"].startswith("temp://"):
