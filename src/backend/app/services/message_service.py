@@ -56,7 +56,6 @@ class MessageService(IMessageService):
                     message_data['conversation_id'], 
                     {'updated_at': datetime.utcnow().isoformat() + "Z"}
                 )
-                logger.info(f"Updated chat session {message_data['conversation_id']} timestamp")
             except Exception as e:
                 logger.warning(f"Failed to update chat session timestamp: {e}")
         

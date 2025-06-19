@@ -125,12 +125,9 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
             
             # Check if messages table exists and get messages
             try:
-                logger.info(f"Searching for messages with conversation_id: {session_id}")
                 # Get messages using the conversation_id (which maps to session_id)
                 messages_result = self.client.table("messages").select("*").eq("conversation_id", session_id).order("created_at").execute()
                 raw_messages = messages_result.data if hasattr(messages_result, 'data') else []
-                
-                logger.info(f"Found {len(raw_messages)} messages in database")
                 
                 # Convert the message format to what the frontend expects
                 formatted_messages = []
@@ -201,8 +198,6 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 # Messages should already be sorted by created_at from the query
                 # But sort again just in case
                 formatted_messages.sort(key=lambda x: x.get('created_at', ''))
-                
-                logger.info(f"Final formatted messages count: {len(formatted_messages)}")
                 
             except Exception as msg_err:
                 logger.warning(f"Messages table may not exist or error fetching messages: {msg_err}")
