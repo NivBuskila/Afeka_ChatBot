@@ -125,16 +125,20 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
             
             # Check if messages table exists and get messages
             try:
-                logger.info(f"Searching for messages with conversation_id: {session_id}")
+                logger.info(f"📊 Searching for messages with conversation_id: {session_id}")
                 # Get messages using the conversation_id (which maps to session_id)
                 messages_result = self.client.table("messages").select("*").eq("conversation_id", session_id).order("created_at").execute()
                 raw_messages = messages_result.data if hasattr(messages_result, 'data') else []
                 
-                logger.info(f"Found {len(raw_messages)} messages in database")
+                logger.info(f"📊 Found {len(raw_messages)} raw messages in database")
+                if len(raw_messages) > 0:
+                    logger.info(f"📊 First message sample: {raw_messages[0]}")
                 
                 # Convert the message format to what the frontend expects
                 formatted_messages = []
                 for i, msg in enumerate(raw_messages):
+                    logger.info(f"📊 Processing message {i+1}: message_id={msg.get('message_id')}, request={bool(msg.get('request'))}, response={bool(msg.get('response'))}")
+                    
                     # Each row in the messages table represents either a user message (request) or bot message (response)
                     # We should only have one or the other, not both
                     if msg.get('request') and not msg.get('response'):
@@ -152,6 +156,7 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                             'text': msg.get('request')
                         }
                         formatted_messages.append(formatted_msg)
+                        logger.info(f"📊 Added user message: {formatted_msg['id']} - '{formatted_msg['content'][:50]}...'")
                     
                     elif msg.get('response') and not msg.get('request'):
                         # This is a bot message
@@ -168,6 +173,7 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                             'text': msg.get('response')
                         }
                         formatted_messages.append(formatted_msg)
+                        logger.info(f"📊 Added bot message: {formatted_msg['id']} - '{formatted_msg['content'][:50]}...'")
                     
                     elif msg.get('request') and msg.get('response'):
                         # This shouldn't happen in the new structure, but handle legacy data
@@ -197,12 +203,13 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                             'text': msg.get('response')
                         }
                         formatted_messages.append(bot_msg)
+                        logger.info(f"📊 Added legacy message pair: user and bot")
                 
                 # Messages should already be sorted by created_at from the query
                 # But sort again just in case
                 formatted_messages.sort(key=lambda x: x.get('created_at', ''))
                 
-                logger.info(f"Final formatted messages count: {len(formatted_messages)}")
+                logger.info(f"📊 Final formatted messages count: {len(formatted_messages)}")
                 
             except Exception as msg_err:
                 logger.warning(f"Messages table may not exist or error fetching messages: {msg_err}")
