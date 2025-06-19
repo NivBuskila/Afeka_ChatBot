@@ -293,7 +293,22 @@
     "creating": "Creating...",
     "chunkSource": "Source Text (Chunk):",
     "viewMore": "VIEW MORE",
-    "showLess": "Show Less"
+    "showLess": "Show Less",
+    "confirmDelete": {
+      "title": "Confirm Deletion",
+      "customProfile": "Are you sure you want to delete the custom profile \"{{profileName}}\"?",
+      "builtinProfile": "Are you sure you want to hide the built-in profile \"{{profileName}}\"?",
+      "builtinNote": "This will hide the profile from the list. It can be restored in the future.",
+      "confirmButton": "Yes, Delete",
+      "hideButton": "Yes, Hide",
+      "cancelButton": "Cancel"
+    },
+    "confirmRestore": {
+      "title": "Confirm Restore",
+      "message": "Are you sure you want to restore the profile \"{{profileName}}\"?",
+      "confirmButton": "Yes, Restore",
+      "cancelButton": "Cancel"
+    }
   },
   "pagination": {
     "showing": "Showing",

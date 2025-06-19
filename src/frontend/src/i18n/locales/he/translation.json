@@ -293,7 +293,22 @@
     "creating": "יוצר...",
     "chunkSource": "מקור הטקסט (צ'אנק):",
     "viewMore": "הצג עוד",
-    "showLess": "הצג פחות"
+    "showLess": "הצג פחות",
+    "confirmDelete": {
+      "title": "אישור מחיקה",
+      "customProfile": "האם אתה בטוח שברצונך למחוק את הפרופיל המותאם אישית \"{{profileName}}\"?",
+      "builtinProfile": "האם אתה בטוח שברצונך להסתיר את הפרופיל המובנה \"{{profileName}}\"?",
+      "builtinNote": "זה יסתיר את הפרופיל מהרשימה. ניתן יהיה לשחזר אותו בעתיד.",
+      "confirmButton": "כן, מחק",
+      "hideButton": "כן, הסתר",
+      "cancelButton": "ביטול"
+    },
+    "confirmRestore": {
+      "title": "אישור שחזור",
+      "message": "האם אתה בטוח שברצונך לשחזר את הפרופיל \"{{profileName}}\"?",
+      "confirmButton": "כן, שחזר",
+      "cancelButton": "ביטול"
+    }
   },
   "pagination": {
     "showing": "מציג",

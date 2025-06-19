@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Search,
   Check,
+  CheckCircle,
   AlertCircle,
   Clock,
   Settings,
@@ -43,6 +44,15 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const [showHiddenProfiles, setShowHiddenProfiles] = useState(false);
   const [hiddenProfiles, setHiddenProfiles] = useState<string[]>([]);
   const [isRestoringProfile, setIsRestoringProfile] = useState<string | null>(null);
+  
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [modalProfileData, setModalProfileData] = useState<{
+    id: string;
+    name: string;
+    isCustom: boolean;
+  } | null>(null);
 
   // Pagination state for profiles
   const [profilesItemsPerPage, setProfilesItemsPerPage] = useState(10);
@@ -359,27 +369,28 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     }
   };
 
-  const handleDeleteProfile = async (
+  const handleDeleteProfile = (
     profileId: string,
     profileName: string,
     isCustom: boolean = true
   ) => {
-    // הודעת אישור מותאמת לסוג הפרופיל
-    const profileType = isCustom ? "מותאם אישית" : "מובנה";
-    const confirmMessage = isCustom
-      ? `האם אתה בטוח שברצונך למחוק את הפרופיל המותאם אישית "${profileName}"?`
-      : `האם אתה בטוח שברצונך למחוק את הפרופיל המובנה "${profileName}"?\n\nזה יסתיר את הפרופיל מהרשימה. ניתן יהיה לשחזר אותו בעתיד.`;
+    setModalProfileData({ id: profileId, name: profileName, isCustom });
+    setShowDeleteModal(true);
+  };
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!modalProfileData) return;
 
+    const { id: profileId, isCustom } = modalProfileData;
+    
     setIsDeletingProfile(profileId);
     setError(null);
+    setShowDeleteModal(false);
+    
     try {
       // עבור פרופילים מובנים, נשלח force=true
       await ragService.deleteProfile(profileId, !isCustom);
-      console.log(`Successfully deleted ${profileType} profile:`, profileId);
+      console.log(`Successfully deleted profile:`, profileId);
       await fetchProfiles(); // רענון הרשימה
       await fetchHiddenProfiles(); // רענון רשימת הנסתרים
     } catch (error) {
@@ -391,18 +402,24 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       );
     } finally {
       setIsDeletingProfile(null);
+      setModalProfileData(null);
     }
   };
 
-  const handleRestoreProfile = async (profileId: string, profileName: string) => {
-    const confirmMessage = `האם אתה בטוח שברצונך לשחזר את הפרופיל "${profileName}"?`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+  const handleRestoreProfile = (profileId: string, profileName: string) => {
+    setModalProfileData({ id: profileId, name: profileName, isCustom: false });
+    setShowRestoreModal(true);
+  };
 
+  const handleConfirmRestore = async () => {
+    if (!modalProfileData) return;
+
+    const { id: profileId } = modalProfileData;
+    
     setIsRestoringProfile(profileId);
     setError(null);
+    setShowRestoreModal(false);
+    
     try {
       await ragService.restoreProfile(profileId);
       console.log('Successfully restored profile:', profileId);
@@ -417,6 +434,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       );
     } finally {
       setIsRestoringProfile(null);
+      setModalProfileData(null);
     }
   };
 
@@ -1096,6 +1114,102 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       )}
 
       {renderContent()}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && modalProfileData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-black/80 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-red-500/30 max-w-md w-full shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-red-400">
+                  {t("rag.confirmDelete.title")}
+                </h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                  {modalProfileData.isCustom 
+                    ? t("rag.confirmDelete.customProfile", { profileName: modalProfileData.name })
+                    : t("rag.confirmDelete.builtinProfile", { profileName: modalProfileData.name })
+                  }
+                </p>
+                {!modalProfileData.isCustom && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded p-3">
+                    {t("rag.confirmDelete.builtinNote")}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setModalProfileData(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  {t("rag.confirmDelete.cancelButton")}
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeletingProfile === modalProfileData.id}
+                  className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors"
+                >
+                  {isDeletingProfile === modalProfileData.id ? (
+                    "..."
+                  ) : modalProfileData.isCustom ? (
+                    t("rag.confirmDelete.confirmButton")
+                  ) : (
+                    t("rag.confirmDelete.hideButton")
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {showRestoreModal && modalProfileData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-black/80 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/30 max-w-md w-full shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-green-400">
+                  {t("rag.confirmRestore.title")}
+                </h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300">
+                  {t("rag.confirmRestore.message", { profileName: modalProfileData.name })}
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowRestoreModal(false);
+                    setModalProfileData(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  {t("rag.confirmRestore.cancelButton")}
+                </button>
+                <button
+                  onClick={handleConfirmRestore}
+                  disabled={isRestoringProfile === modalProfileData.id}
+                  className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors"
+                >
+                  {isRestoringProfile === modalProfileData.id ? "..." : t("rag.confirmRestore.confirmButton")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
