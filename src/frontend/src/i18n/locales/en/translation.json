@@ -177,6 +177,10 @@
       "knowledgeBase": "Knowledge Base",
       "uploadDocuments": "Upload Documents",
       "activeDocuments": "Active Documents"
+    },
+    "documents": {
+      "deleteSuccess": "Document deleted successfully",
+      "deleteError": "Error deleting document"
     }
   },
   "rag": {

@@ -177,6 +177,10 @@
       "knowledgeBase": "בסיס הידע",
       "uploadDocuments": "העלאת מסמכים",
       "activeDocuments": "מסמכים פעילים"
+    },
+    "documents": {
+      "deleteSuccess": "המסמך נמחק בהצלחה",
+      "deleteError": "אירעה שגיאה במחיקת המסמך"
     }
   },
   "rag": {
