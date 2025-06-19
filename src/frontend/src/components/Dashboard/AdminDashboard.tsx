@@ -875,7 +875,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       }`}
                     >
                       <Sun className="w-4 h-4 mr-2" />
-                      {t("settings.light") || "Light"}
+                      {language === "he" ? "בהיר" : "Light"}
                     </button>
                     <button
                       onClick={() => handleThemeChange("dark")}
@@ -886,7 +886,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       }`}
                     >
                       <Moon className="w-4 h-4 mr-2" />
-                      {t("settings.dark") || "Dark"}
+                      {language === "he" ? "כהה" : "Dark"}
                     </button>
                   </div>
                 </div>
