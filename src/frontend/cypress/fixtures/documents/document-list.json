@@ -1,0 +1,38 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "id": "doc_1",
+      "name": "Afeka Academic Regulations.pdf",
+      "type": "pdf",
+      "size": 245760,
+      "uploadDate": "2024-01-15T10:30:00Z",
+      "status": "processed",
+      "url": "/documents/academic-regulations.pdf"
+    },
+    {
+      "id": "doc_2", 
+      "name": "Student Discipline Code.pdf",
+      "type": "pdf",
+      "size": 189440,
+      "uploadDate": "2024-01-20T14:45:00Z",
+      "status": "processed",
+      "url": "/documents/discipline-code.pdf"
+    },
+    {
+      "id": "doc_3",
+      "name": "Course Catalog 2024.pdf",
+      "type": "pdf", 
+      "size": 567890,
+      "uploadDate": "2024-02-01T09:15:00Z",
+      "status": "processing",
+      "url": "/documents/course-catalog.pdf"
+    }
+  ],
+  "pagination": {
+    "total": 3,
+    "page": 1,
+    "limit": 10,
+    "hasNext": false
+  }
+} 

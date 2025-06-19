@@ -1,0 +1,39 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "sessionId": "session_456",
+      "userId": "user_123",
+      "title": "Afeka Academic Questions",
+      "createdAt": "2024-06-20T10:30:00Z",
+      "updatedAt": "2024-06-20T11:45:00Z",
+      "messageCount": 5,
+      "isActive": true,
+      "lastMessage": {
+        "text": "Thank you for the information about registration deadlines.",
+        "timestamp": "2024-06-20T11:45:00Z",
+        "sender": "user"
+      }
+    },
+    {
+      "sessionId": "session_789",
+      "userId": "user_123", 
+      "title": "Course Requirements",
+      "createdAt": "2024-06-19T14:20:00Z",
+      "updatedAt": "2024-06-19T15:30:00Z",
+      "messageCount": 8,
+      "isActive": false,
+      "lastMessage": {
+        "text": "Great! I hope this information helps with your course planning.",
+        "timestamp": "2024-06-19T15:30:00Z",
+        "sender": "assistant"
+      }
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "page": 1,
+    "limit": 10,
+    "hasNext": false
+  }
+} 
