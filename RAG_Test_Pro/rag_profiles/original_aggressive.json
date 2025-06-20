@@ -1,0 +1,49 @@
+{
+  "id": "original_aggressive",
+  "name": "פרופיל אגרסיבי מקורי",
+  "description": "הפרופיל האגרסיבי המקורי שהמערכת השתמשה בו עד כה - פרמטרים מתוך rag_config.py",
+  "author": "צוות Afeka ChatBot - פרופיל מקורי",
+  "created": "2025-06-19",
+  "version": "1.0-original",
+  "config": {
+    "id": "original_aggressive",
+    "similarityThreshold": 0.15,
+    "sectionSearchThreshold": 0.08,
+    "maxChunks": 70,
+    "temperature": 0.1,
+    "modelName": "gemini-2.0-flash",
+    "chunkSize": 2000,
+    "chunkOverlap": 200,
+    "maxContextTokens": 6000,
+    "targetTokensPerChunk": 350,
+    "hybridSemanticWeight": 0.2,
+    "hybridKeywordWeight": 0.8,
+    "exactPhraseBonus": 500.0,
+    "topicMatchBonus": 25.0,
+    "directMatchBonus": 15.0,
+    "similarityWeightFactor": 1.0,
+    "positionBonusBase": 5.0,
+    "positionBonusDecay": 0.3
+  },
+  "characteristics": {
+    "focus": "חיפוש אגרסיבי עם דגש על מילות מפתח ובונוסים גבוהים",
+    "expectedSpeed": "בינוני",
+    "expectedQuality": "גבוהה - מבוסס על ביצועים מוכחים",
+    "bestFor": "הפרופיל שהמערכת השתמשה בו בפועל עד כה",
+    "tradeoffs": "פרמטרים אגרסיביים לתוצאות מקסימליות"
+  },
+  "usage_notes": [
+    "זה הפרופיל שהמערכת באמת השתמשה בו עד כה",
+    "פרמטרים אגרסיביים עם דגש על מילות מפתח",
+    "ספי דמיון נמוכים למציאת יותר תוכן",
+    "בונוסים גבוהים לביטויים מדויקים",
+    "70 chunks מקסימום לכיסוי רחב"
+  ],
+  "technical_notes": [
+    "מקור: src/ai/config/rag_config.py",
+    "SIMILARITY_THRESHOLD = 0.15 (very aggressive)",
+    "MAX_CHUNKS_RETRIEVED = 70 (high coverage)", 
+    "HYBRID_KEYWORD_WEIGHT = 0.8 (keyword dominant)",
+    "EXACT_PHRASE_BONUS = 500.0 (huge bonus for exact matches)"
+  ]
+} 

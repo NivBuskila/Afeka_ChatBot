@@ -23,7 +23,6 @@ from langchain_core.runnables import RunnableConfig
 try:
     from langgraph.graph import StateGraph, START, MessagesState, add_messages
     from langgraph.checkpoint.memory import MemorySaver
-    from langgraph.store.memory import InMemoryStore
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
@@ -85,10 +84,10 @@ class AdvancedChatService(IChatService):
             
         try:
             self.llm = ChatGoogleGenerativeAI(
-                google_api_key=settings.GEMINI_API_KEY,
+                api_key=settings.GEMINI_API_KEY,
                 model=settings.GEMINI_MODEL_NAME,
                 temperature=settings.GEMINI_TEMPERATURE,
-                max_output_tokens=settings.GEMINI_MAX_TOKENS
+                max_tokens=settings.GEMINI_MAX_TOKENS
             )
             logger.info(f"🤖 LLM initialized: {settings.GEMINI_MODEL_NAME}")
         except Exception as e:
@@ -99,7 +98,6 @@ class AdvancedChatService(IChatService):
         try:
             # Use in-memory storage for now
             self.checkpointer = MemorySaver()
-            self.store = InMemoryStore()
             logger.info("🗄️ Using in-memory storage")
 
             # Build the advanced conversation graph
@@ -128,8 +126,7 @@ class AdvancedChatService(IChatService):
         
         # Compile with persistence
         self.graph = workflow.compile(
-            checkpointer=self.checkpointer,
-            store=self.store
+            checkpointer=self.checkpointer
         )
         
         logger.info("🔗 LangGraph workflow compiled successfully")
@@ -355,7 +352,8 @@ class AdvancedChatService(IChatService):
             except Exception as e:
                 logger.warning(f"Summarization error: {e}")
         
-        return {}
+        # אם לא נדרש סיכום, החזר את הסיכום הקיים כדי לעמוד בדרישות LangGraph
+        return {"summary": summary}
 
     async def _generate_summary(self, messages: List[BaseMessage], existing_summary: str = "") -> str:
         """Generate a conversation summary"""
