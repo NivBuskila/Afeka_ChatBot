@@ -16,8 +16,6 @@ export const cacheService = {
       // Create timestamp for cleanup
       const timestamp = new Date().toISOString();
       localStorage.setItem('documents_cache_invalidated', timestamp);
-      
-      console.log('Documents cache invalidated at', timestamp);
     } catch (error) {
       console.error('Failed to invalidate documents cache:', error);
     }
@@ -35,8 +33,6 @@ export const cacheService = {
       // Create timestamp for cleanup
       const timestamp = new Date().toISOString();
       localStorage.setItem(`${entityType}_cache_invalidated`, timestamp);
-      
-      console.log(`${entityType} cache invalidated at`, timestamp);
     } catch (error) {
       console.error(`Failed to invalidate ${entityType} cache:`, error);
     }

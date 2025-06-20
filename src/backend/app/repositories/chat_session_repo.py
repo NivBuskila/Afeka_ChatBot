@@ -339,12 +339,3 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
             logger.error(f"Error searching chat sessions: {e}")
             return []
 
-    # Legacy method for backwards compatibility
-    async def delete(self, session_id: str) -> bool:
-        """Legacy method - delegates to delete_session"""
-        return await self.delete_session(session_id)
-
-    # Legacy method for backwards compatibility  
-    async def update(self, session_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Legacy method - delegates to update_session"""
-        return await self.update_session(session_id, data)

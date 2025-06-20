@@ -88,10 +88,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       const user = await chatService.getCurrentUser();
 
       if (user) {
-        console.log("User logged in, initializing chat history...");
         // Fetch user's chat sessions
-        const sessions = await chatService.getUserChatSessions(user.id);
-        console.log(`Found ${sessions.length} chat sessions`);
+        const sessions = await chatService.fetchAllChatSessions(user.id);
         setChatSessions(sessions);
 
         // Start with a new empty chat instead of loading the most recent session
@@ -100,7 +98,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         setHasStarted(false);
       } else {
         // In demo mode, just start with empty state
-        console.log("User not logged in, starting in demo mode");
         setChatSessions([]);
         setMessages([]);
         setStatusMessage(
@@ -121,7 +118,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       const user = await chatService.getCurrentUser();
       if (user) {
         setIsLoadingSessions(true);
-        const sessions = await chatService.getUserChatSessions(user.id);
+        const sessions = await chatService.fetchAllChatSessions(user.id);
         setChatSessions(sessions);
         setIsLoadingSessions(false);
       }
@@ -145,13 +142,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   // Helper function to load session messages
   const loadSessionMessages = async (sessionId: string) => {
     try {
-      console.log(`🔍 Loading messages for session: ${sessionId}`);
       const session = await chatService.getChatSessionWithMessages(sessionId);
-      console.log(`🔍 Received session data:`, session);
 
       if (session && session.messages && session.messages.length > 0) {
-        console.log(`🔍 Found ${session.messages.length} messages`);
-        console.log(`🔍 First message:`, session.messages[0]);
         
         const formattedMessages = session.messages.map(
           (msg: any, index: number) => {
@@ -176,8 +169,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               msg.content || msg.message_text || msg.text || "";
             const messageId =
               msg.id || msg.message_id || `msg-${Date.now()}-${index}`;
-              
-            console.log(`🔍 Processing message ${index}: role=${msg.role}, isBot=${isBot}, content length=${messageContent.length}`);
 
             return {
               id: messageId,
@@ -190,11 +181,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           }
         );
 
-        console.log(`🔍 Formatted ${formattedMessages.length} messages`);
         setMessages(formattedMessages);
         setHasStarted(formattedMessages.length > 0);
       } else {
-        console.log(`🔍 No messages found for session ${sessionId}`);
+        // No messages found for session
       }
     } catch (error) {
       console.error("Error reloading session messages:", error);
@@ -211,15 +201,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
     }
 
     try {
-      console.log(`📊 Selecting session: ${sessionId}`);
       const session = await chatService.getChatSessionWithMessages(sessionId);
-      console.log(`📊 Session data received:`, session);
 
       if (session) {
         setActiveSession(session);
 
         if (session.messages && session.messages.length > 0) {
-          console.log(`📊 Found ${session.messages.length} messages in session`);
           const formattedMessages = session.messages.map(
             (msg: any, index: number) => {
               let isBot = false;
@@ -310,9 +297,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         return;
       }
 
-      console.log(
-        `Attempting to update title for session ${sessionId} with ${newMessages.length} messages`
-      );
+
 
       // ניסיון ליצור כותרת חכמה עם AI
       let newTitle = await titleGenerationService.generateTitle(newMessages);
@@ -323,8 +308,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           newMessages.find((msg) => msg.type === "user")?.content || "";
         newTitle = titleGenerationService.generateSimpleTitle(firstUserMessage);
       }
-
-      console.log(`Generated new title: ${newTitle}`);
 
       // עדכון הכותרת בשרת
       const success = await chatService.updateChatSessionTitle(
@@ -342,7 +325,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
             session.id === sessionId ? { ...session, title: newTitle } : session
           )
         );
-        console.log(`Title updated successfully to: ${newTitle}`);
       }
     } catch (error) {
       console.error("Error updating chat title:", error);

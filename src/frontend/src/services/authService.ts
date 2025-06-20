@@ -8,7 +8,6 @@ export interface AuthResult {
 
 export const authService = {
   async login(email: string, password: string): Promise<AuthResult> {
-    console.log('מנסה להתחבר עם הפרטים המסופקים');
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -133,7 +132,6 @@ export const authService = {
         .maybeSingle();
         
       if (existingRecord) {
-        console.log('רשומת מנהל קיימת - דילוג');
         return;
       }
       
@@ -151,7 +149,7 @@ export const authService = {
           
         if (insertError) {
           if (insertError.code === '23505') {
-            console.log('המשתמש כבר קיים כמנהל');
+            // User already exists as admin
           } else {
             console.error('שגיאה ביצירת רשומת מנהל:', insertError);
           }

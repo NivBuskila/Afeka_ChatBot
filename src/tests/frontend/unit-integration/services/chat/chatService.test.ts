@@ -215,13 +215,13 @@ describe('chatService', () => {
     });
   });
 
-  describe('getUserChatSessions', () => {
-    it('should call fetchAllChatSessions (legacy compatibility)', async () => {
+  describe('fetchAllChatSessions', () => {
+    it('should fetch all chat sessions for a user', async () => {
       const mockSessions = [createMockChatSession()];
       
       mockFetch.mockImplementation(() => createMockFetchResponse(mockSessions));
 
-      const result = await chatService.getUserChatSessions('user-123');
+      const result = await chatService.fetchAllChatSessions('user-123');
 
       expect(result).toEqual(mockSessions);
     });

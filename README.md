@@ -134,7 +134,7 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate     # Windows
 pip install -r requirements.txt
-python app.py
+python app.py  # Now runs minimal AI service for key management
 ```
 
 ## 📁 Project Structure
@@ -446,10 +446,11 @@ If you need to access conversation history, ensure you add a `conversations` tab
 - `GET /api/documents`: Get documents
 - `POST /api/documents`: Create a new document
 
-### AI Service (Flask)
+### AI Service (Flask - Minimal)
 
-- `GET /health`: Health check
-- `POST /analyze`: Analyze text input
+- `GET /`: Health check
+- `GET /status`: Key management status for DatabaseKeyManager
+- `GET /api/key-status`: Alternative key status endpoint
 
 ## Future Enhancements
 
@@ -553,12 +554,22 @@ This guide will help you set up the Afeka ChatBot project on your local machine 
    ```bash
    # From the project root, with virtual environment activated
    cd src/backend
-   python app.py
+   python main.py  # Runs the main FastAPI backend
    ```
 
-   The backend will be available at `http://localhost:5000`
+   The backend will be available at `http://localhost:8000`
 
-2. **Frontend**:
+2. **AI Service**:
+
+   ```bash
+   # In a new terminal, from the project root
+   cd src/ai
+   python app.py  # Runs minimal AI service for key management
+   ```
+
+   The AI service will be available at `http://localhost:5000`
+
+3. **Frontend**:
    ```bash
    # In a new terminal
    cd src/frontend

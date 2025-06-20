@@ -57,11 +57,6 @@ const App: React.FC = () => {
           setIsAdmin(isAdminUser);
           setIsLanding(false); // דילוג על splash screen אם המשתמש כבר מחובר
 
-          console.log("מצא session קיים:", {
-            userId: session.user.id,
-            isAdmin: isAdminUser,
-          });
-
           // נווט אוטומטית לנתיב הנכון
           if (isAdminUser) {
             navigate("/dashboard");

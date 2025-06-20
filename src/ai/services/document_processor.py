@@ -9,8 +9,7 @@ import tempfile
 import re 
 
 import google.generativeai as genai
-# from langchain.text_splitter import SemanticChunker # Old import
-# from langchain_experimental.text_splitter import SemanticChunker # New import - REMOVED due to auth issues
+
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter # Added for more reliable chunking
 from langchain_core.documents.base import Document
@@ -20,8 +19,7 @@ import PyPDF2
 from docx import Document as DocxDocument
 from ..core.gemini_key_manager import get_key_manager, safe_embed_content
 
-# Import SemanticChunker and Gemini Embeddings - REMOVED to fix auth issues
-# from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
 
 # ייבוא קובץ ההגדרות החדש
 from ..config.rag_config import (
@@ -77,7 +75,6 @@ class DocumentProcessor:
             os.environ["GOOGLE_API_KEY"] = api_key
             logger.debug("GOOGLE_API_KEY set in environment as fallback.")
         
-        # Initialize text splitters - REMOVED SemanticChunker due to auth issues
         logger.debug("Initializing text splitters...")
         
         # Primary text splitter: RecursiveCharacterTextSplitter
@@ -94,7 +91,6 @@ class DocumentProcessor:
         self.encoding = tiktoken.get_encoding("cl100k_base")
         logger.debug("tiktoken encoding cl100k_base loaded.")
         
-        # Initialize enhanced processor placeholder - FIXED
         self.enhanced_processor = None
         
         logger.info(f"DocumentProcessor initialized successfully with config - "
@@ -503,7 +499,7 @@ class DocumentProcessor:
                 deleted_advanced_chunks_count = len(delete_advanced_chunks_response.data)
                 logger.info(f"Successfully deleted {deleted_advanced_chunks_count} advanced chunks for document_id: {document_id}.")
             
-            # Delete chunks from 'document_chunks' table (old system - for cleanup)
+
             logger.debug(f"Deleting chunks for document_id: {document_id} from 'document_chunks' table.")
             delete_chunks_response = self.supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
             
@@ -545,14 +541,14 @@ class DocumentProcessor:
             advanced_deleted_count = len(delete_advanced_response.data) if delete_advanced_response.data else 0
             logger.info(f"Deleted {advanced_deleted_count} chunks from 'advanced_document_chunks' for document_id: {document_id}")
 
-            # Delete from old document_chunks table
+
             logger.info(f"Deleting chunks from 'document_chunks' for document_id: {document_id}")
             delete_old_response = self.supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
             
             old_deleted_count = len(delete_old_response.data) if delete_old_response.data else 0
             logger.info(f"Deleted {old_deleted_count} chunks from 'document_chunks' for document_id: {document_id}")
 
-            # Also delete from the old 'embeddings' table for cleanup
+
             try:
                 logger.info(f"Attempting to delete old embeddings from 'embeddings' table for document_id: {document_id}.")
                 delete_old_embeddings_response = self.supabase.table("embeddings").delete().eq("document_id", document_id).execute()

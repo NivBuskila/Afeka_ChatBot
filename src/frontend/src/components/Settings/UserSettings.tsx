@@ -22,11 +22,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ onClose }) => {
   };
 
   const handleThemeChange = (newTheme: 'dark' | 'light') => {
-    console.log('handleThemeChange called with:', newTheme, 'current theme:', theme);
     setTheme(newTheme);
   };
-
-  console.log('UserSettings rendered with theme:', theme);
 
   return (
     <div className="space-y-8">

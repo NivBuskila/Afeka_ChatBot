@@ -98,15 +98,11 @@ const chatService = {
    */
   createChatSession: async (userId: string, title?: string): Promise<ChatSession | null> => {
     try {
-      console.log('Creating chat session with params:', { userId, title });
-      
       const sessionInput = {
         user_id: userId,
         title: title || null,
         updated_at: new Date().toISOString()
       };
-      
-      console.log('Session input data:', sessionInput);
       
       // Create the chat session through the backend
       const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions`, {
@@ -131,7 +127,6 @@ const chatService = {
         sessionData = response;
       }
 
-      console.log('Chat session created successfully:', sessionData);
       return sessionData as ChatSession;
     } catch (error) {
       console.error('Exception in createChatSession:', error);
@@ -164,15 +159,7 @@ const chatService = {
     }
   },
 
-  /**
-   * Legacy function name - Gets all chat sessions for a user
-   * @param userId The ID of the user
-   * @returns Array of chat sessions
-   */
-  getUserChatSessions: async (userId: string): Promise<ChatSession[]> => {
-    // Call the renamed function to maintain backwards compatibility
-    return chatService.fetchAllChatSessions(userId);
-  },
+
 
   /**
    * Gets a specific chat session with its messages
@@ -181,8 +168,6 @@ const chatService = {
    */
   getChatSessionWithMessages: async (sessionId: string): Promise<ChatSession | null> => {
     try {
-      console.log('Fetching chat session with ID:', sessionId);
-      
       const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
       
       if (!response) {
@@ -476,7 +461,6 @@ const chatService = {
                 switch (data.type) {
                   case 'start':
                     // Stream started
-                    console.log('🚀 Stream started');
                     break;
                     
                   case 'chunk':
@@ -500,7 +484,6 @@ const chatService = {
                     
                   case 'end':
                     // Stream ended
-                    console.log('✅ Stream ended');
                     return;
                 }
               } catch (parseError) {

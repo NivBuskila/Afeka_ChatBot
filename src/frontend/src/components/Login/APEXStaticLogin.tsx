@@ -143,12 +143,8 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
           return;
         }
         
-        console.log('התחברות הצליחה, מידע משתמש:', data.user);
-        
         // Due to RLS issues, check if user is admin
         try {
-          console.log('בודק אם המשתמש הוא מנהל...');
-          
           // First try direct access to admins table
           try {
             const { data: adminData, error: adminError } = await supabase
@@ -158,7 +154,6 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
               .maybeSingle();
             
             if (!adminError && adminData) {
-              console.log('מצאתי מנהל בטבלת המנהלים:', adminData);
               onLoginSuccess(true);
               return;
             } else if (adminError) {
@@ -177,7 +172,6 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
             if (isAdminError) {
               console.error('שגיאה בקריאת is_admin RPC:', isAdminError);
             } else if (isAdminResult === true) {
-              console.log('המשתמש הוא מנהל לפי is_admin RPC');
               onLoginSuccess(true);
               return;
             }
@@ -187,7 +181,6 @@ const APEXStaticLogin: React.FC<APEXStaticLoginProps> = ({ onLoginSuccess, onReg
           
           // If we got here, try reading from user metadata
           const isAdminFromMetadata = data.user.user_metadata?.role === 'admin';
-          console.log('בדיקת מנהל ממטא-דאטה:', isAdminFromMetadata);
           
           // Final decision on role
           onLoginSuccess(isAdminFromMetadata || false);

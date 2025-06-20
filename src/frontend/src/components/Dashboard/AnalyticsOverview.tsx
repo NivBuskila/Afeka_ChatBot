@@ -56,7 +56,7 @@ interface AnalyticsOverviewProps {
 export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ analytics, isLoading }) => {
   const { t } = useTranslation();
   
-  console.log("Analytics data in AnalyticsOverview:", analytics);
+
 
   // Check for empty or non-existent data
   const hasData = analytics && !isLoading;

@@ -16,7 +16,6 @@ class SupabaseMessageRepository(IMessageRepository):
     def __init__(self, client):
         self.client = client
         self.table_name = "messages"
-        logger.debug(f"💬 MessageRepository initialized with table: {self.table_name}")
     
     async def create_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new message"""
@@ -92,8 +91,6 @@ class SupabaseMessageRepository(IMessageRepository):
     
     async def get_messages(self, conversation_id: str) -> List[Dict[str, Any]]:
         """Get all messages for a conversation"""
-        logger.debug(f"Fetching messages for conversation: {conversation_id}")
-        
         try:
             # Check if messages table exists - minimal check
             test_query = self.client.table(self.table_name).select("count").limit(1).execute()
@@ -102,10 +99,8 @@ class SupabaseMessageRepository(IMessageRepository):
             result = self.client.table(self.table_name).select("*").eq("conversation_id", conversation_id).order("created_at").execute()
             
             if result.data:
-                logger.debug(f"📊 Found {len(result.data)} messages for conversation: {conversation_id}")
                 return result.data
             else:
-                logger.debug(f"No messages found for conversation: {conversation_id}")
                 return []
                 
         except Exception as e:
@@ -114,12 +109,9 @@ class SupabaseMessageRepository(IMessageRepository):
     
     async def update_message(self, message_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update a message"""
-        logger.debug(f"Updating message with ID: {message_id}")
-        
         try:
             result = self.client.table(self.table_name).update(data).eq("id", message_id).execute()
             if result.data and len(result.data) > 0:
-                logger.debug(f"✅ Successfully updated message: {message_id}")
                 return result.data[0]
             else:
                 raise ValueError(f"Message {message_id} not found or update failed")
@@ -129,11 +121,8 @@ class SupabaseMessageRepository(IMessageRepository):
     
     async def delete_message(self, message_id: str) -> bool:
         """Delete a message"""
-        logger.debug(f"Deleting message with ID: {message_id}")
-        
         try:
             result = self.client.table(self.table_name).delete().eq("id", message_id).execute()
-            logger.debug(f"✅ Successfully deleted message: {message_id}")
             return True
         except Exception as e:
             logger.error(f"❌ Error deleting message: {e}")
@@ -141,8 +130,6 @@ class SupabaseMessageRepository(IMessageRepository):
     
     async def get_message_schema(self) -> List[str]:
         """Get the message table schema"""
-        logger.debug("Fetching message table schema")
-        
         try:
             # Get a single message to determine schema
             result = self.client.table(self.table_name).select("*").limit(1).execute()
@@ -159,24 +146,3 @@ class SupabaseMessageRepository(IMessageRepository):
             # Return basic schema on error
             return ["id", "conversation_id", "user_id", "message_text", "created_at"]
 
-    # Legacy methods for backwards compatibility
-    async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Legacy method - delegates to create_message"""
-        return await self.create_message(data)
-    
-    async def get_by_conversation(self, conversation_id: str) -> List[Dict[str, Any]]:
-        """Legacy method - delegates to get_messages"""
-        return await self.get_messages(conversation_id)
-    
-    async def update(self, message_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Legacy method - delegates to update_message"""
-        return await self.update_message(message_id, data)
-    
-    async def delete(self, message_id: str) -> bool:
-        """Legacy method - delegates to delete_message"""
-        return await self.delete_message(message_id)
-    
-    async def get_schema(self) -> Dict[str, Any]:
-        """Legacy method - delegates to get_message_schema"""
-        columns = await self.get_message_schema()
-        return {"columns": columns}

@@ -104,14 +104,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         setManagementStatus(keyManagement);
         
         const transformedKeys: KeyStatus[] = keyManagement.keys_status.map((keyStatus: any) => {
-          console.log('🔍 [DASHBOARD-DEBUG] Processing key:', keyStatus.id, 'Status:', keyStatus.status, 'Is Current:', keyStatus.is_current);
-          console.log('🔍 [DASHBOARD-DEBUG] Key data:', {
-            tokens_today: keyStatus.tokens_today,
-            requests_today: keyStatus.requests_today,
-            tokens_current_minute: keyStatus.tokens_current_minute,
-            requests_current_minute: keyStatus.requests_current_minute
-          });
-          
           return {
             id: keyStatus.id + 1,
             status: keyStatus.status,
@@ -129,7 +121,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         setKeyData(transformedKeys);
         
         if (prevCurrentKey !== undefined && prevCurrentKey !== keyManagement.current_key_index) {
-          console.log('🔄 [KEY-SWITCH-DETECTED] Key switched from', prevCurrentKey, 'to', keyManagement.current_key_index);
+          // Key switched
           setKeyChangeAlert({
             show: true,
             oldKey: prevCurrentKey,
@@ -142,13 +134,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
         }
         
         setPreviousCurrentKey(keyManagement.current_key_index);
-        
-        console.log('🔍 [DASHBOARD-DEBUG] Current key index:', keyManagement.current_key_index);
-        console.log('🔍 [DASHBOARD-DEBUG] Keys by status:', {
-          current: transformedKeys.filter(k => k.status === 'current').map(k => `Key #${k.id}`),
-          available: transformedKeys.filter(k => k.status === 'available').map(k => `Key #${k.id}`),
-          blocked: transformedKeys.filter(k => k.status === 'blocked').map(k => `Key #${k.id}`)
-        });
       } else {
         throw new Error('Invalid response format from key status API');
       }

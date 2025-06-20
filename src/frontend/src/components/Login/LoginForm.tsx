@@ -31,7 +31,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }) => {
     }
     
     try {
-      console.log('התחלת תהליך התחברות:', email);
       await onSubmit(email, password);
     } catch (err: any) {
       console.error('שגיאת התחברות:', err);

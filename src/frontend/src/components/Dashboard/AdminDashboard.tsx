@@ -139,12 +139,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const fetchAnalytics = async () => {
       try {
         setIsRefreshing(true);
-        console.log("Fetching dashboard analytics...");
 
         // Get analytics data from service
         const analyticsData = await analyticsService.getDashboardAnalytics();
-
-        console.log("Received analytics data:", analyticsData);
 
         setAnalytics(analyticsData);
       } catch (error) {
@@ -167,23 +164,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         // Check if cache is stale or needs refresh
         const forceRefresh = cacheService.isCacheStale("documents");
 
-        console.log(`Fetching data, force refresh: ${forceRefresh}`);
-
         const [docs, analyticsData] = await Promise.all([
           documentService.getAllDocuments(),
           analyticsService.getDashboardAnalytics(),
         ]);
 
-        console.log("Fetched analytics data:", analyticsData);
-        console.log("Users found:", analyticsData.recentUsers.length);
-        console.log("Admins found:", analyticsData.recentAdmins.length);
-        console.log("Documents found:", docs.length);
-        console.log("🔍 [DEBUG] Raw documents data:", docs);
-        console.log("🔍 [DEBUG] Documents array:", Array.isArray(docs));
-        console.log("🔍 [DEBUG] First document:", docs[0]);
-
         setDocuments(docs);
-        console.log("🔍 [DEBUG] Documents set to state");
         setAnalytics(analyticsData);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -198,7 +184,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     // Listen for cache changes to refresh data when needed
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "documents_cache_invalidated") {
-        console.log("Document cache was invalidated, refreshing data");
         fetchData();
       }
     };
@@ -214,32 +199,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      console.log("Refreshing dashboard data...");
       const [docs, analyticsData] = await Promise.all([
         documentService.getAllDocuments(),
         analyticsService.getDashboardAnalytics(),
       ]);
 
-      console.log("Refreshed analytics data:", analyticsData);
-      console.log(
-        "Users found after refresh:",
-        analyticsData.recentUsers?.length || 0
-      );
-      console.log(
-        "Admins found after refresh:",
-        analyticsData.recentAdmins?.length || 0
-      );
-
       setDocuments(docs);
       setAnalytics(analyticsData);
-
-      // Print debug information
-      if (analyticsData.recentUsers?.length) {
-        console.log("First user example:", analyticsData.recentUsers[0]);
-      }
-      if (analyticsData.recentAdmins?.length) {
-        console.log("First admin example:", analyticsData.recentAdmins[0]);
-      }
     } catch (error) {
       console.error("Error refreshing data:", error);
     } finally {
@@ -248,7 +214,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleItemClick = (itemId: string) => {
-    console.log("Setting active item to:", itemId);
     setActiveItem(itemId);
 
     if (itemId === "analytics") {
@@ -263,7 +228,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleSubItemClick = (itemId: string, subItemId: string) => {
-    console.log(`Setting active item to: ${itemId}, subItem to: ${subItemId}`);
     setActiveItem(itemId);
     setActiveSubItem(subItemId);
   };
@@ -288,10 +252,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         return;
       }
 
-      // Print debug information
-      console.log("User ID:", authData.session.user.id);
-      console.log("User email:", authData.session.user.email);
-
       // Check if user exists in users table
       const { data: userData, error: userError } = await supabase
         .from("users")
@@ -312,14 +272,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             status: "active",
           });
 
-          if (insertError) {
-            console.error("Failed to insert user record:", insertError);
-            // Continue despite error, as we're already trying to bypass restrictions
-          } else {
-            console.log(
-              "Created new user record for",
-              authData.session.user.email
-            );
+                      if (insertError) {
+              console.error("Failed to insert user record:", insertError);
+              // Continue despite error, as we're already trying to bypass restrictions
+            } else {
+              // Created new user record
 
             // Check if user should be admin and add to admins table
             if (
@@ -333,14 +290,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     user_id: authData.session.user.id,
                   });
 
-                if (adminError) {
-                  console.error("Failed to insert admin record:", adminError);
-                } else {
-                  console.log(
-                    "Created new admin record for",
-                    authData.session.user.email
-                  );
-                }
+                                  if (adminError) {
+                    console.error("Failed to insert admin record:", adminError);
+                  } else {
+                    // Created new admin record
+                  }
               } catch (adminError) {
                 console.error("Error creating admin record:", adminError);
               }
@@ -350,18 +304,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           console.error("Error creating user record:", createError);
           // Continue despite error
         }
-      } else {
-        console.log("Found existing user:", userData);
-      }
+              } else {
+          // Found existing user
+        }
 
       // Create safe filename without Hebrew characters
       const fileExt = file.name.split(".").pop() || "";
       const safeFileName = `${Date.now()}.${fileExt}`;
-      const path = `documents/${safeFileName}`;
+              const path = `documents/${safeFileName}`;
 
-      console.log("Uploading file to path:", path);
-
-      try {
+        try {
         // Upload the file - direct access without RPC
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("documents")
@@ -371,18 +323,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           console.error("Error uploading file:", uploadError);
           showErrorMessage(`שגיאה בהעלאת הקובץ: ${uploadError.message}`);
           return;
-        }
+                  }
 
-        console.log("Upload successful:", uploadData);
+          // Get public URL
+                  const { data: urlData } = supabase.storage
+            .from("documents")
+            .getPublicUrl(path);
 
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from("documents")
-          .getPublicUrl(path);
-
-        console.log("File URL:", urlData.publicUrl);
-
-        try {
+          try {
           // Create document record directly (not through RPC)
           const { data: docData, error: docError } = await supabase
             .from("documents")
@@ -399,11 +347,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             console.error("Error creating document record:", docError);
             showErrorMessage(`שגיאה ביצירת רשומת מסמך: ${docError.message}`);
             return;
-          }
+                      }
 
-          console.log("Document created successfully:", docData);
-
-          // Attempt to add analytics record (may fail due to RLS)
+            // Attempt to add analytics record (may fail due to RLS)
           try {
             const { error: analyticsError } = await supabase
               .from("document_analytics")
@@ -541,7 +487,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       try {
         const updatedDocs = await documentService.getAllDocuments();
         setDocuments(updatedDocs);
-        console.log("Documents reloaded after deletion");
       } catch (refreshError) {
         console.error("Error refreshing documents after delete:", refreshError);
         // If refresh fails, at least the document was removed from view above

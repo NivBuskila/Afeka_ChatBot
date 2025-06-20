@@ -359,7 +359,6 @@ def get_enhanced_testing_profile() -> RAGConfig:
     
     config.context.MAX_CONTEXT_TOKENS = 15000    
     config.context.RESERVED_TOKENS_FOR_RESPONSE = 4000  
-    # Context overlap removed - using ratios instead  
     
     config.llm.TEMPERATURE = 0.02  
     config.llm.MAX_OUTPUT_TOKENS = 5000  
@@ -398,7 +397,6 @@ def get_optimized_testing_profile() -> RAGConfig:
     
     config.context.MAX_CONTEXT_TOKENS = 12000
     config.context.RESERVED_TOKENS_FOR_RESPONSE = 3500
-    # Context overlap removed - using ratios instead
     
     config.llm.TEMPERATURE = 0.03
     config.llm.MAX_OUTPUT_TOKENS = 4000

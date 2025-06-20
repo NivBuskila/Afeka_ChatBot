@@ -24,7 +24,6 @@ async function getTableCount(tableName: string): Promise<number> {
       return fallbackGetTableCount(tableName);
     }
     
-    console.log(`Count for ${tableName} using RPC: ${data}`);
     return data || 0;
   } catch (error) {
     console.error(`Error in getTableCount with RPC for ${tableName}:`, error);
@@ -44,7 +43,6 @@ async function fallbackGetTableCount(tableName: string): Promise<number> {
     return 0;
   }
   
-  console.log(`Count for ${tableName} using fallback: ${count}`);
   return count || 0;
 }
 
@@ -60,12 +58,8 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
-      console.log("Starting getDashboardAnalytics...");
-      
       // Use the new function to get users and admins
       const { users: regularUsers, admins: recentAdmins } = await userService.getDashboardUsers();
-      
-      console.log(`Got users from userService: ${regularUsers?.length || 0} users, ${recentAdmins?.length || 0} admins`);
       
       // Get recent documents
       const { data: recentDocuments, error: docsError } = await supabase
@@ -78,8 +72,6 @@ export const analyticsService = {
         console.error('Error fetching documents:', docsError);
       }
       
-      console.log(`Got ${recentDocuments?.length || 0} recent documents`);
-      
       // Count rows in each table (important to sync numbers from service)
       let totalDocuments = await getTableCount('documents');
       let totalUsers = regularUsers.length + recentAdmins.length; // Total users
@@ -89,8 +81,6 @@ export const analyticsService = {
       if (totalDocuments === 0 && recentDocuments) {
         totalDocuments = recentDocuments.length;
       }
-      
-      console.log('Final counts:', { totalDocuments, totalUsers, totalAdmins });
 
       return {
         totalDocuments,

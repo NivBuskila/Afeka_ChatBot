@@ -9,10 +9,6 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
   // Get current session
   const { data: { session } } = await supabase.auth.getSession();
   
-  console.log("🔍 [ApiRequest] URL:", url);
-  console.log("🔍 [ApiRequest] Session exists:", !!session);
-  console.log("🔍 [ApiRequest] Access token exists:", !!session?.access_token);
-  
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
@@ -24,15 +20,11 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
     ...options,
   });
   
-  console.log("🔍 [ApiRequest] Response status:", response.status);
-  console.log("🔍 [ApiRequest] Response ok:", response.ok);
-  
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   
   const result = await response.json();
-  console.log("🔍 [ApiRequest] Response data:", result);
   return result;
 };
 
@@ -47,15 +39,8 @@ export const documentService = {
     // Use cache busting query parameter if cache is stale
     const cacheBuster = isCacheStale ? `?cache=${Date.now()}` : '';
     
-    console.log("🔍 [DocumentService] Getting all documents...");
-    console.log("🔍 [DocumentService] Cache stale:", isCacheStale);
-    console.log("🔍 [DocumentService] Cache buster:", cacheBuster);
-    
     try {
       const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents${cacheBuster}`);
-      console.log("🔍 [DocumentService] API Response:", response);
-      console.log("🔍 [DocumentService] Response type:", typeof response);
-      console.log("🔍 [DocumentService] Is array:", Array.isArray(response));
       
       if (!response) {
         throw new Error('No data returned from documents request');
@@ -173,8 +158,6 @@ export const documentService = {
       if (!session?.access_token) {
         throw new Error('User not authenticated or session expired');
       }
-
-      console.log(`Fetching processing status for document ${documentId}`);
       
       const response = await fetch(`${BACKEND_URL}/api/vector/document/${documentId}/status`, {
         method: 'GET',
@@ -196,7 +179,6 @@ export const documentService = {
       }
 
       const data = await response.json();
-      console.log(`Processing status response for document ${documentId}:`, data);
       
       // Normalize status field for frontend components
       if (data && !data.status) {

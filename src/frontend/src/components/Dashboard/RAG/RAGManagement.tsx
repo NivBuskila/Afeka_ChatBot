@@ -79,7 +79,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
         
         try {
           setLoading(true);
-          console.log('Fetching profiles (debounced)...', 'Language:', language);
+  
           const profilesData = await ragService.getAllProfiles(language);
           
           if (!controller.signal.aborted) {
@@ -104,7 +104,6 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     
     try {
       setLoading(true);
-      console.log('Fetching profiles...', 'Language:', language);
       const profilesData = await ragService.getAllProfiles(language);
       
       // Only update state if not aborted
@@ -128,13 +127,12 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const fetchHiddenProfiles = useCallback(async () => {
     const controller = new AbortController();
     
-    try {
-      console.log('Fetching hidden profiles...');
+          try {
       const hiddenProfilesData = await ragService.getHiddenProfiles();
       
       // Only update state if not aborted
       if (!controller.signal.aborted) {
-        console.log('Hidden profiles received:', hiddenProfilesData);
+
         setHiddenProfiles(hiddenProfilesData);
       }
     } catch (error) {
@@ -149,7 +147,6 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
 
   useEffect(() => {
     // Only fetch if we haven't already or if language changed
-    console.log('RAGManagement useEffect triggered, language:', language);
     
     let mounted = true;
     
@@ -183,7 +180,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     setError(null);
     try {
       const result = await ragService.activateProfile(profileId);
-      console.log("Successfully switched to profile:", result.activeProfile);
+      
 
       // Reload profiles to get updated status
       await fetchProfiles();
@@ -202,7 +199,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     setError(null);
     setShowFullChunk(false); // Reset chunk display
     try {
-      console.log("Running test with query:", testQuery);
+      
 
       const result = await ragService.testQuery(testQuery);
       setTestResult(result);
@@ -358,7 +355,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     setError(null);
     try {
       const newProfile = await ragService.createProfile(profileData);
-      console.log("Successfully created profile:", newProfile);
+      
       setShowCreateProfile(false);
       await fetchProfiles(); // רענון הרשימה
     } catch (error) {
@@ -390,7 +387,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     try {
       // עבור פרופילים מובנים, נשלח force=true
       await ragService.deleteProfile(profileId, !isCustom);
-      console.log(`Successfully deleted profile:`, profileId);
+      
       await fetchProfiles(); // רענון הרשימה
       await fetchHiddenProfiles(); // רענון רשימת הנסתרים
     } catch (error) {
@@ -422,7 +419,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     
     try {
       await ragService.restoreProfile(profileId);
-      console.log('Successfully restored profile:', profileId);
+      
       await fetchProfiles(); // רענון הרשימה
       await fetchHiddenProfiles(); // רענון רשימת הנסתרים
     } catch (error) {
@@ -465,7 +462,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
             )}
             <button
               onClick={() => {
-                console.log('Toggle hidden profiles clicked. Current state:', showHiddenProfiles);
+          
                 setShowHiddenProfiles(!showHiddenProfiles);
               }}
               className="bg-gray-100 dark:bg-gray-500/20 hover:bg-gray-200 dark:hover:bg-gray-500/30 text-gray-800 dark:text-gray-400 font-medium py-2 px-4 rounded-lg border border-gray-300 dark:border-gray-500/30 transition-colors flex items-center space-x-2"

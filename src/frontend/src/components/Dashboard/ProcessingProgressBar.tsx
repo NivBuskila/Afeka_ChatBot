@@ -26,10 +26,6 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
       setLoading(true);
       pollCountRef.current += 1;
       const data = await documentService.getProcessingStatus(documentId);
-      console.log(
-        `Document ${documentId} status data (poll #${pollCountRef.current}):`,
-        data
-      );
 
       // If we have chunks but no status, force completed state
       if (
@@ -37,13 +33,6 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
         data.chunk_count > 0 &&
         (!data.status || data.status === "processing")
       ) {
-        console.log(
-          `Document ${documentId} has ${
-            data.chunk_count
-          } chunks but status is ${
-            data.status || "missing"
-          } - forcing completed state`
-        );
         if (pollCountRef.current > 5) {
           // After 5 polls with chunks but no completion
           setForceCompleted(true);
@@ -69,16 +58,10 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
       // Check if we've exceeded the maximum polling time
       const elapsedTime = Date.now() - startTimeRef.current;
       if (elapsedTime > maxPollingTime) {
-        console.log(
-          `Document ${documentId} polling timed out after ${elapsedTime}ms (${pollCountRef.current} polls)`
-        );
         setPollingTimeout(true);
 
         // If we have chunk data but timed out, force completion status
         if (processingData?.chunk_count > 0) {
-          console.log(
-            `Document ${documentId} has ${processingData.chunk_count} chunks on timeout - assuming completed`
-          );
           setForceCompleted(true);
         }
 
@@ -92,11 +75,6 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
         processingData?.status === "failed" ||
         forceCompleted
       ) {
-        console.log(
-          `Document ${documentId} processing ended with status: ${
-            forceCompleted ? "force-completed" : processingData?.status
-          } after ${pollCountRef.current} polls`
-        );
         clearInterval(intervalId);
       } else {
         fetchProcessingStatus();
