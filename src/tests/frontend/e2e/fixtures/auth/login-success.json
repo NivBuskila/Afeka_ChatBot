@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": "user_123",
+      "email": "test@afeka.ac.il",
+      "firstName": "Test",
+      "lastName": "User",
+      "role": "student",
+      "isVerified": true,
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token",
+    "refreshToken": "refresh.test.token",
+    "expiresIn": 3600
+  },
+  "message": "Login successful"
+} 

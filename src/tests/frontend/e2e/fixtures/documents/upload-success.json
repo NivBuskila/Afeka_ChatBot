@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "message": "Document uploaded successfully",
+  "document": {
+    "id": "doc_123456789",
+    "name": "sample-document.pdf",
+    "size": 1024000,
+    "type": "application/pdf",
+    "uploadedAt": "2024-01-15T10:30:00.000Z",
+    "status": "uploaded",
+    "url": "/api/documents/doc_123456789/download"
+  },
+  "metadata": {
+    "chunks": 42,
+    "processedAt": "2024-01-15T10:30:05.000Z",
+    "indexed": true
+  }
+} 

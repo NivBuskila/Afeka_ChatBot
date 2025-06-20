@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "data": {
+    "sessionId": "session_456",
+    "userId": "user_123",
+    "title": "New Chat Session",
+    "createdAt": "2024-06-20T10:30:00Z",
+    "updatedAt": "2024-06-20T10:30:00Z",
+    "messageCount": 0,
+    "isActive": true
+  }
+} 

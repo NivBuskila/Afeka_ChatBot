@@ -1,0 +1,24 @@
+{
+  "status": "success",
+  "data": {
+    "id": "user_123",
+    "email": "test@afeka.ac.il",
+    "firstName": "Test",
+    "lastName": "User",
+    "role": "student",
+    "isVerified": true,
+    "preferences": {
+      "language": "he",
+      "theme": "light",
+      "notifications": true
+    },
+    "profile": {
+      "avatar": "/images/default-avatar.png",
+      "bio": "Computer Science Student at Afeka",
+      "department": "Computer Science",
+      "year": 3
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "lastLogin": "2024-06-20T10:30:00Z"
+  }
+} 
