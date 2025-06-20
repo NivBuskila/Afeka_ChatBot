@@ -416,50 +416,64 @@ def get_optimized_testing_profile() -> RAGConfig:
     return config
 
 def get_maximum_accuracy_profile() -> RAGConfig:
-    """Maximum accuracy profile עם system instruction מותאם"""
+    """Maximum accuracy profile with balanced values from RAG Test"""
     config = RAGConfig()
     
-    # 🔧 תיקון: ערכים ספציפיים לפרופיל
-    config.search.SIMILARITY_THRESHOLD = 0.08
-    config.search.MAX_CHUNKS_RETRIEVED = 60
-    config.search.MAX_CHUNKS_FOR_CONTEXT = 50
-    config.search.HYBRID_SEMANTIC_WEIGHT = 0.75
-    config.search.HYBRID_KEYWORD_WEIGHT = 0.25
+    # 🎯 Values from RAG Test that the user is satisfied with
+    config.search.SIMILARITY_THRESHOLD = 0.65
+    config.search.SECTION_SEARCH_THRESHOLD = 0.35
+    config.search.MAX_CHUNKS_RETRIEVED = 25
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 20
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.65
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.35
     
-    # הגדרות LLM עם system instruction
-    config.llm.TEMPERATURE = 0.01
-    config.llm.MAX_OUTPUT_TOKENS = 6000
+    # Chunking settings from RAG Test
+    config.chunk.DEFAULT_CHUNK_SIZE = 2200
+    config.chunk.DEFAULT_CHUNK_OVERLAP = 250
+    config.chunk.TARGET_TOKENS_PER_CHUNK = 380
+    
+    # LLM settings from RAG Test
+    config.llm.TEMPERATURE = 0.05
+    config.llm.MAX_OUTPUT_TOKENS = 4000
     config.llm.USE_SYSTEM_INSTRUCTION = True
-    config.llm.SYSTEM_INSTRUCTION = """אתה עוזר אקדמי מתמחה של מכללת אפקה.
-אתה מתמחה בתקנוני לימודים ודרישות קבלה.
-תמיד תציין מקורות בפורמט [מקורות: מקור X, מקור Y].
-תן תשובות מדויקות ומפורטות המבוססות על המידע שסופק."""
+    config.llm.SYSTEM_INSTRUCTION = """You are an academic assistant specializing in Afeka College.
+You specialize in academic regulations and admission requirements.
+Always cite sources in the format [Sources: Source X, Source Y].
+Provide accurate and detailed answers based on the provided information."""
     
-    # הגדרות קונטקסט
-    config.context.MAX_CONTEXT_TOKENS = 12000
+    # Context settings from RAG Test
+    config.context.MAX_CONTEXT_TOKENS = 7000
+    
+    # Advanced scoring settings from RAG Test
+    config.search.EXACT_PHRASE_BONUS = 150.0
+    config.search.TOPIC_MATCH_BONUS = 12.0
+    config.search.DIRECT_MATCH_BONUS = 6.0
+    config.search.SIMILARITY_WEIGHT_FACTOR = 2.5
+    config.search.POSITION_BONUS_BASE = 4.0
+    config.search.POSITION_BONUS_DECAY = 0.4
     
     return config
 
 
 def get_fast_response_profile() -> RAGConfig:
-    """Fast response profile עם system instruction קצר"""
+    """Fast response profile with short system instruction"""
     config = RAGConfig()
     
-    # הגדרות חיפוש מהיר
+    # Fast search settings
     config.search.SIMILARITY_THRESHOLD = 0.45
     config.search.MAX_CHUNKS_RETRIEVED = 8
     config.search.MAX_CHUNKS_FOR_CONTEXT = 5
     config.search.HYBRID_SEMANTIC_WEIGHT = 0.6
     config.search.HYBRID_KEYWORD_WEIGHT = 0.4
     
-    # הגדרות LLM עם system instruction קצר
+    # LLM settings with short system instruction
     config.llm.TEMPERATURE = 0.2
     config.llm.MAX_OUTPUT_TOKENS = 1500
     config.llm.USE_SYSTEM_INSTRUCTION = True
-    config.llm.SYSTEM_INSTRUCTION = """עוזר אקדמי של מכללת אפקה.
-תן תשובות קצרות ומדויקות עם ציון מקורות."""
+    config.llm.SYSTEM_INSTRUCTION = """Academic assistant for Afeka College.
+Provide short and accurate answers with source citations."""
     
-    # הגדרות קונטקסט
+    # Context settings
     config.context.MAX_CONTEXT_TOKENS = 4000
     
     return config

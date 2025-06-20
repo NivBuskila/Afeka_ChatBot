@@ -270,13 +270,13 @@ class RAGService:
             try:
                 api_key_data = await self.key_manager.get_available_key()
                 if api_key_data and 'key' in api_key_data:
-                    genai.configure(api_key=api_key_data['key'])
+                    genai.configure(api_key=api_key_data['key'])  # type: ignore
                     logger.debug(f"🔑 Using database key ID: {api_key_data.get('id', 'unknown')}")
                 else:
                     # Fallback to environment variable
                     fallback_key = os.getenv("GEMINI_API_KEY")
                     if fallback_key:
-                        genai.configure(api_key=fallback_key)
+                        genai.configure(api_key=fallback_key)  # type: ignore
                         logger.debug("🔑 Using fallback GEMINI_API_KEY from environment")
                     else:
                         raise ValueError("No valid API key available")
@@ -284,12 +284,12 @@ class RAGService:
                 logger.warning(f"Key manager failed: {key_error}, trying fallback key")
                 fallback_key = os.getenv("GEMINI_API_KEY")
                 if fallback_key:
-                    genai.configure(api_key=fallback_key)
+                    genai.configure(api_key=fallback_key)  # type: ignore
                 else:
                     raise ValueError("No valid API key available")
             
             # Generate embedding using the correct API
-            response = genai.embed_content(
+            response = genai.embed_content(  # type: ignore
                 model="models/text-embedding-004",
                 content=query,
                 task_type="retrieval_query"
@@ -304,7 +304,7 @@ class RAGService:
                 raise ValueError("Invalid embedding response format")
             
             # וידוא שהעברנו list במקום numpy array ובדיוק 768 dimensions
-            embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+            embedding_list = list(embedding) if not isinstance(embedding, list) else embedding
             embedding_list = ensure_768_dimensions(embedding_list)
             
             # Cache the result
@@ -1131,20 +1131,14 @@ EXAMPLES OF CORRECT FORMAT:
                 # Get API key and configure
                 api_key_data = await self.key_manager.get_available_key()
                 if api_key_data and 'key' in api_key_data:
-                    try:
-                        configure(api_key=api_key_data['key'])
-                    except:
-                        genai.configure(api_key=api_key_data['key'])
+                    genai.configure(api_key=api_key_data['key'])  # type: ignore
                     key_id = api_key_data.get('id')
                     logger.debug(f"🔑 Using API key ID: {key_id} for generation (attempt {attempt + 1})")
                 else:
                     # Fallback to environment key
                     fallback_key = os.getenv("GEMINI_API_KEY")
                     if fallback_key:
-                        try:
-                            configure(api_key=fallback_key)
-                        except:
-                            genai.configure(api_key=fallback_key)
+                        genai.configure(api_key=fallback_key)  # type: ignore
                         logger.debug(f"🔑 Using fallback key for generation (attempt {attempt + 1})")
                         key_id = None
                     else:
@@ -1181,12 +1175,8 @@ EXAMPLES OF CORRECT FORMAT:
                 # If this is a rate limit or quota error, try a different key
                 error_str = str(e).lower()
                 if any(keyword in error_str for keyword in ['quota', 'rate limit', 'resource_exhausted']):
-                    try:
-                        if hasattr(self.key_manager, 'mark_key_exhausted') and api_key_data:
-                            await self.key_manager.mark_key_exhausted(api_key_data['id'])
-                            logger.info(f"⚠️ Marked key {api_key_data['id']} as exhausted")
-                    except Exception as mark_error:
-                        logger.warning(f"Failed to mark key as exhausted: {mark_error}")
+                    logger.info(f"⚠️ API key quota/rate limit reached: {error_str}")
+                    # Note: mark_key_exhausted method needs to be implemented in DatabaseKeyManager if needed
                 
                 if attempt < max_retries - 1:
                     import asyncio
@@ -1228,15 +1218,15 @@ EXAMPLES OF CORRECT FORMAT:
             ).execute()
             
             # Check for errors in the response
-            if hasattr(response, 'error') and response.error:
-                logger.warning(f"Failed to log search analytics: {response.error.message}")
+            if hasattr(response, 'data') and response.data is None:
+                logger.warning(f"Failed to log search analytics: No data returned")
             elif isinstance(response, dict) and response.get('error'):
                  logger.warning(f"Failed to log search analytics: {response.get('error')}")
 
         except Exception as e:
             # Handle cases where `response` might not be a standard object
             if "postgrest.exceptions.APIError" in str(type(e)):
-                 logger.warning(f"Failed to log search analytics: {e.message}")
+                 logger.warning(f"Failed to log search analytics: {str(e)}")
             else:
                  logger.warning(f"Failed to log search analytics: {e}")
     

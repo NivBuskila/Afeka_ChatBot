@@ -600,12 +600,15 @@ class RAGTestPro:
                 # Execute RAG query with timeout
                 test_start = time.time()
                 try:
+                    # השהיה קטנה בין בקשות כדי לאפשר רוטציה נכונה של מפתחות
+                    await asyncio.sleep(0.5)  # חצי שנייה
+                    
                     # Add timeout to prevent hanging
                     response = await asyncio.wait_for(
                         self._call_rag_service(question_text), 
                         timeout=60.0  # 60 seconds timeout
                     )
-                    tokens_used = 150  # Estimate
+                    # tokens_used = 150  # Estimate
                     
                     test_time = time.time() - test_start
                     success = True
@@ -692,6 +695,9 @@ class RAGTestPro:
             return "RAG service not initialized"
         
         try:
+            # השהיה קטנה בין בקשות כדי לאפשר רוטציה נכונה של מפתחות
+            await asyncio.sleep(0.5)  # חצי שנייה
+            
             # Call the real RAG service using the same method as the main system
             result = await self.rag_service.generate_answer(question, search_method="hybrid")
             
@@ -767,7 +773,7 @@ class RAGTestPro:
                 
                 f.write(f"STATUS: {'✅ Success' if result['success'] else '❌ Failed'}\n")
                 f.write(f"TIME: {result['response_time']:.2f}s\n")
-                f.write(f"TOKENS: {result['tokens_used']}\n")
+                # f.write(f"TOKENS: {result['tokens_used']}\n")
                 
                 if result['error_message']:
                     f.write(f"ERROR: {result['error_message']}\n")

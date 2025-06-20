@@ -106,7 +106,7 @@ class GeminiKeyManager:
             api_key_value = available_key["api_key"]
             
             self.current_key_index = db_current_index
-            genai.configure(api_key=api_key_value)
+            genai.configure(api_key=api_key_value)  # type: ignore
             
             logger.info(f"Using key index {self.current_key_index}: {available_key.get('key_name', 'Unknown')}")
             return api_key_value
@@ -116,7 +116,7 @@ class GeminiKeyManager:
         """Configure current key in genai"""
         if self.api_keys:
             current_key = self.api_keys[self.current_key_index]
-            genai.configure(api_key=current_key)
+            genai.configure(api_key=current_key)  # type: ignore
             logger.debug(f"Configured key #{self.current_key_index}")
 
     def _reset_counters_if_needed(self, key: str):
@@ -143,14 +143,18 @@ class GeminiKeyManager:
         if usage.blocked_until and now < usage.blocked_until:
             return False
         
-        safety_margin = 0.6
+        safety_margin = 0.9
         
         if (usage.requests_today >= self.limits['requests_per_day'] * safety_margin or
             usage.requests_current_minute >= self.limits['requests_per_minute'] * safety_margin or
             usage.tokens_today >= self.limits['tokens_per_day'] * safety_margin):
             
-            usage.blocked_until = now + timedelta(days=1)
-            logger.warning(f"Key #{self.current_key_index} blocked - limits reached")
+            if usage.requests_current_minute >= self.limits['requests_per_minute'] * safety_margin:
+                usage.blocked_until = now + timedelta(minutes=1)
+                logger.warning(f"Key #{self.current_key_index} blocked for 1 minute - minute limit reached")
+            else:
+                usage.blocked_until = now + timedelta(minutes=5)
+                logger.warning(f"Key #{self.current_key_index} blocked for 5 minutes - daily limits approached")
             return False
         
         return True
@@ -414,31 +418,15 @@ async def safe_generate_content(*args, **kwargs) -> Any:
     logger.info(f"Using key #{manager.current_key_index} for content generation")
     
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')  # type: ignore
         response = model.generate_content(*args, **kwargs)
         
         estimated_tokens = len(str(args)) // 4 if args else 100
         
         logger.info(f"Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
-                current_key_data = manager.api_keys[manager.current_key_index]
-                key_id = current_key_data.get('id')
-                if key_id:
-                    import threading
-                    def async_track():
-                        import asyncio
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
-                            loop.close()
-                        except Exception as e:
-                            logger.error(f"Background tracking failed: {e}")
-                    threading.Thread(target=async_track, daemon=True).start()
-        else:
-            manager.track_usage(estimated_tokens)
+        # Use track_usage for DatabaseKeyManager
+        manager.track_usage(tokens_used=estimated_tokens)  # type: ignore
         
         return response
             
@@ -457,30 +445,14 @@ async def safe_embed_content(*args, **kwargs) -> Any:
     logger.info(f"Using key #{manager.current_key_index} for embedding")
     
     try:
-        response = genai.embed_content(*args, **kwargs)
+        response = genai.embed_content(*args, **kwargs)  # type: ignore
         
         estimated_tokens = len(str(args)) // 4 if args else 50
         
         logger.info(f"Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        if hasattr(manager, 'record_usage') and hasattr(manager, 'api_keys'):
-            if manager.api_keys and manager.current_key_index < len(manager.api_keys):
-                current_key_data = manager.api_keys[manager.current_key_index]
-                key_id = current_key_data.get('id')
-                if key_id:
-                    import threading
-                    def async_track():
-                        import asyncio
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(manager.record_usage(key_id, estimated_tokens, 1))
-                            loop.close()
-                        except Exception as e:
-                            logger.error(f"Background tracking failed: {e}")
-                    threading.Thread(target=async_track, daemon=True).start()
-        else:
-            manager.track_usage(estimated_tokens)
+        # Use track_usage for DatabaseKeyManager
+        manager.track_usage(tokens_used=estimated_tokens)  # type: ignore
         
         return response
         

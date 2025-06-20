@@ -19,8 +19,8 @@ class DatabaseKeyManager:
         self.refresh_interval = 300
         
         self.key_usage_stats = {}
-        self.rotation_threshold = 5
-        self.rate_limit_cooldown = 60
+        self.rotation_threshold = 3
+        self.rate_limit_cooldown = 30
         
         if self.use_direct_supabase:
             supabase_url = os.getenv("SUPABASE_URL")
@@ -81,7 +81,7 @@ class DatabaseKeyManager:
                         for key_status in keys_status:
                             if key_status.get('id') == key_id:
                                 current_minute_requests = key_status.get('requests_current_minute', 0)
-                                if current_minute_requests >= 15:
+                                if current_minute_requests >= 12:
                                     logger.info(f"Key {key_data.get('key_name')} high current minute usage ({current_minute_requests} requests)")
                                     return True
                                 break
