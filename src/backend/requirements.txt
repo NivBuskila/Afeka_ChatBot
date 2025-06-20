@@ -14,7 +14,7 @@ pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 httpx>=0.24.1
-supabase==2.7.4  # Stable version that works with proxy parameter
+supabase>=2.8.0
 python-multipart>=0.0.6
 websockets>=11.0.0,<13.0.0
 
@@ -40,8 +40,8 @@ pytest-mock>=3.10.0
 # NEW: Advanced LangGraph and memory management
 langgraph==0.2.50
 langgraph-checkpoint>=2.0.4
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
+psycopg2-binary>=2.9.10
+asyncpg>=0.30.0
 
 # Enhanced LangChain components for advanced memory
 langchain-postgres==0.0.12
