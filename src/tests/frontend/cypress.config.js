@@ -8,8 +8,9 @@ export default defineConfig({
   // Test files path
   e2e: {
     baseUrl: 'http://localhost:5173',
-    specPattern: 'cypress/e2e/**/*.cy.{js,ts}',
-    supportFile: 'cypress/support/e2e.js',
+    specPattern: 'e2e/e2e/**/*.cy.{js,ts}',
+    supportFile: 'e2e/support/e2e.js',
+    fixturesFolder: 'e2e/fixtures',
     setupNodeEvents(on, config) {
       // implement node event listeners here if needed
       
@@ -28,11 +29,11 @@ export default defineConfig({
 
   // Video recording (enabled for comprehensive testing)
   video: true,
-  videosFolder: 'cypress/videos',
+  videosFolder: 'e2e/videos',
   
   // Screenshots
   screenshotOnRunFailure: true,
-  screenshotsFolder: 'cypress/screenshots',
+  screenshotsFolder: 'e2e/screenshots',
   
   // Default timeout for commands
   defaultCommandTimeout: 10000,
@@ -51,8 +52,8 @@ export default defineConfig({
       framework: 'react',
       bundler: 'vite',
     },
-    specPattern: 'src/**/*.cy.{js,jsx,ts,tsx}',
-    supportFile: 'cypress/support/component.js'
+    specPattern: '../../frontend/src/**/*.cy.{js,jsx,ts,tsx}',
+    supportFile: 'e2e/support/component.js'
   },
 
   // Additional settings for Phase 4
@@ -71,7 +72,7 @@ export default defineConfig({
     ...this?.env,
     coverage: false,
     codeCoverage: {
-      exclude: 'cypress/**/*.*'
+      exclude: 'e2e/**/*.*'
     }
   }
-}) 
+})

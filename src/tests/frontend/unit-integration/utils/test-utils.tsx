@@ -1,7 +1,5 @@
 import React, { ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
-import { SessionContextProvider } from '@supabase/auth-helpers-react'
 import { vi } from 'vitest'
 
 // Mock Supabase client
@@ -39,13 +37,9 @@ const AllTheProviders: React.FC<{
   language?: 'en' | 'he'
 }> = ({ children, theme = 'light', language = 'en' }) => {
   return (
-    <BrowserRouter>
-      <SessionContextProvider supabaseClient={mockSupabaseClient}>
-        <div data-theme={theme} data-language={language}>
-          {children}
-        </div>
-      </SessionContextProvider>
-    </BrowserRouter>
+    <div data-theme={theme} data-language={language}>
+      {children}
+    </div>
   )
 }
 
@@ -57,7 +51,6 @@ const customRender = (
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <AllTheProviders
-      initialEntries={initialEntries}
       user={user}
       theme={theme}
       language={language}

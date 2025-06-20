@@ -1,0 +1,21 @@
+{
+    "extends": "../../frontend/tsconfig.json",
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["../../frontend/src/*"],
+        "@/tests/*": ["./unit-integration/*"],
+        "@/components/*": ["../../frontend/src/components/*"],
+        "@/services/*": ["../../frontend/src/services/*"],
+        "@/contexts/*": ["../../frontend/src/contexts/*"],
+        "@/hooks/*": ["../../frontend/src/hooks/*"],
+        "@/utils/*": ["../../frontend/src/utils/*"],
+        "@/types/*": ["../../frontend/src/types/*"],
+        "@/config/*": ["../../frontend/src/config/*"]
+      }
+    },
+    "include": [
+      "./unit-integration/**/*",
+      "./e2e/**/*"
+    ]
+  }
