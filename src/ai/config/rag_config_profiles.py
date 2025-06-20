@@ -416,44 +416,98 @@ def get_optimized_testing_profile() -> RAGConfig:
     return config
 
 def get_maximum_accuracy_profile() -> RAGConfig:
-    """Maximum accuracy profile without performance considerations"""
+    """Maximum accuracy profile עם system instruction מותאם"""
     config = RAGConfig()
     
+    # 🔧 תיקון: ערכים ספציפיים לפרופיל
     config.search.SIMILARITY_THRESHOLD = 0.08
-    config.search.HIGH_QUALITY_THRESHOLD = 0.85
     config.search.MAX_CHUNKS_RETRIEVED = 60
     config.search.MAX_CHUNKS_FOR_CONTEXT = 50
-    
-    config.chunk.DEFAULT_CHUNK_SIZE = 800
-    config.chunk.DEFAULT_CHUNK_OVERLAP = 400
-    config.chunk.TARGET_TOKENS_PER_CHUNK = 160
-    
     config.search.HYBRID_SEMANTIC_WEIGHT = 0.75
     config.search.HYBRID_KEYWORD_WEIGHT = 0.25
     
-    config.context.MAX_CONTEXT_TOKENS = 20000
-    config.context.RESERVED_TOKENS_FOR_RESPONSE = 6000
-    # Context overlap removed - using ratios instead
-    
+    # הגדרות LLM עם system instruction
     config.llm.TEMPERATURE = 0.01
     config.llm.MAX_OUTPUT_TOKENS = 6000
-    # config.llm.TOP_P = 0.9  # Not implemented yet
+    config.llm.USE_SYSTEM_INSTRUCTION = True
+    config.llm.SYSTEM_INSTRUCTION = """אתה עוזר אקדמי מתמחה של מכללת אפקה.
+אתה מתמחה בתקנוני לימודים ודרישות קבלה.
+תמיד תציין מקורות בפורמט [מקורות: מקור X, מקור Y].
+תן תשובות מדויקות ומפורטות המבוססות על המידע שסופק."""
     
-    config.performance.TARGET_SEARCH_TIME_MS = 10000
-    config.performance.TARGET_GENERATION_TIME_MS = 15000
+    # הגדרות קונטקסט
+    config.context.MAX_CONTEXT_TOKENS = 12000
     
-    config.optimization.ENABLE_DETAILED_LOGGING = True
-    config.performance.LOG_SEARCH_ANALYTICS = True
-    config.performance.LOG_PERFORMANCE_METRICS = True
-    # config.optimization.ENABLE_CHUNK_RERANKING = True  # Not implemented yet
+    return config
+
+
+def get_fast_response_profile() -> RAGConfig:
+    """Fast response profile עם system instruction קצר"""
+    config = RAGConfig()
     
-    config.search.SEARCH_TIMEOUT_SECONDS = 300
-    config.llm.GENERATION_TIMEOUT_SECONDS = 600
+    # הגדרות חיפוש מהיר
+    config.search.SIMILARITY_THRESHOLD = 0.45
+    config.search.MAX_CHUNKS_RETRIEVED = 8
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 5
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.6
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.4
     
-    # Advanced features commented out - not implemented yet
-    # config.search.USE_QUERY_EXPANSION = True
-    # config.search.ENABLE_FUZZY_MATCHING = True
-    # config.context.ENABLE_CONTEXT_RERANKING = True
+    # הגדרות LLM עם system instruction קצר
+    config.llm.TEMPERATURE = 0.2
+    config.llm.MAX_OUTPUT_TOKENS = 1500
+    config.llm.USE_SYSTEM_INSTRUCTION = True
+    config.llm.SYSTEM_INSTRUCTION = """עוזר אקדמי של מכללת אפקה.
+תן תשובות קצרות ומדויקות עם ציון מקורות."""
+    
+    # הגדרות קונטקסט
+    config.context.MAX_CONTEXT_TOKENS = 4000
+    
+    return config
+
+
+def get_conversational_profile() -> RAGConfig:
+    """Conversational profile עם system instruction עם תבנית"""
+    config = RAGConfig()
+    
+    # הגדרות שיחתיות
+    config.search.SIMILARITY_THRESHOLD = 0.25
+    config.search.MAX_CHUNKS_RETRIEVED = 12
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 8
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.5
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.5
+    
+    config.llm.TEMPERATURE = 0.3
+    config.llm.MAX_OUTPUT_TOKENS = 2500
+    config.llm.USE_SYSTEM_INSTRUCTION = True
+    config.llm.SYSTEM_INSTRUCTION_TEMPLATE = """אתה {role} של מכללת אפקה.
+התמחות שלך היא {specialization}.
+סגנון השיחה שלך: {conversation_style}.
+תמיד תסיים עם ציון מקורות בפורמט [מקורות: מקור X, מקור Y]."""
+    
+    config.context.MAX_CONTEXT_TOKENS = 7000
+    
+    return config
+
+
+def get_new_balanced_profile() -> RAGConfig:
+    """New Balanced profile - מתווך בין מהירות לדיוק עם System Instructions"""
+    config = RAGConfig()
+    
+    # הגדרות מאוזנות
+    config.search.SIMILARITY_THRESHOLD = 0.3
+    config.search.MAX_CHUNKS_RETRIEVED = 15
+    config.search.MAX_CHUNKS_FOR_CONTEXT = 10
+    config.search.HYBRID_SEMANTIC_WEIGHT = 0.65
+    config.search.HYBRID_KEYWORD_WEIGHT = 0.35
+    
+    config.llm.TEMPERATURE = 0.15
+    config.llm.MAX_OUTPUT_TOKENS = 2000
+    config.llm.USE_SYSTEM_INSTRUCTION = True
+    config.llm.SYSTEM_INSTRUCTION = """אתה עוזר אקדמי של מכללת אפקה המתמחה בתקנוני לימודים.
+תן תשובות מדויקות ומאוזנות המבוססות על המידע הרלוונטי.
+תמיד תציין מקורות בפורמט [מקורות: מקור X, מקור Y]."""
+    
+    config.context.MAX_CONTEXT_TOKENS = 6000
     
     return config
 
@@ -548,16 +602,15 @@ def get_professional_profile() -> RAGConfig:
     
     return config
 
+# 🔧 תיקון רשימת הפרופילים
 PROFILES = {
-    "high_quality": get_high_quality_profile,
-    "fast": get_fast_profile,
-    "balanced": get_balanced_profile,
-    "improved": get_improved_profile,
-    "debug": get_debug_profile,
-    "enhanced_testing": get_enhanced_testing_profile,
-    "optimized_testing": get_optimized_testing_profile,
     "maximum_accuracy": get_maximum_accuracy_profile,
-    "professional": get_professional_profile,  # ✅ פרופיל מקצועי חדש ללא hard-coded values
+    "fast_response": get_fast_response_profile,
+    "conversational": get_conversational_profile,
+    "balanced": get_new_balanced_profile,
+    # שמירה על תאימות לאחור עם פרופילים ישנים
+    "high_quality": get_maximum_accuracy_profile,  # alias
+    "fast": get_fast_response_profile,  # alias
 }
 
 # Load dynamic profiles from Supabase

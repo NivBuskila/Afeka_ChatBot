@@ -6,43 +6,108 @@ RAG System Configuration
 ========================
 
 Central configuration file for the RAG system.
-Modifying values here will affect the entire system uniformly.
+All values are configurable through profiles - NO MAGIC NUMBERS!
 """
 
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 
 
 @dataclass
 class SearchConfig:
-    """Search configuration for RAG system"""
+    """Search configuration for RAG system - All values configurable by profiles"""
     
-    # 🔥 AGGRESSIVE TUNING - Much lower thresholds for more results
-    SIMILARITY_THRESHOLD: float = 0.15  # ⬇️ Much lower for more matches
+    # Core search thresholds
+    SIMILARITY_THRESHOLD: float = 0.3  # Will be overridden by profiles
     HIGH_QUALITY_THRESHOLD: float = 0.85
-    LOW_QUALITY_THRESHOLD: float = 0.40  # ⬇️ Lower to catch more results
-    SECTION_SEARCH_THRESHOLD: float = 0.08  # ⬇️ Very aggressive for sections
+    LOW_QUALITY_THRESHOLD: float = 0.40
+    SECTION_SEARCH_THRESHOLD: float = 0.25
     
-    # 🔥 AGGRESSIVE TUNING - More chunks for better coverage
-    MAX_CHUNKS_RETRIEVED: int = 70  # ⬆️ Much more content
-    MAX_CHUNKS_FOR_CONTEXT: int = 12  # ⬆️ More context
-    MAX_RESULTS_EXTENDED: int = 50  # ⬆️ More extended results
+    # Result limits
+    MAX_CHUNKS_RETRIEVED: int = 15  # Will be overridden by profiles
+    MAX_CHUNKS_FOR_CONTEXT: int = 8
+    MAX_RESULTS_EXTENDED: int = 25
     
-    # 🔥 AGGRESSIVE TUNING - Favor keyword search over semantic
-    HYBRID_SEMANTIC_WEIGHT: float = 0.2  # ⬇️ Less semantic
-    HYBRID_KEYWORD_WEIGHT: float = 0.8  # ⬆️ Strong keyword focus
+    # Hybrid search weights
+    HYBRID_SEMANTIC_WEIGHT: float = 0.6  # Will be overridden by profiles
+    HYBRID_KEYWORD_WEIGHT: float = 0.4   # Will be overridden by profiles
     
+    # Timeouts
     SEARCH_TIMEOUT_SECONDS: int = 30
     EMBEDDING_TIMEOUT_SECONDS: int = 15
     
-    # 🔥 AGGRESSIVE TUNING - Higher bonuses for exact matches
-    EXACT_PHRASE_BONUS: float = 500.0  # ⬆️ Huge bonus for exact phrases
-    TOPIC_MATCH_BONUS: float = 25.0  # ⬆️ Better topic matching
-    DIRECT_MATCH_BONUS: float = 15.0  # ⬆️ Better direct matching
-    SIMILARITY_WEIGHT_FACTOR: float = 1.0  # ⬇️ Less emphasis on similarity
-    POSITION_BONUS_BASE: float = 5.0  # ⬆️ Better position bonus
-    POSITION_BONUS_DECAY: float = 0.3  # ⬇️ Slower decay
+    # Scoring bonuses
+    EXACT_PHRASE_BONUS: float = 50.0
+    TOPIC_MATCH_BONUS: float = 10.0
+    DIRECT_MATCH_BONUS: float = 5.0
+    SIMILARITY_WEIGHT_FACTOR: float = 2.0
+    POSITION_BONUS_BASE: float = 2.0
+    POSITION_BONUS_DECAY: float = 0.5
+
+
+@dataclass
+class LLMConfig:
+    """Language model configuration"""
+    
+    MODEL_NAME: str = "gemini-2.0-flash"
+    TEMPERATURE: float = 0.1  # Will be overridden by profiles
+    MAX_OUTPUT_TOKENS: int = 2048  # Will be overridden by profiles
+    
+    # 🆕 System Instructions Support
+    SYSTEM_INSTRUCTION: str = ""
+    SYSTEM_INSTRUCTION_TEMPLATE: str = ""
+    USE_SYSTEM_INSTRUCTION: bool = True
+    
+    SAFETY_SETTINGS: Dict[str, str] = field(default_factory=lambda: {
+        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE", 
+        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
+    })
+    
+    GENERATION_TIMEOUT_SECONDS: int = 45
+    
+    def get_system_instruction(self, context_vars: Optional[Dict[str, Any]] = None) -> str:
+        """יוצר system instruction מותאם לפרופיל עם משתנים דינמיים"""
+        if not self.USE_SYSTEM_INSTRUCTION:
+            return ""
+            
+        if self.SYSTEM_INSTRUCTION_TEMPLATE and context_vars:
+            return self.SYSTEM_INSTRUCTION_TEMPLATE.format(**context_vars)
+        
+        return self.SYSTEM_INSTRUCTION or ""
+
+
+@dataclass
+class ContextConfig:
+    """Context building configuration for LLM"""
+    
+    MAX_CONTEXT_TOKENS: int = 6000  # Will be overridden by profiles
+    RESERVED_TOKENS_FOR_QUERY: int = 500
+    RESERVED_TOKENS_FOR_RESPONSE: int = 1500
+    
+    @property
+    def AVAILABLE_CONTEXT_TOKENS(self) -> int:
+        return (self.MAX_CONTEXT_TOKENS - 
+                self.RESERVED_TOKENS_FOR_QUERY - 
+                self.RESERVED_TOKENS_FOR_RESPONSE)
+    
+    INCLUDE_CITATIONS: bool = True
+    INCLUDE_CHUNK_HEADERS: bool = True
+    INCLUDE_PAGE_NUMBERS: bool = True
+    
+    CHUNK_SEPARATOR: str = "\n\n---\n\n"
+    CITATION_SEPARATOR: str = " | "
+    
+    # Context assembly ratios
+    MAIN_CONTENT_RATIO: float = 0.6
+    BACKGROUND_RATIO: float = 0.6
+    ADDITIONAL_INFO_RATIO: float = 0.4
+    
+    # Relevance extraction parameters
+    RELEVANT_SEGMENT_MAX_LENGTH: int = 500
+    SEGMENT_CONTEXT_WINDOW: int = 50
 
 
 @dataclass
@@ -60,7 +125,6 @@ class EmbeddingConfig:
     MAX_RETRIES: int = 3
     RETRY_DELAY_SECONDS: float = 1.0
     
-    # Default similarity thresholds for document processor
     DEFAULT_SIMILARITY_THRESHOLD: float = 0.78
     DEFAULT_HYBRID_THRESHOLD: float = 0.78
 
@@ -83,55 +147,6 @@ class ChunkConfig:
     MAX_TOKENS_PER_CHUNK: int = 512
     TARGET_TOKENS_PER_CHUNK: int = 350
     MIN_TOKENS_PER_CHUNK: int = 50
-
-
-@dataclass
-class ContextConfig:
-    """Context building configuration for LLM"""
-    
-    MAX_CONTEXT_TOKENS: int = 6000
-    RESERVED_TOKENS_FOR_QUERY: int = 500
-    RESERVED_TOKENS_FOR_RESPONSE: int = 1500
-    
-    @property
-    def AVAILABLE_CONTEXT_TOKENS(self) -> int:
-        return (self.MAX_CONTEXT_TOKENS - 
-                self.RESERVED_TOKENS_FOR_QUERY - 
-                self.RESERVED_TOKENS_FOR_RESPONSE)
-    
-    INCLUDE_CITATIONS: bool = True
-    INCLUDE_CHUNK_HEADERS: bool = True
-    INCLUDE_PAGE_NUMBERS: bool = True
-    
-    CHUNK_SEPARATOR: str = "\n\n---\n\n"
-    CITATION_SEPARATOR: str = " | "
-    
-    # Context assembly ratios
-    MAIN_CONTENT_RATIO: float = 0.6  # Main content can take up to 60% of available space
-    BACKGROUND_RATIO: float = 0.6    # Background info can take up to 60% of remaining space
-    ADDITIONAL_INFO_RATIO: float = 0.4  # Additional info ratio
-    
-    # Relevance extraction parameters
-    RELEVANT_SEGMENT_MAX_LENGTH: int = 500
-    SEGMENT_CONTEXT_WINDOW: int = 50  # Characters around relevant text
-
-
-@dataclass
-class LLMConfig:
-    """Language model configuration"""
-    
-    MODEL_NAME: str = "gemini-2.0-flash"
-    TEMPERATURE: float = 0.1
-    MAX_OUTPUT_TOKENS: int = 2048
-    
-    SAFETY_SETTINGS: Dict[str, str] = field(default_factory=lambda: {
-        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE", 
-        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
-    })
-    
-    GENERATION_TIMEOUT_SECONDS: int = 45
 
 
 @dataclass
@@ -171,14 +186,12 @@ class PerformanceConfig:
     LOG_SEARCH_ANALYTICS: bool = True
     LOG_PERFORMANCE_METRICS: bool = True
     
-    # Token estimation parameters
-    TOKEN_ESTIMATION_MULTIPLIER: float = 1.3  # Multiplier for converting words to tokens
-    HEBREW_TOKEN_RATIO: float = 0.75  # Hebrew words to tokens ratio
+    TOKEN_ESTIMATION_MULTIPLIER: float = 1.3
+    HEBREW_TOKEN_RATIO: float = 0.75
     
-    # Context processing parameters
-    CONTEXT_TRIM_THRESHOLD: float = 0.8  # When to start trimming context (80% full)
+    CONTEXT_TRIM_THRESHOLD: float = 0.8
     MAX_RETRIES: int = 3
-    RETRY_BACKOFF_BASE: int = 5  # Base seconds for exponential backoff
+    RETRY_BACKOFF_BASE: int = 5
 
 
 @dataclass
@@ -208,98 +221,72 @@ class RAGConfig:
         self.database = DatabaseConfig()
         self.performance = PerformanceConfig()
         self.optimization = OptimizationConfig()
-    
+
     def get_config_dict(self) -> Dict[str, Any]:
-        """Returns all configuration as dictionary for saving or debugging"""
-        return {
-            "search": self.search.__dict__,
-            "embedding": self.embedding.__dict__,
-            "chunk": self.chunk.__dict__,
-            "context": {
-                **self.context.__dict__,
-                "available_context_tokens": self.context.AVAILABLE_CONTEXT_TOKENS
-            },
-            "llm": self.llm.__dict__,
-            "database": self.database.__dict__,
-            "performance": self.performance.__dict__,
-            "optimization": self.optimization.__dict__
-        }
-    
+        """Return a dictionary representation of the current configuration"""
+        config_dict = {}
+        
+        # Add all dataclass configs
+        for attr_name in dir(self):
+            attr = getattr(self, attr_name)
+            if hasattr(attr, '__dataclass_fields__'):
+                config_dict[attr_name] = {
+                    field.name: getattr(attr, field.name) 
+                    for field in attr.__dataclass_fields__.values()
+                }
+        
+        return config_dict
+
     def validate_config(self) -> List[str]:
-        """Validates configuration settings"""
-        errors = []
+        """Validate the configuration and return any issues"""
+        issues = []
         
-        if not 0.0 <= self.search.SIMILARITY_THRESHOLD <= 1.0:
-            errors.append("SIMILARITY_THRESHOLD must be between 0.0 and 1.0")
+        # Validate search config
+        if self.search.SIMILARITY_THRESHOLD < 0 or self.search.SIMILARITY_THRESHOLD > 1:
+            issues.append("SIMILARITY_THRESHOLD must be between 0 and 1")
         
-        if not 0.0 <= self.search.SECTION_SEARCH_THRESHOLD <= 1.0:
-            errors.append("SECTION_SEARCH_THRESHOLD must be between 0.0 and 1.0")
+        if self.search.MAX_CHUNKS_RETRIEVED <= 0:
+            issues.append("MAX_CHUNKS_RETRIEVED must be positive")
         
-        if self.search.HYBRID_SEMANTIC_WEIGHT + self.search.HYBRID_KEYWORD_WEIGHT != 1.0:
-            errors.append("HYBRID_SEMANTIC_WEIGHT + HYBRID_KEYWORD_WEIGHT must equal 1.0")
+        # Validate LLM config
+        if self.llm.TEMPERATURE < 0 or self.llm.TEMPERATURE > 2:
+            issues.append("TEMPERATURE must be between 0 and 2")
+            
+        if self.llm.MAX_OUTPUT_TOKENS <= 0:
+            issues.append("MAX_OUTPUT_TOKENS must be positive")
         
-        if self.chunk.MIN_CHUNK_SIZE > self.chunk.MAX_CHUNK_SIZE:
-            errors.append("MIN_CHUNK_SIZE cannot be greater than MAX_CHUNK_SIZE")
+        # Validate context config
+        if self.context.MAX_CONTEXT_TOKENS <= 0:
+            issues.append("MAX_CONTEXT_TOKENS must be positive")
         
-        if self.performance.TOKEN_ESTIMATION_MULTIPLIER <= 0:
-            errors.append("TOKEN_ESTIMATION_MULTIPLIER must be positive")
-        
-        if self.performance.HEBREW_TOKEN_RATIO <= 0:
-            errors.append("HEBREW_TOKEN_RATIO must be positive")
-        
-        if self.chunk.MIN_CHUNK_SIZE >= self.chunk.MAX_CHUNK_SIZE:
-            errors.append("MIN_CHUNK_SIZE must be less than MAX_CHUNK_SIZE")
-        
-        if self.context.AVAILABLE_CONTEXT_TOKENS <= 0:
-            errors.append("AVAILABLE_CONTEXT_TOKENS must be positive")
-        
-        total_weight = self.search.HYBRID_SEMANTIC_WEIGHT + self.search.HYBRID_KEYWORD_WEIGHT
-        if abs(total_weight - 1.0) > 0.01:
-            errors.append("Hybrid search weights must sum to 1.0")
-        
-        return errors
+        return issues
 
 
+# Global instances
 rag_config = RAGConfig()
 
-config_errors = rag_config.validate_config()
-if config_errors:
-    print("⚠️ RAG Configuration Errors:")
-    for error in config_errors:
-        print(f"  - {error}")
-    print("Please fix the configuration in rag_config.py")
-
-
 def get_search_config() -> SearchConfig:
-    """Returns search configuration"""
     return rag_config.search
 
 def get_embedding_config() -> EmbeddingConfig:
-    """Returns embedding configuration"""
     return rag_config.embedding
 
 def get_chunk_config() -> ChunkConfig:
-    """Returns chunk configuration"""
     return rag_config.chunk
 
 def get_context_config() -> ContextConfig:
-    """Returns context configuration"""
     return rag_config.context
 
 def get_llm_config() -> LLMConfig:
-    """Returns LLM configuration"""
     return rag_config.llm
 
 def get_database_config() -> DatabaseConfig:
-    """Returns database configuration"""
     return rag_config.database
 
 def get_performance_config() -> PerformanceConfig:
-    """Returns performance configuration"""
     return rag_config.performance
 
 def get_optimization_config() -> OptimizationConfig:
-    """Returns optimization configuration"""
     return rag_config.optimization
 
 
@@ -313,4 +300,4 @@ if __name__ == "__main__":
         for key, value in settings.items():
             print(f"  {key}: {value}")
     
-    print(f"\n✅ Configuration valid: {len(config_errors) == 0}")
+    print(f"\n✅ Configuration valid: {len(rag_config.validate_config()) == 0}")

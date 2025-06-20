@@ -9,14 +9,15 @@ import hashlib
 from functools import lru_cache
 from datetime import datetime, timedelta
 
-import google.generativeai as genai
+
+import google.generativeai as genai  # type: ignore
 from supabase import create_client, Client
 import numpy as np
 
 try:
     # Try relative import first (when running from AI module)
     from ..config.current_profile import get_current_profile
-    from ..config.rag_config_profiles import get_profile
+    from ..config.rag_config_profiles import get_profile, PROFILES
     from ..config.rag_config import (
         rag_config,
         get_search_config,
@@ -31,7 +32,7 @@ try:
 except ImportError:
     # Fallback to absolute import (when running from outside AI module)
     from src.ai.config.current_profile import get_current_profile
-    from src.ai.config.rag_config_profiles import get_profile
+    from src.ai.config.rag_config_profiles import get_profile, PROFILES
     from src.ai.config.rag_config import (
         rag_config,
         get_search_config,
@@ -60,6 +61,7 @@ class RAGService:
     _cache_ttl = 300  # 5 minutes TTL
     
     def __init__(self, config_profile: Optional[str] = None):
+        """Initialize RAG Service with specific profile configuration"""
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         
@@ -68,55 +70,124 @@ class RAGService:
         
         self.supabase: Client = create_client(supabase_url, supabase_key)
         
-        # 🆕 החלף ל-Database Key Manager עם חיבור ישיר ל-Supabase
+        # 🔧 תיקון קריטי: טעינת פרופיל אמיתי
+        self.profile_name = config_profile or "balanced"
+        logger.info(f"🔧 Initializing RAG Service with profile: '{self.profile_name}'")
+        
+        try:
+            # טעינת פרופיל מתאים
+            if config_profile and config_profile in PROFILES:
+                profile_config = get_profile(config_profile)
+                logger.info(f"✅ Loaded profile '{config_profile}' successfully")
+                
+                # שימוש בהגדרות הפרופיל
+                self.search_config = profile_config.search
+                self.embedding_config = profile_config.embedding
+                self.context_config = profile_config.context
+                self.llm_config = profile_config.llm
+                self.db_config = profile_config.database
+                self.performance_config = profile_config.performance
+                
+            else:
+                logger.warning(f"⚠️ Profile '{config_profile}' not found, using default configuration")
+                # ברירת מחדל
+                self.search_config = get_search_config()
+                self.embedding_config = get_embedding_config()
+                self.context_config = get_context_config()
+                self.llm_config = get_llm_config()
+                self.db_config = get_database_config()
+                self.performance_config = get_performance_config()
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to load profile '{config_profile}': {e}")
+            logger.info("🔄 Falling back to default configuration")
+            # ברירת מחדל במקרה של שגיאה
+            self.search_config = get_search_config()
+            self.embedding_config = get_embedding_config()
+            self.context_config = get_context_config()
+            self.llm_config = get_llm_config()
+            self.db_config = get_database_config()
+            self.performance_config = get_performance_config()
+        
+        # Key Manager initialization
         self.key_manager = DatabaseKeyManager(use_direct_supabase=True)
-        logger.info("🔑 RAG Service using Database Key Manager with direct Supabase connection")
+        logger.info("🔑 Database Key Manager configured")
         
-        # 🔥 FORCE AGGRESSIVE CONFIG - Skip profile system, use direct config
-        logger.info("🔥 Using AGGRESSIVE tuned config - bypassing profile system")
-        self.search_config = get_search_config()
-        self.embedding_config = get_embedding_config()
-        self.context_config = get_context_config()
-        self.llm_config = get_llm_config()
-        self.db_config = get_database_config()
-        self.performance_config = get_performance_config()
+        # יצירת מודל Gemini עם הגדרות מהפרופיל
+        self._init_gemini_model()
         
-        # 🔥 הגדר Key Manager - נטען מפתחות בצורה lazy
-        # Note: Keys will be loaded when first needed in ensure_available_key()
-        logger.info("🔑 Database Key Manager configured - keys will be loaded on first use")
-        
-        # 🔥 יצירת מודל Gemini - יש fallback לסביבה
-        # Try to get key from environment first (safe init approach)
+        # Log final configuration
+        logger.info(f"🚀 RAG Service initialized with profile '{self.profile_name}':")
+        logger.info(f"   📊 Similarity threshold: {self.search_config.SIMILARITY_THRESHOLD}")
+        logger.info(f"   📄 Max chunks: {self.search_config.MAX_CHUNKS_RETRIEVED}")
+        logger.info(f"   🌡️ Temperature: {self.llm_config.TEMPERATURE}")
+        logger.info(f"   🤖 Model: {self.llm_config.MODEL_NAME}")
+        logger.info(f"   🎯 System instruction: {'Yes' if self.llm_config.USE_SYSTEM_INSTRUCTION else 'No'}")
+
+    def _init_gemini_model(self):
+        """יצירת מודל Gemini עם הגדרות מהפרופיל לפי התיעוד של גוגל"""
+        # Key configuration
         fallback_key = os.getenv("GEMINI_API_KEY")
         if fallback_key:
-            genai.configure(api_key=fallback_key)
+            genai.configure(api_key=fallback_key)  # type: ignore
             logger.info("🔑 Using GEMINI_API_KEY from environment for initialization")
-        else:
-            # Try to use Key Manager for initialization (keys loaded lazily) 
-            try:
-                if self.key_manager:
-                    # Just configure with environment key for now, database keys will be loaded lazily
-                    logger.info("🔑 Database Key Manager configured - will use environment key for init")
-                    # Will switch to database keys when needed
-                else:
-                    raise Exception("No API keys available from Database or environment")
-            except Exception as e:
-                logger.error(f"❌ Key initialization failed: {e}")
-                raise Exception("No API keys available")
         
-        # יצירת מודל Gemini עם הגדרות מהconfig
-        self.model = genai.GenerativeModel(
-            self.llm_config.MODEL_NAME,
-            generation_config=genai.types.GenerationConfig(
+        # בדיקה אם להשתמש בsystem instruction
+        if self.llm_config.USE_SYSTEM_INSTRUCTION and self.llm_config.SYSTEM_INSTRUCTION:
+            # קבלת system instruction (עם תבנית אם קיימת)
+            system_instruction = self.llm_config.get_system_instruction({
+                'role': 'עוזר אקדמי מתמחה',
+                'specialization': 'תקנוני לימודים ודרישות קבלה',
+                'conversation_style': 'מקצועי ומדויק'
+            })
+            
+            logger.info(f"🔧 Using system instruction: {system_instruction[:100]}...")
+            
+            # שימוש בAPI החדש של גוגל - לפי התיעוד המדויק
+            generation_config = genai.GenerationConfig(  # type: ignore
                 temperature=self.llm_config.TEMPERATURE,
                 max_output_tokens=self.llm_config.MAX_OUTPUT_TOKENS
             )
-        )
+            
+            self.model = genai.GenerativeModel(  # type: ignore
+                model_name=self.llm_config.MODEL_NAME,
+                system_instruction=system_instruction,
+                generation_config=generation_config,
+                safety_settings=self._get_safety_settings()
+            )
+            logger.info("✅ Gemini model initialized with system instruction")
+        else:
+            # שימוש במודל רגיל ללא system instruction
+            generation_config = genai.GenerationConfig(  # type: ignore
+                temperature=self.llm_config.TEMPERATURE,
+                max_output_tokens=self.llm_config.MAX_OUTPUT_TOKENS
+            )
+            
+            self.model = genai.GenerativeModel(  # type: ignore
+                model_name=self.llm_config.MODEL_NAME,
+                generation_config=generation_config
+            )
+            logger.info("✅ Gemini model initialized without system instruction")
+
+    def _get_safety_settings(self) -> List[dict]:
+        """מחזיר הגדרות בטיחות מהפרופיל בפורמט הנכון לGemini"""
+        safety_settings = []
+        # Use simple string-based safety settings instead of importing non-exported classes
+        safety_settings = [{
+            "category": "HARM_CATEGORY_HARASSMENT",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        }, {
+            "category": "HARM_CATEGORY_HATE_SPEECH", 
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        }, {
+            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        }, {
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        }]
         
-        logger.info(f"🚀 RAG Service initialized with profile '{config_profile or 'default'}' - "
-                   f"Similarity threshold: {self.search_config.SIMILARITY_THRESHOLD}, "
-                   f"Max chunks: {self.search_config.MAX_CHUNKS_RETRIEVED}, "
-                   f"Model: {self.llm_config.MODEL_NAME}")
+        return safety_settings
     
     def _get_cache_key(self, text: str) -> str:
         """Generate cache key from text"""
@@ -185,58 +256,67 @@ class RAGService:
             logger.error(f"❌ [RAG-GEN-TRACK] Failed to track usage: {e}")
     
     async def generate_query_embedding(self, query: str) -> List[float]:
-        """יוצר embedding עבור שאילתה עם caching"""
-        cache_key = self._get_cache_key(query)
-        
-        # ⚡ Check cache first
-        cached_embedding = self._get_from_cache(cache_key)
-        if cached_embedding:
-            return cached_embedding
-        
+        """יוצר embedding עבור שאילתה"""
         try:
-            # 🔥 Ensure we're using current key if Key Manager available
-            key_id = None
-            if self.key_manager:
-                available_key = await self.key_manager.get_available_key()
-                if not available_key:
-                    raise Exception("No available API keys for embedding")
-                
-                # Configure with the available key
-                genai.configure(api_key=available_key['api_key'])
-                key_id = available_key.get('id')
-                logger.info(f"🔑 Using key {available_key.get('key_name', 'unknown')} for embedding")
+            cache_key = self._get_cache_key(query)
             
-            # ⏱️ Generate embedding
-            start_time = time.time()
-            embedding_model = genai.embed_content(
-                model=self.embedding_config.MODEL_NAME,
+            # Check cache first
+            cached_embedding = self._get_from_cache(cache_key)
+            if cached_embedding:
+                return cached_embedding
+            
+            # Configure API key
+            # Use database key manager to get an API key
+            try:
+                api_key_data = await self.key_manager.get_available_key()
+                if api_key_data and 'key' in api_key_data:
+                    genai.configure(api_key=api_key_data['key'])
+                    logger.debug(f"🔑 Using database key ID: {api_key_data.get('id', 'unknown')}")
+                else:
+                    # Fallback to environment variable
+                    fallback_key = os.getenv("GEMINI_API_KEY")
+                    if fallback_key:
+                        genai.configure(api_key=fallback_key)
+                        logger.debug("🔑 Using fallback GEMINI_API_KEY from environment")
+                    else:
+                        raise ValueError("No valid API key available")
+            except Exception as key_error:
+                logger.warning(f"Key manager failed: {key_error}, trying fallback key")
+                fallback_key = os.getenv("GEMINI_API_KEY")
+                if fallback_key:
+                    genai.configure(api_key=fallback_key)
+                else:
+                    raise ValueError("No valid API key available")
+            
+            # Generate embedding using the correct API
+            response = genai.embed_content(
+                model="models/text-embedding-004",
                 content=query,
-                task_type=self.embedding_config.TASK_TYPE_QUERY
+                task_type="retrieval_query"
             )
             
-            raw_embedding = embedding_model['embedding']
-            generation_time = int((time.time() - start_time) * 1000)
+            # Extract embedding from response using correct TypedDict access
+            if hasattr(response, 'embedding') and response['embedding']:
+                embedding = response['embedding']
+            elif 'embedding' in response:
+                embedding = response['embedding']
+            else:
+                raise ValueError("Invalid embedding response format")
             
-            # וידוא שה-vector הוא בדיוק 768 dimensions
-            embedding = ensure_768_dimensions(raw_embedding)
+            # וידוא שהעברנו list במקום numpy array ובדיוק 768 dimensions
+            embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+            embedding_list = ensure_768_dimensions(embedding_list)
             
-            # רישום מידע לdebug אם יש בעיה עם גודל הvector
-            if len(raw_embedding) != 768:
-                logger.warning(f"Query embedding dimension adjusted from {len(raw_embedding)} to 768")
-                log_vector_info(raw_embedding, "Original query embedding")
-                log_vector_info(embedding, "Adjusted query embedding")
+            # Cache the result
+            self._cache_embedding(cache_key, embedding_list)
             
-            # ⚡ Cache the result
-            self._cache_embedding(cache_key, embedding)
+            # רישום מידע לdebug (אבל לא בעיה עם גודל הvector)
+            logger.debug(f"📊 Generated embedding for query, dimensions: {len(embedding_list)}")
             
-            # 🔥 Track usage
-            await self._track_embedding_usage(query, key_id)
-            
-            logger.info(f"🔍 Embedding generated in {generation_time}ms (cached for future use, final dimensions: {len(embedding)})")
-            return embedding
+            return embedding_list
             
         except Exception as e:
-            logger.error(f"Error generating query embedding: {e}")
+            logger.error(f"Error generating embedding for query '{query}': {e}")
             raise
     
     async def semantic_search(
@@ -1043,58 +1123,79 @@ EXAMPLES OF CORRECT FORMAT:
             raise
 
     async def _generate_with_retry(self, prompt: str, max_retries: int = 3) -> str:
-        """יוצר תוכן עם retry logic למקרה של rate limiting"""
+        """Generate response with automatic retries and error handling."""
+        last_error = None
+        
         for attempt in range(max_retries):
             try:
-                # 🔥 Ensure we're using current key if Key Manager available
-                if self.key_manager:
-                    available_key = await self.key_manager.get_available_key()
-                    if not available_key:
-                        raise Exception("No available API keys for generation")
+                # Get API key and configure
+                api_key_data = await self.key_manager.get_available_key()
+                if api_key_data and 'key' in api_key_data:
+                    try:
+                        configure(api_key=api_key_data['key'])
+                    except:
+                        genai.configure(api_key=api_key_data['key'])
+                    key_id = api_key_data.get('id')
+                    logger.debug(f"🔑 Using API key ID: {key_id} for generation (attempt {attempt + 1})")
+                else:
+                    # Fallback to environment key
+                    fallback_key = os.getenv("GEMINI_API_KEY")
+                    if fallback_key:
+                        try:
+                            configure(api_key=fallback_key)
+                        except:
+                            genai.configure(api_key=fallback_key)
+                        logger.debug(f"🔑 Using fallback key for generation (attempt {attempt + 1})")
+                        key_id = None
+                    else:
+                        raise ValueError("No API key available")
+                
+                # Generate response using the initialized model
+                response = self.model.generate_content(prompt)
+                
+                # Extract text from response
+                if response and hasattr(response, 'text') and response.text:
+                    response_text = response.text.strip()
                     
-                    # Configure with the available key
-                    genai.configure(api_key=available_key['api_key'])
+                    # Track token usage if we have a valid key_id
+                    if key_id:
+                        try:
+                            await self._track_generation_usage(prompt, response_text, key_id)
+                        except Exception as track_error:
+                            logger.warning(f"Failed to track token usage: {track_error}")
                     
-                    # Recreate model with current key
-                    self.model = genai.GenerativeModel(
-                        self.llm_config.MODEL_NAME,
-                        generation_config=genai.types.GenerationConfig(
-                            temperature=self.llm_config.TEMPERATURE,
-                            max_output_tokens=self.llm_config.MAX_OUTPUT_TOKENS
-                        )
-                    )
+                    return response_text
                 
-                logger.info(f"🔢 [RAG-GEN-DEBUG] Generating response for prompt length: {len(prompt)}")
+                # Check for safety/error responses
+                if response and hasattr(response, 'prompt_feedback'):
+                    feedback = response.prompt_feedback
+                    if hasattr(feedback, 'block_reason'):
+                        raise ValueError(f"Content blocked: {feedback.block_reason}")
                 
-                response = await self.model.generate_content_async(prompt)
-                response_text = response.text
-                
-                # 🔥 Track usage  
-                key_id = available_key.get('id') if available_key else None
-                await self._track_generation_usage(prompt, response_text, key_id)
-                
-                return response_text
+                raise ValueError("Empty or invalid response from Gemini")
                 
             except Exception as e:
-                error_str = str(e)
+                last_error = e
+                logger.warning(f"Generation attempt {attempt + 1} failed: {str(e)}")
                 
-                # בדיקה אם זה rate limiting error
-                if "429" in error_str or "quota" in error_str.lower():
-                    if attempt < max_retries - 1:
-                        wait_time = (2 ** attempt) * self.performance_config.RETRY_BACKOFF_BASE  # exponential backoff
-                        logger.warning(f"Rate limit hit, waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        logger.error(f"Max retries reached for rate limiting")
-                        return "מצטער, המערכת עמוסה כרגע. אנא נסה שוב בעוד כמה דקות."
-                else:
-                    # שגיאה אחרת - העלה מיד
-                    raise
-        
-        # אם הגענו לכאן, חרגנו מכל הניסיונות
-        logger.error("Exhausted all retry attempts")
-        return "מצטער, המערכת נתקלה בבעיה טכנית. אנא נסה שוב מאוחר יותר."
+                # If this is a rate limit or quota error, try a different key
+                error_str = str(e).lower()
+                if any(keyword in error_str for keyword in ['quota', 'rate limit', 'resource_exhausted']):
+                    try:
+                        if hasattr(self.key_manager, 'mark_key_exhausted') and api_key_data:
+                            await self.key_manager.mark_key_exhausted(api_key_data['id'])
+                            logger.info(f"⚠️ Marked key {api_key_data['id']} as exhausted")
+                    except Exception as mark_error:
+                        logger.warning(f"Failed to mark key as exhausted: {mark_error}")
+                
+                if attempt < max_retries - 1:
+                    import asyncio
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                
+        # All retries failed
+        error_msg = f"Generation failed after {max_retries} attempts. Last error: {str(last_error)}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
     
     async def _log_search_analytics(
         self, 

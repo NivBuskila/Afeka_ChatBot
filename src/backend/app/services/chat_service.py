@@ -5,6 +5,7 @@ import os
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from fastapi import HTTPException
 from pathlib import Path
+from pydantic import SecretStr
 
 # Add the backend directory to sys.path to allow importing from services
 backend_dir = Path(__file__).parent.parent.parent
@@ -98,10 +99,10 @@ class ChatService(IChatService):
                 raise ValueError("GEMINI_API_KEY is required for ChatService")
 
             self.llm = ChatGoogleGenerativeAI(
-                google_api_key=current_key,  # Use environment key for stable init
+                api_key=SecretStr(current_key),  # תיקון: wrap with SecretStr
                 model=settings.GEMINI_MODEL_NAME,
                 temperature=settings.GEMINI_TEMPERATURE,
-                max_output_tokens=settings.GEMINI_MAX_TOKENS
+                max_tokens=settings.GEMINI_MAX_TOKENS  # תיקון: max_tokens במקום max_output_tokens
             )
             
             prompt_template = ChatPromptTemplate.from_messages([
@@ -171,16 +172,15 @@ class ChatService(IChatService):
                     if current_key:
                         key_id = current_key.get('id')
                         if key_id:
-                            await key_manager.record_usage(key_id, total_tokens, 1)
+                            await key_manager.record_usage(key_id=key_id, tokens_used=total_tokens, requests_count=1)
                             logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens for key {key_id}")
                         else:
                             logger.warning("⚠️ [CHAT-TOKEN-TRACK] No key_id found in current key")
                     else:
                         logger.warning("⚠️ [CHAT-TOKEN-TRACK] No API keys available in DatabaseKeyManager")
                 elif hasattr(key_manager, 'track_usage'):
-                    # Legacy GeminiKeyManager - accepts only tokens_used
-                    key_manager.track_usage(total_tokens)
-                    logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens (legacy)")
+                    # Skip legacy track_usage since it now requires key_id which we don't have in ChatService
+                    logger.info("⚠️ [CHAT-TOKEN-TRACK] Skipping track_usage in ChatService - key_id not available")
                 else:
                     logger.warning("⚠️ [CHAT-TOKEN-TRACK] Unknown key manager type - no tracking method found")
                     
@@ -230,17 +230,36 @@ class ChatService(IChatService):
                         current_profile = get_current_profile()
                         self.current_profile_cache = current_profile
                         
-                        # יצירת RAG service חדש
-                        self.rag_service = RAGService()
-                        logger.debug(f"✅ RAG service ready with profile: {self.current_profile_cache}")
+                        # 🔧 תיקון קריטי: העברת הפרופיל ל-RAGService
+                        logger.info(f"🎯 Creating RAG service with profile: {current_profile}")
+                        self.rag_service = RAGService(config_profile=current_profile)
+                        logger.debug(f"✅ RAG service ready with profile: {current_profile}")
+                        
+                        # 🔍 הדפסת הגדרות לאימות
+                        logger.debug(f"   📊 Actual similarity threshold: {self.rag_service.search_config.SIMILARITY_THRESHOLD}")
+                        logger.debug(f"   📄 Actual max chunks: {self.rag_service.search_config.MAX_CHUNKS_RETRIEVED}")
+                        logger.debug(f"   🌡️ Actual temperature: {self.rag_service.llm_config.TEMPERATURE}")
+                        
                     else:
                         logger.warning("RAG service not available - imports failed")
                         self.rag_service = None
                         self.current_profile_cache = "unavailable"
                 except Exception as e:
                     logger.warning(f"Could not get current profile or create RAG service: {e}")
-                    self.current_profile_cache = "error"
-                    self.rag_service = None
+                    # ברירת מחדל במקרה של שגיאה
+                    if RAG_AVAILABLE and RAGService:
+                        try:
+                            self.rag_service = RAGService(config_profile="balanced")
+                            self.current_profile_cache = "balanced"
+                            logger.info("✅ Created RAG service with balanced profile as fallback")
+                        except Exception as fallback_error:
+                            logger.error(f"Failed to create fallback RAG service: {fallback_error}")
+                            self.rag_service = None
+                            self.current_profile_cache = "error"
+                    else:
+                        logger.warning("RAG service not available - imports failed")
+                        self.rag_service = None
+                        self.current_profile_cache = "unavailable"
                     
             else:
                 logger.debug(f"📋 Using cached RAG service with profile: {self.current_profile_cache}")
