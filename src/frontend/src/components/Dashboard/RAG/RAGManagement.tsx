@@ -9,7 +9,6 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  Settings,
 } from "lucide-react";
 import { ragService, RAGProfile, RAGTestResult } from "./RAGService";
 import { Pagination } from "../../common/Pagination";
@@ -29,7 +28,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
 }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [currentProfile, setCurrentProfile] = useState<string>("");
+  // Removed unused currentProfile state
   const [profiles, setProfiles] = useState<RAGProfile[]>([]);
   const [testQuery, setTestQuery] = useState("");
   const [testResult, setTestResult] = useState<RAGTestResult | null>(null);
@@ -179,7 +178,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const result = await ragService.activateProfile(profileId);
+      await ragService.activateProfile(profileId);
       
 
       // Reload profiles to get updated status
@@ -201,8 +200,8 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     try {
       
 
-      const result = await ragService.testQuery(testQuery);
-      setTestResult(result);
+      const testResponse = await ragService.testQuery(testQuery);
+      setTestResult(testResponse);
     } catch (error) {
       console.error("Error running test:", error);
       setError("Failed to run test query");
@@ -354,7 +353,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     setIsCreatingProfile(true);
     setError(null);
     try {
-      const newProfile = await ragService.createProfile(profileData);
+      await ragService.createProfile(profileData);
       
       setShowCreateProfile(false);
       await fetchProfiles(); // רענון הרשימה
@@ -1220,7 +1219,6 @@ interface CreateProfileModalProps {
 }
 
 const CreateProfileModal: React.FC<CreateProfileModalProps> = ({
-  language,
   onSubmit,
   onCancel,
   isCreating,

@@ -176,8 +176,13 @@ export const authService = {
     }
   },
   
-  async logout(): Promise<void> {
-    await supabase.auth.signOut();
+  async logout(): Promise<{ error: string | null }> {
+    try {
+      const { error } = await supabase.auth.signOut();
+      return { error: error?.message || null };
+    } catch (err: any) {
+      return { error: err.message || 'Error during logout' };
+    }
   },
 
   async getCurrentUser() {

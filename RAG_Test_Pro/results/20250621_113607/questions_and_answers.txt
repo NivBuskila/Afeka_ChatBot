@@ -1,0 +1,1859 @@
+RAG TEST PRO - QUESTIONS & ANSWERS EXPORT
+============================================================
+
+Session ID: 20250621_113607
+Timestamp: 2025-06-21T11:36:07.834304+00:00
+Question Set: All Questions Combined (168 questions)
+RAG Profile: דיוק מקסימלי
+Success Rate: 100.0%
+
+============================================================
+
+QUESTION 1:
+מה אומר סעיף 1.5.1?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 1.5.1?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 2:
+מה כתוב בסעיף 2.1?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 2.1?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 3:
+מה הכללים בסעיף 3.2.8?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים בסעיף 3.2.8?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 4:
+מה אומר סעיף 6.2.7.4?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 6.2.7.4?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 5:
+מה נאמר בסעיף 11.5.1?
+
+ANSWER:
+🧪 Test mode response for: מה נאמר בסעיף 11.5.1?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 6:
+מה בסעיף 1.5.2?
+
+ANSWER:
+🧪 Test mode response for: מה בסעיף 1.5.2?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 7:
+מה כתוב בסעיף 9.3?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 9.3?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 8:
+מה אומר סעיף 13.1?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 13.1?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 9:
+איך אני יכול לקבל פטור מקורסים?
+
+ANSWER:
+🧪 Test mode response for: איך אני יכול לקבל פטור מקורסים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 10:
+מה הסעיפים שמגדירים הרחקה אקדמית?
+
+ANSWER:
+🧪 Test mode response for: מה הסעיפים שמגדירים הרחקה אקדמית?
+
+STATUS: ✅ Success
+TIME: 1.04s
+
+----------------------------------------
+
+QUESTION 11:
+איך מחושב הציון הסופי?
+
+ANSWER:
+🧪 Test mode response for: איך מחושב הציון הסופי?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 12:
+מה הכללים לגבי לימודי אנגלית?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי לימודי אנגלית?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 13:
+מה התנאים למעבר משנה לשנה?
+
+ANSWER:
+🧪 Test mode response for: מה התנאים למעבר משנה לשנה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 14:
+איך מתבצע מעבר בין תוכניות לימוד?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע מעבר בין תוכניות לימוד?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 15:
+מה הכללים לגבי חזרה על קורסים?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי חזרה על קורסים?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 16:
+מתי ניתן לקבל תואר בהצטיינות?
+
+ANSWER:
+🧪 Test mode response for: מתי ניתן לקבל תואר בהצטיינות?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 17:
+מה הן עבירות המשמעת?
+
+ANSWER:
+🧪 Test mode response for: מה הן עבירות המשמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 18:
+מה העונש על הונאה בבחינה?
+
+ANSWER:
+🧪 Test mode response for: מה העונש על הונאה בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 19:
+איך מגישים תלונה?
+
+ANSWER:
+🧪 Test mode response for: איך מגישים תלונה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 20:
+מה הזכויות של סטודנט בדיון משמעת?
+
+ANSWER:
+🧪 Test mode response for: מה הזכויות של סטודנט בדיון משמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 21:
+מי הן רשויות השיפוט?
+
+ANSWER:
+🧪 Test mode response for: מי הן רשויות השיפוט?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 22:
+מה הן עבירות החנייה?
+
+ANSWER:
+🧪 Test mode response for: מה הן עבירות החנייה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 23:
+איך עובד מנגנון ברירת הקנס?
+
+ANSWER:
+🧪 Test mode response for: איך עובד מנגנון ברירת הקנס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 24:
+מה הכללים לגבי נוכחות?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי נוכחות?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 25:
+איך עוברים בין תוכניות?
+
+ANSWER:
+🧪 Test mode response for: איך עוברים בין תוכניות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 26:
+מה קורה אם נכשלתי בקורס?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם נכשלתי בקורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 27:
+מתי אני מקבל תעודה?
+
+ANSWER:
+🧪 Test mode response for: מתי אני מקבל תעודה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 28:
+מה נקבע בנוגע לטלפונים סלולריים?
+
+ANSWER:
+🧪 Test mode response for: מה נקבע בנוגע לטלפונים סלולריים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 29:
+מה הכללים על עישון במכללה?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים על עישון במכללה?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 30:
+איך מתמודדים עם מחלת סטודנט?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם מחלת סטודנט?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 31:
+מה אומר סעיף 2.3 על תקופת הלימודים המקסימלית?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 2.3 על תקופת הלימודים המקסימלית?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 32:
+מה כתוב בסעיף 4.2 על הודעות בדואר?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 4.2 על הודעות בדואר?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 33:
+מה הכללים בסעיף 7.4 על רישום לקורס המשך?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים בסעיף 7.4 על רישום לקורס המשך?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 34:
+מה נאמר בסעיף 12.1.3 על הפסקת לימודים?
+
+ANSWER:
+🧪 Test mode response for: מה נאמר בסעיף 12.1.3 על הפסקת לימודים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 35:
+מה בסעיף 22.11 על עונשי הרחקה?
+
+ANSWER:
+🧪 Test mode response for: מה בסעיף 22.11 על עונשי הרחקה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 36:
+מה כתוב בסעיף 24.2 על עונש על תנאי?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 24.2 על עונש על תנאי?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 37:
+מה אומר סעיף 3.3 על משך שעת הוראה?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 3.3 על משך שעת הוראה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 38:
+מה נקבע בסעיף 8.4 על אחוז הפטורים המקסימלי?
+
+ANSWER:
+🧪 Test mode response for: מה נקבע בסעיף 8.4 על אחוז הפטורים המקסימלי?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 39:
+מהן הדרישות לזכאות לתואר בהצטיינות יתרה?
+
+ANSWER:
+🧪 Test mode response for: מהן הדרישות לזכאות לתואר בהצטיינות יתרה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 40:
+איך מתבצע חישוב הממוצע השנתי והמצטבר?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע חישוב הממוצע השנתי והמצטבר?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 41:
+מה התנאים לביטול קורס שלא מתקיים?
+
+ANSWER:
+🧪 Test mode response for: מה התנאים לביטול קורס שלא מתקיים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 42:
+איך עובד מנגנון החזרה על קורס והשפעתו על הציון?
+
+ANSWER:
+🧪 Test mode response for: איך עובד מנגנון החזרה על קורס והשפעתו על הציון?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 43:
+מה הכללים למעבר מסטטוס 'על תנאי' ל'מן המניין'?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים למעבר מסטטוס 'על תנאי' ל'מן המניין'?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 44:
+איך מתמודדים עם סטודנט שנכשל 3 פעמים באותו קורס?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם סטודנט שנכשל 3 פעמים באותו קורס?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 45:
+מה ההבדל בין קורס קדם לקורס מקביל?
+
+ANSWER:
+🧪 Test mode response for: מה ההבדל בין קורס קדם לקורס מקביל?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 46:
+איך מתבצעת בדיקת התיישנות לימודים?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצעת בדיקת התיישנות לימודים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 47:
+מי רשאי למנות קובל מיוחד ומתי?
+
+ANSWER:
+🧪 Test mode response for: מי רשאי למנות קובל מיוחד ומתי?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 48:
+מה סמכויות בית הדין לערעורים?
+
+ANSWER:
+🧪 Test mode response for: מה סמכויות בית הדין לערעורים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 49:
+איך מתבצע דיון בהעדר הנתבע?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע דיון בהעדר הנתבע?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 50:
+מה ההבדל בין נזיפה להרחקה לצמיתות?
+
+ANSWER:
+🧪 Test mode response for: מה ההבדל בין נזיפה להרחקה לצמיתות?
+
+STATUS: ✅ Success
+TIME: 1.04s
+
+----------------------------------------
+
+QUESTION 51:
+איך עובד מנגנון חנינה של נשיא המכללה?
+
+ANSWER:
+🧪 Test mode response for: איך עובד מנגנון חנינה של נשיא המכללה?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 52:
+מה הזמנים לערעור על פסק דין של הממונה?
+
+ANSWER:
+🧪 Test mode response for: מה הזמנים לערעור על פסק דין של הממונה?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 53:
+איך מטופלות עבירות חניה חוזרות באותה שנה?
+
+ANSWER:
+🧪 Test mode response for: איך מטופלות עבירות חניה חוזרות באותה שנה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 54:
+מה קורה אם אני רוצה לשנות מסלול התמחות?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם אני רוצה לשנות מסלול התמחות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 55:
+איך מתמודדים עם סטודנט שחסר יותר מדי שיעורים?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם סטודנט שחסר יותר מדי שיעורים?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 56:
+מה ההליך להגשת ערעור על החלטה אקדמית?
+
+ANSWER:
+🧪 Test mode response for: מה ההליך להגשת ערעור על החלטה אקדמית?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 57:
+איך מתבצע רישום מאוחר לקורס?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע רישום מאוחר לקורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 58:
+מה הכללים על שימוש בטלפון נייד בכיתה?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים על שימוש בטלפון נייד בכיתה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 59:
+איך מתמודדים עם עבירת הונאה חוזרת בבחינה?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם עבירת הונאה חוזרת בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 60:
+מה התהליך להגשת תלונת משמעת?
+
+ANSWER:
+🧪 Test mode response for: מה התהליך להגשת תלונת משמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 61:
+כמה שנים לוקח ללמוד הנדסה במכללה?
+
+ANSWER:
+🧪 Test mode response for: כמה שנים לוקח ללמוד הנדסה במכללה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 62:
+מה זה אומר שאני סטודנט 'על תנאי'?
+
+ANSWER:
+🧪 Test mode response for: מה זה אומר שאני סטודנט 'על תנאי'?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 63:
+איך יודעים אם יש חובת נוכחות בקורס?
+
+ANSWER:
+🧪 Test mode response for: איך יודעים אם יש חובת נוכחות בקורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 64:
+מה הציון המינימלי כדי לעבור קורס?
+
+ANSWER:
+🧪 Test mode response for: מה הציון המינימלי כדי לעבור קורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 65:
+כמה זמן יש לי לסיים את התואר?
+
+ANSWER:
+🧪 Test mode response for: כמה זמן יש לי לסיים את התואר?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 66:
+איך מחושב הממוצע שלי?
+
+ANSWER:
+🧪 Test mode response for: איך מחושב הממוצע שלי?
+
+STATUS: ✅ Success
+TIME: 1.04s
+
+----------------------------------------
+
+QUESTION 67:
+מתי אקבל את התעודה שלי?
+
+ANSWER:
+🧪 Test mode response for: מתי אקבל את התעודה שלי?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 68:
+כמה פטורים אני יכול לקבל מקסימום?
+
+ANSWER:
+🧪 Test mode response for: כמה פטורים אני יכול לקבל מקסימום?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 69:
+נכשלתי ב-3 קורסים, מה המשמעות?
+
+ANSWER:
+🧪 Test mode response for: נכשלתי ב-3 קורסים, מה המשמעות?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 70:
+איך אני יכול לעבור מ'על תנאי' ל'מן המניין'?
+
+ANSWER:
+🧪 Test mode response for: איך אני יכול לעבור מ'על תנאי' ל'מן המניין'?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 71:
+מה קורה אם אני נכשל באותו קורס 3 פעמים?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם אני נכשל באותו קורס 3 פעמים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 72:
+רוצה לעבור בין תוכניות לימוד, איך עושים את זה?
+
+ANSWER:
+🧪 Test mode response for: רוצה לעבור בין תוכניות לימוד, איך עושים את זה?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 73:
+מה הציון שאני צריך באנגלית כדי לקבל פטור?
+
+ANSWER:
+🧪 Test mode response for: מה הציון שאני צריך באנגלית כדי לקבל פטור?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 74:
+עד מתי אני חייב לסיים את לימודי האנגלית?
+
+ANSWER:
+🧪 Test mode response for: עד מתי אני חייב לסיים את לימודי האנגלית?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 75:
+כמה קורסים באנגלית אני חייב ללמוד?
+
+ANSWER:
+🧪 Test mode response for: כמה קורסים באנגלית אני חייב ללמוד?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 76:
+חנתי במקום לא מותר, מה הקנס?
+
+ANSWER:
+🧪 Test mode response for: חנתי במקום לא מותר, מה הקנס?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 77:
+מה קורה אם יתפסו אותי מעתיק בבחינה?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם יתפסו אותי מעתיק בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.04s
+
+----------------------------------------
+
+QUESTION 78:
+האם אני יכול להיות מיוצג בדיון משמעת?
+
+ANSWER:
+🧪 Test mode response for: האם אני יכול להיות מיוצג בדיון משמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 79:
+שכחתי להירשם לקורס בזמן, עדיין אפשר?
+
+ANSWER:
+🧪 Test mode response for: שכחתי להירשם לקורס בזמן, עדיין אפשר?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 80:
+יש לי טלפון חכם בבחינה, זה מותר?
+
+ANSWER:
+🧪 Test mode response for: יש לי טלפון חכם בבחינה, זה מותר?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 81:
+מה נקבע בנוגע לטלפונים סלולריים?
+
+ANSWER:
+🧪 Test mode response for: מה נקבע בנוגע לטלפונים סלולריים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 82:
+מה הכללים על עישון במכללה?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים על עישון במכללה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 83:
+מה קורה אם אני צריך לעזוב ללימודים לתקופה?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם אני צריך לעזוב ללימודים לתקופה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 84:
+מה אומר סעיף 2.1?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 2.1?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 85:
+מה אומר סעיף 1.5.1?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 1.5.1?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 86:
+מה כתוב בסעיף 3.2.8?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 3.2.8?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 87:
+מה אומר סעיף 6.2.7.4?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 6.2.7.4?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 88:
+איך מתמודדים עם סטודנט שנכשל 3 פעמים באותו קורס?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם סטודנט שנכשל 3 פעמים באותו קורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 89:
+מתי ניתן לקבל תואר בהצטיינות?
+
+ANSWER:
+🧪 Test mode response for: מתי ניתן לקבל תואר בהצטיינות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 90:
+מהן הדרישות לזכאות לתואר בהצטיינות יתרה?
+
+ANSWER:
+🧪 Test mode response for: מהן הדרישות לזכאות לתואר בהצטיינות יתרה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 91:
+מה התנאים למעבר משנה לשנה?
+
+ANSWER:
+🧪 Test mode response for: מה התנאים למעבר משנה לשנה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 92:
+איך מתבצע מעבר בין תוכניות לימוד?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע מעבר בין תוכניות לימוד?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 93:
+מה הכללים לגבי חזרה על קורסים?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי חזרה על קורסים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 94:
+איך יכול לקבל פטור מקורסים?
+
+ANSWER:
+🧪 Test mode response for: איך יכול לקבל פטור מקורסים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 95:
+מה הסעיפים שמגדירים הרחקה אקדמית?
+
+ANSWER:
+🧪 Test mode response for: מה הסעיפים שמגדירים הרחקה אקדמית?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 96:
+איך מחושב הציון הסופי?
+
+ANSWER:
+🧪 Test mode response for: איך מחושב הציון הסופי?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 97:
+מה הכללים לגבי לימודי אנגלית?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי לימודי אנגלית?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 98:
+מה הן עבירות המשמעת?
+
+ANSWER:
+🧪 Test mode response for: מה הן עבירות המשמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 99:
+מה העונש על הונאה בבחינה?
+
+ANSWER:
+🧪 Test mode response for: מה העונש על הונאה בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 100:
+מי הן רשויות השיפוט?
+
+ANSWER:
+🧪 Test mode response for: מי הן רשויות השיפוט?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 101:
+מה הן עבירות החנייה?
+
+ANSWER:
+🧪 Test mode response for: מה הן עבירות החנייה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 102:
+איך עובד מנגנון ברירת הקנס?
+
+ANSWER:
+🧪 Test mode response for: איך עובד מנגנון ברירת הקנס?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 103:
+מה הכללים לגבי נוכחות?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי נוכחות?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 104:
+איך מתמודדים עם מחלת סטודנט?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם מחלת סטודנט?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 105:
+מה אומר סעיף 2.3 על תקופת הלימודים המקסימלית?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 2.3 על תקופת הלימודים המקסימלית?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 106:
+מה כתוב בסעיף 4.2 על הודעות בדואר?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 4.2 על הודעות בדואר?
+
+STATUS: ✅ Success
+TIME: 1.04s
+
+----------------------------------------
+
+QUESTION 107:
+מה נאמר בסעיף 12.1.3 על הפסקת לימודים?
+
+ANSWER:
+🧪 Test mode response for: מה נאמר בסעיף 12.1.3 על הפסקת לימודים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 108:
+מה בסעיף 22.11 על עונשי הרחקה?
+
+ANSWER:
+🧪 Test mode response for: מה בסעיף 22.11 על עונשי הרחקה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 109:
+מה אומר סעיף 3.3 על משך שעת הוראה?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 3.3 על משך שעת הוראה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 110:
+מה נקבע בסעיף 8.4 על אחוז הפטורים המקסימלי?
+
+ANSWER:
+🧪 Test mode response for: מה נקבע בסעיף 8.4 על אחוז הפטורים המקסימלי?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 111:
+איך מתבצע חישוב הממוצע השנתי והמצטבר?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע חישוב הממוצע השנתי והמצטבר?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 112:
+מה התנאים לביטול קורס שלא מתקיים?
+
+ANSWER:
+🧪 Test mode response for: מה התנאים לביטול קורס שלא מתקיים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 113:
+איך מתבצעת בדיקת התיישנות לימודים?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצעת בדיקת התיישנות לימודים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 114:
+מי רשאי למנות קובל מיוחד ומתי?
+
+ANSWER:
+🧪 Test mode response for: מי רשאי למנות קובל מיוחד ומתי?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 115:
+מה סמכויות בית הדין לערעורים?
+
+ANSWER:
+🧪 Test mode response for: מה סמכויות בית הדין לערעורים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 116:
+איך מתבצע דיון בהעדר הנתבע?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע דיון בהעדר הנתבע?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 117:
+מה ההבדל בין נזיפה להרחקה לצמיתות?
+
+ANSWER:
+🧪 Test mode response for: מה ההבדל בין נזיפה להרחקה לצמיתות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 118:
+איך עובד מנגנון חנינה של נשיא המכללה?
+
+ANSWER:
+🧪 Test mode response for: איך עובד מנגנון חנינה של נשיא המכללה?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 119:
+מה הזמנים לערעור על פסק דין של הממונה?
+
+ANSWER:
+🧪 Test mode response for: מה הזמנים לערעור על פסק דין של הממונה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 120:
+איך מטופלות עבירות חניה חוזרות באותה שנה?
+
+ANSWER:
+🧪 Test mode response for: איך מטופלות עבירות חניה חוזרות באותה שנה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 121:
+מה קורה אם אני רוצה לשנות מסלול התמחות?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם אני רוצה לשנות מסלול התמחות?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 122:
+איך מתמודדים עם סטודנט שחסר יותר מדי שיעורים?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם סטודנט שחסר יותר מדי שיעורים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 123:
+מה ההליך להגשת ערעור על החלטה אקדמית?
+
+ANSWER:
+🧪 Test mode response for: מה ההליך להגשת ערעור על החלטה אקדמית?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 124:
+איך מתבצע רישום מאוחר לקורס?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע רישום מאוחר לקורס?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 125:
+מה הכללים על שימוש בטלפון נייד בכיתה?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים על שימוש בטלפון נייד בכיתה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 126:
+איך מתמודדים עם עבירת הונאה חוזרת בבחינה?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם עבירת הונאה חוזרת בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 127:
+מה התהליך להגשת תלונת משמעת?
+
+ANSWER:
+🧪 Test mode response for: מה התהליך להגשת תלונת משמעת?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 128:
+מה הזכויות של סטודנט בדיון משמעת?
+
+ANSWER:
+🧪 Test mode response for: מה הזכויות של סטודנט בדיון משמעת?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 129:
+מה התנאים להחלפת תוכנית לימודים?
+
+ANSWER:
+🧪 Test mode response for: מה התנאים להחלפת תוכנית לימודים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 130:
+איך יודעים כמה נקודות זכות יש בקורס?
+
+ANSWER:
+🧪 Test mode response for: איך יודעים כמה נקודות זכות יש בקורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 131:
+מה קורה אם לא משלמים שכר לימוד בזמן?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם לא משלמים שכר לימוד בזמן?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 132:
+איך מוסיפים או מבטלים קורס אחרי תחילת הסמסטר?
+
+ANSWER:
+🧪 Test mode response for: איך מוסיפים או מבטלים קורס אחרי תחילת הסמסטר?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 133:
+מה המשמעות של ציון 'השתתף' או 'פטור'?
+
+ANSWER:
+🧪 Test mode response for: מה המשמעות של ציון 'השתתף' או 'פטור'?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 134:
+איך מתבטא הציון הכללי בתעודת התואר?
+
+ANSWER:
+🧪 Test mode response for: איך מתבטא הציון הכללי בתעודת התואר?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 135:
+מתי מתקיים טקס הענקת תארים?
+
+ANSWER:
+🧪 Test mode response for: מתי מתקיים טקס הענקת תארים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 136:
+איך מקבלים אישור לימודים לצרכי ביטוח לאומי?
+
+ANSWER:
+🧪 Test mode response for: איך מקבלים אישור לימודים לצרכי ביטוח לאומי?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 137:
+מה עושים אם איבדתי את כרטיס הסטודנט?
+
+ANSWER:
+🧪 Test mode response for: מה עושים אם איבדתי את כרטיס הסטודנט?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 138:
+איך פועלת הרשמה לקורסי קיץ?
+
+ANSWER:
+🧪 Test mode response for: איך פועלת הרשמה לקורסי קיץ?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 139:
+כמה שנים לוקח ללמוד הנדסה במכללה?
+
+ANSWER:
+🧪 Test mode response for: כמה שנים לוקח ללמוד הנדסה במכללה?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 140:
+מה זה אומר שאני סטודנט 'על תנאי'?
+
+ANSWER:
+🧪 Test mode response for: מה זה אומר שאני סטודנט 'על תנאי'?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 141:
+איך יודעים אם יש חובת נוכחות בקורס?
+
+ANSWER:
+🧪 Test mode response for: איך יודעים אם יש חובת נוכחות בקורס?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 142:
+מה הציון המינימלי כדי לעבור קורס?
+
+ANSWER:
+🧪 Test mode response for: מה הציון המינימלי כדי לעבור קורס?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 143:
+כמה זמן יש לי לסיים את התואר?
+
+ANSWER:
+🧪 Test mode response for: כמה זמן יש לי לסיים את התואר?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 144:
+מה ההבדל בין קורס חובה לקורס בחירה?
+
+ANSWER:
+🧪 Test mode response for: מה ההבדל בין קורס חובה לקורס בחירה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 145:
+איך מחושב הממוצע שלי?
+
+ANSWER:
+🧪 Test mode response for: איך מחושב הממוצע שלי?
+
+STATUS: ✅ Success
+TIME: 1.04s
+
+----------------------------------------
+
+QUESTION 146:
+מתי אקבל את התעודה שלי?
+
+ANSWER:
+🧪 Test mode response for: מתי אקבל את התעודה שלי?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 147:
+אני הנדסאי, איך אני יכול לקבל פטורים?
+
+ANSWER:
+🧪 Test mode response for: אני הנדסאי, איך אני יכול לקבל פטורים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 148:
+כמה פטורים אני יכול לקבל מקסימום?
+
+ANSWER:
+🧪 Test mode response for: כמה פטורים אני יכול לקבל מקסימום?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 149:
+למדתי באוניברסיטה אחרת, מה התהליך להכרה?
+
+ANSWER:
+🧪 Test mode response for: למדתי באוניברסיטה אחרת, מה התהליך להכרה?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 150:
+כמה זמן יש לי להגיש בקשה לפטורים?
+
+ANSWER:
+🧪 Test mode response for: כמה זמן יש לי להגיש בקשה לפטורים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 151:
+אם אני בעל תואר קודם, כמה פטורים אני יכול לקבל?
+
+ANSWER:
+🧪 Test mode response for: אם אני בעל תואר קודם, כמה פטורים אני יכול לקבל?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 152:
+נכשלתי ב-3 קורסים, מה המשמעות?
+
+ANSWER:
+🧪 Test mode response for: נכשלתי ב-3 קורסים, מה המשמעות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 153:
+איך אני יכול לעבור מ'על תנאי' ל'מן המניין'?
+
+ANSWER:
+🧪 Test mode response for: איך אני יכול לעבור מ'על תנאי' ל'מן המניין'?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 154:
+מה קורה אם אני נכשל באותו קורס 3 פעמים?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם אני נכשל באותו קורס 3 פעמים?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 155:
+רוצה לעבור בין תוכניות לימוד, איך עושים את זה?
+
+ANSWER:
+🧪 Test mode response for: רוצה לעבור בין תוכניות לימוד, איך עושים את זה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 156:
+מה זה אומר 'התיישנות לימודים'?
+
+ANSWER:
+🧪 Test mode response for: מה זה אומר 'התיישנות לימודים'?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 157:
+מה הציון שאני צריך באנגלית כדי לקבל פטור?
+
+ANSWER:
+🧪 Test mode response for: מה הציון שאני צריך באנגלית כדי לקבל פטור?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 158:
+עד מתי אני חייב לסיים את לימודי האנגלית?
+
+ANSWER:
+🧪 Test mode response for: עד מתי אני חייב לסיים את לימודי האנגלית?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 159:
+כמה קורסים באנגלית אני חייב ללמוד?
+
+ANSWER:
+🧪 Test mode response for: כמה קורסים באנגלית אני חייב ללמוד?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 160:
+חנתי במקום לא מותר, מה הקנס?
+
+ANSWER:
+🧪 Test mode response for: חנתי במקום לא מותר, מה הקנס?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 161:
+איך אני יכול לערער על עונש שקיבלתי?
+
+ANSWER:
+🧪 Test mode response for: איך אני יכול לערער על עונש שקיבלתי?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 162:
+מה קורה אם יתפסו אותי מעתיק בבחינה?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם יתפסו אותי מעתיק בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 163:
+מי יכול להגיש נגדי תלונת משמעת?
+
+ANSWER:
+🧪 Test mode response for: מי יכול להגיש נגדי תלונת משמעת?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 164:
+האם אני יכול להיות מיוצג בדיון משמעת?
+
+ANSWER:
+🧪 Test mode response for: האם אני יכול להיות מיוצג בדיון משמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 165:
+איך אני מבטל או מוסיף קורס?
+
+ANSWER:
+🧪 Test mode response for: איך אני מבטל או מוסיף קורס?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 166:
+מה קורה אם אני צריך לעזוב ללימודים לתקופה?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם אני צריך לעזוב ללימודים לתקופה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 167:
+שכחתי להירשם לקורס בזמן, עדיין אפשר?
+
+ANSWER:
+🧪 Test mode response for: שכחתי להירשם לקורס בזמן, עדיין אפשר?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 168:
+יש לי טלפון חכם בבחינה, זה מותר?
+
+ANSWER:
+🧪 Test mode response for: יש לי טלפון חכם בבחינה, זה מותר?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+

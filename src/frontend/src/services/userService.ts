@@ -390,7 +390,14 @@ export const userService = {
    */
   async getDashboardUsers() {
     try {
-      // Try using the new RPC function we created - it returns a single array with role
+      // Check if we're in development and should use fallback immediately
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      if (isDevelopment) {
+        return await this.fallbackGetDashboardUsers();
+      }
+
+      // Try using the RPC function first
       const { data: usersData, error: rpcError } = await supabase.rpc('get_all_users_and_admins');
       
       if (rpcError) {

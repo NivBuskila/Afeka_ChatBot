@@ -1,0 +1,341 @@
+RAG TEST PRO - QUESTIONS & ANSWERS EXPORT
+============================================================
+
+Session ID: 20250621_113445
+Timestamp: 2025-06-21T11:34:45.310131+00:00
+Question Set: basic_rag_questions (30 questions)
+RAG Profile: דיוק מקסימלי
+Success Rate: 100.0%
+
+============================================================
+
+QUESTION 1:
+מה אומר סעיף 1.5.1?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 1.5.1?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 2:
+מה כתוב בסעיף 2.1?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 2.1?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 3:
+מה הכללים בסעיף 3.2.8?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים בסעיף 3.2.8?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 4:
+מה אומר סעיף 6.2.7.4?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 6.2.7.4?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 5:
+מה נאמר בסעיף 11.5.1?
+
+ANSWER:
+🧪 Test mode response for: מה נאמר בסעיף 11.5.1?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 6:
+מה בסעיף 1.5.2?
+
+ANSWER:
+🧪 Test mode response for: מה בסעיף 1.5.2?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 7:
+מה כתוב בסעיף 9.3?
+
+ANSWER:
+🧪 Test mode response for: מה כתוב בסעיף 9.3?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 8:
+מה אומר סעיף 13.1?
+
+ANSWER:
+🧪 Test mode response for: מה אומר סעיף 13.1?
+
+STATUS: ✅ Success
+TIME: 1.05s
+
+----------------------------------------
+
+QUESTION 9:
+איך אני יכול לקבל פטור מקורסים?
+
+ANSWER:
+🧪 Test mode response for: איך אני יכול לקבל פטור מקורסים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 10:
+מה הסעיפים שמגדירים הרחקה אקדמית?
+
+ANSWER:
+🧪 Test mode response for: מה הסעיפים שמגדירים הרחקה אקדמית?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 11:
+איך מחושב הציון הסופי?
+
+ANSWER:
+🧪 Test mode response for: איך מחושב הציון הסופי?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 12:
+מה הכללים לגבי לימודי אנגלית?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי לימודי אנגלית?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 13:
+מה התנאים למעבר משנה לשנה?
+
+ANSWER:
+🧪 Test mode response for: מה התנאים למעבר משנה לשנה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 14:
+איך מתבצע מעבר בין תוכניות לימוד?
+
+ANSWER:
+🧪 Test mode response for: איך מתבצע מעבר בין תוכניות לימוד?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 15:
+מה הכללים לגבי חזרה על קורסים?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי חזרה על קורסים?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 16:
+מתי ניתן לקבל תואר בהצטיינות?
+
+ANSWER:
+🧪 Test mode response for: מתי ניתן לקבל תואר בהצטיינות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 17:
+מה הן עבירות המשמעת?
+
+ANSWER:
+🧪 Test mode response for: מה הן עבירות המשמעת?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 18:
+מה העונש על הונאה בבחינה?
+
+ANSWER:
+🧪 Test mode response for: מה העונש על הונאה בבחינה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 19:
+איך מגישים תלונה?
+
+ANSWER:
+🧪 Test mode response for: איך מגישים תלונה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 20:
+מה הזכויות של סטודנט בדיון משמעת?
+
+ANSWER:
+🧪 Test mode response for: מה הזכויות של סטודנט בדיון משמעת?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 21:
+מי הן רשויות השיפוט?
+
+ANSWER:
+🧪 Test mode response for: מי הן רשויות השיפוט?
+
+STATUS: ✅ Success
+TIME: 1.03s
+
+----------------------------------------
+
+QUESTION 22:
+מה הן עבירות החנייה?
+
+ANSWER:
+🧪 Test mode response for: מה הן עבירות החנייה?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 23:
+איך עובד מנגנון ברירת הקנס?
+
+ANSWER:
+🧪 Test mode response for: איך עובד מנגנון ברירת הקנס?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 24:
+מה הכללים לגבי נוכחות?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים לגבי נוכחות?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 25:
+איך עוברים בין תוכניות?
+
+ANSWER:
+🧪 Test mode response for: איך עוברים בין תוכניות?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 26:
+מה קורה אם נכשלתי בקורס?
+
+ANSWER:
+🧪 Test mode response for: מה קורה אם נכשלתי בקורס?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 27:
+מתי אני מקבל תעודה?
+
+ANSWER:
+🧪 Test mode response for: מתי אני מקבל תעודה?
+
+STATUS: ✅ Success
+TIME: 1.01s
+
+----------------------------------------
+
+QUESTION 28:
+מה נקבע בנוגע לטלפונים סלולריים?
+
+ANSWER:
+🧪 Test mode response for: מה נקבע בנוגע לטלפונים סלולריים?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
+QUESTION 29:
+מה הכללים על עישון במכללה?
+
+ANSWER:
+🧪 Test mode response for: מה הכללים על עישון במכללה?
+
+STATUS: ✅ Success
+TIME: 1.00s
+
+----------------------------------------
+
+QUESTION 30:
+איך מתמודדים עם מחלת סטודנט?
+
+ANSWER:
+🧪 Test mode response for: איך מתמודדים עם מחלת סטודנט?
+
+STATUS: ✅ Success
+TIME: 1.02s
+
+----------------------------------------
+
