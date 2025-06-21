@@ -3,22 +3,16 @@ import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import ChatHistory from "./ChatHistory";
 import {
-  Terminal,
-  History,
   Settings,
   LogOut,
   Plus,
   Search,
   X,
-  Bot,
 } from "lucide-react";
-import SettingsPanel from "./SettingsPanel";
-import { API_CONFIG } from "../../config/constants";
 import UserSettings from "../Settings/UserSettings";
 import chatService, { ChatSession } from "../../services/chatService";
 import titleGenerationService from "../../services/titleGenerationService";
 import { useTranslation } from "react-i18next";
-import { supabase } from "../../config/supabase";
 import { useThemeClasses } from "../../hooks/useThemeClasses";
 import ThemeButton from "../ui/ThemeButton";
 import ThemeCard from "../ui/ThemeCard";
@@ -48,23 +42,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // UI state
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const {
-    currentTheme,
     classes,
     chatContainer,
     chatSidebar,
-    primaryButton,
-    cardBackground,
-    textPrimary,
   } = useThemeClasses();
   const [hasStarted, setHasStarted] = useState(false);
-  const [fontSize, setFontSize] = useState(16);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [fontSize] = useState(16);
 
   // Chat history state
-  const [showHistory, setShowHistory] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
@@ -196,7 +183,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
       setActiveSession(null);
       setMessages([]);
       setHasStarted(false);
-      setShowHistory(false);
       return;
     }
 
@@ -248,7 +234,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           setHasStarted(false);
         }
 
-        setShowHistory(false);
       }
     } catch (error) {
       console.error("Error loading chat session:", error);
@@ -474,7 +459,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
 
       // Add the placeholder message
       setMessages((prev) => [...prev, streamingBotReply]);
-      let messageIndex = messages.length + 1; // Position of the bot message
 
       // Prepare chat history for the current session
       const chatHistory = messages.map((msg) => ({
@@ -489,7 +473,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         chatHistory,
 
         // onChunk callback
-        (chunk: string, accumulated: string) => {
+        (_chunk: string, accumulated: string) => {
           setMessages((prev) => {
             const updated = [...prev];
             const botMessageIndex = updated.findIndex(
@@ -506,7 +490,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
         },
 
         // onComplete callback
-        async (fullResponse: string, sources?: any[], chunks?: number) => {
+        async (fullResponse: string, _sources?: any[], _chunks?: number) => {
           // Update final message with timestamp when complete
           setMessages((prev) => {
             const updated = [...prev];
@@ -524,7 +508,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
           });
 
           // Save bot message to database
-          const savedMessage = await chatService.addMessage({
+          await chatService.addMessage({
             user_id: userId,
             chat_session_id: sessionId,
             content: fullResponse,

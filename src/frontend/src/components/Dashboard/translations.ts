@@ -8,11 +8,11 @@ export interface Translations {
 export const translations: Translations = {
   // Menu Items
   'chatbot.preview': {
-    he: 'תצוגה מקדימה של הצ\'אטבוט',
+    he: 'תצוגה מקדימה',
     en: 'Chatbot Preview'
   },
   'analytics': {
-    he: 'אנליטיקס',
+    he: 'אנליטיקות',
     en: 'Analytics'
   },
   'analytics.overview': {
