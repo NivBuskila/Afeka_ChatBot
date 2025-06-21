@@ -46,17 +46,18 @@ class SearchService:
             # יצירת embedding לשאילתה
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
-            # הגדרת פרמטרים
-            similarity_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.7)
-            max_chunks = max_results or getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 10)
+            # הגדרת פרמטרים - תיקון שמות הפרמטרים
+            match_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.7)
+            match_count = max_results or getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 10)
             
             # בניית query עם או בלי סינון לפי document_id
-            function_name = getattr(self.db_config, 'SEMANTIC_SEARCH_FUNCTION', 'semantic_search')
+            function_name = getattr(self.db_config, 'SEMANTIC_SEARCH_FUNCTION', 'match_documents_semantic')
             
+            # תיקון שמות הפרמטרים כדי שיתאימו לפונקציה
             search_params = {
                 'query_embedding': query_embedding,
-                'similarity_threshold': similarity_threshold,
-                'max_results': max_chunks
+                'match_threshold': match_threshold,    # תוקן מ-similarity_threshold
+                'match_count': match_count            # תוקן מ-max_results
             }
             
             if document_id is not None:
@@ -94,17 +95,19 @@ class SearchService:
             sem_weight = semantic_weight or getattr(self.search_config, 'SEMANTIC_WEIGHT', 0.7)
             key_weight = keyword_weight or getattr(self.search_config, 'KEYWORD_WEIGHT', 0.3)
             
-            # הגדרת פרמטרים נוספים
-            similarity_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.7)
-            max_chunks = getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 10)
+            # הגדרת פרמטרים נוספים - תיקון שמות הפרמטרים
+            match_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.7)
+            match_count = getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 10)
             
-            function_name = getattr(self.db_config, 'HYBRID_SEARCH_FUNCTION', 'hybrid_search')
+            # תיקון שם הפונקציה
+            function_name = getattr(self.db_config, 'HYBRID_SEARCH_FUNCTION', 'hybrid_search_documents')
             
+            # תיקון שמות הפרמטרים כדי שיתאימו לפונקציה
             search_params = {
                 'query_embedding': query_embedding,
                 'query_text': query,
-                'similarity_threshold': similarity_threshold,
-                'max_results': max_chunks,
+                'match_threshold': match_threshold,  # תוקן מ-similarity_threshold
+                'match_count': match_count,          # תוקן מ-max_results
                 'semantic_weight': sem_weight,
                 'keyword_weight': key_weight
             }
@@ -139,17 +142,18 @@ class SearchService:
             # יצירת embedding לשאילתה
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
-            # הגדרת פרמטרים
-            similarity_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.7)
-            max_chunks = getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 10)
+            # הגדרת פרמטרים - תיקון שמות הפרמטרים
+            match_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.7)
+            match_count = getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 10)
             
             function_name = getattr(self.db_config, 'CONTEXTUAL_SEARCH_FUNCTION', 'contextual_search')
             
+            # תיקון שמות הפרמטרים כדי שיתאימו לפונקציה
             search_params = {
                 'query_embedding': query_embedding,
                 'query_text': query,
-                'similarity_threshold': similarity_threshold,
-                'max_results': max_chunks
+                'match_threshold': match_threshold,    # תוקן מ-similarity_threshold
+                'match_count': match_count            # תוקן מ-max_results
             }
             
             if section_filter:
@@ -192,17 +196,18 @@ class SearchService:
             # יצירת embedding לשאילתה
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
-            # הגדרת פרמטרים
-            similarity_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.6)  # נמוך יותר לחיפוש סעיפים
-            max_chunks = getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 15)  # יותר תוצאות לחיפוש סעיפים
+            # הגדרת פרמטרים - תיקון שמות הפרמטרים
+            match_threshold = getattr(self.search_config, 'SIMILARITY_THRESHOLD', 0.6)  # נמוך יותר לחיפוש סעיפים
+            match_count = getattr(self.search_config, 'MAX_CHUNKS_RETRIEVED', 15)  # יותר תוצאות לחיפוש סעיפים
             
             function_name = getattr(self.db_config, 'SECTION_SEARCH_FUNCTION', 'section_specific_search')
             
+            # תיקון שמות הפרמטרים כדי שיתאימו לפונקציה
             search_params = {
                 'query_embedding': query_embedding,
                 'query_text': query,
-                'similarity_threshold': similarity_threshold,
-                'max_results': max_chunks
+                'match_threshold': match_threshold,    # תוקן מ-similarity_threshold
+                'match_count': match_count            # תוקן מ-max_results
             }
             
             if target_section:
@@ -230,8 +235,8 @@ class SearchService:
             "semantic_weight": getattr(self.search_config, 'SEMANTIC_WEIGHT', 0.7),
             "keyword_weight": getattr(self.search_config, 'KEYWORD_WEIGHT', 0.3),
             "functions": {
-                "semantic_search": getattr(self.db_config, 'SEMANTIC_SEARCH_FUNCTION', 'semantic_search'),
-                "hybrid_search": getattr(self.db_config, 'HYBRID_SEARCH_FUNCTION', 'hybrid_search'),
+                "semantic_search": getattr(self.db_config, 'SEMANTIC_SEARCH_FUNCTION', 'match_documents_semantic'),
+                "hybrid_search": getattr(self.db_config, 'HYBRID_SEARCH_FUNCTION', 'hybrid_search_documents'),
                 "contextual_search": getattr(self.db_config, 'CONTEXTUAL_SEARCH_FUNCTION', 'contextual_search'),
                 "section_search": getattr(self.db_config, 'SECTION_SEARCH_FUNCTION', 'section_specific_search')
             }

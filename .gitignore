@@ -151,3 +151,11 @@ start_*.py
 
 # Batch scripts with hardcoded keys
 *.bat
+
+# E2E Test artifacts
+src/tests/frontend/e2e/screenshots/
+src/tests/frontend/e2e/videos/
+cypress/screenshots/
+cypress/videos/
+**/screenshots/
+**/videos/
