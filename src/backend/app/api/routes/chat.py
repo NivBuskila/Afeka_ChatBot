@@ -11,24 +11,12 @@ from ...config.settings import settings
 from ...services.chat_service import ChatService
 from ...core.auth import get_current_user
 
-# Try to import advanced chat service
-try:
-    from ...services.advanced_chat_service import AdvancedChatService
-    ADVANCED_CHAT_AVAILABLE = True
-except ImportError:
-    ADVANCED_CHAT_AVAILABLE = False
-
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Chat"])
 
 def get_chat_service() -> IChatService:
-    """Factory to get the appropriate chat service"""
-    if ADVANCED_CHAT_AVAILABLE and settings.ENABLE_ADVANCED_CHAT:
-        logger.info("🚀 Using AdvancedChatService (LangGraph)")
-        return AdvancedChatService()
-    else:
-        logger.info("🔄 Using legacy ChatService")
-        return ChatService()
+    """Factory to get the chat service"""
+    return ChatService()
 
 # Initialize the chat service
 chat_service = get_chat_service()
@@ -166,68 +154,64 @@ async def chat(
     user: dict = Depends(get_current_user)
 ):
     """
-    Enhanced Chat endpoint with advanced memory management
+    Chat endpoint with conversation management
     
     Features:
-    - Persistent conversation context across sessions
-    - Automatic conversation summarization
-    - Smart context trimming for token management
+    - Window-based conversation memory (LangChain)
     - RAG integration with source tracking
+    - Streaming support
+    - Session isolation
     """
     try:
-        logger.info(f"🚀 [ENHANCED-CHAT] Processing for user: {user.get('id', 'unknown')}")
+        logger.info(f"🔄 [CHAT] Processing for user: {user.get('id', 'unknown')}")
         
-        # Process with advanced chat service
+        # Process with chat service
         response = await chat_service.process_chat_message(
             user_message=request.message,
             user_id=str(user.get('id', 'anonymous')),
             history=request.history
         )
         
-        # Enhanced response with metadata
+        # Return response with metadata
         return {
             "message": response.get("response", ""),
             "sources": response.get("sources", []),
             "chunks": response.get("chunks", 0),
             "metadata": {
-                "summary_available": bool(response.get("summary", "")),
-                "context_trimmed": response.get("context_trimmed", False),
-                "service_type": "advanced" if ADVANCED_CHAT_AVAILABLE else "legacy",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
+                "rag_used": len(response.get("sources", [])) > 0
             }
         }
         
     except Exception as e:
-        logger.error(f"❌ [ENHANCED-CHAT] Error: {e}")
+        logger.error(f"❌ [CHAT] Error: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Error processing your message with advanced chat service"
+            detail="Error processing your message with chat service"
         )
 
 @router.get("/chat/status")
 async def get_chat_status():
     """
-    Get status of the advanced chat system
+    Get status of the chat system
     """
     try:
         return {
-            "advanced_chat_available": ADVANCED_CHAT_AVAILABLE,
-            "service_type": "advanced" if ADVANCED_CHAT_AVAILABLE and settings.ENABLE_ADVANCED_CHAT else "legacy",
-            "langgraph_available": ADVANCED_CHAT_AVAILABLE,
+            "service_type": "chat_service",
             "settings": {
-                "enable_advanced_chat": settings.ENABLE_ADVANCED_CHAT,
                 "max_context_tokens": settings.MAX_CONTEXT_TOKENS,
-                "summary_frequency": settings.CONVERSATION_SUMMARY_FREQUENCY,
-                "has_supabase_url": bool(settings.SUPABASE_DB_URL)
+                "langchain_history_k": settings.LANGCHAIN_HISTORY_K,
+                "gemini_model": settings.GEMINI_MODEL_NAME
             },
+
             "features": {
-                "persistent_memory": True,
-                "conversation_summary": True,
-                "smart_context_trimming": True,
                 "rag_integration": True,
-                "cross_thread_memory": True
+                "streaming": True,
+                "conversation_memory": True,
+                "source_tracking": True
             }
         }
     except Exception as e:
         logger.error(f"Error getting chat status: {e}")
         return {"error": str(e)}
+

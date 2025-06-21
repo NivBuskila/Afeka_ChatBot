@@ -69,14 +69,8 @@ class Settings(BaseSettings):
     # Chat Message Length
     MAX_CHAT_MESSAGE_LENGTH: int = Field(default=int(os.environ.get("MAX_CHAT_MESSAGE_LENGTH", "1000")))
 
-    # Advanced Memory Management Settings
+    # Basic Chat Configuration
     MAX_CONTEXT_TOKENS: int = Field(default=12000)  # Maximum tokens for conversation context
-    ENABLE_ADVANCED_CHAT: bool = Field(default=True)  # Enable LangGraph-based chat service
-    CONVERSATION_SUMMARY_FREQUENCY: int = Field(default=20)  # Generate summary every N messages
-    CONTEXT_TRIM_THRESHOLD: float = Field(default=0.8)  # Trim context at 80% of max tokens
-
-    # Supabase Database URL for LangGraph persistence
-    SUPABASE_DB_URL: Optional[str] = Field(default=None)  # Format: postgresql://postgres:password@host:5432/postgres
 
     model_config = {
         "env_file": ".env",

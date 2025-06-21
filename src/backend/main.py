@@ -7,7 +7,11 @@ Uses modular architecture with separate routers and services.
 
 # Load environment variables FIRST before any other imports
 from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path
+
+# Load .env from project root (two levels up from this file)
+env_path = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(env_path)
 
 import os
 import sys

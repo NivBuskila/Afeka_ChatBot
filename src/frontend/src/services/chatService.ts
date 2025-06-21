@@ -503,6 +503,59 @@ const chatService = {
       }
     }
   },
+
+  /**
+   * Sends a regular chat message to the backend
+   * @param message The message content
+   * @param userId The user ID
+   * @param history Chat history
+   * @returns The AI response
+   */
+  sendChatMessage: async (
+    message: string,
+    userId: string,
+    history: Array<{ type: string; content: string }> = []
+  ): Promise<{ response: string; sources?: any[]; chunks?: number } | null> => {
+    try {
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          user_id: userId,
+          history
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        response: data.response || data.message || '',
+        sources: data.sources || [],
+        chunks: data.chunks || 0
+      };
+      
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+      return null;
+    }
+  },
+
+
 };
 
 export default chatService;

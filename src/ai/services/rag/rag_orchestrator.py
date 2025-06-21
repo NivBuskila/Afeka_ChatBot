@@ -9,6 +9,15 @@ import re
 import logging
 from typing import Dict, Any, Optional, List
 from supabase import create_client, Client
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from project root (4 levels up from this file)
+env_path = Path(__file__).parent.parent.parent.parent / ".env"
+if not env_path.exists():
+    # Try alternative path if not found
+    env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
+load_dotenv(env_path)
 
 from .embedding_service import EmbeddingService
 from .search_services import SearchService

@@ -10,11 +10,11 @@ router = APIRouter(prefix="/api/keys", tags=["API Keys"])
 
 logger = logging.getLogger(__name__)
 
-# Simple in-memory cache
+# Simple in-memory cache with longer TTL for better performance
 _cache = {
     "data": None,
     "timestamp": 0,
-    "ttl": 30  # 30 seconds cache
+    "ttl": 120  # 2 minutes cache - longer for better performance
 }
 
 def get_cached_result() -> Optional[Dict[str, Any]]:
@@ -34,7 +34,7 @@ def set_cached_result(data: Dict[str, Any]):
     """Cache the result"""
     _cache["data"] = data
     _cache["timestamp"] = time.time()
-    logger.info("💾 [CACHE-SET] Data cached for 30 seconds")
+    logger.info("💾 [CACHE-SET] Data cached for 2 minutes")
 
 @router.get("/")
 async def get_api_keys(

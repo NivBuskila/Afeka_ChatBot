@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional, AsyncGenerator
 from fastapi import HTTPException
 from pathlib import Path
 from pydantic import SecretStr
+import asyncio
 
 # Add the backend directory to sys.path to allow importing from services
 backend_dir = Path(__file__).parent.parent.parent
@@ -21,8 +22,8 @@ from ..core.interfaces import IChatService
 from ..config.settings import settings
 from ..domain.models import ChatMessageHistoryItem
 try:
-    from src.ai.services.rag_service import RAGService  # Import the new RAG service
-    from src.ai.services.document_processor import DocumentProcessor  # Import from ai/services
+    from ....ai.services.rag_service import RAGService  # Import the new RAG service
+    from ....ai.services.document_processor import DocumentProcessor  # Import from ai/services
     RAG_AVAILABLE = True
 except ImportError as e:
     RAGService = None
@@ -39,7 +40,7 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
 )
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from src.ai.core.gemini_key_manager import get_key_manager
+from ....ai.core.gemini_key_manager import get_key_manager
 
 # Add Gemini client for streaming
 try:
@@ -72,6 +73,9 @@ class ChatService(IChatService):
         self.rag_service = None
         self.current_profile_cache = None
         self.profile_file_mtime = None
+        
+        # 🚀 Basic Performance Settings
+        self.MAX_HISTORY_LENGTH = 5  # Chat history length
         
         # נתיב לקובץ הפרופיל
         try:
@@ -134,66 +138,28 @@ class ChatService(IChatService):
     async def _track_token_usage(self, user_message: str, ai_response: str, method: str = "chat"):
         """Track token usage with the key manager"""
         try:
-            # 🔍 DEBUG: הוספת לוגים מפורטים
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] ===== TRACKING TOKEN USAGE =====")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Method: {method}")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] User message length: {len(user_message)}")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] AI response length: {len(ai_response)}")
-            
             # Estimate tokens based on text length (rough approximation)
-            # Typically ~4 characters per token for mixed content
             input_tokens = len(user_message) // 4
             output_tokens = len(ai_response) // 4
-            total_tokens = input_tokens + output_tokens
+            total_tokens = input_tokens + output_tokens + 50  # system overhead
             
-            # Add some overhead for system prompt and context
-            system_overhead = 50  # Rough estimate
-            total_tokens += system_overhead
+            logger.debug(f"🔢 Token usage {method}: {total_tokens} tokens")
             
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Estimated tokens:")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Input: {input_tokens}")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Output: {output_tokens}")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Overhead: {system_overhead}")
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] - Total: {total_tokens}")
-            
-            # Smart tracking that works with both key manager types
+            # Try to track with key manager
             try:
                 key_manager = get_key_manager()
-                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Key manager type: {type(key_manager).__name__}")
-                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Has record_usage: {hasattr(key_manager, 'record_usage')}")
-                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Has api_keys: {hasattr(key_manager, 'api_keys')}")
-                logger.info(f"🔢 [CHAT-TOKEN-TRACK] Has track_usage: {hasattr(key_manager, 'track_usage')}")
                 
-                # Check if this is DatabaseKeyManager or legacy GeminiKeyManager
                 if hasattr(key_manager, 'record_usage') and hasattr(key_manager, 'api_keys'):
-                    # DatabaseKeyManager - needs key_id
-                    # 🔥 FIX: Ensure keys are loaded by calling get_available_key
                     current_key = await key_manager.get_available_key()
-                    if current_key:
-                        key_id = current_key.get('id')
-                        if key_id:
-                            await key_manager.record_usage(key_id=key_id, tokens_used=total_tokens, requests_count=1)
-                            logger.info(f"🔢 [CHAT-TOKEN-TRACK] Successfully tracked {total_tokens} tokens for key {key_id}")
-                        else:
-                            logger.warning("⚠️ [CHAT-TOKEN-TRACK] No key_id found in current key")
-                    else:
-                        logger.warning("⚠️ [CHAT-TOKEN-TRACK] No API keys available in DatabaseKeyManager")
-                elif hasattr(key_manager, 'track_usage'):
-                    # Skip legacy track_usage since it now requires key_id which we don't have in ChatService
-                    logger.info("⚠️ [CHAT-TOKEN-TRACK] Skipping track_usage in ChatService - key_id not available")
-                else:
-                    logger.warning("⚠️ [CHAT-TOKEN-TRACK] Unknown key manager type - no tracking method found")
+                    if current_key and current_key.get('id'):
+                        await key_manager.record_usage(key_id=current_key['id'], tokens_used=total_tokens, requests_count=1)
+                        logger.debug(f"🔢 Tracked {total_tokens} tokens for key {current_key['id']}")
                     
             except Exception as km_error:
-                logger.warning(f"⚠️ [CHAT-TOKEN-TRACK] Key manager tracking failed: {km_error}")
-                # Continue without key manager tracking - not critical for ChatService
-            
-            logger.info(f"🔢 [CHAT-TOKEN-TRACK] ===== TOKEN TRACKING COMPLETE =====")
+                logger.debug(f"⚠️ Key manager tracking failed: {km_error}")
             
         except Exception as e:
-            logger.error(f"❌ [CHAT-TOKEN-ERROR] Error tracking token usage: {e}")
-            import traceback
-            logger.error(f"❌ [CHAT-TOKEN-ERROR] Traceback: {traceback.format_exc()}")
+            logger.debug(f"❌ Error in token tracking: {e}")
 
     def _get_current_rag_service(self) -> Optional[Any]:
         """מחזיר RAGService עם cache חכם שבודק שינויים בפרופיל"""
@@ -226,7 +192,7 @@ class ChatService(IChatService):
                 # שמירת הפרופיל הנוכחי לcache
                 try:
                     if RAG_AVAILABLE and RAGService:
-                        from src.ai.config.current_profile import get_current_profile
+                        from ....ai.config.current_profile import get_current_profile
                         current_profile = get_current_profile()
                         self.current_profile_cache = current_profile
                         
@@ -282,50 +248,47 @@ class ChatService(IChatService):
     ) -> Dict[str, Any]:
         """Process a chat message using LangChain with Gemini and return an AI response."""
 
-        # 🔍 DEBUG: הוספת לוגים מפורטים
-        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] ===== PROCESSING CHAT MESSAGE =====")
-        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] User ID: {user_id}")
-        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] Message: {user_message[:50]}...")
-        logger.info(f"🚀 [CHAT-SERVICE-DEBUG] History provided: {len(history) if history else 0} messages")
+        logger.info(f"🚀 [CHAT-SERVICE] Processing: '{user_message[:50]}...' for {user_id}")
+        logger.info(f"🚀 [CHAT-SERVICE] History: {len(history) if history else 0} messages")
 
         if not self.conversation_chain:
             logger.error("ConversationChain (Gemini) is not initialized. GEMINI_API_KEY might be missing or initialization failed.")
             raise HTTPException(status_code=500, detail="AI Service (Gemini/LangChain) not initialized. Check GEMINI_API_KEY and server logs.")
 
-        logger.debug(f"Processing message for user_id: {user_id} with LangChain (Gemini).")
-        logger.debug(f"Incoming user_message: {user_message}")
-        
         # Always clear memory at the start of each conversation to ensure session isolation
-        logger.debug("Clearing memory to ensure fresh conversation context")
         self.memory.clear()
         
-        # Rehydrate memory with provided history if available
+        # Limit history to improve performance
         if history and len(history) > 0:
-            logger.debug(f"Rehydrating memory with {len(history)} messages from provided history for Gemini.")
-            for msg in history:
+            limited_history = history[-self.MAX_HISTORY_LENGTH:]
+            logger.debug(f"Rehydrating memory with {len(limited_history)} of {len(history)} messages (max: {self.MAX_HISTORY_LENGTH})")
+            
+            for msg in limited_history:
                 if msg.type == 'user':
                     self.memory.chat_memory.add_user_message(msg.content)
                 elif msg.type == 'bot':
                     self.memory.chat_memory.add_ai_message(msg.content)
-            logger.debug(f"Memory after rehydration for Gemini: {self.memory.chat_memory.messages}")
-        else:
-            logger.debug("No history provided - starting fresh conversation.")
         
-        # Detect if this is a personal conversation vs information request (including conversation history questions)
+        # 🧠 SMART LOGIC: Detect conversation vs information requests
         is_conversation_question = self._is_conversation_question(user_message)
         
-        logger.info(f"📝 Question analysis for '{user_message}': conversation={is_conversation_question}")
+        logger.info(f"📝 Question analysis: conversation={is_conversation_question}")
         
         if is_conversation_question:
-            logger.info(f"🗣️ Treating as conversation question: '{user_message}'")
+            logger.info(f"🗣️ Treating as conversation question")
         else:
-            logger.info(f"📚 Treating as information request (will use RAG): '{user_message}'")
+            logger.info(f"📚 Treating as information request (will use RAG)")
         
-        # Handle conversation questions with LangChain conversation chain (includes memory)
+        # Handle conversation questions with enhanced LangChain
         if is_conversation_question:
             logger.debug("Using LangChain conversation chain for personal conversation question")
-            response_content = self.conversation_chain.predict(input=user_message)
-            logger.debug(f"LangChain conversation chain - AI response: {response_content[:100]}...")
+            
+            # 🚀 Enhanced prompt for conversation questions
+            enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
+ענה בחמימות ובאופן טבעי לשאלה: {user_message}"""
+            
+            response_content = self.conversation_chain.predict(input=enhanced_conversation_prompt)
+            logger.debug(f"LangChain conversation response: {response_content[:100]}...")
             
             # 🔥 TRACK TOKEN USAGE FOR CONVERSATION
             logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for conversation response")
@@ -342,34 +305,33 @@ class ChatService(IChatService):
         logger.debug(f"Using RAG service with profile: {self.current_profile_cache}")
         
         try:
-            # Get RAG response WITH CONVERSATION HISTORY
+            # Get RAG response WITHOUT conversation history in the search query
             if rag_service:
                 logger.info(f"🔍 Calling RAG service for question: '{user_message}'")
                 
-                # 🔥 תיקון קריטי: העברת היסטוריית השיחה ל-RAG
+                # Build conversation context from limited history (for LLM context, not RAG search)
                 conversation_context = ""
                 if history and len(history) > 0:
+                    limited_history = history[-self.MAX_HISTORY_LENGTH:]
+                    
                     context_messages = []
-                    for msg in history[-10:]:  # רק 10 הודעות אחרונות למניעת overflow
+                    for msg in limited_history:
                         if msg.type == 'user':
                             context_messages.append(f"משתמש: {msg.content}")
                         elif msg.type == 'bot':
                             context_messages.append(f"מערכת: {msg.content}")
-                    conversation_context = "\n".join(context_messages)
-                    logger.info(f"🔄 העברת {len(history[-10:])} הודעות קונטקסט ל-RAG")
+                    
+                    if context_messages:
+                        conversation_context = "\n".join(context_messages)
+                        logger.debug(f"🔗 Built conversation context with {len(limited_history)} messages for LLM")
                 
-                # שליחת השאלה עם קונטקסט השיחה
-                if conversation_context:
-                    enhanced_query = f"היסטוריית השיחה:\n{conversation_context}\n\nשאלה נוכחית: {user_message}"
-                    logger.info(f"🔗 Enhanced query length: {len(enhanced_query)} chars")
-                else:
-                    enhanced_query = user_message
-                    logger.info("📝 No conversation history, using original query")
+                # 🔧 FIX: Send only the current question to RAG, not the full conversation history
+                # This ensures vector search works properly for repeated questions
+                rag_response = await rag_service.generate_answer(user_message, search_method="hybrid")
                 
-                rag_response = await rag_service.generate_answer(enhanced_query, search_method="hybrid")
                 logger.info(f"📋 RAG response received: {rag_response is not None}")
                 if rag_response:
-                    logger.info(f"📋 RAG response keys: {list(rag_response.keys()) if isinstance(rag_response, dict) else 'Not a dict'}")
+                    logger.debug(f"📋 RAG response keys: {list(rag_response.keys()) if isinstance(rag_response, dict) else 'Not a dict'}")
             else:
                 logger.warning("⚠️ RAG service not available")
                 rag_response = None
@@ -387,8 +349,7 @@ class ChatService(IChatService):
                     self.memory.chat_memory.add_user_message(user_message)
                     self.memory.chat_memory.add_ai_message(rag_response["answer"])
                     
-                    # 🔥 TRACK TOKEN USAGE FOR RAG RESPONSE
-                    logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for RAG response")
+                    # Track token usage for RAG response
                     await self._track_token_usage(user_message, rag_response["answer"], "rag")
                     
                     return {
@@ -402,15 +363,21 @@ class ChatService(IChatService):
                 logger.info("❌ RAG service didn't generate answer or answer is empty, falling back to regular LLM")
             
         except Exception as e:
-            logger.warning(f"⚠️  RAG service error: {e}")
+            logger.warning(f"⚠️ RAG service error: {e}")
             logger.debug("Using regular LLM as fallback")
         
-        # Fallback to LangChain conversation chain (preserves memory)
-        response_content = self.conversation_chain.predict(input=user_message)
-        logger.debug(f"LangChain conversation chain fallback - AI response: {response_content[:100]}...")
+        # 🔄 Smart Fallback: Use LangChain with enhanced prompt for any question
+        enhanced_prompt = f"""
+אתה עוזר אקדמי של מכללת אפקה שעונה על שאלות תלמידים.
+אם אין לך מידע מדויק ממסמכי המכללה, תן תשובה כללית מועילה.
+שאלה: {user_message}
+"""
         
-        # 🔥 TRACK TOKEN USAGE FOR FALLBACK RESPONSE
-        logger.info(f"🎯 [CHAT-SERVICE] Tracking tokens for fallback response")
+        response_content = self.conversation_chain.predict(input=enhanced_prompt)
+        
+        logger.info(f"🔄 LangChain fallback response generated (length: {len(response_content)})")
+        
+        # Track token usage for fallback response
         await self._track_token_usage(user_message, response_content, "fallback")
         
         return {
@@ -420,87 +387,31 @@ class ChatService(IChatService):
         }
     
     def _is_conversation_question(self, message: str) -> bool:
-        """Determine if a message is asking about information from previous conversation or general chat"""
+        """🧠 Smart detection: conversation vs information requests"""
         message = message.lower().strip()
         
-        # אם ההודעה מתחילה ב"היסטוריית השיחה:" - זה בוודאי מיועד ל-RAG
-        if "היסטוריית השיחה:" in message:
-            return False  # שלח ל-RAG לא ל-conversation
-        
-        # זיהוי התייחסויות למידע קודם או מספרים (כללי)
-        import re
-        
-        # דפוסים כלליים להתייחסות למידע קודם
-        reference_patterns = [
-            r"הציון שלי",
-            r"המספר שלי", 
-            r"הטווח שלי",
-            r"ציון \d+",  # ציון + מספר כלשהו
-            r"\d+ זה",   # מספר + "זה"
-            r"עם הציון",
-            r"עם המספר",
-            r"הציון הזה",
-            r"המספר הזה"
+        # ✅ Clear conversation indicators - ONLY these should NOT go to RAG
+        conversation_indicators = [
+            # Greetings
+            "שלום", "היי", "hello", "hi", "בוקר טוב", "ערב טוב",
+            # Personal questions about the bot
+            "איך קוראים לך", "מה השם שלך", "מי אתה", 
+            # General chat/appreciation
+            "מה שלומך", "איך אתה", "how are you", "תודה", "thanks", "תודה רבה",
+            # Very short expressions
+            "כן", "לא", "אוקיי", "טוב", "yes", "no", "ok", "okay"
         ]
         
-        # ביטויים להתייחסות למידע קודם
-        reference_phrases = [
-            "אמרת", "ציינת", "למה", "איך זה יכול", "איך יכול להיות",
-            "לא הבנתי", "סתירה", "אבל קודם", "אבל אמרת", "אבל ציינת",
-            "כתבת", "הסברת", "נאמר", "קודם אמרת", "בתשובה הקודמת"
-        ]
+        # 🎯 Check for conversation indicators - ONLY these get conversation treatment
+        for indicator in conversation_indicators:
+            if indicator in message:
+                return True  # Send to conversation
         
-        # ביטויים לנושאים אקדמיים שצריכים RAG
-        academic_terms = [
-            "ציון", "רמה", "רמות", "טווח", "טווחים", "דרגה", "קטגוריה",
-            "באנגלית", "ברמה", "מתקדמים", "בסיסי", "בינוני", "גבוה",
-            "מבחן", "בחינה", "הערכה", "פסיכומטרי", "אמיר"
-        ]
-        
-        # בדיקת דפוסים בביטויים רגולריים
-        for pattern in reference_patterns:
-            if re.search(pattern, message):
-                return False  # שלח ל-RAG
-        
-        # בדיקת ביטויי התייחסות
-        for phrase in reference_phrases:
-            if phrase in message:
-                return False  # שלח ל-RAG
-        
-        # בדיקת מונחים אקדמיים
-        for term in academic_terms:
-            if term in message:
-                return False  # שלח ל-RAG
-        
-        # זיהוי מספרים בהודעה (כל מספר שיכול להיות ציון)
-        if re.search(r'\b\d{2,3}\b', message):  # מספרים של 2-3 ספרות (ציונים אפשריים)
-            return False  # שלח ל-RAG
-        
-        # Very specific conversation questions only
-        # Questions about personal information from conversation history
-        personal_info_questions = [
-            "איך קוראים לי", "מה השם שלי", "איך קוראים לי?", "מה השם שלי?",
-            "מי אני", "מה השם", "מה שמי", "קוראים לי",
-            "what is my name", "what's my name", "who am i"
-        ]
-        
-        # Simple greetings and personal questions
-        simple_greetings = [
-            "שלום", "היי", "hello", "hi",
-            "מה שלומך", "איך אתה", "how are you"
-        ]
-        
-        # Check for exact matches or very close matches
-        for indicator in personal_info_questions:
-            if message == indicator or message == indicator + "?":
-                return True
-        
-        # Check for simple greetings
-        for greeting in simple_greetings:
-            if message == greeting or message == greeting + "?":
-                return True
-                
-        # Only return True for very obvious conversation questions
+        # 🤔 Edge cases: Very short messages (1-3 chars) are usually conversation
+        if len(message) <= 3:
+            return True
+            
+        # 🔍 DEFAULT: Everything else goes to RAG!
         return False
 
     async def process_chat_message_stream(
@@ -509,67 +420,110 @@ class ChatService(IChatService):
         user_id: str = "anonymous",
         history: Optional[List[ChatMessageHistoryItem]] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Process a chat message using streaming Gemini API and return chunks."""
+        """Process a chat message using streaming - with RAG support!"""
         
         logger.info(f"🚀 [CHAT-STREAM] Processing streaming message for user: {user_id}")
         
-        if not GENAI_AVAILABLE:
-            logger.error("Google Generative AI not available for streaming")
-            yield {"type": "error", "content": "Streaming not available"}
-            return
+        # 🧠 Use the same smart logic as regular chat
+        is_conversation_question = self._is_conversation_question(user_message)
         
-        try:
-            # Get API key
-            key_manager = get_key_manager()
-            current_key = settings.GEMINI_API_KEY
+        logger.info(f"📝 [STREAM] Question analysis for '{user_message}': conversation={is_conversation_question}")
+        
+        # If it's a conversation question, use simple streaming
+        if is_conversation_question:
+            logger.info(f"🗣️ [STREAM] Treating as conversation question")
             
-            if not current_key:
-                logger.error("No GEMINI_API_KEY available for streaming")
-                yield {"type": "error", "content": "API key not available"}
+            if not GENAI_AVAILABLE:
+                yield {"type": "error", "content": "Streaming not available"}
                 return
             
-            # Configure Gemini client
-            client = genai.Client(api_key=current_key)
+            try:
+                current_key = settings.GEMINI_API_KEY
+                if not current_key:
+                    yield {"type": "error", "content": "API key not available"}
+                    return
+                
+                client = genai.Client(api_key=current_key)
+                
+                # Build conversation for streaming with limited history
+                conversation_text = ""
+                if history:
+                    # Use the same MAX_HISTORY_LENGTH for consistency
+                    limited_history = history[-self.MAX_HISTORY_LENGTH:]
+                    for msg in limited_history:
+                        if msg.type == 'user':
+                            conversation_text += f"משתמש: {msg.content}\n"
+                        elif msg.type == 'bot':
+                            conversation_text += f"עוזר: {msg.content}\n"
+                
+                enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
+ענה בחמימות ובאופן טבעי לשאלה: {user_message}"""
+                
+                full_prompt = f"{conversation_text}משתמש: {enhanced_conversation_prompt}\nעוזר:"
+                
+                response = client.models.generate_content_stream(
+                    model="gemini-2.0-flash-exp",
+                    contents=full_prompt
+                )
+                
+                accumulated_text = ""
+                for chunk in response:
+                    if chunk.text:
+                        accumulated_text += chunk.text
+                        yield {
+                            "type": "chunk",
+                            "content": chunk.text,
+                            "accumulated": accumulated_text
+                        }
+                
+                await self._track_token_usage(user_message, accumulated_text, "streaming_conversation")
+                
+                yield {
+                    "type": "complete",
+                    "content": accumulated_text,
+                    "sources": [],
+                    "chunks": 0
+                }
+                
+            except Exception as e:
+                logger.exception(f"❌ [CHAT-STREAM] Conversation streaming error: {e}")
+                yield {"type": "error", "content": f"Streaming error: {str(e)}"}
+                
+        else:
+            # 📚 Information request - use RAG and then stream the response
+            logger.info(f"📚 [STREAM] Treating as information request (will use RAG)")
             
-            # Build conversation for context
-            conversation_parts = []
-            if history:
-                for msg in history:
-                    if msg.type == 'user':
-                        conversation_parts.append({"role": "user", "parts": [msg.content]})
-                    elif msg.type == 'bot':
-                        conversation_parts.append({"role": "model", "parts": [msg.content]})
-            
-            # Add current message
-            conversation_parts.append({"role": "user", "parts": [user_message]})
-            
-            # Use proper conversation format instead of text concatenation
-            response = client.models.generate_content_stream(
-                model="gemini-2.0-flash-exp",
-                contents=conversation_parts  # Use structured conversation format
-            )
-            
-            accumulated_text = ""
-            for chunk in response:
-                if chunk.text:
-                    accumulated_text += chunk.text
+            try:
+                # Process with RAG first (non-streaming)
+                rag_result = await self.process_chat_message(user_message, user_id, history)
+                
+                # Now stream the response
+                response_content = rag_result.get("response", "")
+                sources = rag_result.get("sources", [])
+                chunks_count = rag_result.get("chunks", 0)
+                
+                # Simulate streaming by breaking the response into chunks
+                chunk_size = 50  # characters per chunk
+                for i in range(0, len(response_content), chunk_size):
+                    chunk = response_content[i:i + chunk_size]
                     yield {
                         "type": "chunk",
-                        "content": chunk.text,
-                        "accumulated": accumulated_text
+                        "content": chunk,
+                        "accumulated": response_content[:i + len(chunk)]
                     }
-            
-            # Track usage
-            await self._track_token_usage(user_message, accumulated_text, "streaming_conversation")
-            
-            yield {
-                "type": "complete",
-                "content": accumulated_text,
-                "sources": [],
-                "chunks": 0
-            }
-            
-        except Exception as e:
-            logger.exception(f"❌ [CHAT-STREAM] Streaming error: {e}")
-            yield {"type": "error", "content": f"Streaming error: {str(e)}"}
+                    # Small delay to make it feel like streaming
+                    await asyncio.sleep(0.05)
+                
+                yield {
+                    "type": "complete",
+                    "content": response_content,
+                    "sources": sources,
+                    "chunks": chunks_count
+                }
+                
+                logger.info(f"🎯 [STREAM] RAG-based streaming complete with {len(sources)} sources")
+                
+            except Exception as e:
+                logger.exception(f"❌ [CHAT-STREAM] RAG streaming error: {e}")
+                yield {"type": "error", "content": f"Error processing your request: {str(e)}"}
     

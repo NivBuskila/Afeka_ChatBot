@@ -31,9 +31,7 @@ sentence-transformers>=2.2.0
 # Authentication
 PyJWT>=2.8.0
 
-# Advanced LangGraph and memory management
-langgraph==0.2.50
-langgraph-checkpoint>=2.0.4
+
 
 # Database connections
 psycopg2-binary>=2.9.10
