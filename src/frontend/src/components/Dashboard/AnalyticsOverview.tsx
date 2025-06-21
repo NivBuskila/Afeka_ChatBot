@@ -57,7 +57,8 @@ interface AnalyticsOverviewProps {
   isLoading: boolean;
 }
 
-export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
+// Memoized component to prevent unnecessary re-renders
+export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = React.memo(({
   analytics,
   isLoading,
 }) => {
@@ -251,4 +252,4 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
       </div>
     </div>
   );
-};
+});

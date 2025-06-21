@@ -136,31 +136,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }, [theme]);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setIsRefreshing(true);
-
-        // Get analytics data from service
-        const analyticsData = await analyticsService.getDashboardAnalytics();
-
-        setAnalytics(analyticsData);
-      } catch (error) {
-        console.error("Error fetching analytics:", error);
-      } finally {
-        setIsRefreshing(false);
-      }
+    const handleThemeChange = () => {
+      // Apply theme-specific logic if needed
     };
+    handleThemeChange();
+  }, [theme]);
 
-    // Only fetch analytics when specifically viewing analytics sections
-    // and prevent unnecessary calls when switching between sub-items
-    if (activeItem === "analytics" && !isRefreshing) {
-      fetchAnalytics();
-    }
-  }, [activeItem]); // Removed activeSubItem to prevent duplicate calls
-
+  // Combined useEffect for initial data loading and analytics
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
+        setIsInitialLoading(true);
+        
         // Check if cache is stale or needs refresh
         const forceRefresh = cacheService.isCacheStale("documents");
 
@@ -172,19 +159,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         setDocuments(docs);
         setAnalytics(analyticsData);
       } catch (error) {
-        console.error("Error fetching data:", error);
-        console.error("🚨 [DEBUG] Failed to fetch documents");
+        console.error("Error fetching initial data:", error);
       } finally {
         setIsInitialLoading(false);
       }
     };
 
-    fetchData();
+    fetchInitialData();
 
     // Listen for cache changes to refresh data when needed
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "documents_cache_invalidated") {
-        fetchData();
+        fetchInitialData();
       }
     };
 
@@ -194,6 +180,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
+
+  // Separate useEffect for analytics refresh when navigating to analytics section
+  useEffect(() => {
+    const fetchAnalyticsOnly = async () => {
+      if (isRefreshing) return; // Prevent duplicate calls
+      
+      try {
+        setIsRefreshing(true);
+        const analyticsData = await analyticsService.getDashboardAnalytics();
+        setAnalytics(analyticsData);
+      } catch (error) {
+        console.error("Error fetching analytics:", error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+
+    // Only fetch analytics when specifically viewing analytics sections
+    // and not during initial load
+    if (activeItem === "analytics" && !isInitialLoading) {
+      fetchAnalyticsOnly();
+    }
+  }, [activeItem, isInitialLoading]); // Added isInitialLoading dependency
 
   // Manual data refresh function
   const refreshData = async () => {

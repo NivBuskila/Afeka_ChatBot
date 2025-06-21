@@ -58,37 +58,42 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
-      // Use the new function to get users and admins
-      const { users: regularUsers, admins: recentAdmins } = await userService.getDashboardUsers();
+      // Load all data in parallel for better performance
+      const [
+        { users: regularUsers, admins: recentAdmins },
+        { data: recentDocuments, error: docsError },
+        totalDocuments
+      ] = await Promise.all([
+        userService.getDashboardUsers(),
+        supabase
+          .from('documents')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5),
+        getTableCount('documents')
+      ]);
       
-      // Get recent documents
-      const { data: recentDocuments, error: docsError } = await supabase
-        .from('documents')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-        
       if (docsError) {
         console.error('Error fetching documents:', docsError);
       }
       
-      // Count rows in each table (important to sync numbers from service)
-      let totalDocuments = await getTableCount('documents');
-      let totalUsers = regularUsers.length + recentAdmins.length; // Total users
-      let totalAdmins = recentAdmins.length; // Admin count
+      // Calculate totals
+      let finalTotalDocuments = totalDocuments;
+      const totalUsers = regularUsers.length + recentAdmins.length;
+      const totalAdmins = recentAdmins.length;
       
       // If document count failed, try counting from array
-      if (totalDocuments === 0 && recentDocuments) {
-        totalDocuments = recentDocuments.length;
+      if (finalTotalDocuments === 0 && recentDocuments) {
+        finalTotalDocuments = recentDocuments.length;
       }
 
       return {
-        totalDocuments,
+        totalDocuments: finalTotalDocuments,
         totalUsers,
         totalAdmins,
         recentDocuments: recentDocuments || [],
-        recentUsers: regularUsers || [], // Pass all regular users
-        recentAdmins: recentAdmins || [] // Pass all admins
+        recentUsers: regularUsers || [],
+        recentAdmins: recentAdmins || []
       };
     } catch (error) {
       console.error('Error in getDashboardAnalytics:', error);

@@ -7,6 +7,7 @@ import logging
 import hashlib
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+from collections import OrderedDict
 import google.generativeai as genai
 
 try:
@@ -18,11 +19,42 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+class LRUCache:
+    """Simple LRU cache implementation with size limit"""
+    
+    def __init__(self, max_size: int = 1000):
+        self.max_size = max_size
+        self.cache = OrderedDict()
+    
+    def get(self, key: str) -> Optional[Dict[str, Any]]:
+        if key in self.cache:
+            # Move to end (most recently used)
+            self.cache.move_to_end(key)
+            return self.cache[key]
+        return None
+    
+    def put(self, key: str, value: Dict[str, Any]) -> None:
+        if key in self.cache:
+            # Update existing key
+            self.cache.move_to_end(key)
+        else:
+            # Add new key
+            if len(self.cache) >= self.max_size:
+                # Remove least recently used item
+                self.cache.popitem(last=False)
+        self.cache[key] = value
+    
+    def clear(self) -> None:
+        self.cache.clear()
+    
+    def size(self) -> int:
+        return len(self.cache)
+
 class EmbeddingService:
     """Service for handling embedding generation and caching"""
     
-    # Class-level cache
-    _embedding_cache = {}
+    # Class-level cache with size limit
+    _embedding_cache = None
     _cache_stats = {"hits": 0, "misses": 0, "total_requests": 0}
     
     def __init__(self, key_manager: Optional[DatabaseKeyManager] = None):
@@ -37,9 +69,14 @@ class EmbeddingService:
         self.embedding_config = get_embedding_config()
         self.performance_config = get_performance_config()
         
+        # Initialize LRU cache if not already done
+        if EmbeddingService._embedding_cache is None:
+            cache_size = getattr(self.performance_config, 'EMBEDDING_CACHE_SIZE', 1000)
+            EmbeddingService._embedding_cache = LRUCache(max_size=cache_size)
+        
         # Initialize Gemini
         self._init_gemini()
-        logger.info("🧠 EmbeddingService initialized")
+        logger.info("🧠 EmbeddingService initialized with LRU cache")
     
     def _init_gemini(self):
         """Initialize Gemini API"""
@@ -57,8 +94,8 @@ class EmbeddingService:
         if 'timestamp' not in cache_entry:
             return False
         
-        cache_duration = getattr(self.embedding_config, 'CACHE_DURATION_HOURS', 24)
-        expiry_time = cache_entry['timestamp'] + timedelta(hours=cache_duration)
+        cache_duration_seconds = getattr(self.performance_config, 'EMBEDDING_CACHE_TTL_SECONDS', 3600)
+        expiry_time = cache_entry['timestamp'] + timedelta(seconds=cache_duration_seconds)
         return datetime.now() < expiry_time
     
     async def _track_embedding_usage(self, text: str, key_id: Optional[int] = None):
@@ -78,15 +115,11 @@ class EmbeddingService:
         
         # Check cache
         cache_key = self._generate_cache_key(query)
-        if cache_key in self._embedding_cache:
-            cache_entry = self._embedding_cache[cache_key]
-            if self._is_cache_valid(cache_entry):
-                self._cache_stats["hits"] += 1
-                logger.debug(f"📝 Cache hit for query: {query[:50]}...")
-                return cache_entry['embedding']
-            else:
-                # Remove expired entry
-                del self._embedding_cache[cache_key]
+        cache_entry = self._embedding_cache.get(cache_key)
+        if cache_entry and self._is_cache_valid(cache_entry):
+            self._cache_stats["hits"] += 1
+            logger.debug(f"📝 Cache hit for query: {query[:50]}...")
+            return cache_entry['embedding']
         
         # Cache miss - generate new embedding
         self._cache_stats["misses"] += 1
@@ -120,11 +153,11 @@ class EmbeddingService:
                 log_vector_info(embedding, f"Query embedding for: {query[:30]}...")
                 
                 # Cache the result
-                self._embedding_cache[cache_key] = {
+                self._embedding_cache.put(cache_key, {
                     'embedding': embedding,
                     'timestamp': datetime.now(),
                     'query': query[:100]  # Store first 100 chars for debugging
-                }
+                })
                 
                 # Track usage
                 if key_id:
@@ -157,7 +190,7 @@ class EmbeddingService:
             "cache_hits": hits,
             "cache_misses": misses,
             "hit_rate_percent": round(hit_rate, 2),
-            "cache_size": len(self._embedding_cache)
+            "cache_size": self._embedding_cache.size()
         }
     
     def clear_cache(self):
@@ -168,12 +201,12 @@ class EmbeddingService:
     def clear_expired_cache(self):
         """Clear expired cache entries"""
         expired_keys = []
-        for key, entry in self._embedding_cache.items():
+        for key, entry in self._embedding_cache.cache.items():
             if not self._is_cache_valid(entry):
                 expired_keys.append(key)
         
         for key in expired_keys:
-            del self._embedding_cache[key]
+            self._embedding_cache.cache.pop(key)
         
         if expired_keys:
             logger.info(f"🗑️ Cleared {len(expired_keys)} expired cache entries")
@@ -181,10 +214,10 @@ class EmbeddingService:
     def get_cache_info(self) -> Dict[str, Any]:
         """Get detailed cache information"""
         return {
-            "cache_size": len(self._embedding_cache),
+            "cache_size": self._embedding_cache.size(),
             "stats": self.get_cache_stats(),
             "config": {
-                "cache_duration_hours": getattr(self.embedding_config, 'CACHE_DURATION_HOURS', 24),
+                "cache_duration_seconds": getattr(self.performance_config, 'EMBEDDING_CACHE_TTL_SECONDS', 3600),
                 "model_name": getattr(self.embedding_config, 'MODEL_NAME', 'models/embedding-001')
             }
         } 

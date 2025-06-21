@@ -20,38 +20,39 @@ interface TokenUsageAnalyticsProps {
 
 interface KeyStatus {
   id: number;
-  status: 'available' | 'blocked' | 'current';
+  status: 'available' | 'blocked' | 'cooldown' | 'error';
   is_current: boolean;
-  tokens_today?: number;
-  requests_today?: number;
-  tokens_current_minute?: number;
-  requests_current_minute?: number;
+  tokens_today: number;
+  requests_today: number;
+  tokens_current_minute: number;
+  requests_current_minute: number;
   next_reset: string;
   last_used?: string;
   first_used_today?: string;
 }
 
 interface KeyManagementStatus {
+  keys_status: KeyStatus[];
   current_key_index: number;
+  health_status: string;
   total_keys: number;
+  healthy_keys: number;
   available_keys: number;
-  current_usage: {
-    tokens_today: number;
-    tokens_current_minute: number;
-    requests_current_minute: number;
-  };
-  current_key_usage?: {
+  blocked_keys: number;
+  cooldown_keys: number;
+  current_key_usage: {
     current_key_index: number;
-    key_name: string;
     tokens_today: number;
     tokens_current_minute: number;
     requests_today: number;
     requests_current_minute: number;
     status: string;
+    key_name: string;
   };
 }
 
-export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ language }) => {
+// Memoized component to prevent unnecessary re-renders
+export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.memo(({ language }) => {
   const { t } = useTranslation();
   const [keyData, setKeyData] = useState<KeyStatus[]>([]);
   const [managementStatus, setManagementStatus] = useState<KeyManagementStatus | null>(null);
@@ -567,6 +568,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = ({ langua
       </div>
     </div>
   );
-};
+});
 
 export default TokenUsageAnalytics;

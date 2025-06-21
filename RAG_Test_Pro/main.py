@@ -25,6 +25,18 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import traceback
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    # Load from the main project .env file
+    env_file = Path(__file__).parent.parent / ".env"
+    load_dotenv(env_file)
+    print(f"✅ Environment variables loaded from: {env_file}")
+except ImportError:
+    print("⚠️ python-dotenv not installed. Install with: pip install python-dotenv")
+except Exception as e:
+    print(f"⚠️ Could not load .env file: {e}")
+
 # Add the parent directory to sys.path to import from the main project
 current_dir = Path(__file__).parent
 project_root = current_dir.parent / "src"
@@ -608,7 +620,7 @@ class RAGTestPro:
                         self._call_rag_service(question_text), 
                         timeout=60.0  # 60 seconds timeout
                     )
-                    # tokens_used = 150  # Estimate
+                    tokens_used = 150  # Estimate for successful calls
                     
                     test_time = time.time() - test_start
                     success = True
