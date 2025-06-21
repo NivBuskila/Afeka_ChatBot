@@ -34,7 +34,6 @@ import { useTheme } from "../../contexts/ThemeContext";
 import TokenUsageAnalytics from "./TokenUsageAnalytics";
 import type { Document } from "../../config/supabase";
 import { supabase } from "../../config/supabase";
-import { cacheService } from "../../services/cacheService";
 import LoadingScreen from "../LoadingScreen";
 
 type Language = "he" | "en";
@@ -161,9 +160,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Check if cache is stale or needs refresh
-        const forceRefresh = cacheService.isCacheStale("documents");
-
         const [docs, analyticsData] = await Promise.all([
           documentService.getAllDocuments(),
           analyticsService.getDashboardAnalytics(),
@@ -315,7 +311,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       try {
         // Upload the file - direct access without RPC
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from("documents")
           .upload(path, file);
 
@@ -623,7 +619,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           <button
                             onClick={() => handleDeleteUser(user)}
                             className="p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100/20 dark:hover:bg-red-500/20 rounded-full transition-colors"
-                            title={t("common.delete")}
+                            title={String(t("common.delete")) || "Delete"}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

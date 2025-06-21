@@ -17,7 +17,7 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({
   documentName,
 }) => {
   const { t, i18n } = useTranslation();
-  const { theme } = useTheme();
+  useTheme();
 
   if (!isOpen) return null;
 

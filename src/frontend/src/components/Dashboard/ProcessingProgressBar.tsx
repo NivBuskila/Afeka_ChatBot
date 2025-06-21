@@ -114,7 +114,7 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
   }
 
   // Extract data from processing response
-  const { status: rawStatus, model, chunk_count } = processingData;
+  const { status: rawStatus, chunk_count } = processingData;
   // Use forced completed status if applicable
   const status = forceCompleted ? "completed" : rawStatus;
   // Set progress to 100% if chunks exist or status is completed

@@ -26,7 +26,6 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 
   // 🔍 Debug information
 
-
   const getFileType = (type: string): string => {
     const mimeMap: Record<string, string> = {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -72,8 +71,10 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   );
 
   // שימוש ב-pagination hook עם itemsPerPage דינמי
-  const { currentPage, setCurrentPage, getPaginatedItems, totalPages } =
-    usePagination(filteredDocuments.length, itemsPerPage);
+  const { currentPage, setCurrentPage, getPaginatedItems } = usePagination(
+    filteredDocuments.length,
+    itemsPerPage
+  );
 
   // קבלת המסמכים לעמוד הנוכחי
   const paginatedDocuments = getPaginatedItems(filteredDocuments);
