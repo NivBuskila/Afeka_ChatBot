@@ -272,11 +272,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             status: "active",
           });
 
-                      if (insertError) {
-              console.error("Failed to insert user record:", insertError);
-              // Continue despite error, as we're already trying to bypass restrictions
-            } else {
-              // Created new user record
+          if (insertError) {
+            console.error("Failed to insert user record:", insertError);
+            // Continue despite error, as we're already trying to bypass restrictions
+          } else {
+            // Created new user record
 
             // Check if user should be admin and add to admins table
             if (
@@ -290,11 +290,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     user_id: authData.session.user.id,
                   });
 
-                                  if (adminError) {
-                    console.error("Failed to insert admin record:", adminError);
-                  } else {
-                    // Created new admin record
-                  }
+                if (adminError) {
+                  console.error("Failed to insert admin record:", adminError);
+                } else {
+                  // Created new admin record
+                }
               } catch (adminError) {
                 console.error("Error creating admin record:", adminError);
               }
@@ -304,16 +304,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           console.error("Error creating user record:", createError);
           // Continue despite error
         }
-              } else {
-          // Found existing user
-        }
+      } else {
+        // Found existing user
+      }
 
       // Create safe filename without Hebrew characters
       const fileExt = file.name.split(".").pop() || "";
       const safeFileName = `${Date.now()}.${fileExt}`;
-              const path = `documents/${safeFileName}`;
+      const path = `documents/${safeFileName}`;
 
-        try {
+      try {
         // Upload the file - direct access without RPC
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("documents")
@@ -323,14 +323,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           console.error("Error uploading file:", uploadError);
           showErrorMessage(`שגיאה בהעלאת הקובץ: ${uploadError.message}`);
           return;
-                  }
+        }
 
-          // Get public URL
-                  const { data: urlData } = supabase.storage
-            .from("documents")
-            .getPublicUrl(path);
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from("documents")
+          .getPublicUrl(path);
 
-          try {
+        try {
           // Create document record directly (not through RPC)
           const { data: docData, error: docError } = await supabase
             .from("documents")
@@ -347,9 +347,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             console.error("Error creating document record:", docError);
             showErrorMessage(`שגיאה ביצירת רשומת מסמך: ${docError.message}`);
             return;
-                      }
+          }
 
-            // Attempt to add analytics record (may fail due to RLS)
+          // Attempt to add analytics record (may fail due to RLS)
           try {
             const { error: analyticsError } = await supabase
               .from("document_analytics")
@@ -623,7 +623,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           <button
                             onClick={() => handleDeleteUser(user)}
                             className="p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100/20 dark:hover:bg-red-500/20 rounded-full transition-colors"
-                            title={t("users.delete") || "Delete user"}
+                            title={t("common.delete")}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1010,7 +1010,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 onClick={handleDeleteUserConfirm}
                 className="px-4 py-2 bg-red-50 dark:bg-red-500/20 border border-red-300 dark:border-red-500/30 rounded-lg text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/30 transition-colors"
               >
-                {t("users.delete") || t("Delete")}
+                {t("common.delete")}
               </button>
             </div>
           </div>

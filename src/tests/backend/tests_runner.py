@@ -80,6 +80,11 @@ TEST_SUITES = {
         "file": "tests_09_performance.py",
         "description": "Performance and load tests",
         "test_count": 6
+    },
+    "keymanager": {
+        "file": "tests_10_key_manager.py",
+        "description": "Key manager and embedding tests",
+        "test_count": 5
     }
 }
 

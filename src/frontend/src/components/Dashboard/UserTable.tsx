@@ -72,7 +72,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                 <button
                   onClick={() => onDeleteUser(user)}
                   className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
-                  title={t("users.delete") || "Delete user"}
+                  title={t("common.delete") || "Delete"}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

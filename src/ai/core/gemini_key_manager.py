@@ -425,8 +425,11 @@ async def safe_generate_content(*args, **kwargs) -> Any:
         
         logger.info(f"Generated content with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        # Use track_usage for DatabaseKeyManager
-        manager.track_usage(tokens_used=estimated_tokens)  # type: ignore
+        # Get key_id from current key data for DatabaseKeyManager
+        current_key_data = manager.api_keys[manager.current_key_index]
+        key_id = current_key_data.get("id")
+        if key_id:
+            await manager.track_usage(key_id, tokens_used=estimated_tokens)
         
         return response
             
@@ -451,8 +454,11 @@ async def safe_embed_content(*args, **kwargs) -> Any:
         
         logger.info(f"Generated embedding with key #{manager.current_key_index}, tracking {estimated_tokens} tokens")
         
-        # Use track_usage for DatabaseKeyManager
-        manager.track_usage(tokens_used=estimated_tokens)  # type: ignore
+        # Get key_id from current key data for DatabaseKeyManager
+        current_key_data = manager.api_keys[manager.current_key_index]
+        key_id = current_key_data.get("id")
+        if key_id:
+            await manager.track_usage(key_id, tokens_used=estimated_tokens)
         
         return response
         
