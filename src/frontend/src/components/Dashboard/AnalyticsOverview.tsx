@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Users, FileText, Clock, UserCog } from "lucide-react";
+import { Users, FileText, Clock, UserCog } from "lucide-react";
 import type { Document } from "../../config/supabase";
 
 // Create basic Spinner component if not in project
@@ -20,30 +20,7 @@ const Spinner: React.FC<{ size?: string }> = ({ size = "md" }) => {
   );
 };
 
-// Create StatBox component
-interface StatBoxProps {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-}
-
-const StatBox: React.FC<StatBoxProps> = ({ title, value, icon }) => {
-  return (
-    <div className="bg-gray-800 p-4 rounded-lg flex items-center">
-      <div className="mr-4">{icon}</div>
-      <div>
-        <p className="text-sm text-gray-400">{title}</p>
-        <p className="text-xl font-bold">{value}</p>
-      </div>
-    </div>
-  );
-};
-
 // Helper function for date formatting
-const formatDate = (dateString?: string) => {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString();
-};
 
 interface AnalyticsOverviewProps {
   analytics: {
