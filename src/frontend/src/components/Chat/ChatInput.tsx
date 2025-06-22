@@ -1,11 +1,10 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface ChatInputProps {
   onSend?: () => void;
   isLoading?: boolean;
-  isInitial?: boolean;
   input?: string;
   setInput?: (value: string) => void;
   onSendMessage?: (message: string) => void;
@@ -21,7 +20,6 @@ interface ChatInputProps {
 const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   isLoading = false,
-  isInitial = false,
   input,
   setInput,
   onSendMessage,
@@ -32,14 +30,32 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [localMessage, setLocalMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // RTL support
+    // RTL support
   const isRTL = i18n.language === 'he';
-  
+
   // Determine if we're using props.input or internal state
   const message = input !== undefined ? input : localMessage;
   const updateMessage = setInput || setLocalMessage;
   const handleSend = onSend || (() => onSendMessage && onSendMessage(message));
   const isDisabled = isLoading || isWaiting;
+
+  // ⚡ Performance: Memoized handlers
+  const optimizedHandleSend = useCallback(() => {
+    if (message.trim() && !isDisabled) {
+      handleSend();
+      updateMessage('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '24px';
+      }
+    }
+  }, [message, isDisabled, handleSend, updateMessage]);
+
+  const optimizedHandleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      optimizedHandleSend();
+    }
+  }, [optimizedHandleSend]);
   
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -50,32 +66,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [message]);
   
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (message.trim() && !isDisabled) {
-        handleSend();
-        // Clear message after sending
-        updateMessage('');
-        // Reset textarea height
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '24px';
-        }
-      }
-    }
-  };
-
-  const handleSubmit = () => {
-    if (message.trim() && !isDisabled) {
-      handleSend();
-      // Clear message after sending
-      updateMessage('');
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = '24px';
-      }
-    }
-  };
+  // ⚡ Memoized placeholder for performance
+  const placeholderText = useMemo(() => {
+    return placeholder || (t('chat.inputPlaceholder') as string) || "Type your message here...";
+  }, [placeholder, t]);
 
   return (
     <div className="flex justify-center w-full px-6 py-6">
@@ -87,8 +81,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
               ref={textareaRef}
               value={message}
               onChange={(e) => updateMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder || (t('chat.inputPlaceholder') as string) || "Type your message here..."}
+              onKeyDown={optimizedHandleKeyDown}
+              placeholder={placeholderText}
               disabled={isDisabled}
               rows={1}
               className={`flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-0 outline-none resize-none py-4 px-6 ${
@@ -102,7 +96,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             {/* Integrated send button with RTL support */}
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={optimizedHandleSend}
               disabled={!message.trim() || isDisabled}
               className={`absolute ${
                 isRTL ? 'left-3' : 'right-3'

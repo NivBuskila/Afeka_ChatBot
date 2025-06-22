@@ -234,6 +234,116 @@ class RAGOrchestrator:
             logger.error(f"❌ Error generating answer: {e}")
             raise
 
+    async def generate_answer_with_context(self, query: str, conversation_context: str = "", search_method: str = 'hybrid', document_id=None):
+        """Generate RAG answer with separate conversation context for consistent search results"""
+        start_time = time.time()
+        
+        # Test mode response
+        if self.test_mode:
+            return {
+                "answer": f"🧪 Test mode response for: {query}",
+                "sources": ["Test source"],
+                "chunks_selected": [],
+                "search_results_count": 1,
+                "response_time_ms": 100,
+                "search_method": search_method,
+                "query": query,
+                "test_mode": True
+            }
+        
+        try:
+            # Log the separation
+            logger.info(f"🔍 [SEARCH] Using original query: '{query}'")
+            if conversation_context:
+                logger.info(f"🔗 [CONTEXT] Adding conversation context: '{conversation_context[:100]}...'")
+            
+            # Determine search strategy using ORIGINAL query only
+            section_keywords = ['סעיף', 'בסעיף', 'פרק', 'תקנה']
+            is_section_query = any(keyword in query for keyword in section_keywords)
+            
+            # Execute search with ORIGINAL query for consistent results
+            if is_section_query:
+                search_results = await self.section_specific_search(query)
+            elif search_method == 'semantic':
+                search_results = await self.semantic_search(query, document_id)
+            elif search_method == 'hybrid':
+                search_results = await self.hybrid_search(query, document_id)
+            elif search_method == 'contextual':
+                search_results = await self.contextual_search(query)
+            else:
+                raise ValueError(f"Unknown search method: {search_method}")
+            
+            if not search_results:
+                return {
+                    "answer": "לא נמצא מידע רלוונטי בתקנונים לשאלה זו.",
+                    "sources": [],
+                    "chunks_selected": [],
+                    "search_results_count": 0,
+                    "response_time_ms": int((time.time() - start_time) * 1000),
+                    "search_method": search_method,
+                    "query": query
+                }
+            
+            # Build context from search results
+            context, citations, included_chunks = self.context_builder.build_context(search_results)
+            
+            # Create prompt with conversation context if provided
+            if conversation_context:
+                # Enhanced prompt with conversation context
+                prompt = self.context_builder.create_rag_prompt_with_conversation_context(
+                    query, context, conversation_context
+                )
+            else:
+                # Regular prompt
+                prompt = self.context_builder.create_rag_prompt(query, context)
+            
+            # Generate answer
+            answer = await self.answer_generator.generate_answer(prompt)
+            
+            # Process citations
+            cited_source_numbers = self.context_builder.extract_cited_sources(answer)
+            cited_chunks = self.context_builder.get_cited_chunks(included_chunks, cited_source_numbers)
+            
+            # Clean answer
+            clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
+            
+            # Add relevant segments
+            for chunk in cited_chunks:
+                chunk_text = chunk.get('chunk_text', chunk.get('content', ''))
+                if chunk_text:
+                    relevant_segment = self.context_builder.extract_relevant_chunk_segment(
+                        chunk_text, query, clean_answer, max_length=500
+                    )
+                    chunk['relevant_segment'] = relevant_segment
+            
+            response_time = int((time.time() - start_time) * 1000)
+            
+            # Log analytics
+            if self.analytics.is_analytics_enabled():
+                await self.analytics.log_search_analytics(
+                    query, search_method, len(search_results),
+                    search_results[0].get('similarity_score', search_results[0].get('combined_score', 0.0)) if search_results else 0.0,
+                    response_time, document_id
+                )
+            
+            result = {
+                "answer": clean_answer,
+                "sources": citations,
+                "chunks_selected": cited_chunks,
+                "search_results_count": len(search_results),
+                "response_time_ms": response_time,
+                "search_method": search_method,
+                "query": query,
+                "cited_sources": cited_source_numbers,
+                "conversation_context": conversation_context
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating answer with context: {e}")
+            raise
+
     async def get_search_statistics(self, days_back: int = 30):
         """Get search statistics"""
         return await self.analytics.get_search_statistics(days_back)

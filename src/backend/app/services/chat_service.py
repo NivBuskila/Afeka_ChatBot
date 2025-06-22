@@ -74,6 +74,8 @@ class ChatService(IChatService):
         self.current_profile_cache = None
         self.profile_file_mtime = None
         
+
+        
         # 🚀 Basic Performance Settings
         self.MAX_HISTORY_LENGTH = 5  # Chat history length
         
@@ -251,6 +253,8 @@ class ChatService(IChatService):
         logger.info(f"🚀 [CHAT-SERVICE] Processing: '{user_message[:50]}...' for {user_id}")
         logger.info(f"🚀 [CHAT-SERVICE] History: {len(history) if history else 0} messages")
 
+
+
         if not self.conversation_chain:
             logger.error("ConversationChain (Gemini) is not initialized. GEMINI_API_KEY might be missing or initialization failed.")
             raise HTTPException(status_code=500, detail="AI Service (Gemini/LangChain) not initialized. Check GEMINI_API_KEY and server logs.")
@@ -325,13 +329,109 @@ class ChatService(IChatService):
                         conversation_context = "\n".join(context_messages)
                         logger.debug(f"🔗 Built conversation context with {len(limited_history)} messages for LLM")
                 
-                # 🔧 FIX: Send only the current question to RAG, not the full conversation history
-                # This ensures vector search works properly for repeated questions
-                rag_response = await rag_service.generate_answer(user_message, search_method="hybrid")
+                # 🔧 FIX: Smart query enhancement for better contextual search
+                search_query = user_message  # Start with original query
+                previous_context = ""
+                
+                if conversation_context and len(conversation_context.strip()) > 0:
+                    # Extract the last user question from history for context
+                    last_context = ""
+                    context_lines = conversation_context.split('\n')
+                    for line in reversed(context_lines):
+                        if line.startswith('משתמש:') and line != f"משתמש: {user_message}":
+                            last_context = line.replace('משתמש: ', '').strip()
+                            break
+                    
+                    if last_context and len(last_context) > 10:  # Only add meaningful context
+                        previous_context = f"בהקשר של השאלה הקודמת: {last_context}"
+                        
+                        # 🤖 CUMULATIVE AI-powered query enhancement using GEMINI for intelligent context summarization
+                        if len(user_message.strip()) < 100:  # Only for follow-up questions
+                            try:
+                                # Build CUMULATIVE conversation history for comprehensive context
+                                context_lines = conversation_context.split('\n')
+                                user_messages = []
+                                for line in context_lines:
+                                    if line.startswith('משתמש:'):
+                                        clean_message = line.replace('משתמש: ', '').strip()
+                                        if clean_message != user_message and len(clean_message) > 5:
+                                            user_messages.append(clean_message)
+                                
+                                # Create cumulative context from all user messages (last 4 for manageable context)
+                                cumulative_context = '\n'.join(user_messages[-4:])  # Last 4 user messages for context
+                                
+                                if cumulative_context and len(cumulative_context.strip()) > 10:
+                                    # Use GEMINI to build cumulative summary of the ENTIRE conversation topic
+                                    summary_prompt = f"""בהקשר של השיחה הבאה, תן סיכום מצטבר של הנושאים העיקריים ב-5-12 מילות מפתח בעברית:
+
+היסטוריית השיחה:
+{cumulative_context}
+
+השאלה הנוכחית: {user_message}
+
+תן תשובה קצרה עם מילות המפתח שמתארות את כל הנושאים בשיחה, מופרדות בפסיקים.
+דוגמאות:
+- שיחה על חנייה → "חנייה, קנסות, עבירות תנועה, פעמים חוזרות"
+- שיחה על לימודים → "ציונים, מתמטיקה, קורסים, בחינות, דרישות"  
+- שיחה על מילואים → "מילואים, זכויות סטודנטים, היעדרויות, הכרה"
+"""
+
+                                    if self.llm:
+                                        cumulative_summary = self.llm.invoke(summary_prompt).content.strip()
+                                        if cumulative_summary and len(cumulative_summary) < 80 and len(cumulative_summary) > 8:  # Reasonable cumulative summary length
+                                            enhanced_query = f"{cumulative_summary}. {user_message}"
+                                            search_query = enhanced_query
+                                            logger.info(f"🔄 [CUMULATIVE-AI] Search query: '{search_query}' (GEMINI cumulative summary: '{cumulative_summary}')")
+                                        else:
+                                            logger.info(f"🔍 [SEARCH] Using original query: '{search_query}' (cumulative summary not suitable: '{cumulative_summary}')")
+                                    else:
+                                        logger.info(f"🔍 [SEARCH] Using original query: '{search_query}' (no LLM available for cumulative summarization)")
+                                else:
+                                    # Fallback to single context if cumulative is not available
+                                    if last_context:
+                                        summary_prompt = f"""סכם בקצרה (מקסימום 8 מילים) את הנושא המרכזי מהשאלה הבאה:
+"{last_context}"
+
+תן תשובה קצרה עם מילות המפתח העיקריות בלבד (למשל: "חנייה קנסות", "לימודים ציונים", "מילואים זכויות")."""
+
+                                        if self.llm:
+                                            context_summary = self.llm.invoke(summary_prompt).content.strip()
+                                            if context_summary and len(context_summary) < 50 and len(context_summary) > 5:
+                                                enhanced_query = f"{context_summary} {user_message}"
+                                                search_query = enhanced_query
+                                                logger.info(f"🤖 [SINGLE-AI] Search query: '{search_query}' (GEMINI single summary: '{context_summary}')")
+                                            else:
+                                                logger.info(f"🔍 [SEARCH] Using original query: '{search_query}' (single summary not suitable: '{context_summary}')")
+                                        else:
+                                            logger.info(f"🔍 [SEARCH] Using original query: '{search_query}' (no LLM available)")
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to generate cumulative AI context summary: {e}")
+                                logger.info(f"🔍 [SEARCH] Using original query: '{search_query}' (fallback due to error)")
+                        else:
+                            logger.info(f"🔍 [SEARCH] Using original query: '{search_query}' (long question, no enhancement needed)")
+                        
+                        logger.info(f"🔗 [CONTEXT] Enhanced prompt context: '{previous_context[:100]}...'")
+                    else:
+                        logger.debug(f"🔗 [CONTEXT] No meaningful previous context found")
+                        logger.info(f"🔍 [SEARCH] Using original query: '{search_query}'")
+                else:
+                    logger.debug(f"🔗 [CONTEXT] No conversation history available")
+                    logger.info(f"🔍 [SEARCH] Using original query: '{search_query}'")
+                
+                # Pass search query and context separately
+                rag_response = await rag_service.generate_answer_with_context(
+                    query=search_query, 
+                    conversation_context=previous_context,
+                    search_method="hybrid"
+                )
                 
                 logger.info(f"📋 RAG response received: {rag_response is not None}")
                 if rag_response:
                     logger.debug(f"📋 RAG response keys: {list(rag_response.keys()) if isinstance(rag_response, dict) else 'Not a dict'}")
+                    logger.debug(f"📋 RAG response answer: {bool(rag_response.get('answer'))}")
+                    logger.debug(f"📋 RAG response sources: {rag_response.get('sources', [])}")
+                    logger.debug(f"📋 RAG response sources type: {type(rag_response.get('sources', []))}")
+                    logger.debug(f"📋 RAG response sources length: {len(rag_response.get('sources', []))}")
             else:
                 logger.warning("⚠️ RAG service not available")
                 rag_response = None
@@ -341,6 +441,10 @@ class ChatService(IChatService):
                 chunks_count = len(rag_response.get("chunks_selected", []))
                 
                 logger.info(f"📊 RAG answer found: sources={sources_count}, chunks={chunks_count}")
+                logger.debug(f"🔍 [DEBUG] RAG Response structure:")
+                logger.debug(f"    Answer: '{rag_response.get('answer', '')[:100]}...'")
+                logger.debug(f"    Sources: {rag_response.get('sources', [])}")
+                logger.debug(f"    Chunks: {len(rag_response.get('chunks_selected', []))}")
                 
                 if sources_count > 0:
                     logger.info(f"🎯 RAG generated answer with {sources_count} sources, {chunks_count} chunks")
@@ -390,9 +494,27 @@ class ChatService(IChatService):
         """🧠 Smart detection: conversation vs information requests"""
         message = message.lower().strip()
         
-        # ✅ Clear conversation indicators - ONLY these should NOT go to RAG
+        # 🎯 First check for ACADEMIC/INFORMATION keywords that MUST go to RAG
+        academic_keywords = [
+            # Academic topics
+            "מגיע לי", "זכאי", "זכויות", "תנאים", "נדרש", "חובה", "הכרה", 
+            "קבלה", "רישום", "בחינה", "מועד", "קורס", "תואר", "לימודים",
+            "מילואים", "שירות", "צבא", "משוחרר", "חייל", "רפואי", "פטור",
+            "מלגה", "שכר לימוד", "תשלום", "הנחה", "מועדון", "דרישות",
+            "ציון", "נקודות", "שעות", "סמסטר", "מטלה", "פרוייקט", "עבודה",
+            "מרצה", "מחלקה", "פקולטה", "דקאן", "מזכירות", "רכזת", "יועץ",
+            "איך ל", "איפה ל", "מתי ל", "האם אפשר", "האם ניתן", "האם יש",
+            "מה הליך", "מה התהליך", "מה הדרישות", "איך מקבלים", "איך נרשמים"
+        ]
+        
+        # 🔍 Check for academic keywords - these ALWAYS go to RAG
+        for keyword in academic_keywords:
+            if keyword in message:
+                return False  # Send to RAG
+        
+        # ✅ Pure conversation indicators - ONLY these should NOT go to RAG
         conversation_indicators = [
-            # Greetings
+            # Pure greetings only
             "שלום", "היי", "hello", "hi", "בוקר טוב", "ערב טוב",
             # Personal questions about the bot
             "איך קוראים לך", "מה השם שלך", "מי אתה", 
@@ -402,7 +524,7 @@ class ChatService(IChatService):
             "כן", "לא", "אוקיי", "טוב", "yes", "no", "ok", "okay"
         ]
         
-        # 🎯 Check for conversation indicators - ONLY these get conversation treatment
+        # 🎯 Check for conversation indicators - ONLY pure conversation gets conversation treatment
         for indicator in conversation_indicators:
             if indicator in message:
                 return True  # Send to conversation
@@ -502,7 +624,7 @@ class ChatService(IChatService):
                 sources = rag_result.get("sources", [])
                 chunks_count = rag_result.get("chunks", 0)
                 
-                # Simulate streaming by breaking the response into chunks
+                # Stream the response instantly without artificial delays
                 chunk_size = 50  # characters per chunk
                 for i in range(0, len(response_content), chunk_size):
                     chunk = response_content[i:i + chunk_size]
@@ -511,8 +633,7 @@ class ChatService(IChatService):
                         "content": chunk,
                         "accumulated": response_content[:i + len(chunk)]
                     }
-                    # Small delay to make it feel like streaming
-                    await asyncio.sleep(0.05)
+                    # No artificial delay - stream as fast as possible!
                 
                 yield {
                     "type": "complete",

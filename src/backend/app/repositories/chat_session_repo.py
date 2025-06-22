@@ -2,11 +2,43 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+import time
 
 from .interfaces import IChatSessionRepository
 from ..core.exceptions import RepositoryError
 
 logger = logging.getLogger(__name__)
+
+# ⚡ OPTIMIZATION: Simple in-memory cache for chat sessions
+_sessions_cache = {}
+CACHE_TTL = 60  # 1 minute cache
+
+def _get_cache_key(user_id: str) -> str:
+    """Generate cache key for user sessions"""
+    return f"sessions:{user_id}"
+
+def _is_cache_valid(cache_entry: dict) -> bool:
+    """Check if cache entry is still valid"""
+    return (time.time() - cache_entry.get('timestamp', 0)) < CACHE_TTL
+
+def _get_cached_sessions(user_id: str) -> Optional[List[Dict[str, Any]]]:
+    """Get cached sessions if available and valid"""
+    cache_key = _get_cache_key(user_id)
+    if cache_key in _sessions_cache:
+        entry = _sessions_cache[cache_key]
+        if _is_cache_valid(entry):
+            logger.info(f"🚀 [CACHE-HIT] Returning cached sessions for user {user_id}")
+            return entry['data']
+    return None
+
+def _cache_sessions(user_id: str, sessions: List[Dict[str, Any]]):
+    """Cache sessions for user"""
+    cache_key = _get_cache_key(user_id)
+    _sessions_cache[cache_key] = {
+        'data': sessions,
+        'timestamp': time.time()
+    }
+    logger.info(f"💾 [CACHE-SET] Cached {len(sessions)} sessions for user {user_id}")
 
 class SupabaseChatSessionRepository(IChatSessionRepository):
     """Supabase implementation of chat session repository."""
@@ -52,6 +84,12 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 except Exception as conv_err:
                     logger.warning(f"Could not create conversation record: {conv_err}")
                 
+                # ⚡ OPTIMIZATION: Invalidate cache when new session is created
+                cache_key = _get_cache_key(user_id)
+                if cache_key in _sessions_cache:
+                    del _sessions_cache[cache_key]
+                    logger.info(f"🗑️ [CACHE-INVALIDATE] Cleared cache for user {user_id}")
+                
                 return response.data[0]
             else:
                 # If no data returned, return the session data we tried to insert
@@ -73,29 +111,42 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 "updated_at": datetime.now().isoformat()
             }
     
-    async def get_sessions(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all chat sessions for a user."""
+    async def get_sessions(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """⚡ OPTIMIZED: Get chat sessions for a user with caching and pagination."""
         try:
-            logger.info(f"Fetching chat sessions for user: {user_id}")
+            # ⚡ Check cache first
+            cached_sessions = _get_cached_sessions(user_id)
+            if cached_sessions is not None:
+                return cached_sessions[:limit]  # Apply limit to cached data
             
-            # Try to get table info or do a minimal query to check if table exists
+            logger.info(f"📊 [CACHE-MISS] Fetching chat sessions for user: {user_id}")
+            
+            # ⚡ Quick table existence check using LIMIT 0
             try:
-                test_query = self.client.table(self.table_name).select("count").limit(1).execute()
-                logger.info(f"Chat sessions table exists: {test_query}")
+                self.client.table(self.table_name).select("id").limit(0).execute()
             except Exception as table_err:
                 logger.warning(f"Chat sessions table may not exist: {table_err}")
-                logger.info("Returning empty array")
                 return []
             
-            # Execute the query to get all sessions for the user
-            response = self.client.table(self.table_name).select("*").eq("user_id", user_id).order("updated_at", desc=True).execute()
+            # ⚡ OPTIMIZED query: Only select needed fields + use the new composite index
+            response = self.client.table(self.table_name)\
+                .select("id, user_id, title, created_at, updated_at")\
+                .eq("user_id", user_id)\
+                .order("updated_at", desc=True)\
+                .limit(limit)\
+                .execute()
             
-            # Check if the response has data
             if hasattr(response, 'data') and response.data:
-                logger.info(f"Found {len(response.data)} chat sessions for user: {user_id}")
-                return response.data
+                sessions = response.data
+                logger.info(f"✅ Found {len(sessions)} chat sessions for user: {user_id}")
+                
+                # ⚡ Cache the results
+                _cache_sessions(user_id, sessions)
+                return sessions
             else:
                 logger.info(f"No chat sessions found for user: {user_id}")
+                # Cache empty result too
+                _cache_sessions(user_id, [])
                 return []
                 
         except Exception as e:

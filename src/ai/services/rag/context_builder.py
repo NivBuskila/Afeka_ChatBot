@@ -67,6 +67,7 @@ class ContextBuilder:
         """יוצר prompt מותאם לשאלות תקנונים"""
         
         has_conversation_history = "היסטוריית השיחה:" in query
+        has_context = "בהקשר של:" in query
         
         conversation_instruction = ""
         if has_conversation_history:
@@ -76,12 +77,22 @@ class ContextBuilder:
 - If user refers to previous information (scores, numbers, "you said") - give consistent answer
 - Use phrases like "as I mentioned", "with the score you mentioned"
 """
+        
+        context_instruction = ""
+        if has_context:
+            context_instruction = """
+🔗 CONTEXTUAL QUESTION DETECTED!
+- This question refers back to a previous topic
+- Extract the core question from the contextual query
+- Answer the specific follow-up question using the sources provided below
+- STILL MUST cite sources properly with [מקורות: מקור X, מקור Y]
+"""
 
         base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
 
-אתה עוזר אקדמי של מכללת אפקה.{conversation_instruction}
+אתה עוזר אקדמי של מכללת אפקה.{conversation_instruction}{context_instruction}
 
 📚 מידע מהתקנונים:
 {context}
@@ -89,17 +100,62 @@ NO EXCEPTIONS! This format is MANDATORY!
 ❓ שאלה: {query}
 
 INSTRUCTIONS:
-1. Read all information above
-2. Answer in Hebrew based on the information
-3. For scores/ranges - check where the number falls
-4. Give detailed accurate answer
-5. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] ⚠️
+1. Read all information above carefully
+2. If this is a contextual question (contains "בהקשר של"), focus on the specific follow-up question
+3. Answer in Hebrew based ONLY on the information provided in the sources above
+4. Use specific details from the sources
+5. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
 
 EXAMPLES OF CORRECT FORMAT:
 "הטווח לרמה מתקדמים ב' הוא 120-133. ציון 125 נופל בטווח הזה. [מקורות: מקור 1]"
-"שכר הלימוד 5000 ש"ח לסמסטר. [מקורות: מקור 2, מקור 3]"
+"עבירה שנייה בחנייה עולה 250 ש"ח בהתאם לתקנון המשמעת. [מקורות: מקור 2]"
 
-⚠️ תשובה ללא [מקורות: ...] = תשובה שגויה! ⚠️
+⚠️ If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: מקור 1, מקור 2] ⚠️
+
+תשובה:"""
+
+        return base_prompt
+
+    def create_rag_prompt_with_conversation_context(self, query: str, context: str, conversation_context: str) -> str:
+        """יוצר prompt מותאם עם קונטקסט שיחה נפרד - פותר את בעיית החיפוש הלא עקבי"""
+        
+        context_instruction = ""
+        if conversation_context:
+            context_instruction = """
+🔗 CONVERSATION CONTEXT PROVIDED!
+- Previous conversation context is provided below
+- This current question refers back to the previous topic
+- Answer the current question using the sources while considering the previous context
+- Give consistent answers that reference the previous discussion when relevant
+- STILL MUST cite sources properly with [מקורות: מקור X, מקור Y]
+"""
+
+        base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
+NO EXCEPTIONS! This format is MANDATORY!
+
+אתה עוזר אקדמי של מכללת אפקה.{context_instruction}
+
+{conversation_context}
+
+📚 מידע מהתקנונים:
+{context}
+
+❓ השאלה הנוכחית: {query}
+
+INSTRUCTIONS:
+1. Read the conversation context above to understand what was discussed previously
+2. Read all information from the sources carefully
+3. Answer the current question based ONLY on the information provided in the sources above
+4. If this relates to previous discussion, acknowledge it and give consistent information
+5. Use specific details from the sources
+6. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
+
+EXAMPLES OF CORRECT FORMAT:
+"כפי שציינתי קודם, הטווח לרמה מתקדמים ב' הוא 120-133. לגבי השאלה החדשה... [מקורות: מקור 1]"
+"בהמשך לשאלה הקודמת על חנייה אסורה, עבירה שנייה עולה 250 ש"ח. [מקורות: מקור 2]"
+
+⚠️ If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: מקור 1, מקור 2] ⚠️
 
 תשובה:"""
 

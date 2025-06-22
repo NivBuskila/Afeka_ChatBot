@@ -28,10 +28,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.3",
+    "@types/lodash": "^4.17.18",
     "@types/node": "^22.13.13",
     "i18next": "^22.4.14",
     "i18next-browser-languagedetector": "^8.0.5",
     "i18next-http-backend": "^3.0.2",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.471.0",
     "msw": "^2.10.2",
     "react": "^18.3.1",
@@ -42,7 +44,8 @@
     "react-router-dom": "^7.4.0",
     "recharts": "^2.15.3",
     "rehype-raw": "^7.0.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "terser": "^5.43.1"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.8.0",

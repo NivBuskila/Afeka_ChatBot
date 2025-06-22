@@ -16,7 +16,7 @@ class DatabaseKeyManager:
         self.current_key_index = 0
         self.use_direct_supabase = use_direct_supabase
         self.last_refresh = None
-        self.refresh_interval = 300
+        self.refresh_interval = 1800  # 30 minutes - much longer refresh
         
         self.key_usage_stats = {}
         self.rotation_threshold = 3
@@ -51,7 +51,8 @@ class DatabaseKeyManager:
                     logger.info("Keys auto-refreshed successfully")
                 except Exception as e:
                     logger.error(f"Auto-refresh failed: {e}")
-                    await asyncio.sleep(60)
+                    # ⚡ OPTIMIZED: Longer retry interval on error to reduce load
+                    await asyncio.sleep(300)  # 5 minutes instead of 1 minute
         
         try:
             loop = asyncio.get_running_loop()
@@ -68,11 +69,11 @@ class DatabaseKeyManager:
             logger.info(f"Key {key_data.get('key_name')} reached session rotation threshold ({usage_count} requests)")
             return True
         
+        # ⚡ OPTIMIZED: Skip expensive database checks for most requests
+        # Only check database usage occasionally (every 10th request per key)
         try:
-            if not self.use_direct_supabase:
-                current_time = datetime.now().replace(second=0, microsecond=0)
-                minute_str = current_time.strftime('%Y-%m-%dT%H:%M:00+00:00')
-                
+            if not self.use_direct_supabase and usage_count % 10 == 0:
+                logger.debug(f"Performing periodic database usage check for key {key_id} (usage: {usage_count})")
                 response = await self.client.get(f"{self.base_url}/api/keys/")
                 if response.status_code == 200:
                     data = response.json()
@@ -119,43 +120,35 @@ class DatabaseKeyManager:
                 response = self.supabase.table('api_keys').select('*').eq('is_active', True).execute()
                 self.api_keys = response.data or []
             else:
-                response = await self.client.get(f"{self.base_url}/api/keys/")
-                response.raise_for_status()
-                keys_data = response.json()
-                
-                if keys_data.get('status') == 'ok' and 'key_management' in keys_data:
-                    if hasattr(self, 'supabase') and self.supabase:
-                        db_response = self.supabase.table('api_keys').select('*').eq('is_active', True).execute()
-                        self.api_keys = db_response.data or []
+                # ⚡ OPTIMIZED: Use fast endpoint first, fallback to heavy one only if needed
+                try:
+                    # Try fast endpoint first
+                    ai_response = await self.client.get(f"{self.base_url}/api/keys/for-ai-service")
+                    if ai_response.status_code == 200:
+                        ai_keys_data = ai_response.json()
+                        self.api_keys = ai_keys_data.get('keys', [])
+                        logger.info(f"🚀 [FAST-REFRESH] Got {len(self.api_keys)} keys from fast endpoint")
                     else:
-                        try:
-                            ai_response = await self.client.get(f"{self.base_url}/api/keys/for-ai-service")
-                            if ai_response.status_code == 200:
-                                ai_keys_data = ai_response.json()
-                                self.api_keys = ai_keys_data.get('keys', [])
-                            else:
-                                keys_status = keys_data['key_management'].get('keys_status', [])
-                                self.api_keys = []
-                                for i, key_stat in enumerate(keys_status):
-                                    self.api_keys.append({
-                                        'id': key_stat.get('id', i + 8),
-                                        'key_name': f'Key {i}',
-                                        'is_active': True,
-                                        'index': i
-                                    })
-                        except Exception as endpoint_error:
-                            logger.warning(f"Failed to get keys from AI endpoint: {endpoint_error}")
-                            keys_status = keys_data['key_management'].get('keys_status', [])
-                            self.api_keys = []
-                            for i, key_stat in enumerate(keys_status):
-                                self.api_keys.append({
-                                    'id': key_stat.get('id', i + 8),
-                                    'key_name': f'Key {i}',
-                                    'is_active': True,
-                                    'index': i
-                                })
-                else:
-                    self.api_keys = keys_data.get('keys', [])
+                        raise Exception("Fast endpoint failed")
+                except Exception as fast_error:
+                    logger.warning(f"Fast endpoint failed, using heavy endpoint: {fast_error}")
+                    # Fallback to heavy endpoint only if fast one fails
+                    response = await self.client.get(f"{self.base_url}/api/keys/")
+                    response.raise_for_status()
+                    keys_data = response.json()
+                    
+                    if keys_data.get('status') == 'ok' and 'key_management' in keys_data:
+                        keys_status = keys_data['key_management'].get('keys_status', [])
+                        self.api_keys = []
+                        for i, key_stat in enumerate(keys_status):
+                            self.api_keys.append({
+                                'id': key_stat.get('id', i + 8),
+                                'key_name': f'Key {i}',
+                                'is_active': True,
+                                'index': i
+                            })
+                    else:
+                        self.api_keys = keys_data.get('keys', [])
             
             self.last_refresh = datetime.now()
             logger.info(f"Refreshed {len(self.api_keys)} API keys from database")

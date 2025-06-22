@@ -10,11 +10,11 @@ router = APIRouter(prefix="/api/keys", tags=["API Keys"])
 
 logger = logging.getLogger(__name__)
 
-# Simple in-memory cache with longer TTL for better performance
+# Aggressive caching for maximum performance - key management doesn't need to be real-time
 _cache = {
     "data": None,
     "timestamp": 0,
-    "ttl": 120  # 2 minutes cache - longer for better performance
+    "ttl": 600  # 10 minutes cache - much longer for better performance
 }
 
 def get_cached_result() -> Optional[Dict[str, Any]]:
@@ -34,7 +34,7 @@ def set_cached_result(data: Dict[str, Any]):
     """Cache the result"""
     _cache["data"] = data
     _cache["timestamp"] = time.time()
-    logger.info("💾 [CACHE-SET] Data cached for 2 minutes")
+    logger.info("💾 [CACHE-SET] Data cached for 10 minutes")
 
 @router.get("/")
 async def get_api_keys(
@@ -302,18 +302,49 @@ async def check_key_limits(
         logger.error(f"Error checking limits for key {key_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to check limits: {str(e)}")
 
+# 🚀 Fast cache for lightweight operations (separate from heavy analytics cache)
+_fast_cache = {
+    "keys": None,
+    "timestamp": 0,
+    "ttl": 1800  # 30 minutes for basic key data
+}
+
+def get_fast_cached_keys() -> Optional[List[Dict[str, Any]]]:
+    """Get cached keys if still valid"""
+    if _fast_cache["keys"] is None:
+        return None
+    
+    age = time.time() - _fast_cache["timestamp"]
+    if age > _fast_cache["ttl"]:
+        _fast_cache["keys"] = None
+        return None
+    
+    return _fast_cache["keys"]
+
+def set_fast_cached_keys(keys: List[Dict[str, Any]]):
+    """Cache the keys for fast access"""
+    _fast_cache["keys"] = keys
+    _fast_cache["timestamp"] = time.time()
+
 @router.get("/for-ai-service")
 async def get_keys_for_ai_service(
     supabase_client = Depends(get_supabase_client)
 ) -> Dict[str, Any]:
-    """Get API keys for AI service with actual key values"""
+    """⚡ FAST: Get API keys for AI service with minimal overhead"""
     try:
-        # This endpoint is specifically for the AI service to get actual API key values
-        # It should only be accessible internally (add authentication if needed)
+        # Check fast cache first
+        cached_keys = get_fast_cached_keys()
+        if cached_keys:
+            logger.info(f"🚀 [FAST-CACHE] Returning {len(cached_keys)} cached keys")
+            return {
+                "status": "ok",
+                "keys": cached_keys,
+                "total_keys": len(cached_keys)
+            }
         
-        logger.info("🔑 [AI-SERVICE] Fetching API keys for AI service")
+        logger.info("🔑 [AI-SERVICE] Cache miss - fetching fresh data")
         
-        # Get active API keys with actual key values
+        # Simple, fast query - no complex analytics
         response = supabase_client.table("api_keys")\
             .select("id, key_name, api_key, is_active, created_at")\
             .eq("is_active", True)\
@@ -321,6 +352,9 @@ async def get_keys_for_ai_service(
         
         keys = response.data or []
         logger.info(f"🔑 [AI-SERVICE] Found {len(keys)} active API keys")
+        
+        # Cache for future requests
+        set_fast_cached_keys(keys)
         
         return {
             "status": "ok",

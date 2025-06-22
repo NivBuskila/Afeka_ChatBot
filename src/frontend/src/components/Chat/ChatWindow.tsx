@@ -831,7 +831,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                   setInput={setInput}
                   onSend={handleSend}
                   isLoading={isLoading}
-                  isInitial={true}
                 />
               </div>
             </div>
@@ -947,7 +946,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
                       setInput={setInput}
                       onSend={handleSend}
                       isLoading={isLoading}
-                      isInitial={true}
                     />
                   </div>
                 </div>
