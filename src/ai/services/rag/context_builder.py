@@ -12,7 +12,6 @@ class ContextBuilder:
     """Service for handling context assembly and prompt creation"""
     
     def __init__(self):
-        # Import here to avoid circular imports
         try:
             from ...config.rag_config import get_context_config, get_performance_config
         except ImportError:
@@ -20,10 +19,45 @@ class ContextBuilder:
         
         self.context_config = get_context_config()
         self.performance_config = get_performance_config()
-        logger.info("🔧 ContextBuilder initialized")
+        logger.info("ContextBuilder initialized")
     
+    def _clean_document_name(self, document_name: str) -> str:
+        """Clean document name for clean and beautiful citation"""
+        if not document_name:
+            return "מסמך לא ידוע"
+        
+        clean_name = document_name.split('/')[-1].split('\\')[-1]
+        
+        extensions = ['.pdf', '.docx', '.doc', '.txt', '.md', '.html', '.rtf']
+        for ext in extensions:
+            if clean_name.lower().endswith(ext.lower()):
+                clean_name = clean_name[:-len(ext)]
+                break
+        
+        unwanted_patterns = [
+            r'\s*cleaned\s*\(\d+\)',
+            r'\s*cleaned\s*$',
+            r'\s*copy\s*\(\d+\)',
+            r'\s*copy\s*$',
+            r'\s*\(\d+\)\s*$',
+            r'\s*-\s*copy\s*$',
+            r'\s*_copy\s*$',
+        ]
+        
+        for pattern in unwanted_patterns:
+            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
+        
+        clean_name = re.sub(r'[-_.]+', ' ', clean_name)
+        
+        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+        
+        if not clean_name:
+            return "מסמך לא ידוע"
+        
+        return clean_name
+
     def build_context(self, search_results: List[Dict[str, Any]]) -> Tuple[str, List[str], List[Dict[str, Any]]]:
-        """בונה קונטקסט מתוצאות החיפוש"""
+        """Build context from search results"""
         context_chunks = []
         citations = []
         included_chunks = []
@@ -38,7 +72,6 @@ class ContextBuilder:
             chunk_content = result.get('chunk_text', result.get('content', ''))
             document_name = result.get('document_name', f'מסמך {i+1}')
             
-            # הערכת tokens
             estimated_tokens = len(chunk_content.split()) * getattr(self.performance_config, 'TOKEN_ESTIMATION_MULTIPLIER', 1.3)
             
             max_context_tokens = getattr(self.context_config, 'MAX_CONTEXT_TOKENS', 4000)
@@ -46,15 +79,13 @@ class ContextBuilder:
                 logger.info(f"Context token limit reached at chunk {i}")
                 break
             
-            # הוספת מידע על הציון דומיות אם זמין
             similarity_info = ""
             if 'similarity_score' in result:
                 similarity_info = f" (דומיות: {result['similarity_score']:.3f})"
             elif 'combined_score' in result:
                 similarity_info = f" (ציון: {result['combined_score']:.3f})"
             
-            # Clean document name for citation
-            clean_document_name = document_name.replace('.pdf', '').replace('_', ' ')
+            clean_document_name = self._clean_document_name(document_name)
             context_chunks.append(f"{clean_document_name}{similarity_info}:\n{chunk_content}")
             citations.append(clean_document_name)
             included_chunks.append(result)
@@ -66,7 +97,7 @@ class ContextBuilder:
         return context, citations, included_chunks
 
     def create_rag_prompt(self, query: str, context: str) -> str:
-        """יוצר prompt מותאם לשאלות תקנונים - now using centralized prompts"""
+        """Create RAG prompt - now using centralized prompts"""
         try:
             from ...config.system_prompts import get_rag_prompt
             return get_rag_prompt(query, context)
@@ -75,7 +106,6 @@ class ContextBuilder:
                 from src.ai.config.system_prompts import get_rag_prompt
                 return get_rag_prompt(query, context)
             except ImportError:
-                # Fallback if import fails - keep the old prompt structure
                 base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
@@ -97,7 +127,7 @@ INSTRUCTIONS:
                 return base_prompt
 
     def create_rag_prompt_with_conversation_context(self, query: str, context: str, conversation_context: str) -> str:
-        """יוצר prompt מותאם עם קונטקסט שיחה נפרד - now using centralized prompts"""
+        """Create RAG prompt with separate conversation context - now using centralized prompts"""
         try:
             from ...config.system_prompts import get_rag_prompt
             return get_rag_prompt(query, context, conversation_context)
@@ -106,7 +136,6 @@ INSTRUCTIONS:
                 from src.ai.config.system_prompts import get_rag_prompt
                 return get_rag_prompt(query, context, conversation_context)
             except ImportError:
-                # Fallback if import fails - keep the old prompt structure
                 base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
@@ -129,7 +158,7 @@ INSTRUCTIONS:
                 return base_prompt
 
     def extract_cited_sources(self, answer: str, available_citations: Optional[List[str]] = None) -> List[str]:
-        """מחלץ את המקורות שציטט המודל מהתשובה"""
+        """Extract sources cited by the model from the answer"""
         
         patterns = [
             r'\[מקורות:\s*([^\]]+)\]',
@@ -145,75 +174,70 @@ INSTRUCTIONS:
             match = re.search(pattern, answer, re.IGNORECASE)
             if match:
                 sources_text = match.group(1)
-                logger.info(f"🔍 מקורות נמצאו עם פטרן #{i+1}: {sources_text}")
+                logger.info(f"Sources found with pattern #{i+1}: {sources_text}")
                 break
         
         if not sources_text:
-            logger.error("🚨 לא נמצאו מקורות מצוטטים בתשובה!")
+            logger.error("No cited sources found in answer!")
             return []
         
         cited_sources = []
         
-        # Split by commas and clean up source names
         potential_sources = [s.strip() for s in sources_text.split(',')]
         
         for source in potential_sources:
-            # Clean up the source name
             clean_source = source.strip()
             
-            # Remove common prefixes
             clean_source = re.sub(r'^(מקור\s*\d*\s*[-:]?\s*)', '', clean_source, flags=re.IGNORECASE)
             clean_source = clean_source.strip()
             
             if clean_source:
                 cited_sources.append(clean_source)
-                logger.info(f"✅ מקור מצוטט: {clean_source}")
+                logger.info(f"Cited source: {clean_source}")
         
         if not cited_sources and available_citations:
-            logger.warning("⚠️ לא נמצאו מקורות תקינים - מחזיר את המקור הראשון")
+            logger.warning("No valid sources found - returning first source")
             return [available_citations[0]]
         
         if not cited_sources:
-            logger.error(f"🚨 לא נמצאו מקורות תקינים בטקסט: {sources_text}")
+            logger.error(f"No valid sources found in text: {sources_text}")
         else:
-            logger.info(f"✅ מקורות מצוטטים בהצלחה: {cited_sources}")
+            logger.info(f"Sources cited successfully: {cited_sources}")
         
         return cited_sources
 
     def get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_names: List[str], available_citations: List[str]) -> List[Dict[str, Any]]:
-        """מחזיר את הchunks שבאמת צוטטו על ידי המודל"""
+        """Return chunks that were actually cited by the model"""
         if not cited_source_names:
-            logger.warning("⚠️ לא נמצאו ציטוטים מהמודל - מחזיר chunk ראשון")
+            logger.warning("No citations found from model - returning first chunk")
             return included_chunks[:1] if included_chunks else []
         
         cited_chunks = []
         for cited_name in cited_source_names:
-            # Find matching citation
             best_match_index = -1
             best_match_score = 0
             
             for i, available_citation in enumerate(available_citations):
-                # Calculate similarity between cited name and available citation
                 similarity = self._calculate_citation_similarity(cited_name, available_citation)
                 
-                if similarity > best_match_score and similarity > 0.3:  # Minimum similarity threshold
+                if similarity > best_match_score and similarity > 0.3:
                     best_match_score = similarity
                     best_match_index = i
             
             if best_match_index >= 0 and best_match_index < len(included_chunks):
                 cited_chunks.append(included_chunks[best_match_index])
-                logger.info(f"✅ מצא מקור מצוטט: {cited_name} -> {available_citations[best_match_index]}")
+                logger.info(f"Found cited source: {cited_name} -> {available_citations[best_match_index]}")
             else:
-                logger.warning(f"⚠️ מקור {cited_name} לא נמצא בקונטקסט")
+                logger.warning(f"Source {cited_name} not found in context")
         
         if not cited_chunks:
-            logger.warning("⚠️ לא נמצאו chunks תקינים מהציטוטים")
+            logger.warning("No valid chunks found from citations")
             return included_chunks[:1] if included_chunks else []
         
         return cited_chunks
     
     def _calculate_citation_similarity(self, cited_name: str, available_citation: str) -> float:
-        """מחשב דמיון בין שם מקור מצוטט למקור זמין"""
+        """Calculate similarity between cited source name and available source"""
         cited_words = set(cited_name.lower().split())
         available_words = set(available_citation.lower().split())
         
@@ -226,7 +250,7 @@ INSTRUCTIONS:
         return len(intersection) / len(union) if union else 0.0
 
     def extract_relevant_chunk_segment(self, chunk_text: str, query: str, answer: str, max_length: int = 500) -> str:
-        """מחלץ קטע רלוונטי מהchunk"""
+        """Extract relevant segment from chunk"""
         if not chunk_text or len(chunk_text) <= max_length:
             return chunk_text
         
@@ -271,4 +295,4 @@ INSTRUCTIONS:
             
         except Exception as e:
             logger.error(f"Error extracting relevant segment: {e}")
-            return chunk_text[:max_length] + "..." if len(chunk_text) > max_length else chunk_text 
+            return chunk_text[:max_length] + "..." if len(chunk_text) > max_length else chunk_text
