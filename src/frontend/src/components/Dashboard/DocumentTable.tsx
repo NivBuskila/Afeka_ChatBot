@@ -92,7 +92,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   i18n.language === "en" ? "text-left" : "text-right"
                 } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
               >
-                {i18n.language === "he" ? "סטטוס" : "Status"}
+                {t("table.status") || "Status"}
               </th>
               <th
                 className={`px-6 py-3 ${
@@ -112,9 +112,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                 >
                   {filteredDocuments.length === 0
                     ? documents.length === 0
-                      ? "אין מסמכים במערכת"
-                      : "לא נמצאו מסמכים התואמים לחיפוש"
-                    : "אין מסמכים לעמוד זה"}
+                      ? t("documents.noDocuments") || "No documents in system"
+                      : t("documents.noMatches") || "No documents found matching search"
+                    : t("documents.noDocumentsOnPage") || "No documents on this page"}
                 </td>
               </tr>
             ) : (

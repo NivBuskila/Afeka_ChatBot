@@ -36,9 +36,7 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({
               <div className="mt-2">
                 <p className="text-sm text-gray-700 dark:text-green-400/70 break-words leading-relaxed">
                   {documentName
-                    ? i18n.language === "he"
-                      ? `האם אתה בטוח שברצונך למחוק את "${documentName}"?`
-                      : `Are you sure you want to delete "${documentName}"?`
+                    ? t("documents.deleteConfirmMessage", { documentName })
                     : t("documents.confirmDelete")}
                 </p>
               </div>

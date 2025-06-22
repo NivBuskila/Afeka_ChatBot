@@ -10,8 +10,15 @@ export interface DocumentHandlerCallbacks {
   onSelectedDocumentChange: (document: Document | null) => void;
 }
 
+export interface DocumentHandlerConfig {
+  t?: (key: string, fallback?: string) => string;
+}
+
 export class DocumentHandlerService {
-  constructor(private callbacks: DocumentHandlerCallbacks) {}
+  constructor(
+    private callbacks: DocumentHandlerCallbacks,
+    private config: DocumentHandlerConfig = {}
+  ) {}
 
   /**
    * Handles file upload with authentication and user verification
@@ -84,7 +91,7 @@ export class DocumentHandlerService {
       // Update local state
       this.callbacks.onDocumentsUpdate((prev) => [docData, ...prev]);
       this.callbacks.onModalClose('upload');
-      this.callbacks.onSuccess('הקובץ הועלה בהצלחה');
+      this.callbacks.onSuccess(this.config.t?.('documents.uploadSuccess') || 'File uploaded successfully');
     } catch (error) {
       console.error('Error uploading file:', error);
       this.callbacks.onError('אירעה שגיאה בתהליך ההעלאה');
@@ -148,7 +155,7 @@ export class DocumentHandlerService {
 
       this.callbacks.onModalClose('edit');
       this.callbacks.onSelectedDocumentChange(null);
-      this.callbacks.onSuccess('המסמך עודכן בהצלחה');
+      this.callbacks.onSuccess(this.config.t?.('documents.updateSuccess') || 'Document updated successfully');
     } catch (error) {
       console.error('Error updating document:', error);
       this.callbacks.onError('אירעה שגיאה בעדכון המסמך');
@@ -186,7 +193,7 @@ export class DocumentHandlerService {
       
       this.callbacks.onModalClose('delete');
       this.callbacks.onSelectedDocumentChange(null);
-      this.callbacks.onSuccess('המסמך נמחק בהצלחה');
+      this.callbacks.onSuccess(this.config.t?.('documents.deleteSuccess') || 'Document deleted successfully');
     } catch (error) {
       console.error('Error deleting document:', error);
       this.callbacks.onError('אירעה שגיאה במחיקת המסמך');
