@@ -13,6 +13,7 @@ from ...api import vector_management
 from ..api.routes.rag import router as rag_router
 from ..api.routes.title_generation import router as title_router  
 from ..api.routes.api_keys import router as api_keys_router
+from ..api.routes.system_prompts import router as system_prompts_router
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,7 @@ class Application:
         self.app.include_router(rag_router, prefix="/api/rag")
         self.app.include_router(title_router)
         self.app.include_router(api_keys_router)
+        self.app.include_router(system_prompts_router, prefix="/api")
         logger.info("API routers configured")
     
     def _configure_exception_handlers(self):

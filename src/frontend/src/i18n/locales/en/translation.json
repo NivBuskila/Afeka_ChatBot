@@ -62,7 +62,14 @@
     "activeUsers": "Active Users",
     "activeAdmins": "Active Admins",
     "noUsers": "No users found",
-    "noAdmins": "No admins found"
+    "noAdmins": "No admins found",
+    "no": {
+      "data": "No data found"
+    },
+    "token": {
+      "usage": "Token Usage"
+    },
+    "admins": "Administrators"
   },
   "dashboard": {
     "totalUsers": "Total Users",
@@ -94,6 +101,18 @@
     "delete": "Delete",
     "edit": "Edit"
   },
+  "user": {
+    "role": "Role"
+  },
+  "chatbot": {
+    "preview": "Chatbot Preview"
+  },
+  "nav": {
+    "apex": {
+      "admin": "APEX Admin"
+    },
+    "logout": "Logout"
+  },
   "documents": {
     "edit": "Edit Document",
     "replaceInstructions": "Select a new file to replace the current document:",
@@ -107,7 +126,25 @@
     "size": "Size",
     "date": "Date",
     "actions": "Actions",
-    "confirmDelete": "Confirm Delete"
+    "confirmDelete": "Confirm Delete",
+    "deleteConfirmMessage": "Are you sure you want to delete \"{{documentName}}\"?",
+    "deleteSuccess": "Document deleted successfully",
+    "uploadSuccess": "File uploaded successfully",
+    "loadingData": "Loading data...",
+    "processingError": "Error loading processing data",
+    "noDocuments": "No documents in system",
+    "noMatches": "No documents found matching search",
+    "noDocumentsOnPage": "No documents on this page",
+    "status": {
+      "pending": "Waiting for processing",
+      "processing": "Processing...",
+      "completed": "Completed",
+      "failed": "Failed",
+      "unknown": "Unknown",
+      "automatic": "automatic",
+      "chunks": "chunks",
+      "vectors": "vectors"
+    }
   },
   "table": {
     "document": {
@@ -214,6 +251,9 @@
     "similarity": {
       "threshold": "Similarity Threshold"
     },
+    "source": {
+      "chunk": "Source Text (Chunk)"
+    },
     "max": {
       "chunks": "Max Chunks"
     },
@@ -247,7 +287,7 @@
     "chunks": "Chunks",
     "chunkSize": "Chunk Size",
     "chunkOverlap": "Chunk Overlap",
-    "maxContext": "Max Context",
+    "maxContext": "Max Context Tokens",
     "semanticWeight": "Semantic Weight",
     "focus": "Focus",
     "accuracy": "Accuracy",
@@ -272,7 +312,7 @@
     "expectedSpeed": "Expected Speed",
     "expectedQuality": "Expected Quality",
     "bestFor": "Best For",
-    "tradeoffs": "Trade-offs",
+    "tradeoffs": "Tradeoffs",
     "notAvailable": "Not Available",
     "create": {
       "profile": "Create New Profile",
@@ -289,7 +329,7 @@
     "bestForPlaceholder": "Best suited for...",
     "expectedSpeedPlaceholder": "Fast/Medium/Slow...",
     "expectedQualityPlaceholder": "High/Medium/Basic...",
-    "tradeoffsPlaceholder": "What are the trade-offs of this profile...",
+    "tradeoffsPlaceholder": "What are the tradeoffs of this profile...",
     "cancel": "Cancel",
     "creating": "Creating...",
     "chunkSource": "Source Text (Chunk):",
@@ -307,9 +347,25 @@
     "confirmRestore": {
       "title": "Confirm Restore",
       "message": "Are you sure you want to restore the profile \"{{profileName}}\"?",
+      "note": "The profile will appear again in the available profiles list.",
       "confirmButton": "Yes, Restore",
       "cancelButton": "Cancel"
-    }
+    },
+    "system": {
+      "prompt": "System Prompt"
+    },
+    "delete": "Delete",
+    "hide": "Hide",
+    "deleting": "Deleting...",
+    "hiding": "Hiding...",
+    "restore": "Restore",
+    "restoring": "Restoring...",
+    "activate": "Activate Profile",
+    "activating": "Activating...",
+    "active": "Active",
+    "inactive": "Inactive",
+    "document": "Document",
+    "noActiveProfile": "No Active Profile"
   },
   "pagination": {
     "showing": "Showing",
@@ -322,5 +378,33 @@
     "lastPage": "Last page",
     "morePages": "More pages",
     "goToPage": "Go to page"
-  }
+  },
+  "cancel": "Cancel",
+  "creating": "Creating...",
+  "maxContext": "Max Context Tokens",
+  "chunkSize": "Chunk Size",
+  "expectedSpeedPlaceholder": "Fast/Medium/Slow...",
+  "expectedQualityPlaceholder": "High/Medium/Basic...",
+  "tradeoffsPlaceholder": "What are the tradeoffs of this profile...",
+  "characteristics": "Characteristics",
+  "focus": "Focus",
+  "bestFor": "Best For",
+  "expectedSpeed": "Expected Speed",
+  "expectedQuality": "Expected Quality",
+  "tradeoffs": "Tradeoffs",
+  "temperature": "Temperature",
+  "model.name": "Model Name",
+  "max.chunks": "Max Chunks",
+  "similarity.threshold": "Similarity Threshold",
+  "selectSpeed": "Select speed...",
+  "selectQuality": "Select quality...",
+  "fast": "Fast",
+  "medium": "Medium",
+  "slow": "Slow",
+  "high": "High",
+  "basic": "Basic",
+  "running.test": "Running test...",
+  "performance.metrics": "Performance Metrics",
+  "processing.time": "Processing Time",
+  "chunks.found": "Chunks Found"
 }

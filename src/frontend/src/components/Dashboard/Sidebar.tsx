@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Search,
   Coins,
+  MessageCircle,
 } from "lucide-react";
 import { translations } from "./translations";
 
@@ -131,6 +132,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: "test",
           title: t("rag.test"),
           icon: <Search className="w-4 h-4" />,
+        },
+        {
+          id: "system-prompt",
+          title: t("rag.system.prompt"),
+          icon: <MessageCircle className="w-4 h-4" />,
         },
       ],
     },

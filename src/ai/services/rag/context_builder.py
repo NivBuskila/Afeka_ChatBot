@@ -4,7 +4,7 @@ Context Builder - Handles context assembly and prompt creation
 
 import re
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +53,10 @@ class ContextBuilder:
             elif 'combined_score' in result:
                 similarity_info = f" (ציון: {result['combined_score']:.3f})"
             
-            context_chunks.append(f"מקור {len(included_chunks)+1} - {document_name}{similarity_info}:\n{chunk_content}")
-            citations.append(document_name)
+            # Clean document name for citation
+            clean_document_name = document_name.replace('.pdf', '').replace('_', ' ')
+            context_chunks.append(f"{clean_document_name}{similarity_info}:\n{chunk_content}")
+            citations.append(clean_document_name)
             included_chunks.append(result)
             total_tokens += estimated_tokens
         
@@ -64,35 +66,21 @@ class ContextBuilder:
         return context, citations, included_chunks
 
     def create_rag_prompt(self, query: str, context: str) -> str:
-        """יוצר prompt מותאם לשאלות תקנונים"""
-        
-        has_conversation_history = "היסטוריית השיחה:" in query
-        has_context = "בהקשר של:" in query
-        
-        conversation_instruction = ""
-        if has_conversation_history:
-            conversation_instruction = """
-🔗 CONVERSATION CONTEXT DETECTED!
-- Read the conversation history carefully
-- If user refers to previous information (scores, numbers, "you said") - give consistent answer
-- Use phrases like "as I mentioned", "with the score you mentioned"
-"""
-        
-        context_instruction = ""
-        if has_context:
-            context_instruction = """
-🔗 CONTEXTUAL QUESTION DETECTED!
-- This question refers back to a previous topic
-- Extract the core question from the contextual query
-- Answer the specific follow-up question using the sources provided below
-- STILL MUST cite sources properly with [מקורות: מקור X, מקור Y]
-"""
-
-        base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+        """יוצר prompt מותאם לשאלות תקנונים - now using centralized prompts"""
+        try:
+            from ...config.system_prompts import get_rag_prompt
+            return get_rag_prompt(query, context)
+        except ImportError:
+            try:
+                from src.ai.config.system_prompts import get_rag_prompt
+                return get_rag_prompt(query, context)
+            except ImportError:
+                # Fallback if import fails - keep the old prompt structure
+                base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
 
-אתה עוזר אקדמי של מכללת אפקה.{conversation_instruction}{context_instruction}
+אתה עוזר אקדמי של מכללת אפקה.
 
 📚 מידע מהתקנונים:
 {context}
@@ -101,40 +89,29 @@ NO EXCEPTIONS! This format is MANDATORY!
 
 INSTRUCTIONS:
 1. Read all information above carefully
-2. If this is a contextual question (contains "בהקשר של"), focus on the specific follow-up question
-3. Answer in Hebrew based ONLY on the information provided in the sources above
-4. Use specific details from the sources
-5. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
-
-EXAMPLES OF CORRECT FORMAT:
-"הטווח לרמה מתקדמים ב' הוא 120-133. ציון 125 נופל בטווח הזה. [מקורות: מקור 1]"
-"עבירה שנייה בחנייה עולה 250 ש"ח בהתאם לתקנון המשמעת. [מקורות: מקור 2]"
-
-⚠️ If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: מקור 1, מקור 2] ⚠️
+2. Answer in Hebrew based ONLY on the information provided in the sources above
+3. Use specific details from the sources
+4. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
 
 תשובה:"""
-
-        return base_prompt
+                return base_prompt
 
     def create_rag_prompt_with_conversation_context(self, query: str, context: str, conversation_context: str) -> str:
-        """יוצר prompt מותאם עם קונטקסט שיחה נפרד - פותר את בעיית החיפוש הלא עקבי"""
-        
-        context_instruction = ""
-        if conversation_context:
-            context_instruction = """
-🔗 CONVERSATION CONTEXT PROVIDED!
-- Previous conversation context is provided below
-- This current question refers back to the previous topic
-- Answer the current question using the sources while considering the previous context
-- Give consistent answers that reference the previous discussion when relevant
-- STILL MUST cite sources properly with [מקורות: מקור X, מקור Y]
-"""
-
-        base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+        """יוצר prompt מותאם עם קונטקסט שיחה נפרד - now using centralized prompts"""
+        try:
+            from ...config.system_prompts import get_rag_prompt
+            return get_rag_prompt(query, context, conversation_context)
+        except ImportError:
+            try:
+                from src.ai.config.system_prompts import get_rag_prompt
+                return get_rag_prompt(query, context, conversation_context)
+            except ImportError:
+                # Fallback if import fails - keep the old prompt structure
+                base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
 
-אתה עוזר אקדמי של מכללת אפקה.{context_instruction}
+אתה עוזר אקדמי של מכללת אפקה.
 
 {conversation_context}
 
@@ -144,24 +121,14 @@ NO EXCEPTIONS! This format is MANDATORY!
 ❓ השאלה הנוכחית: {query}
 
 INSTRUCTIONS:
-1. Read the conversation context above to understand what was discussed previously
-2. Read all information from the sources carefully
-3. Answer the current question based ONLY on the information provided in the sources above
-4. If this relates to previous discussion, acknowledge it and give consistent information
-5. Use specific details from the sources
-6. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
-
-EXAMPLES OF CORRECT FORMAT:
-"כפי שציינתי קודם, הטווח לרמה מתקדמים ב' הוא 120-133. לגבי השאלה החדשה... [מקורות: מקור 1]"
-"בהמשך לשאלה הקודמת על חנייה אסורה, עבירה שנייה עולה 250 ש"ח. [מקורות: מקור 2]"
-
-⚠️ If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: מקור 1, מקור 2] ⚠️
+1. Read all information from the sources carefully
+2. Answer the current question based ONLY on the information provided in the sources above
+3. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
 
 תשובה:"""
+                return base_prompt
 
-        return base_prompt
-
-    def extract_cited_sources(self, answer: str) -> List[int]:
+    def extract_cited_sources(self, answer: str, available_citations: Optional[List[str]] = None) -> List[str]:
         """מחלץ את המקורות שציטט המודל מהתשובה"""
         
         patterns = [
@@ -185,48 +152,78 @@ EXAMPLES OF CORRECT FORMAT:
             logger.error("🚨 לא נמצאו מקורות מצוטטים בתשובה!")
             return []
         
-        source_numbers = []
-        source_pattern = r'מקור\s*(\d+)'
-        source_matches = re.findall(source_pattern, sources_text, re.IGNORECASE)
+        cited_sources = []
         
-        for match in source_matches:
-            try:
-                source_num = int(match)
-                if 1 <= source_num <= 100:
-                    source_numbers.append(source_num)
-                else:
-                    logger.warning(f"⚠️ מספר מקור לא סביר: {source_num}")
-            except ValueError:
-                logger.warning(f"⚠️ לא ניתן להמיר למספר: {match}")
-                continue
+        # Split by commas and clean up source names
+        potential_sources = [s.strip() for s in sources_text.split(',')]
         
-        if not source_numbers:
-            logger.error(f"🚨 לא נמצאו מספרי מקורות תקינים בטקסט: {sources_text}")
+        for source in potential_sources:
+            # Clean up the source name
+            clean_source = source.strip()
+            
+            # Remove common prefixes
+            clean_source = re.sub(r'^(מקור\s*\d*\s*[-:]?\s*)', '', clean_source, flags=re.IGNORECASE)
+            clean_source = clean_source.strip()
+            
+            if clean_source:
+                cited_sources.append(clean_source)
+                logger.info(f"✅ מקור מצוטט: {clean_source}")
+        
+        if not cited_sources and available_citations:
+            logger.warning("⚠️ לא נמצאו מקורות תקינים - מחזיר את המקור הראשון")
+            return [available_citations[0]]
+        
+        if not cited_sources:
+            logger.error(f"🚨 לא נמצאו מקורות תקינים בטקסט: {sources_text}")
         else:
-            logger.info(f"✅ מקורות מצוטטים בהצלחה: {source_numbers}")
+            logger.info(f"✅ מקורות מצוטטים בהצלחה: {cited_sources}")
         
-        return source_numbers
+        return cited_sources
 
-    def get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_numbers: List[int]) -> List[Dict[str, Any]]:
+    def get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_names: List[str], available_citations: List[str]) -> List[Dict[str, Any]]:
         """מחזיר את הchunks שבאמת צוטטו על ידי המודל"""
-        if not cited_source_numbers:
+        if not cited_source_names:
             logger.warning("⚠️ לא נמצאו ציטוטים מהמודל - מחזיר chunk ראשון")
             return included_chunks[:1] if included_chunks else []
         
         cited_chunks = []
-        for source_num in cited_source_numbers:
-            index = source_num - 1
-            if 0 <= index < len(included_chunks):
-                cited_chunks.append(included_chunks[index])
-                logger.info(f"✅ מצא מקור מצוטט {source_num}")
+        for cited_name in cited_source_names:
+            # Find matching citation
+            best_match_index = -1
+            best_match_score = 0
+            
+            for i, available_citation in enumerate(available_citations):
+                # Calculate similarity between cited name and available citation
+                similarity = self._calculate_citation_similarity(cited_name, available_citation)
+                
+                if similarity > best_match_score and similarity > 0.3:  # Minimum similarity threshold
+                    best_match_score = similarity
+                    best_match_index = i
+            
+            if best_match_index >= 0 and best_match_index < len(included_chunks):
+                cited_chunks.append(included_chunks[best_match_index])
+                logger.info(f"✅ מצא מקור מצוטט: {cited_name} -> {available_citations[best_match_index]}")
             else:
-                logger.warning(f"⚠️ מקור {source_num} לא קיים בקונטקסט")
+                logger.warning(f"⚠️ מקור {cited_name} לא נמצא בקונטקסט")
         
         if not cited_chunks:
             logger.warning("⚠️ לא נמצאו chunks תקינים מהציטוטים")
             return included_chunks[:1] if included_chunks else []
         
         return cited_chunks
+    
+    def _calculate_citation_similarity(self, cited_name: str, available_citation: str) -> float:
+        """מחשב דמיון בין שם מקור מצוטט למקור זמין"""
+        cited_words = set(cited_name.lower().split())
+        available_words = set(available_citation.lower().split())
+        
+        if not cited_words or not available_words:
+            return 0.0
+        
+        intersection = cited_words.intersection(available_words)
+        union = cited_words.union(available_words)
+        
+        return len(intersection) / len(union) if union else 0.0
 
     def extract_relevant_chunk_segment(self, chunk_text: str, query: str, answer: str, max_length: int = 500) -> str:
         """מחלץ קטע רלוונטי מהchunk"""

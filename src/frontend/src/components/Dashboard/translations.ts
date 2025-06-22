@@ -63,6 +63,10 @@ export const translations: Translations = {
     he: 'בדיקות',
     en: 'Test Center'
   },
+  'rag.system.prompt': {
+    he: 'הנחיות מערכת',
+    en: 'System Prompt'
+  },
 
   // Analytics
   'analytics.active.users': {

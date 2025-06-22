@@ -88,7 +88,11 @@ const ProfilesList: React.FC<ProfilesListProps> = ({
           </button>
           
           <button
-            onClick={onCreateProfile}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCreateProfile();
+            }}
             className="bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 text-green-800 dark:text-green-400 font-medium py-2 px-4 rounded-lg border border-green-300 dark:border-green-500/30 transition-colors flex items-center space-x-2"
           >
             <span>+</span>

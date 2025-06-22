@@ -192,8 +192,8 @@ class RAGOrchestrator:
             answer = await self.answer_generator.generate_answer(prompt)
             
             # Process citations
-            cited_source_numbers = self.context_builder.extract_cited_sources(answer)
-            cited_chunks = self.context_builder.get_cited_chunks(included_chunks, cited_source_numbers)
+            cited_source_names = self.context_builder.extract_cited_sources(answer, citations)
+            cited_chunks = self.context_builder.get_cited_chunks(included_chunks, cited_source_names, citations)
             
             # Clean answer
             clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
@@ -225,7 +225,7 @@ class RAGOrchestrator:
                 "response_time_ms": response_time,
                 "search_method": search_method,
                 "query": query,
-                "cited_sources": cited_source_numbers
+                "cited_sources": cited_source_names
             }
             
             return result
@@ -301,8 +301,8 @@ class RAGOrchestrator:
             answer = await self.answer_generator.generate_answer(prompt)
             
             # Process citations
-            cited_source_numbers = self.context_builder.extract_cited_sources(answer)
-            cited_chunks = self.context_builder.get_cited_chunks(included_chunks, cited_source_numbers)
+            cited_source_names = self.context_builder.extract_cited_sources(answer, citations)
+            cited_chunks = self.context_builder.get_cited_chunks(included_chunks, cited_source_names, citations)
             
             # Clean answer
             clean_answer = re.sub(r'\[מקורות:[^\]]+\]', '', answer).strip()
@@ -334,7 +334,7 @@ class RAGOrchestrator:
                 "response_time_ms": response_time,
                 "search_method": search_method,
                 "query": query,
-                "cited_sources": cited_source_numbers,
+                "cited_sources": cited_source_names,
                 "conversation_context": conversation_context
             }
             

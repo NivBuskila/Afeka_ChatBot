@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Clock, Check, AlertTriangle, RefreshCw } from "lucide-react";
 import { documentService } from "../../services/documentService";
 
@@ -13,6 +14,7 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
   refreshInterval = 10000,
   maxPollingTime = 120000,
 }) => {
+  const { t } = useTranslation();
   const [processingData, setProcessingData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
       setError(null);
     } catch (err) {
       console.error("Error fetching processing status:", err);
-      setError("שגיאה בטעינת נתוני העיבוד");
+      setError(t("documents.processingError") || "Error loading processing data");
     } finally {
       setLoading(false);
     }
@@ -95,7 +97,7 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
     return (
       <div className="flex items-center space-x-2 text-green-400/70">
         <RefreshCw className="w-4 h-4 animate-spin" />
-        <span className="text-sm">טוען נתונים...</span>
+        <span className="text-sm">{t("documents.loadingData") || "Loading data..."}</span>
       </div>
     );
   }
@@ -161,15 +163,15 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
 
     switch (status) {
       case "pending":
-        return "ממתין לעיבוד";
+        return t("documents.status.pending") || "Waiting for processing";
       case "processing":
-        return `מעבד...`;
+        return t("documents.status.processing") || "Processing...";
       case "completed":
-        return `הושלם${forceCompleted ? " (אוטומטי)" : ""} (${chunks} חלקים)`;
+        return `${t("documents.status.completed") || "Completed"}${forceCompleted ? ` (${t("documents.status.automatic") || "automatic"})` : ""} (${chunks} ${t("documents.status.chunks") || "chunks"})`;
       case "failed":
-        return "נכשל";
+        return t("documents.status.failed") || "Failed";
       default:
-        return pollingTimeout ? `הושלם (${chunks} חלקים)` : "לא ידוע";
+        return pollingTimeout ? `${t("documents.status.completed") || "Completed"} (${chunks} ${t("documents.status.chunks") || "chunks"})` : t("documents.status.unknown") || "Unknown";
     }
   };
 
@@ -187,7 +189,7 @@ const ProcessingProgressBar: React.FC<ProcessingProgressBarProps> = ({
               processingData?.chunks_processed ||
               processingData?.total_chunks ||
               0;
-            return chunks > 0 ? `${chunks} וקטורים` : "";
+            return chunks > 0 ? `${chunks} ${t("documents.status.vectors") || "vectors"}` : "";
           })()}
         </span>
       </div>

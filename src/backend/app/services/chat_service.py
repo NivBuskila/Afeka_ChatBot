@@ -69,24 +69,12 @@ class ChatService(IChatService):
         self.llm = None
         self.conversation_chain = None
         
-        # 🎯 Cache חכם עבור RAGService
+        # 🎯 Cache חכם עבור RAGService - עכשיו ישירות מ-Supabase
         self.rag_service = None
         self.current_profile_cache = None
-        self.profile_file_mtime = None
-        
-
         
         # 🚀 Basic Performance Settings
         self.MAX_HISTORY_LENGTH = 5  # Chat history length
-        
-        # נתיב לקובץ הפרופיל
-        try:
-            ai_config_path = Path(__file__).parent.parent.parent.parent / "ai" / "config"
-            self.profile_file_path = ai_config_path / "current_profile.json"
-            logger.debug(f"📁 Profile file path: {self.profile_file_path}")
-        except Exception as e:
-            logger.warning(f"Could not determine profile file path: {e}")
-            self.profile_file_path = None
         
         if not settings.GEMINI_API_KEY:
             logger.error("GEMINI_API_KEY not found in settings. LangChain/Gemini functionalities will be disabled.")
@@ -164,39 +152,43 @@ class ChatService(IChatService):
             logger.debug(f"❌ Error in token tracking: {e}")
 
     def _get_current_rag_service(self) -> Optional[Any]:
-        """מחזיר RAGService עם cache חכם שבודק שינויים בפרופיל"""
+        """מחזיר RAGService עם בדיקה ישירה מ-Supabase בכל פעם - ללא cache מיותר"""
         try:
-            # בדיקה אם קובץ הפרופיל קיים ומה זמן השינוי שלו
+            # בדיקה ישירות מ-Supabase בכל קריאה - מבטיח עדכניות מלאה
             profile_changed = False
-            current_mtime = None
+            current_profile = None
             
-            if self.profile_file_path and self.profile_file_path.exists():
-                current_mtime = self.profile_file_path.stat().st_mtime
+            # Get current profile from Supabase - תמיד מעודכן!
+            try:
+                from ....ai.config.current_profile import get_current_profile
+                current_profile = get_current_profile()
+                logger.debug(f"🔍 Current profile from Supabase: '{current_profile}'")
                 
-                # בדיקה אם הקובץ השתנה
-                if self.profile_file_mtime != current_mtime:
+                # בדיקה אם הפרופיל השתנה או אם אין לנו RAG service
+                if self.rag_service is None or self.current_profile_cache != current_profile:
                     profile_changed = True
-                    logger.debug(f"🔄 Profile updated (mtime: {current_mtime} vs cached: {self.profile_file_mtime})")
-            else:
-                # אין קובץ פרופיל - נשתמש בברירת מחדל
+                    logger.info(f"🔄 Profile update detected: '{self.current_profile_cache}' → '{current_profile}'")
+            except Exception as e:
+                logger.warning(f"Could not get current profile from Supabase: {e}")
                 if self.rag_service is None:
                     profile_changed = True
-                    logger.debug("📁 No profile file found - using default RAG service")
+                    logger.debug("📁 No profile found - using default RAG service")
             
             # אם אין לנו cache או שהפרופיל השתנה - יצירה חדשה
             if self.rag_service is None or profile_changed:
                 logger.debug("🆕 Creating new RAG service...")
                 
-                # עדכון cache
-                if current_mtime:
-                    self.profile_file_mtime = current_mtime
-                
                 # שמירת הפרופיל הנוכחי לcache
                 try:
                     if RAG_AVAILABLE and RAGService:
-                        from ....ai.config.current_profile import get_current_profile
-                        current_profile = get_current_profile()
-                        self.current_profile_cache = current_profile
+                        # Profile already retrieved above
+                        if current_profile:
+                            self.current_profile_cache = current_profile
+                        else:
+                            # Try again if needed
+                            from ....ai.config.current_profile import get_current_profile
+                            current_profile = get_current_profile()
+                            self.current_profile_cache = current_profile
                         
                         # 🔧 תיקון קריטי: העברת הפרופיל ל-RAGService
                         logger.info(f"🎯 Creating RAG service with profile: {current_profile}")
@@ -287,8 +279,13 @@ class ChatService(IChatService):
         if is_conversation_question:
             logger.debug("Using LangChain conversation chain for personal conversation question")
             
-            # 🚀 Enhanced prompt for conversation questions
-            enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
+            # 🚀 Enhanced prompt for conversation questions using centralized prompts
+            try:
+                from src.ai.config.system_prompts import get_enhanced_conversation_prompt
+                enhanced_conversation_prompt = get_enhanced_conversation_prompt(user_message)
+            except ImportError:
+                # Fallback if import fails
+                enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
 ענה בחמימות ובאופן טבעי לשאלה: {user_message}"""
             
             response_content = self.conversation_chain.predict(input=enhanced_conversation_prompt)
@@ -471,7 +468,12 @@ class ChatService(IChatService):
             logger.debug("Using regular LLM as fallback")
         
         # 🔄 Smart Fallback: Use LangChain with enhanced prompt for any question
-        enhanced_prompt = f"""
+        try:
+            from src.ai.config.system_prompts import get_fallback_prompt
+            enhanced_prompt = get_fallback_prompt(user_message)
+        except ImportError:
+            # Fallback if import fails
+            enhanced_prompt = f"""
 אתה עוזר אקדמי של מכללת אפקה שעונה על שאלות תלמידים.
 אם אין לך מידע מדויק ממסמכי המכללה, תן תשובה כללית מועילה.
 שאלה: {user_message}
@@ -578,7 +580,12 @@ class ChatService(IChatService):
                         elif msg.type == 'bot':
                             conversation_text += f"עוזר: {msg.content}\n"
                 
-                enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
+                try:
+                    from src.ai.config.system_prompts import get_enhanced_conversation_prompt
+                    enhanced_conversation_prompt = get_enhanced_conversation_prompt(user_message)
+                except ImportError:
+                    # Fallback if import fails
+                    enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
 ענה בחמימות ובאופן טבעי לשאלה: {user_message}"""
                 
                 full_prompt = f"{conversation_text}משתמש: {enhanced_conversation_prompt}\nעוזר:"

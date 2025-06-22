@@ -46,7 +46,16 @@ class Settings(BaseSettings):
     GEMINI_MODEL_NAME: str = Field(default=os.environ.get("GEMINI_MODEL_NAME", "gemini-2.0-flash"))
     GEMINI_TEMPERATURE: float = Field(default=float(os.environ.get("GEMINI_TEMPERATURE", "0.7")))
     GEMINI_MAX_TOKENS: int = Field(default=int(os.environ.get("GEMINI_MAX_TOKENS", "1024")))
-    GEMINI_SYSTEM_PROMPT: str = Field(default=os.environ.get("GEMINI_SYSTEM_PROMPT", "You are a helpful AI assistant communicating via Gemini."))
+    
+    @property
+    def GEMINI_SYSTEM_PROMPT(self) -> str:
+        """Get the system prompt from the centralized prompt management"""
+        try:
+            from src.ai.config.system_prompts import get_main_system_prompt
+            return get_main_system_prompt()
+        except ImportError:
+            # Fallback if import fails
+            return "You are an expert academic assistant for Afeka College of Engineering in Tel Aviv."
     LANGCHAIN_HISTORY_K: int = Field(default=int(os.environ.get("LANGCHAIN_HISTORY_K", "5")))
     
     # AI Service Configuration
