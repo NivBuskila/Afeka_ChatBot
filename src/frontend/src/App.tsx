@@ -173,7 +173,7 @@ const App: React.FC = () => {
           <Route path="/" element={renderAuthScreen()} />
           <Route
             path="/dashboard"
-            element={<AdminDashboard onLogout={handleLogout} />}
+            element={isAdmin ? <AdminDashboard onLogout={handleLogout} /> : <ChatWindow onLogout={handleLogout} />}
           />
           <Route
             path="/chat"

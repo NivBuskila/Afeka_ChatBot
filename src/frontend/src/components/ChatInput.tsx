@@ -96,7 +96,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
             isRTL ? 'pl-12 text-right' : 'pr-12 text-left'
           } rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none min-h-[40px] max-h-[150px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white dark:border-gray-600`}
           dir={isRTL ? 'rtl' : 'ltr'}
-          aria-label={t('chat.messageInput')}
+          aria-label={t('chat.messageInput') || "Type your message"}
         />
       </div>
       
@@ -110,7 +110,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
             : 'bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700'
         } transition-colors`}
-        aria-label={t('chat.sendMessage')}
+        aria-label={t('chat.sendMessage') || "Send message"}
       >
         <Send className={`w-4 h-4 ${isRTL ? 'transform scale-x-[-1]' : ''}`} />
       </button>

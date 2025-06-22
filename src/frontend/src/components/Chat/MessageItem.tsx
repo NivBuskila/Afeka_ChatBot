@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useThemeClasses } from "../../hooks/useThemeClasses";
+
 import ThemeButton from "../ui/ThemeButton";
 import AIResponseRenderer from "../common/AIResponseRenderer";
 
@@ -51,7 +51,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   fontSize = 16,
 }) => {
   const { t } = useTranslation();
-  const { classes } = useThemeClasses();
+
   const isUser = message.type === "user";
   const [showFullChunk, setShowFullChunk] = useState(false);
 

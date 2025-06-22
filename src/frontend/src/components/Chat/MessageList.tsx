@@ -1,6 +1,6 @@
 import React from "react";
 import MessageItem from "./MessageItem";
-import { useThemeClasses } from '../../hooks/useThemeClasses';
+
 
 interface Message {
   id: string;
@@ -25,7 +25,7 @@ const MessageList: React.FC<MessageListProps> = ({
   searchTerm = "",
   showChunkText = false,
 }) => {
-  const { classes } = useThemeClasses();
+
   
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar">

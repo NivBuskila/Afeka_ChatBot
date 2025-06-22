@@ -22,13 +22,13 @@ interface ChatWindowProps {
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
-  const { t } = useTranslation();
+  const { } = useTranslation();
   const { chatContainer } = useThemeClasses();
-  
+
   // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [fontSize] = useState(16);
-  
+
   // Custom hooks
   const chatSessions = useChatSessions();
   const chatMessages = useChatMessages({
@@ -75,7 +75,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
 
       {/* Sidebar */}
       <ChatSidebar
-        chatSessions={chatSessions.chatSessions}
         filteredChatSessions={chatSearch.filteredChatSessions}
         activeSessionId={chatSessions.activeSession?.id}
         isLoadingSessions={chatSessions.isLoadingSessions}
@@ -124,7 +123,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
               input={chatMessages.input}
               isLoading={chatMessages.isLoading}
               hasStarted={chatMessages.hasStarted}
-              fontSize={fontSize}
+                    fontSize={fontSize}
               searchResults={messageSearch.searchResults}
               searchQuery={messageSearch.searchQuery}
               messagesEndRef={chatMessages.messagesEndRef}
@@ -143,4 +142,4 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ onLogout }) => {
   );
 };
 
-export default ChatWindow; 
+export default ChatWindow;

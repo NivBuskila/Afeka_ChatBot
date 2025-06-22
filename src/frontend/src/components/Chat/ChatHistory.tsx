@@ -6,7 +6,6 @@ import { ChatSession } from '../../services/chatService';
 interface ChatHistoryProps {
   sessions: ChatSession[];
   onSelectSession: (session: ChatSession) => void;
-  onCreateNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
   onEditSessionTitle: (sessionId: string, title: string) => void;
   activeSessionId?: string;
@@ -16,24 +15,16 @@ interface ChatHistoryProps {
 const ChatHistory: React.FC<ChatHistoryProps> = ({
   sessions,
   onSelectSession,
-  onCreateNewSession,
   onDeleteSession,
   onEditSessionTitle,
   activeSessionId,
   isLoading
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
-  // Format date to a more readable format
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('he-IL', {
-      month: 'short',
-      day: 'numeric'
-    }).format(date);
-  };
+
 
   // Start editing a session title
   const startEditing = (session: ChatSession, event?: React.MouseEvent) => {

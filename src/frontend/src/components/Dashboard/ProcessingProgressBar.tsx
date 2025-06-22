@@ -3,7 +3,7 @@ import { Clock, Check, AlertTriangle, RefreshCw } from "lucide-react";
 import { documentService } from "../../services/documentService";
 
 interface ProcessingProgressBarProps {
-  documentId: number;
+  documentId: string;
   refreshInterval?: number; // in milliseconds, default 10000 (10 seconds)
   maxPollingTime?: number; // in milliseconds, default 120000 (2 minutes)
 }

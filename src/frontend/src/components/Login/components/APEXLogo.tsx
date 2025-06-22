@@ -1,6 +1,7 @@
 import React from 'react';
 import { Brain } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 interface APEXLogoProps {
   subtitle?: string;
@@ -12,6 +13,7 @@ const APEXLogo: React.FC<APEXLogoProps> = ({
   size = 'md'
 }) => {
   const { i18n } = useTranslation();
+  const { theme } = useTheme();
   
   const sizeClasses = {
     sm: {
@@ -39,12 +41,20 @@ const APEXLogo: React.FC<APEXLogoProps> = ({
   return (
     <div className={`${classes.container} flex flex-col items-center`}>
       <div className="relative">
-        <div className="absolute inset-0 bg-green-500 rounded-full filter blur-lg opacity-20" />
-        <Brain className={`${classes.icon} text-green-400 relative z-10`} />
+        <div className={`absolute inset-0 rounded-full filter blur-lg opacity-20 ${
+          theme === 'dark' ? 'bg-green-500' : 'bg-green-600'
+        }`} />
+        <Brain className={`${classes.icon} relative z-10 ${
+          theme === 'dark' ? 'text-green-400' : 'text-green-600'
+        }`} />
       </div>
-      <div className={`mt-4 ${classes.title} font-bold text-green-400`}>APEX</div>
+      <div className={`mt-4 ${classes.title} font-bold ${
+        theme === 'dark' ? 'text-green-400' : 'text-green-600'
+      }`}>APEX</div>
       {subtitle && (
-        <div className={`${classes.subtitle} text-green-400/70 mt-1`}>{subtitle}</div>
+        <div className={`${classes.subtitle} mt-1 ${
+          theme === 'dark' ? 'text-green-400/70' : 'text-green-600/80'
+        }`}>{subtitle}</div>
       )}
     </div>
   );

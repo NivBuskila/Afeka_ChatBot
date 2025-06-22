@@ -7,7 +7,6 @@ import { ChatSession } from '../../../services/chatService';
 import { useThemeClasses } from '../../../hooks/useThemeClasses';
 
 interface ChatSidebarProps {
-  chatSessions: ChatSession[];
   filteredChatSessions: ChatSession[];
   activeSessionId?: string;
   isLoadingSessions: boolean;
@@ -22,7 +21,6 @@ interface ChatSidebarProps {
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
-  chatSessions,
   filteredChatSessions,
   activeSessionId,
   isLoadingSessions,
@@ -91,7 +89,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <ChatHistory
           sessions={filteredChatSessions}
           onSelectSession={(session) => onSelectSession(session.id)}
-          onCreateNewSession={onNewChat}
+
           onDeleteSession={onDeleteSession}
           onEditSessionTitle={onEditSessionTitle}
           activeSessionId={activeSessionId}

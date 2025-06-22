@@ -307,9 +307,22 @@
     "confirmRestore": {
       "title": "אישור שחזור",
       "message": "האם אתה בטוח שברצונך לשחזר את הפרופיל \"{{profileName}}\"?",
+      "note": "הפרופיל יוצג שוב ברשימת הפרופילים הזמינים.",
       "confirmButton": "כן, שחזר",
       "cancelButton": "ביטול"
-    }
+    },
+    "delete": "מחק",
+    "hide": "הסתר",
+    "deleting": "מוחק...",
+    "hiding": "מסתיר...",
+    "restore": "שחזר",
+    "restoring": "משחזר...",
+    "activate": "הפעל פרופיל",
+    "activating": "מפעיל...",
+    "active": "פעיל",
+    "inactive": "לא פעיל",
+    "document": "מסמך",
+    "noActiveProfile": "אין פרופיל פעיל"
   },
   "pagination": {
     "showing": "מציג",

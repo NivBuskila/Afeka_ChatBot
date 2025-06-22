@@ -1,117 +1,175 @@
-import React, { useState, useEffect } from 'react';
-import { User, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 interface LoginFormProps {
-  onSubmit: (email: string, password: string) => Promise<void>;
-  error: string | null;
+  username: string;
+  setUsername: (value: string) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  showPassword: boolean;
+  setShowPassword: (value: boolean) => void;
   isLoading: boolean;
+  error: string;
+  onSubmit: (e: React.FormEvent) => void;
+  onForgotPassword: () => void;
+  onRegisterClick: () => void;
+  theme: 'light' | 'dark';
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, isLoading }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+const LoginForm: React.FC<LoginFormProps> = ({
+  username,
+  setUsername,
+  password,
+  setPassword,
+  showPassword,
+  setShowPassword,
+  isLoading,
+  error,
+  onSubmit,
+  onForgotPassword,
+  onRegisterClick,
+  theme,
+}) => {
   const { t, i18n } = useTranslation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
-    await onSubmit(email, password);
-  };
-
-  // Helper function to determine input icon position based on language
-  const getIconPosition = (isRTL: boolean, position: 'start' | 'end') => {
-    if (position === 'start') {
-      return isRTL ? 'right-0 pr-3' : 'left-0 pl-3';
-    } else {
-      return isRTL ? 'left-0 pl-3' : 'right-0 pr-3';
-    }
-  };
-
-  // Helper function to determine input padding based on language
-  const getInputPadding = (isRTL: boolean) => {
-    return isRTL ? 'pr-10 pl-10' : 'pl-10 pr-10';
-  };
-
-  const isRTL = i18n.language === 'he';
-
   return (
-    <form onSubmit={handleSubmit} dir={isRTL ? 'rtl' : 'ltr'}>
+    <form onSubmit={onSubmit} className="p-6 space-y-5">
       {error && (
-        <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-md text-sm">
+        <div className={`border px-4 py-3 rounded-md text-sm ${
+          theme === 'dark' 
+            ? 'bg-red-500/10 border-red-500/30 text-red-400' 
+            : 'bg-red-50 border-red-300 text-red-700'
+        }`}>
           {error}
         </div>
       )}
       
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="username" className="block text-sm text-green-400/80 mb-1">
-            {isRTL ? 'שם משתמש' : 'Username'}
-          </label>
-          <div className="relative">
-            <div className={`absolute inset-y-0 ${getIconPosition(isRTL, 'start')} flex items-center pointer-events-none`}>
-              <User className="h-5 w-5 text-green-500/50" />
-            </div>
-            <input
-              id="username"
-              type="text"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={isRTL ? 'הכנס שם משתמש' : 'Enter your username'}
-              className={`w-full ${getInputPadding(isRTL)} py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50`}
-              dir={isRTL ? 'rtl' : 'ltr'}
-            />
+      {/* Username field */}
+      <div className="space-y-2">
+        <label className={`block text-sm mb-1 ${
+          theme === 'dark' ? 'text-green-400/80' : 'text-gray-700 font-medium'
+        }`}>
+          {i18n.language === 'he' ? 'שם משתמש' : 'Username'}
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <User className={`h-5 w-5 ${
+              theme === 'dark' ? 'text-green-500/50' : 'text-gray-400'
+            }`} />
           </div>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className={`w-full pl-10 pr-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors ${
+              theme === 'dark' 
+                ? 'bg-black/50 border-green-500/30 text-white focus:ring-green-500/50 focus:border-green-500/50' 
+                : 'bg-white border-gray-300 text-gray-900 focus:ring-green-500 focus:border-green-500'
+            }`}
+            placeholder={i18n.language === 'he' ? 'הכנס שם משתמש' : 'Enter your username'}
+          />
         </div>
-        
-        <div>
-          <label htmlFor="password" className="block text-sm text-green-400/80 mb-1">
-            {isRTL ? 'סיסמה' : 'Password'}
-          </label>
-          <div className="relative">
-            <div className={`absolute inset-y-0 ${getIconPosition(isRTL, 'start')} flex items-center pointer-events-none`}>
-              <Lock className="h-5 w-5 text-green-500/50" />
-            </div>
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={isRTL ? 'הכנס סיסמה' : 'Enter your password'}
-              className={`w-full ${getInputPadding(isRTL)} py-2 bg-black/50 border border-green-500/30 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50`}
-              dir={isRTL ? 'rtl' : 'ltr'}
-            />
-            <div 
-              className={`absolute inset-y-0 ${getIconPosition(isRTL, 'end')} flex items-center cursor-pointer`}
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? 
-                <EyeOff className="h-5 w-5 text-green-500/50" /> : 
-                <Eye className="h-5 w-5 text-green-500/50" />
-              }
-            </div>
+      </div>
+      
+      {/* Password field */}
+      <div className="space-y-2">
+        <label className={`block text-sm mb-1 ${
+          theme === 'dark' ? 'text-green-400/80' : 'text-gray-700 font-medium'
+        }`}>
+          {i18n.language === 'he' ? 'סיסמה' : 'Password'}
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Lock className={`h-5 w-5 ${
+              theme === 'dark' ? 'text-green-500/50' : 'text-gray-400'
+            }`} />
           </div>
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={`w-full pl-10 pr-10 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors ${
+              theme === 'dark' 
+                ? 'bg-black/50 border-green-500/30 text-white focus:ring-green-500/50 focus:border-green-500/50' 
+                : 'bg-white border-gray-300 text-gray-900 focus:ring-green-500 focus:border-green-500'
+            }`}
+            placeholder={i18n.language === 'he' ? 'הכנס סיסמה' : 'Enter your password'}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          >
+            {showPassword ? (
+              <EyeOff className={`h-5 w-5 ${
+                theme === 'dark' ? 'text-green-500/50' : 'text-gray-400'
+              }`} />
+            ) : (
+              <Eye className={`h-5 w-5 ${
+                theme === 'dark' ? 'text-green-500/50' : 'text-gray-400'
+              }`} />
+            )}
+          </button>
         </div>
-        
-        <button 
-          type="submit"
-          disabled={isLoading}
-          className="w-full px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium rounded-md border border-green-500/30 transition-colors flex items-center justify-center gap-2"
-          dir={isRTL ? 'rtl' : 'ltr'}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              {isRTL ? 'מתחבר...' : 'Logging in...'}
-            </>
-          ) : (
-            <>
-              <LogIn className={`w-5 h-5 ${isRTL ? 'ml-1 order-1' : 'mr-1 order-0'}`} />
-              {isRTL ? 'כניסה למערכת' : 'Login to APEX'}
-            </>
-          )}
-        </button>
+      </div>
+      
+      {/* Submit button */}
+      <button
+        type="submit"
+        disabled={isLoading}
+        className={`w-full font-medium py-3 px-4 rounded-md border transition-colors flex items-center justify-center space-x-2 ${
+          theme === 'dark' 
+            ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400 border-green-500/30' 
+            : 'bg-green-600 hover:bg-green-700 text-white border-green-600 shadow-md hover:shadow-lg'
+        }`}
+      >
+        {isLoading ? (
+          <div className="flex space-x-1">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className={`w-1 h-1 rounded-full animate-bounce ${
+                  theme === 'dark' ? 'bg-green-400' : 'bg-white'
+                }`}
+                style={{ animationDelay: `${i * 0.2}s` }}
+              />
+            ))}
+          </div>
+        ) : (
+          <>
+            <LogIn className="w-5 h-5" />
+            <span>{i18n.language === 'he' ? 'כניסה למערכת' : 'Login to APEX'}</span>
+          </>
+        )}
+      </button>
+      
+      {/* Recovery links */}
+      <div className="text-center mt-4">
+        <div className="flex flex-col space-y-2">
+          <button 
+            type="button" 
+            onClick={onForgotPassword} 
+            className={`text-sm transition-colors ${
+              theme === 'dark' 
+                ? 'text-green-400/60 hover:text-green-400/80' 
+                : 'text-green-600 hover:text-green-700'
+            }`}
+          >
+            {i18n.language === 'he' ? 'שכחתי סיסמה' : 'Forgot Password'}
+          </button>
+          <button 
+            type="button"
+            onClick={onRegisterClick}
+            className={`text-sm transition-colors font-medium ${
+              theme === 'dark' 
+                ? 'text-green-400/70 hover:text-green-400' 
+                : 'text-green-600 hover:text-green-700'
+            }`}
+          >
+            {i18n.language === 'he' ? 'אין לך חשבון? הירשם עכשיו' : "Don't have an account? Register now"}
+          </button>
+        </div>
       </div>
     </form>
   );

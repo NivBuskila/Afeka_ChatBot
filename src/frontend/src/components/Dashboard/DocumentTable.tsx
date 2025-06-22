@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, Download, Trash2, Edit } from "lucide-react";
 import type { Document } from "../../config/supabase";
-import ProcessingProgressBar from "./ProcessingProgressBar";
-import { Pagination, usePagination } from "../common/Pagination";
+import { Pagination } from "../common/Pagination";
 import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
+import DocumentRow from "./components/DocumentRow";
+import { useDocumentTable } from "./hooks/useDocumentTable";
 
 interface DocumentTableProps {
   documents: Document[];
@@ -22,68 +22,17 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onEdit,
 }) => {
   const { t, i18n } = useTranslation();
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  // 🔍 Debug information
-
-  const getFileType = (type: string): string => {
-    const mimeMap: Record<string, string> = {
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        "DOCX",
-      "application/pdf": "PDF",
-      "text/plain": "TXT",
-      "application/msword": "DOC",
-    };
-
-    if (mimeMap[type]) {
-      return mimeMap[type];
-    }
-
-    if (type.includes("/")) {
-      return type.split("/")[1];
-    }
-
-    return type;
-  };
-
-  const downloadFile = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error("Error downloading file:", error);
-    }
-  };
-
-  // סינון המסמכים לפי החיפוש
-  const filteredDocuments = documents.filter(
-    (doc) =>
-      doc?.name?.toLowerCase()?.includes(searchQuery.toLowerCase()) || false
-  );
-
-  // שימוש ב-pagination hook עם itemsPerPage דינמי
-  const { currentPage, setCurrentPage, getPaginatedItems } = usePagination(
-    filteredDocuments.length,
-    itemsPerPage
-  );
-
-  // קבלת המסמכים לעמוד הנוכחי
-  const paginatedDocuments = getPaginatedItems(filteredDocuments);
-
-  // פונקציה לטיפול בשינוי כמות פריטים לעמוד
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // חזרה לעמוד הראשון
-  };
+  
+  const {
+    itemsPerPage,
+    filteredDocuments,
+    paginatedDocuments,
+    currentPage,
+    setCurrentPage,
+    handleItemsPerPageChange,
+    downloadFile,
+    getFileType,
+  } = useDocumentTable({ documents, searchQuery });
 
   return (
     <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg border border-gray-300 dark:border-green-500/20 rounded-lg shadow-lg">
@@ -170,95 +119,14 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
               </tr>
             ) : (
               paginatedDocuments.map((doc) => (
-                <tr
+                <DocumentRow
                   key={doc.id}
-                  className="hover:bg-gray-50 dark:hover:bg-green-500/5 transition-colors"
-                >
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap ${
-                      i18n.language === "en" ? "text-left" : "text-right"
-                    }`}
-                  >
-                    <div
-                      className={`flex items-center ${
-                        i18n.language === "en" ? "flex-row" : "flex-row-reverse"
-                      }`}
-                    >
-                      <FileText className="h-5 w-5 text-gray-600 dark:text-green-400/70" />
-                      <div className={i18n.language === "en" ? "ml-4" : "mr-4"}>
-                        <div className="text-sm font-medium text-gray-800 dark:text-green-400">
-                          {doc.name}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap ${
-                      i18n.language === "en" ? "text-left" : "text-right"
-                    }`}
-                  >
-                    <div className="text-sm text-gray-700 dark:text-green-400/80">
-                      {getFileType(doc.type)}
-                    </div>
-                  </td>
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap ${
-                      i18n.language === "en" ? "text-left" : "text-right"
-                    }`}
-                  >
-                    <div className="text-sm text-gray-700 dark:text-green-400/80">
-                      {(doc.size / 1024 / 1024).toFixed(2)} MB
-                    </div>
-                  </td>
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap ${
-                      i18n.language === "en" ? "text-left" : "text-right"
-                    }`}
-                  >
-                    <div className="text-sm text-gray-700 dark:text-green-400/80">
-                      {new Date(doc.created_at).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap ${
-                      i18n.language === "en" ? "text-left" : "text-right"
-                    }`}
-                  >
-                    <ProcessingProgressBar documentId={doc.id} />
-                  </td>
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                      i18n.language === "en" ? "text-left" : "text-right"
-                    }`}
-                  >
-                    <div
-                      className={`flex items-center ${
-                        i18n.language === "en"
-                          ? "space-x-4"
-                          : "space-x-4 space-x-reverse"
-                      }`}
-                    >
-                      <button
-                        onClick={() => downloadFile(doc.url, doc.name)}
-                        className="text-gray-600 dark:text-green-400/80 hover:text-gray-800 dark:hover:text-green-400 transition-colors"
-                      >
-                        <Download className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => onEdit(doc)}
-                        className="text-yellow-600 dark:text-yellow-400/80 hover:text-yellow-700 dark:hover:text-yellow-400 transition-colors"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => onDelete(doc)}
-                        className="text-red-600 dark:text-red-400/80 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  document={doc}
+                  getFileType={getFileType}
+                  onDownload={downloadFile}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
               ))
             )}
           </tbody>

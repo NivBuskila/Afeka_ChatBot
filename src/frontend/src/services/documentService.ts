@@ -152,7 +152,7 @@ export const documentService = {
     return data.publicUrl;
   },
 
-  async getProcessingStatus(documentId: number): Promise<any> {
+  async getProcessingStatus(documentId: string): Promise<any> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {

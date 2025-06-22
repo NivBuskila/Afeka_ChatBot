@@ -17,7 +17,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   onPageChange,
   className = ''
 }) => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startItem = (currentPage - 1) * itemsPerPage + 1;
