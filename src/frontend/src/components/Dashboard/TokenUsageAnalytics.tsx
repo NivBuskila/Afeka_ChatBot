@@ -119,9 +119,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
         import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
       const controller = new AbortController();
-      // קיצור timeout מ-10 ל-5 שניות
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       const response = await fetch(`${BACKEND_URL}/api/keys/`, {
         signal: controller.signal
       });
@@ -196,19 +194,19 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
       );
       
       // 🔧 טיפול משופר בשגיאות עם תמיכה בעברית
-      if (error.name === 'AbortError') {
+      if ((error as any)?.name === 'AbortError') {
         setError(
           language === "he" 
-            ? "פגת זמן לבקשה אחרי 5 שניות. רענון אוטומטי ממשיך..."
-            : "Request timed out after 5 seconds. Auto-refresh continues..."
+            ? "פגת זמן לבקשה אחרי 15 שניות. רענון אוטומטי ממשיך..."
+            : "Request timed out after 15 seconds. Auto-refresh continues..."
         );
-      } else if (error.message && error.message.includes('NetworkError')) {
+      } else if ((error as any)?.message && (error as any).message.includes('NetworkError')) {
         setError(
           language === "he"
             ? "בעיית חיבור רשת. מנסה שוב אוטומטית..."
             : "Network connection issue. Retrying automatically..."
         );
-      } else if (error.message && error.message.includes('fetch')) {
+      } else if ((error as any)?.message && (error as any).message.includes('fetch')) {
         setError(
           language === "he"
             ? "שגיאת חיבור. רענון אוטומטי פעיל..."
