@@ -2,7 +2,7 @@ import os
 import jwt
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ if not JWT_SECRET:
     logger.error("JWT_SECRET not found in environment variables. Please set it in your .env file.")
     raise ValueError("JWT_SECRET environment variable is required but not found")
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     """
     Get current authenticated user from JWT token
     """
@@ -39,6 +39,13 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         
         # Try to decode JWT
         try:
+            # Ensure JWT_SECRET is not None (should not happen due to validation above)
+            if not JWT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="JWT secret not configured"
+                )
+            
             payload = jwt.decode(
                 token, 
                 JWT_SECRET, 
@@ -66,6 +73,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
                     # Attempt to decode without verification just to get claims (DANGEROUS)
                     unverified_payload = jwt.decode(token, options={"verify_signature": False}, algorithms=["HS256"]) # HS256 is a guess
                     logger.info(f"Successfully decoded unverified JWT payload: {unverified_payload.get('sub')}")
+                    
+                    # Add 'id' field for compatibility
+                    if 'sub' in unverified_payload and 'id' not in unverified_payload:
+                        unverified_payload['id'] = unverified_payload['sub']
+                    
                     return unverified_payload # Make sure this structure is what your app expects
                 except Exception as unverified_decode_err:
                     logger.error(f"Failed to decode unverified JWT: {unverified_decode_err}")
@@ -89,7 +101,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             detail="Authentication failed"
         )
 
-def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[Dict]:
+def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[Dict[str, Any]]:
     """
     Get current user if authenticated, otherwise return None
     """

@@ -232,7 +232,10 @@ export function useChatMessages({
             is_bot: true,
           });
 
-          await loadSessionMessages(sessionId);
+          // Small delay to ensure database transaction completes before reloading
+          setTimeout(async () => {
+            await loadSessionMessages(sessionId);
+          }, 500);
 
           const updatedMessages = [
             ...messages,

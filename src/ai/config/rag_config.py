@@ -54,9 +54,7 @@ class LLMConfig:
     TEMPERATURE: float = 0.1  # Will be overridden by profiles
     MAX_OUTPUT_TOKENS: int = 2048  # Will be overridden by profiles
     
-    # 🆕 System Instructions Support
-    SYSTEM_INSTRUCTION: str = ""
-    SYSTEM_INSTRUCTION_TEMPLATE: str = ""
+    # 🆕 System Instructions Support - Now using centralized prompts
     USE_SYSTEM_INSTRUCTION: bool = True
     
     SAFETY_SETTINGS: Dict[str, str] = field(default_factory=lambda: {
@@ -69,14 +67,22 @@ class LLMConfig:
     GENERATION_TIMEOUT_SECONDS: int = 45
     
     def get_system_instruction(self, context_vars: Optional[Dict[str, Any]] = None) -> str:
-        """יוצר system instruction מותאם לפרופיל עם משתנים דינמיים"""
+        """יוצר system instruction מותאם לפרופיל עם משתנים דינמיים - now using centralized prompts"""
         if not self.USE_SYSTEM_INSTRUCTION:
             return ""
-            
-        if self.SYSTEM_INSTRUCTION_TEMPLATE and context_vars:
-            return self.SYSTEM_INSTRUCTION_TEMPLATE.format(**context_vars)
         
-        return self.SYSTEM_INSTRUCTION or ""
+        try:
+            # Try multiple import paths
+            try:
+                from .system_prompts import get_main_system_prompt
+            except ImportError:
+                from src.ai.config.system_prompts import get_main_system_prompt
+            
+            return get_main_system_prompt()
+        except Exception as e:
+            print(f"⚠️ Failed to import centralized system prompt: {e}")
+            # Import error - return fallback
+            return "You are an expert academic assistant for Afeka College of Engineering in Tel Aviv."
 
 
 @dataclass

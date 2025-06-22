@@ -38,11 +38,18 @@ class AnswerGenerator:
             max_output_tokens=getattr(self.llm_config, 'MAX_OUTPUT_TOKENS', 2048)
         )
         
+        # Get system instruction if enabled
+        system_instruction = None
+        if getattr(self.llm_config, 'USE_SYSTEM_INSTRUCTION', True):
+            system_instruction = self.llm_config.get_system_instruction()
+            logger.info(f"📝 Using system instruction: {len(system_instruction)} chars")
+        
         self.model = genai.GenerativeModel(
             model_name=getattr(self.llm_config, 'MODEL_NAME', 'gemini-pro'),
-            generation_config=generation_config
+            generation_config=generation_config,
+            system_instruction=system_instruction  # Add system instruction!
         )
-        logger.info("✅ Gemini model initialized")
+        logger.info("✅ Gemini model initialized with system instruction")
 
     async def _track_generation_usage(self, prompt: str, response: str, key_id: Optional[int] = None):
         """Track token usage for text generation"""

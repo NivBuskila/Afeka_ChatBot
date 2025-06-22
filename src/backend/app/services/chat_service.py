@@ -287,8 +287,13 @@ class ChatService(IChatService):
         if is_conversation_question:
             logger.debug("Using LangChain conversation chain for personal conversation question")
             
-            # 🚀 Enhanced prompt for conversation questions
-            enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
+            # 🚀 Enhanced prompt for conversation questions using centralized prompts
+            try:
+                from src.ai.config.system_prompts import get_enhanced_conversation_prompt
+                enhanced_conversation_prompt = get_enhanced_conversation_prompt(user_message)
+            except ImportError:
+                # Fallback if import fails
+                enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
 ענה בחמימות ובאופן טבעי לשאלה: {user_message}"""
             
             response_content = self.conversation_chain.predict(input=enhanced_conversation_prompt)
@@ -471,7 +476,12 @@ class ChatService(IChatService):
             logger.debug("Using regular LLM as fallback")
         
         # 🔄 Smart Fallback: Use LangChain with enhanced prompt for any question
-        enhanced_prompt = f"""
+        try:
+            from src.ai.config.system_prompts import get_fallback_prompt
+            enhanced_prompt = get_fallback_prompt(user_message)
+        except ImportError:
+            # Fallback if import fails
+            enhanced_prompt = f"""
 אתה עוזר אקדמי של מכללת אפקה שעונה על שאלות תלמידים.
 אם אין לך מידע מדויק ממסמכי המכללה, תן תשובה כללית מועילה.
 שאלה: {user_message}
@@ -578,7 +588,12 @@ class ChatService(IChatService):
                         elif msg.type == 'bot':
                             conversation_text += f"עוזר: {msg.content}\n"
                 
-                enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
+                try:
+                    from src.ai.config.system_prompts import get_enhanced_conversation_prompt
+                    enhanced_conversation_prompt = get_enhanced_conversation_prompt(user_message)
+                except ImportError:
+                    # Fallback if import fails
+                    enhanced_conversation_prompt = f"""אתה עוזר ידידותי ומקצועי של מכללת אפקה.
 ענה בחמימות ובאופן טבעי לשאלה: {user_message}"""
                 
                 full_prompt = f"{conversation_text}משתמש: {enhanced_conversation_prompt}\nעוזר:"

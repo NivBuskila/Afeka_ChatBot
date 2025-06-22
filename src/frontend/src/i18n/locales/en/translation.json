@@ -309,6 +309,9 @@
       "message": "Are you sure you want to restore the profile \"{{profileName}}\"?",
       "confirmButton": "Yes, Restore",
       "cancelButton": "Cancel"
+    },
+    "system": {
+      "prompt": "System Prompt"
     }
   },
   "pagination": {

@@ -322,7 +322,10 @@
     "active": "פעיל",
     "inactive": "לא פעיל",
     "document": "מסמך",
-    "noActiveProfile": "אין פרופיל פעיל"
+    "noActiveProfile": "אין פרופיל פעיל",
+    "system": {
+      "prompt": "הנחיות מערכת"
+    }
   },
   "pagination": {
     "showing": "מציג",

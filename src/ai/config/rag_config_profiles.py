@@ -434,10 +434,7 @@ def get_maximum_accuracy_profile() -> RAGConfig:
     config.llm.TEMPERATURE = 0.05
     config.llm.MAX_OUTPUT_TOKENS = 4000
     config.llm.USE_SYSTEM_INSTRUCTION = True
-    config.llm.SYSTEM_INSTRUCTION = """You are an academic assistant specializing in Afeka College.
-You specialize in academic regulations and admission requirements.
-Always cite sources in the format [Sources: Source X, Source Y].
-Provide accurate and detailed answers based on the provided information."""
+    # System instruction now managed centrally
     
     # Context settings from RAG Test
     config.context.MAX_CONTEXT_TOKENS = 7000
@@ -468,8 +465,7 @@ def get_fast_response_profile() -> RAGConfig:
     config.llm.TEMPERATURE = 0.2
     config.llm.MAX_OUTPUT_TOKENS = 1500
     config.llm.USE_SYSTEM_INSTRUCTION = True
-    config.llm.SYSTEM_INSTRUCTION = """Academic assistant for Afeka College.
-Provide short and accurate answers with source citations."""
+    # System instruction now managed centrally
     
     # Context settings
     config.context.MAX_CONTEXT_TOKENS = 4000
@@ -491,10 +487,7 @@ def get_conversational_profile() -> RAGConfig:
     config.llm.TEMPERATURE = 0.3
     config.llm.MAX_OUTPUT_TOKENS = 2500
     config.llm.USE_SYSTEM_INSTRUCTION = True
-    config.llm.SYSTEM_INSTRUCTION_TEMPLATE = """אתה {role} של מכללת אפקה.
-התמחות שלך היא {specialization}.
-סגנון השיחה שלך: {conversation_style}.
-תמיד תסיים עם ציון מקורות בפורמט [מקורות: מקור X, מקור Y]."""
+    # System instruction now managed centrally
     
     config.context.MAX_CONTEXT_TOKENS = 7000
     
@@ -515,9 +508,7 @@ def get_new_balanced_profile() -> RAGConfig:
     config.llm.TEMPERATURE = 0.15
     config.llm.MAX_OUTPUT_TOKENS = 2000
     config.llm.USE_SYSTEM_INSTRUCTION = True
-    config.llm.SYSTEM_INSTRUCTION = """אתה עוזר אקדמי של מכללת אפקה המתמחה בתקנוני לימודים.
-תן תשובות מדויקות ומאוזנות המבוססות על המידע הרלוונטי.
-תמיד תציין מקורות בפורמט [מקורות: מקור X, מקור Y]."""
+    # System instruction now managed centrally
     
     config.context.MAX_CONTEXT_TOKENS = 6000
     

@@ -15,6 +15,7 @@ import PerformanceDashboard from "./components/PerformanceDashboard";
 import CreateProfileModal from "./components/CreateProfileModal";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import RestoreConfirmationModal from "./components/RestoreConfirmationModal";
+import { SystemPromptManagement } from "./components/SystemPromptManagement";
 
 type Language = "he" | "en";
 
@@ -39,16 +40,20 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   const setError = ragProfiles.setError;
 
   // Modal handlers that integrate with profile actions
-  const handleDeleteProfile = (profileId: string, profileName: string, isCustom: boolean) => {
+  const handleDeleteProfile = (
+    profileId: string,
+    profileName: string,
+    isCustom: boolean
+  ) => {
     ragModals.openDeleteModal(profileId, profileName, isCustom);
   };
 
   const handleConfirmDelete = async () => {
     if (!ragModals.modalProfileData) return;
-    
+
     ragModals.closeDeleteModal();
     await ragProfiles.handleDeleteProfile(
-      ragModals.modalProfileData.id, 
+      ragModals.modalProfileData.id,
       !ragModals.modalProfileData.isCustom
     );
   };
@@ -59,7 +64,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
 
   const handleConfirmRestore = async () => {
     if (!ragModals.modalProfileData) return;
-    
+
     ragModals.closeRestoreModal();
     await ragProfiles.handleRestoreProfile(ragModals.modalProfileData.id);
   };
@@ -85,12 +90,16 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
             isRestoringProfile={ragProfiles.isRestoringProfile}
             itemsPerPage={ragProfiles.profilesItemsPerPage}
             currentPage={ragProfiles.profilesCurrentPage}
-            totalPages={Math.ceil(ragProfiles.profiles.length / ragProfiles.profilesItemsPerPage)}
+            totalPages={Math.ceil(
+              ragProfiles.profiles.length / ragProfiles.profilesItemsPerPage
+            )}
             onProfileChange={ragProfiles.handleProfileChange}
             onDeleteProfile={handleDeleteProfile}
             onRestoreProfile={handleRestoreProfile}
-            onCreateProfile={ragModals.openCreateModal}
-            onToggleHiddenProfiles={() => ragProfiles.setShowHiddenProfiles(!ragProfiles.showHiddenProfiles)}
+            onCreateProfile={() => ragModals.setShowCreateProfile(true)}
+            onToggleHiddenProfiles={() =>
+              ragProfiles.setShowHiddenProfiles(!ragProfiles.showHiddenProfiles)
+            }
             setItemsPerPage={ragProfiles.setProfilesItemsPerPage}
             setCurrentPage={ragProfiles.setProfilesCurrentPage}
           />
@@ -105,7 +114,9 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
             isRunningTest={ragTesting.isRunningTest}
             showFullChunk={ragTesting.showFullChunk}
             onRunTest={ragTesting.handleRunTest}
-            onToggleChunk={() => ragTesting.setShowFullChunk(!ragTesting.showFullChunk)}
+            onToggleChunk={() =>
+              ragTesting.setShowFullChunk(!ragTesting.showFullChunk)
+            }
             language={language}
           />
         );
@@ -118,13 +129,11 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
           />
         );
 
+      case "system-prompt":
+        return <SystemPromptManagement language={language} />;
+
       default:
-        return (
-          <RAGOverview
-            currentProfile={ragProfiles.currentProfile}
-            language={language}
-          />
-        );
+        return <RAGOverview currentProfile={ragProfiles.currentProfile} />;
     }
   };
 
@@ -155,6 +164,8 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
                 ? t("rag.performanceMonitor")
                 : activeSubItem === "test"
                 ? t("rag.test.center")
+                : activeSubItem === "system-prompt"
+                ? t("rag.system.prompt")
                 : ""}
             </span>
           )}
