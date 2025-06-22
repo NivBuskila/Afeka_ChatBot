@@ -8,8 +8,7 @@ from ..config.settings import settings
 from ..middleware.timing import add_process_time_header
 from ..middleware.security import add_security_headers
 from ..middleware.rate_limit import rate_limit_middleware
-from ..api.routes import general, chat, documents, proxy
-from ...api import vector_management
+from ..api.routes import general, chat, documents, proxy, vector_management
 from ..api.routes.rag import router as rag_router
 from ..api.routes.title_generation import router as title_router  
 from ..api.routes.api_keys import router as api_keys_router

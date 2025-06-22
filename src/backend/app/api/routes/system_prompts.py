@@ -11,7 +11,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from ....core.dependencies import get_supabase_client, require_admin
+from ..deps import get_supabase_client
+from ....core.dependencies import require_admin
 from ...core.auth import get_current_user
 from supabase import Client
 

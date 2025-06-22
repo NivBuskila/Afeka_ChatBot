@@ -313,8 +313,8 @@ async def proxy_get_documents(request: Request):
     try:
         logger.info("GET /api/proxy/documents - fetching real data from Supabase")
         
-        from src.backend.app.core.database import get_supabase_client
-        supabase = get_supabase_client()
+        from ..deps import get_supabase_client
+        supabase = await get_supabase_client()
         
         if not supabase:
             logger.warning("Supabase client not available, returning empty list")
