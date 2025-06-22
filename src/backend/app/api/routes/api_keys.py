@@ -17,7 +17,7 @@ _current_key_index_override = None
 
 def invalidate_cache():
     """Invalidate the API keys cache"""
-    api_keys_cache.delete("api_keys_status")
+    api_keys_cache.invalidate("api_keys_status")
     logger.info("[CACHE-INVALIDATE] Cache cleared due to new usage")
 
 @router.get("/")
