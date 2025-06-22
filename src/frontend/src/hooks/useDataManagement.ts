@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { DocumentHandlerService, type DocumentHandlerCallbacks } from '../services/handlers/DocumentHandlerService'
 import { UserHandlerService, type UserHandlerCallbacks } from '../services/handlers/UserHandlerService'
 import { DataRefreshService, type DataRefreshCallbacks } from '../services/handlers/DataRefreshService'
@@ -11,6 +12,7 @@ interface UseDataManagementProps {
 }
 
 export const useDataManagement = ({ state, actions }: UseDataManagementProps) => {
+  const { t } = useTranslation();
   const {
     selectedDocument,
     selectedUser,
@@ -83,8 +85,8 @@ export const useDataManagement = ({ state, actions }: UseDataManagementProps) =>
 
   // Create service instances
   const documentHandlerService = useMemo(() => 
-    new DocumentHandlerService(documentCallbacks), 
-    [documentCallbacks]
+    new DocumentHandlerService(documentCallbacks, { t }), 
+    [documentCallbacks, t]
   );
 
   const dataRefreshService = useMemo(() => 

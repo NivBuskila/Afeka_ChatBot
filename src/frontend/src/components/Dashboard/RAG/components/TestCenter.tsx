@@ -195,7 +195,7 @@ const TestCenter: React.FC<TestCenterProps> = ({
             {(testResult.responseTime || testResult.chunks) && (
               <div className="bg-green-50 dark:bg-green-500/10 p-4 rounded border border-green-200 dark:border-green-500/20">
                 <p className="text-sm text-gray-600 dark:text-green-400/70 mb-2">
-                  {t("rag.performance.metrics") || "מדדי ביצועים"}:
+                  {t("performance.metrics") || "מדדי ביצועים"}:
                 </p>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   {testResult.responseTime && (
@@ -211,7 +211,7 @@ const TestCenter: React.FC<TestCenterProps> = ({
                   {testResult.chunks && (
                     <div>
                       <span className="text-gray-600 dark:text-green-400/70">
-                        {t("rag.chunks.found") || "צ'אנקים שנמצאו"}:
+                        {t("chunks.found") || "צ'אנקים שנמצאו"}:
                       </span>
                       <span className="text-gray-800 dark:text-green-300 ml-2">
                         {testResult.chunks}

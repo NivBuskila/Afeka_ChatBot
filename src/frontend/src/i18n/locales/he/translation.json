@@ -127,7 +127,24 @@
     "date": "תאריך",
     "actions": "פעולות",
     "confirmDelete": "אישור מחיקה",
-    "deleteConfirmMessage": "האם אתה בטוח שברצונך למחוק את \"{{documentName}}\"?"
+    "deleteConfirmMessage": "האם אתה בטוח שברצונך למחוק את \"{{documentName}}\"?",
+    "deleteSuccess": "המסמך נמחק בהצלחה",
+    "loadingData": "טוען נתונים...",
+    "processingError": "שגיאה בטעינת נתוני העיבוד",
+    "noDocuments": "אין מסמכים במערכת",
+    "noMatches": "לא נמצאו מסמכים התואמים לחיפוש",
+    "noDocumentsOnPage": "אין מסמכים לעמוד זה",
+    "status": {
+      "pending": "ממתין לעיבוד",
+      "processing": "מעבד...",
+      "completed": "הושלם",
+      "failed": "נכשל",
+      "unknown": "לא ידוע",
+      "automatic": "אוטומטי",
+      "chunks": "חלקים",
+      "vectors": "וקטורים"
+    },
+    "uploadSuccess": "הקובץ הועלה בהצלחה"
   },
   "table": {
     "document": {

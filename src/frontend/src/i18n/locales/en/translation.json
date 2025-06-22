@@ -127,7 +127,24 @@
     "date": "Date",
     "actions": "Actions",
     "confirmDelete": "Confirm Delete",
-    "deleteConfirmMessage": "Are you sure you want to delete \"{{documentName}}\"?"
+    "deleteConfirmMessage": "Are you sure you want to delete \"{{documentName}}\"?",
+    "deleteSuccess": "Document deleted successfully",
+    "uploadSuccess": "File uploaded successfully",
+    "loadingData": "Loading data...",
+    "processingError": "Error loading processing data",
+    "noDocuments": "No documents in system",
+    "noMatches": "No documents found matching search",
+    "noDocumentsOnPage": "No documents on this page",
+    "status": {
+      "pending": "Waiting for processing",
+      "processing": "Processing...",
+      "completed": "Completed",
+      "failed": "Failed",
+      "unknown": "Unknown",
+      "automatic": "automatic",
+      "chunks": "chunks",
+      "vectors": "vectors"
+    }
   },
   "table": {
     "document": {
