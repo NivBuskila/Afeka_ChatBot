@@ -177,6 +177,25 @@ export class RAGService {
 
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // Try to parse as JSON to get detailed error info
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: errorText };
+      }
+      
+      // Check for specific error about active profile - handle both 400 and 500 status codes
+      const errorMessage = errorData.error || errorData.detail || errorText;
+      
+      if ((response.status === 400 || response.status === 500) && 
+          errorMessage.includes('Cannot delete the currently active profile')) {
+        const error = new Error('Cannot delete the currently active profile. Please switch to another profile first.');
+        (error as any).isActiveProfileError = true;
+        throw error;
+      }
+      
       throw new Error(`Failed to delete profile: ${errorText}`);
     }
 

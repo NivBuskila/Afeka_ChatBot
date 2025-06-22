@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ragService, RAGProfile } from '../RAGService';
 
 type Language = "he" | "en";
 
 export function useRAGProfiles(language: Language) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState<RAGProfile[]>([]);
   const [hiddenProfiles, setHiddenProfiles] = useState<string[]>([]);
@@ -155,7 +157,7 @@ export function useRAGProfiles(language: Language) {
     }
   };
 
-  const handleDeleteProfile = async (profileId: string, force: boolean = false) => {
+  const handleDeleteProfile = async (profileId: string, force: boolean = false, onActiveProfileError?: (profileName: string) => void) => {
     setIsDeletingProfile(profileId);
     setError(null);
     
@@ -164,12 +166,27 @@ export function useRAGProfiles(language: Language) {
       await fetchProfiles();
       await fetchHiddenProfiles();
     } catch (error) {
-      console.error("Error deleting profile:", error);
-      setError(
-        `Failed to delete profile: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      // Check if this is the specific "active profile" error
+      if (error instanceof Error && (error as any).isActiveProfileError) {
+        // Find the profile name
+        const profile = profiles.find(p => p.id === profileId);
+        const profileName = profile?.name || profileId;
+        
+        // Show modal instead of error message - don't log this as it's expected behavior
+        if (onActiveProfileError) {
+          onActiveProfileError(profileName);
+        } else {
+          setError(t('rag.errors.cannotDeleteActiveProfile'));
+        }
+      } else {
+        // Only log actual unexpected errors
+        console.error("Error deleting profile:", error);
+        setError(
+          `Failed to delete profile: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
     } finally {
       setIsDeletingProfile(null);
     }

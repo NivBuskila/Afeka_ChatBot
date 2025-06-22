@@ -354,6 +354,15 @@
     "system": {
       "prompt": "System Prompt"
     },
+    "errors": {
+      "cannotDeleteActiveProfile": "Cannot delete the currently active profile. Please switch to another profile first, then try again.",
+      "activeProfileTitle": "Cannot Delete Active Profile",
+      "activeProfileMessage": "Cannot delete profile \"{{profileName}}\" because it is currently the active profile.",
+      "howToDelete": "To delete this profile:",
+      "step1": "Switch to another profile first",
+      "step2": "Then try to delete this profile again",
+      "understood": "Understood"
+    },
     "delete": "Delete",
     "hide": "Hide",
     "deleting": "Deleting...",
