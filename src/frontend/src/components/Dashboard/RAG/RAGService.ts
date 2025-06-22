@@ -34,11 +34,15 @@ export interface RAGTestResult {
   query: string;
   answer: string;
   responseTime: number;
+  processingTime?: number;
+  totalChunks?: number;
   sourcesFound: number;
   chunks: number;
   searchMethod?: string;
   configUsed?: any;
   chunkText?: string;
+  similarity?: number;
+  documentTitle?: string;
 }
 
 export class RAGService {

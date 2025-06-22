@@ -62,7 +62,14 @@
     "activeUsers": "משתמשים פעילים",
     "activeAdmins": "מנהלים פעילים",
     "noUsers": "לא נמצאו משתמשים",
-    "noAdmins": "לא נמצאו מנהלים"
+    "noAdmins": "לא נמצאו מנהלים",
+    "no": {
+      "data": "לא נמצאו נתונים"
+    },
+    "token": {
+      "usage": "שימוש בטוקנים"
+    },
+    "admins": "מנהלים"
   },
   "dashboard": {
     "totalUsers": "סך הכל משתמשים",
@@ -94,6 +101,18 @@
     "delete": "מחק",
     "edit": "ערוך"
   },
+  "user": {
+    "role": "תפקיד"
+  },
+  "chatbot": {
+    "preview": "תצוגה מקדימה של הצ'אטבוט"
+  },
+  "nav": {
+    "apex": {
+      "admin": "מנהל APEX"
+    },
+    "logout": "התנתק"
+  },
   "documents": {
     "edit": "עריכת מסמך",
     "replaceInstructions": "בחר קובץ חדש כדי להחליף את המסמך הנוכחי:",
@@ -107,7 +126,8 @@
     "size": "גודל",
     "date": "תאריך",
     "actions": "פעולות",
-    "confirmDelete": "אישור מחיקה"
+    "confirmDelete": "אישור מחיקה",
+    "deleteConfirmMessage": "האם אתה בטוח שברצונך למחוק את \"{{documentName}}\"?"
   },
   "table": {
     "document": {
@@ -214,6 +234,9 @@
     "similarity": {
       "threshold": "סף דמיון"
     },
+    "source": {
+      "chunk": "מקור הטקסט (צ'אנק)"
+    },
     "max": {
       "chunks": "צ'אנקים מקסימליים"
     },
@@ -247,7 +270,7 @@
     "chunks": "צ'אנקים",
     "chunkSize": "גודל צ'אנק",
     "chunkOverlap": "חפיפת צ'אנקים",
-    "maxContext": "קונטקסט מקסימלי",
+    "maxContext": "טוקנים מקסימליים",
     "semanticWeight": "משקל סמנטי",
     "focus": "מיקוד",
     "accuracy": "דיוק",
@@ -335,5 +358,45 @@
     "lastPage": "עמוד אחרון",
     "morePages": "עמודים נוספים",
     "goToPage": "עבור לעמוד"
-  }
+  },
+  "user": {
+    "role": "תפקיד"
+  },
+  "chatbot": {
+    "preview": "תצוגה מקדימה של הצ'אטבוט"
+  },
+  "nav": {
+    "apex": {
+      "admin": "מנהל APEX"
+    },
+    "logout": "התנתק"
+  },
+  "cancel": "ביטול",
+  "creating": "יוצר...",
+  "maxContext": "טוקנים מקסימליים",
+  "chunkSize": "גודל צ'אנק",
+  "expectedSpeedPlaceholder": "מהיר/בינוני/איטי...",
+  "expectedQualityPlaceholder": "גבוה/בינוני/בסיסי...",
+  "tradeoffsPlaceholder": "מה הפשרות בפרופיל הזה...",
+  "characteristics": "מאפיינים",
+  "focus": "מיקוד",
+  "bestFor": "מתאים עבור",
+  "expectedSpeed": "מהירות צפויה",
+  "expectedQuality": "איכות צפויה",
+  "tradeoffs": "איזונים",
+  "temperature": "טמפרטורה",
+  "model.name": "שם המודל",
+  "max.chunks": "צ'אנקים מקסימליים",
+  "similarity.threshold": "סף דמיון",
+  "selectSpeed": "בחר מהירות...",
+  "selectQuality": "בחר איכות...",
+  "fast": "מהיר",
+  "medium": "בינוני",
+  "slow": "איטי",
+  "high": "גבוה",
+  "basic": "בסיסי",
+  "running.test": "מריץ בדיקה...",
+  "performance.metrics": "מדדי ביצועים",
+  "processing.time": "זמן עיבוד",
+  "chunks.found": "צ'אנקים שנמצאו"
 }

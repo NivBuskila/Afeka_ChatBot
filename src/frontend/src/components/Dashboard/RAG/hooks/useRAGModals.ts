@@ -36,6 +36,10 @@ export function useRAGModals() {
     setShowCreateProfile(false);
   };
 
+  const openCreateModal = () => {
+    setShowCreateProfile(true);
+  };
+
   return {
     showCreateProfile,
     setShowCreateProfile,
@@ -47,5 +51,6 @@ export function useRAGModals() {
     closeDeleteModal,
     closeRestoreModal,
     closeCreateModal,
+    openCreateModal,
   };
 } 

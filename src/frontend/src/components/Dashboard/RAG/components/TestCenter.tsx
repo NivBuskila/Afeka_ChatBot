@@ -65,7 +65,7 @@ const TestCenter: React.FC<TestCenterProps> = ({
             {isRunningTest ? (
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 border-2 border-white dark:border-green-400 border-t-transparent rounded-full animate-spin" />
-                <span>{t("rag.running.test") || "מריץ בדיקה..."}</span>
+                <span>{t("running.test") || "מריץ בדיקה..."}</span>
               </div>
             ) : (
               <>
@@ -192,29 +192,29 @@ const TestCenter: React.FC<TestCenterProps> = ({
             )}
 
             {/* Performance Metrics */}
-            {(testResult.processingTime || testResult.totalChunks) && (
+            {(testResult.responseTime || testResult.chunks) && (
               <div className="bg-green-50 dark:bg-green-500/10 p-4 rounded border border-green-200 dark:border-green-500/20">
                 <p className="text-sm text-gray-600 dark:text-green-400/70 mb-2">
                   {t("rag.performance.metrics") || "מדדי ביצועים"}:
                 </p>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  {testResult.processingTime && (
+                  {testResult.responseTime && (
                     <div>
                       <span className="text-gray-600 dark:text-green-400/70">
-                        {t("rag.processing.time") || "זמן עיבוד"}:
+                        {t("rag.response.time") || "זמן תגובה"}:
                       </span>
                       <span className="text-gray-800 dark:text-green-300 ml-2">
-                        {testResult.processingTime}ms
+                        {testResult.responseTime}ms
                       </span>
                     </div>
                   )}
-                  {testResult.totalChunks && (
+                  {testResult.chunks && (
                     <div>
                       <span className="text-gray-600 dark:text-green-400/70">
                         {t("rag.chunks.found") || "צ'אנקים שנמצאו"}:
                       </span>
                       <span className="text-gray-800 dark:text-green-300 ml-2">
-                        {testResult.totalChunks}
+                        {testResult.chunks}
                       </span>
                     </div>
                   )}

@@ -65,8 +65,13 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
   };
 
   const handleCreateProfile = async (profileData: any) => {
-    ragModals.closeCreateModal();
-    await ragProfiles.handleCreateProfile(profileData);
+    try {
+      await ragProfiles.handleCreateProfile(profileData);
+      ragModals.closeCreateModal(); // Close modal only after successful creation
+    } catch (error) {
+      console.error('Error creating profile:', error);
+      // Keep modal open on error so user can try again
+    }
   };
 
   // Content rendering logic
