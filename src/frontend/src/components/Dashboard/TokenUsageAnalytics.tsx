@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Coins,
@@ -12,6 +12,10 @@ import {
   BarChart3,
   Download,
   Server,
+  Timer,
+  ArrowRight,
+  ArrowLeft,
+  Zap,
 } from "lucide-react";
 
 interface TokenUsageAnalyticsProps {
@@ -67,18 +71,39 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
     oldKey: number;
     newKey: number;
   } | null>(null);
+  
+  // אינדיקטור לcountdown עד הרענון הבא
+  const [nextRefreshIn, setNextRefreshIn] = useState<number>(15);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const autoRefreshEnabledRef = useRef<boolean>(true);
+
+  // פונקציה לניקוי intervals
+  const clearIntervals = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      // Handle visibility change if needed in the future
+      if (!document.hidden && autoRefreshEnabledRef.current) {
+        fetchData(false);
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearIntervals();
     };
-  }, []);
+  }, [clearIntervals]);
 
   const fetchData = useCallback(async (isInitialLoad = false) => {
     try {
@@ -93,7 +118,15 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
       const BACKEND_URL =
         import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
-      const response = await fetch(`${BACKEND_URL}/api/keys/`);
+      const controller = new AbortController();
+      // קיצור timeout מ-10 ל-5 שניות
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${BACKEND_URL}/api/keys/`, {
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -129,36 +162,69 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
 
         setKeyData(transformedKeys);
 
+        // 🔧 בדיקה משופרת לחלפת מפתח - רק אם באמת השתנה
         if (
           prevCurrentKey !== undefined &&
-          prevCurrentKey !== keyManagement.current_key_index
+          prevCurrentKey !== keyManagement.current_key_index &&
+          managementStatus !== null // ודא שזה לא הטעינה הראשונה
         ) {
-          // Key switched
+          // Key switched - אינדיקטור משופר
           setKeyChangeAlert({
             show: true,
             oldKey: prevCurrentKey,
             newKey: keyManagement.current_key_index,
           });
 
+          // סגירה אוטומטית אחרי 6 שניות במקום 8
           setTimeout(() => {
             setKeyChangeAlert(null);
-          }, 8000);
+          }, 6000);
         }
-
-        // Track current key index for future use if needed
       } else {
         throw new Error("Invalid response format from key status API");
       }
 
       setLastUpdate(new Date());
+      // איפוס הcountdown אחרי רענון מוצלח
+      setNextRefreshIn(15);
+      autoRefreshEnabledRef.current = true;
+      
     } catch (error) {
       console.error(
         "❌ [DASHBOARD-ERROR] Failed to fetch token usage data:",
         error
       );
-      setError(
-        "Failed to load token usage data. Please check if the AI service is running."
-      );
+      
+      // 🔧 טיפול משופר בשגיאות עם תמיכה בעברית
+      if (error.name === 'AbortError') {
+        setError(
+          language === "he" 
+            ? "פגת זמן לבקשה אחרי 5 שניות. רענון אוטומטי ממשיך..."
+            : "Request timed out after 5 seconds. Auto-refresh continues..."
+        );
+      } else if (error.message && error.message.includes('NetworkError')) {
+        setError(
+          language === "he"
+            ? "בעיית חיבור רשת. מנסה שוב אוטומטית..."
+            : "Network connection issue. Retrying automatically..."
+        );
+      } else if (error.message && error.message.includes('fetch')) {
+        setError(
+          language === "he"
+            ? "שגיאת חיבור. רענון אוטומטי פעיל..."
+            : "Connection error. Auto-refresh is active..."
+        );
+      } else {
+        setError(
+          language === "he"
+            ? "כשל בטעינת נתונים. רענון אוטומטי ממשיך..."
+            : "Failed to load data. Auto-refresh continues..."
+        );
+      }
+      
+      // אל תעצור את הauto-refresh גם במקרה של שגיאות
+      autoRefreshEnabledRef.current = true;
+      
     } finally {
       if (isInitialLoad) {
         setIsLoading(false);
@@ -166,23 +232,45 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
         setIsUpdating(false);
       }
     }
-  }, []);
+  }, [managementStatus?.current_key_index]);
 
+  // auto-refresh משופר עם countdown
   useEffect(() => {
-    fetchData(true); // Initial load with loading state
+    fetchData(true); // Initial load
 
-    const interval = setInterval(() => {
-      // Only refresh if page is visible and user is actively viewing this component
-      if (!document.hidden && !isUpdating && !isLoading) {
-        fetchData(false); // Auto-refresh without loading state
-      }
-    }, 30000); // Changed from 5000 to 30000 (30 seconds)
+    // Auto-refresh מתקדם יותר
+    const startAutoRefresh = () => {
+      clearIntervals();
+      
+      // Main refresh interval
+      intervalRef.current = setInterval(() => {
+        if (autoRefreshEnabledRef.current && !document.hidden) {
+          fetchData(false);
+        }
+      }, 15000); // כל 15 שניות
 
-    return () => clearInterval(interval);
-  }, [fetchData]);
+      // Countdown timer
+      countdownRef.current = setInterval(() => {
+        setNextRefreshIn(prev => {
+          if (prev <= 1) {
+            return 15; // Reset countdown
+          }
+          return prev - 1;
+        });
+      }, 1000); // כל שנייה
+    };
+
+    startAutoRefresh();
+
+    return () => {
+      clearIntervals();
+    };
+  }, [fetchData, clearIntervals]);
 
   const handleRefresh = () => {
-    fetchData(true); // Manual refresh with loading indicator
+    // איפוס הcountdown ו-force refresh
+    setNextRefreshIn(15);
+    fetchData(true);
   };
 
   const handleExportCSV = () => {
@@ -254,8 +342,14 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
   if (isLoading) {
     return (
       <div className="p-6">
-        <div className="flex justify-center items-center h-40">
-          <RefreshCw className="w-8 h-8 animate-spin text-green-400" />
+        <div className="flex flex-col justify-center items-center h-40">
+          <RefreshCw className="w-8 h-8 animate-spin text-green-400 mb-4" />
+          <p className="text-green-400 text-sm">
+            {language === "he" ? "טוען נתוני API..." : "Loading API data..."}
+          </p>
+          <p className="text-green-400/50 text-xs mt-1">
+            {language === "he" ? "זה יכול לקחת כמה שניות..." : "This may take a few seconds..."}
+          </p>
         </div>
       </div>
     );
@@ -269,12 +363,20 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
             <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
             <span className="text-red-700 dark:text-red-400">{error}</span>
           </div>
-          <button
-            onClick={handleRefresh}
-            className="mt-3 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            {language === "he" ? "נסה שוב" : "Try Again"}
-          </button>
+          <div className="flex items-center justify-between mt-3">
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              {language === "he" ? "נסה שוב" : "Try Again"}
+            </button>
+            <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+              <Timer className="w-3 h-3 mr-1" />
+              {language === "he" 
+                ? `רענון אוטומטי בעוד ${nextRefreshIn}ש`
+                : `Auto-refresh in ${nextRefreshIn}s`}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -294,7 +396,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
   const availableKeys = managementStatus.available_keys;
   const blockedKeys = totalKeys - availableKeys;
 
-  // 🆕 השתמש בנתונים החדשים מהבקאנד במקום לחפש ב-keyData
+  // השתמש בנתונים החדשים מהבקאנד
   const currentKey = managementStatus.current_key_usage
     ? {
         id: managementStatus.current_key_usage.current_key_index + 1,
@@ -324,19 +426,37 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
 
   return (
     <div className="p-6 space-y-6">
+      {/* 🎨 אינדיקטור משופר לחלפת מפתחות */}
       {keyChangeAlert?.show && (
-        <div className="bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-500/30 rounded-lg p-4 animate-pulse">
-          <div className="flex items-center">
-            <Activity className="w-5 h-5 text-blue-500 mr-2 animate-spin" />
-            <span className="text-blue-700 dark:text-blue-400 font-medium">
-              {language === "he"
-                ? `מפתח הוחלף אוטומטית: מפתח #${
-                    keyChangeAlert.oldKey + 1
-                  } → מפתח #${keyChangeAlert.newKey + 1}`
-                : `API Key switched automatically: Key #${
-                    keyChangeAlert.oldKey + 1
-                  } → Key #${keyChangeAlert.newKey + 1}`}
-            </span>
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="flex items-center bg-blue-100 dark:bg-blue-900/30 rounded-full p-2 mr-3">
+                <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-blue-800 dark:text-blue-300 font-medium text-sm">
+                  {language === "he" ? "מפתח הוחלף אוטומטית" : "API Key Auto-Switched"}
+                </p>
+                <div className="flex items-center text-blue-600 dark:text-blue-400 text-xs mt-1">
+                  <span className="font-mono bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    Key #{keyChangeAlert.oldKey + 1}
+                  </span>
+                  {language === "he" ? (
+                    <ArrowLeft className="w-3 h-3 mx-2" />
+                  ) : (
+                    <ArrowRight className="w-3 h-3 mx-2" />
+                  )}
+                  <span className="font-mono bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-green-600 dark:text-green-400">
+                    Key #{keyChangeAlert.newKey + 1}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center text-xs text-blue-500 dark:text-blue-400">
+              <Activity className="w-3 h-3 mr-1 animate-spin" />
+              {language === "he" ? "פעיל" : "Active"}
+            </div>
           </div>
         </div>
       )}
@@ -346,25 +466,40 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
           <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
             {language === "he" ? "ניתוח שימוש ב-API" : "Token Usage"}
           </h2>
-          <p className="text-sm text-gray-600 dark:text-green-400/70 mt-1">
-            {language === "he" ? "עדכון אחרון:" : "Last updated:"}{" "}
-            {lastUpdate.toLocaleTimeString()}
-            <span
-              className={`ml-2 text-xs px-2 py-1 rounded transition-all duration-300 ${
-                isUpdating
-                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                  : "bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400"
-              }`}
-            >
-              {isUpdating
-                ? language === "he"
-                  ? "מעדכן..."
-                  : "Updating..."
-                : language === "he"
-                ? "עדכון אוטומטי"
-                : "Auto-refresh"}
-            </span>
-          </p>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-sm text-gray-600 dark:text-green-400/70">
+              {language === "he" ? "עדכון אחרון:" : "Last updated:"}{" "}
+              {lastUpdate.toLocaleTimeString()}
+            </p>
+            {/* אינדיקטור חזותי משופר לauto-refresh */}
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-xs px-3 py-1 rounded-full transition-all duration-300 ${
+                  isUpdating
+                    ? "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 animate-pulse"
+                    : "bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                }`}
+              >
+                {isUpdating
+                  ? language === "he"
+                    ? "מעדכן..."
+                    : "Updating..."
+                  : language === "he"
+                  ? "עדכון אוטומטי פעיל"
+                  : "Auto-refresh active"}
+              </span>
+              
+              {/* Countdown timer */}
+              {!isUpdating && (
+                <div className="flex items-center text-xs text-gray-500 dark:text-green-400/50">
+                  <Timer className="w-3 h-3 mr-1" />
+                  {language === "he" 
+                    ? `${nextRefreshIn}ש`
+                    : `${nextRefreshIn}s`}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex gap-2">
           <button
@@ -631,7 +766,6 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
   );
 });
 
-// Display name for debugging
 TokenUsageAnalytics.displayName = 'TokenUsageAnalytics';
 
 export default TokenUsageAnalytics;

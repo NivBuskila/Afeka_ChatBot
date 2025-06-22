@@ -10,10 +10,13 @@ router = APIRouter(prefix="/api/keys", tags=["API Keys"])
 
 logger = logging.getLogger(__name__)
 
+# Global variable to store current key index from DatabaseKeyManager
+_current_key_index_override = None
+
 _cache = {
     "data": None,
     "timestamp": 0,
-    "ttl": 600
+    "ttl": 30  # 🔧 הקטן מ-10 דקות ל-30 שניות כדי להראות נתונים בזמן אמת
 }
 
 def get_cached_result() -> Optional[Dict[str, Any]]:
@@ -33,7 +36,13 @@ def set_cached_result(data: Dict[str, Any]):
     """Cache the result"""
     _cache["data"] = data
     _cache["timestamp"] = time.time()
-    logger.info("[CACHE-SET] Data cached for 10 minutes")
+    logger.info("[CACHE-SET] Data cached for 30 seconds")
+
+def invalidate_cache():
+    """Invalidate the cache when new usage is recorded"""
+    _cache["data"] = None
+    _cache["timestamp"] = 0
+    logger.info("[CACHE-INVALIDATE] Cache cleared due to new usage")
 
 @router.get("/")
 async def get_api_keys(
@@ -55,8 +64,13 @@ async def get_api_keys(
         
         logger.info(f"[API-KEYS] Found {len(keys)} keys")
         
-        current_key_index = await service.get_current_active_key_index()
-        logger.info(f"[API-KEYS] Current key index: {current_key_index}")
+        # 🔧 השתמש בoverride אם קיים, אחרת נסה לקבל מAI service
+        if _current_key_index_override is not None:
+            current_key_index = _current_key_index_override
+            logger.info(f"[API-KEYS] Using override current key index: {current_key_index}")
+        else:
+            current_key_index = await service.get_current_active_key_index()
+            logger.info(f"[API-KEYS] Current key index from AI service: {current_key_index}")
         
         from datetime import date, timezone, datetime
         today = date.today().isoformat()
@@ -64,35 +78,120 @@ async def get_api_keys(
         
         key_ids = [key["id"] for key in keys]
         
-        daily_response = supabase_client.table("api_key_usage")\
-            .select("api_key_id,tokens_used,requests_count")\
-            .in_("api_key_id", key_ids)\
-            .eq("usage_date", today)\
-            .execute()
+        # 🔧 שיפור: קריאה אחת עם aggregation במקום שתיים נפרדות
+        logger.info("[API-KEYS] Starting aggregated usage queries...")
+        start_time = time.time()
         
-        minute_response = supabase_client.table("api_key_usage")\
-            .select("api_key_id,tokens_used,requests_count")\
-            .in_("api_key_id", key_ids)\
-            .eq("usage_minute", current_minute_utc.isoformat())\
-            .execute()
+        # קריאה יחידה עם סינון מתקדם לשני סוגי הנתונים
+        try:
+            # 🚀 נסה להשתמש בfunction החדש שמחזיר הכל בקריאה אחת
+            all_stats_response = supabase_client.rpc("get_all_keys_usage_stats", {
+                "target_date": today,
+                "target_minute": current_minute_utc.isoformat()
+            }).execute()
+            
+            logger.info(f"[API-KEYS] Single comprehensive query took {time.time() - start_time:.2f}s")
+            
+            # המרה לפורמט הישן של המערכת
+            daily_usage = {}
+            minute_usage = {}
+            
+            if all_stats_response.data:
+                for row in all_stats_response.data:
+                    key_id = row["api_key_id"]
+                    daily_usage[key_id] = {
+                        "tokens": row["daily_tokens"],
+                        "requests": row["daily_requests"]
+                    }
+                    minute_usage[key_id] = {
+                        "tokens": row["minute_tokens"],
+                        "requests": row["minute_requests"]
+                    }
+            
+            logger.info(f"[API-KEYS] ✅ Used optimized RPC - processed {len(daily_usage)} keys in {time.time() - start_time:.2f}s")
+            
+        except Exception as e:
+            logger.warning(f"[API-KEYS] 🔄 Optimized RPC not available, using fallback aggregation: {e}")
+            
+            # Fallback לRPC functions נפרדים
+            try:
+                # Daily aggregation בקריאה אחת
+                daily_response = supabase_client.rpc("aggregate_daily_usage", {
+                    "target_date": today,
+                    "key_ids": key_ids
+                }).execute()
+                
+                minute_response = supabase_client.rpc("aggregate_minute_usage", {
+                    "target_minute": current_minute_utc.isoformat(),
+                    "key_ids": key_ids
+                }).execute()
+                
+                # המרה לפורמט רצוי
+                daily_usage = {}
+                minute_usage = {}
+                
+                if daily_response.data:
+                    for row in daily_response.data:
+                        daily_usage[row["api_key_id"]] = {
+                            "tokens": row["total_tokens"],
+                            "requests": row["total_requests"]
+                        }
+                
+                if minute_response.data:
+                    for row in minute_response.data:
+                        minute_usage[row["api_key_id"]] = {
+                            "tokens": row["total_tokens"],
+                            "requests": row["total_requests"]
+                        }
+                
+                logger.info(f"[API-KEYS] ✅ Used separate RPC functions in {time.time() - start_time:.2f}s")
+                
+            except Exception as e2:
+                logger.warning(f"[API-KEYS] 🔄 RPC functions not available, using manual queries: {e2}")
+                
+                # Fallback לקריאות מקוריות
+                daily_response = supabase_client.table("api_key_usage")\
+                    .select("api_key_id,tokens_used,requests_count")\
+                    .in_("api_key_id", key_ids)\
+                    .eq("usage_date", today)\
+                    .limit(10000)\
+                    .execute()  # 🔧 הגבלת תוצאות
+
+                minute_response = supabase_client.table("api_key_usage")\
+                    .select("api_key_id,tokens_used,requests_count")\
+                    .in_("api_key_id", key_ids)\
+                    .eq("usage_minute", current_minute_utc.isoformat())\
+                    .limit(1000)\
+                    .execute()  # 🔧 הגבלת תוצאות למניעת עומס
+                
+                # חזרה לעיבוד הישן
+                daily_usage = {}
+                for row in daily_response.data:
+                    key_id = row["api_key_id"]
+                    if key_id not in daily_usage:
+                        daily_usage[key_id] = {"tokens": 0, "requests": 0}
+                    daily_usage[key_id]["tokens"] += row["tokens_used"]
+                    daily_usage[key_id]["requests"] += row["requests_count"]
+                
+                minute_usage = {}
+                for row in minute_response.data:
+                    key_id = row["api_key_id"]
+                    if key_id not in minute_usage:
+                        minute_usage[key_id] = {"tokens": 0, "requests": 0}
+                    minute_usage[key_id]["tokens"] += row["tokens_used"]
+                    minute_usage[key_id]["requests"] += row["requests_count"]
+                
+                logger.info(f"[API-KEYS] ⚠️ Used legacy manual queries in {time.time() - start_time:.2f}s")
         
-        daily_usage = {}
-        for row in daily_response.data:
-            key_id = row["api_key_id"]
-            if key_id not in daily_usage:
-                daily_usage[key_id] = {"tokens": 0, "requests": 0}
-            daily_usage[key_id]["tokens"] += row["tokens_used"]
-            daily_usage[key_id]["requests"] += row["requests_count"]
+        query_time = time.time() - start_time
+        logger.info(f"[API-KEYS] Total query time: {query_time:.2f}s")
         
-        minute_usage = {}
-        for row in minute_response.data:
-            key_id = row["api_key_id"]
-            if key_id not in minute_usage:
-                minute_usage[key_id] = {"tokens": 0, "requests": 0}
-            minute_usage[key_id]["tokens"] += row["tokens_used"]
-            minute_usage[key_id]["requests"] += row["requests_count"]
-        
-        logger.info(f"[API-KEYS] Batch queries complete: {len(daily_response.data)} daily, {len(minute_response.data)} minute records")
+        # אם הקריאות לוקחות יותר מ-5 שניות, החזר קאש ישן אם קיים
+        if query_time > 5.0 and _cache["data"] is not None:
+            logger.warning(f"[API-KEYS] Queries too slow ({query_time:.1f}s), returning stale cache")
+            stale_response = _cache["data"].copy()
+            stale_response["cache_warning"] = f"Data may be up to {time.time() - _cache['timestamp']:.0f}s old due to slow queries"
+            return stale_response
         
         keys_status = []
         total_tokens_today = 0
@@ -131,6 +230,23 @@ async def get_api_keys(
         available_count = sum(1 for k in keys_status if k["status"] in ["available", "current"])
         blocked_count = sum(1 for k in keys_status if k["status"] in ["blocked", "rate_limited"])
         
+        # 🆕 הוסף current_key_usage למידע
+        current_key_data = None
+        if 0 <= current_key_index < len(keys):
+            current_db_key = keys[current_key_index]
+            current_daily_data = daily_usage.get(current_db_key["id"], {"tokens": 0, "requests": 0})
+            current_minute_data = minute_usage.get(current_db_key["id"], {"tokens": 0, "requests": 0})
+            
+            current_key_data = {
+                "current_key_index": current_key_index,
+                "tokens_today": current_daily_data["tokens"],
+                "tokens_current_minute": current_minute_data["tokens"],
+                "requests_today": current_daily_data["requests"],
+                "requests_current_minute": current_minute_data["requests"],
+                "status": "current",
+                "key_name": current_db_key.get("key_name", f"Key #{current_key_index + 1}")
+            }
+        
         response = {
             "status": "ok",
             "key_management": {
@@ -139,6 +255,7 @@ async def get_api_keys(
                 "blocked_keys": blocked_count,
                 "current_key_index": current_key_index,
                 "keys_status": keys_status,
+                "current_key_usage": current_key_data,  # 🆕 הוסף את החלק החסר
                 "daily_summary": {
                     "total_tokens": total_tokens_today,
                     "total_requests": total_requests_today,
@@ -160,7 +277,8 @@ async def get_api_keys(
                 "available_keys": 0, 
                 "blocked_keys": 0,
                 "current_key_index": 0,
-                "keys_status": []
+                "keys_status": [],
+                "current_key_usage": None
             }
         }
 
@@ -191,6 +309,9 @@ async def record_usage(
         service = ApiKeyService(supabase_client)
         await service.record_usage(key_id, tokens_used, requests_count)
         
+        # 🔧 בטל קאש כדי שהדשבורד יעדכן מיד
+        invalidate_cache()
+        
         logger.info(f"[USAGE-API] Recorded {tokens_used} tokens, {requests_count} requests for key {key_id}")
         return {"status": "recorded", "tokens_used": tokens_used, "requests_count": requests_count}
         
@@ -214,7 +335,10 @@ async def simulate_heavy_usage(
         
         for i in range(requests_to_add):
             await service.record_usage(key_id, 100, 1)
-            
+        
+        # 🔧 בטל קאש אחרי סימולציה
+        invalidate_cache()
+        
         usage = await service.get_key_current_usage(key_id)
         
         return {
@@ -344,3 +468,32 @@ async def get_keys_for_ai_service(
             "message": str(e),
             "keys": []
         }
+
+@router.post("/set-current")
+async def set_current_key_index(request: Request):
+    """Set current key index from DatabaseKeyManager"""
+    global _current_key_index_override
+    try:
+        body = await request.json()
+        new_index = body.get('current_key_index')
+        old_index = body.get('old_key_index')
+        
+        if new_index is None:
+            raise HTTPException(status_code=400, detail="current_key_index is required")
+        
+        _current_key_index_override = new_index
+        logger.info(f"[KEY-ROTATION] Updated current key index: {old_index} → {new_index}")
+        
+        # ביטול קאש כדי שהנתונים החדשים יוצגו מיד
+        invalidate_cache()
+        
+        return {
+            "status": "ok",
+            "old_index": old_index,
+            "new_index": new_index,
+            "message": f"Current key index updated to {new_index}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error setting current key index: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to set current key index: {str(e)}")
