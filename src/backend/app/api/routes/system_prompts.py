@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/system-prompts", tags=["system-prompts"])
 
-# Pydantic models for request/response
 from pydantic import BaseModel
 
 class SystemPromptResponse(BaseModel):
@@ -48,13 +47,12 @@ async def get_current_system_prompt(
 ):
     """Get the currently active system prompt"""
     try:
-        logger.info(f"🔍 Getting current system prompt for admin: {current_user.get('email')}")
+        logger.info(f"Getting current system prompt for admin: {current_user.get('email')}")
         
-        # Get active prompt
         response = supabase.table("system_prompts").select("*").eq("is_active", True).order("created_at", desc=True).limit(1).execute()
         
         if not response.data:
-            logger.warning("⚠️ No active system prompt found")
+            logger.warning("No active system prompt found")
             raise HTTPException(
                 status_code=404,
                 detail="No active system prompt found"
@@ -62,7 +60,6 @@ async def get_current_system_prompt(
         
         prompt_data = response.data[0]
         
-        # Format response
         result = SystemPromptResponse(
             id=prompt_data["id"],
             prompt_text=prompt_data["prompt_text"],
@@ -72,16 +69,16 @@ async def get_current_system_prompt(
             updated_at=prompt_data["updated_at"],
             updated_by=prompt_data["updated_by"],
             notes=prompt_data["notes"],
-            updated_by_email=None  # Email lookup removed for now
+            updated_by_email=None
         )
         
-        logger.info(f"✅ Retrieved current system prompt (ID: {result.id}, Version: {result.version})")
+        logger.info(f"Retrieved current system prompt (ID: {result.id}, Version: {result.version})")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting current system prompt: {e}")
+        logger.error(f"Error getting current system prompt: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get current system prompt: {str(e)}"
@@ -95,9 +92,8 @@ async def get_system_prompt_history(
 ):
     """Get history of system prompts"""
     try:
-        logger.info(f"📜 Getting system prompt history for admin: {current_user.get('email')}")
+        logger.info(f"Getting system prompt history for admin: {current_user.get('email')}")
         
-        # Get prompt history
         response = supabase.table("system_prompts").select("*").order("created_at", desc=True).limit(limit).execute()
         
         results = []
@@ -111,15 +107,15 @@ async def get_system_prompt_history(
                 updated_at=prompt_data["updated_at"],
                 updated_by=prompt_data["updated_by"],
                 notes=prompt_data["notes"],
-                updated_by_email=None  # Email lookup removed for now
+                updated_by_email=None
             )
             results.append(result)
         
-        logger.info(f"✅ Retrieved {len(results)} system prompt history entries")
+        logger.info(f"Retrieved {len(results)} system prompt history entries")
         return results
         
     except Exception as e:
-        logger.error(f"❌ Error getting system prompt history: {e}")
+        logger.error(f"Error getting system prompt history: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get system prompt history: {str(e)}"
@@ -133,24 +129,21 @@ async def create_system_prompt(
 ):
     """Create a new system prompt"""
     try:
-        logger.info(f"➕ Creating new system prompt for admin: {current_user.get('email')}")
+        logger.info(f"Creating new system prompt for admin: {current_user.get('email')}")
         
-        # Validate prompt text
         if not prompt_data.prompt_text.strip():
             raise HTTPException(
                 status_code=400,
                 detail="System prompt text cannot be empty"
             )
         
-        # Get next version number
         version_response = supabase.table("system_prompts").select("version").order("version", desc=True).limit(1).execute()
         next_version = 1 if not version_response.data else version_response.data[0]["version"] + 1
         
-        # Create new prompt (will automatically deactivate others due to trigger)
         insert_data = {
             "prompt_text": prompt_data.prompt_text.strip(),
             "version": next_version,
-            "is_active": True,  # New prompt becomes active
+            "is_active": True,
             "updated_by": current_user["id"],
             "notes": prompt_data.notes
         }
@@ -177,13 +170,13 @@ async def create_system_prompt(
             updated_by_email=current_user.get("email")
         )
         
-        logger.info(f"✅ Created new system prompt (ID: {result.id}, Version: {result.version})")
+        logger.info(f"Created new system prompt (ID: {result.id}, Version: {result.version})")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error creating system prompt: {e}")
+        logger.error(f"Error creating system prompt: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create system prompt: {str(e)}"
@@ -198,16 +191,14 @@ async def update_system_prompt(
 ):
     """Update an existing system prompt"""
     try:
-        logger.info(f"✏️ Updating system prompt {prompt_id} for admin: {current_user.get('email')}")
+        logger.info(f"Updating system prompt {prompt_id} for admin: {current_user.get('email')}")
         
-        # Validate prompt text
         if not prompt_data.prompt_text.strip():
             raise HTTPException(
                 status_code=400,
                 detail="System prompt text cannot be empty"
             )
         
-        # Check if prompt exists
         existing_response = supabase.table("system_prompts").select("*").eq("id", prompt_id).execute()
         if not existing_response.data:
             raise HTTPException(
@@ -215,7 +206,6 @@ async def update_system_prompt(
                 detail="System prompt not found"
             )
         
-        # Update the prompt
         update_data = {
             "prompt_text": prompt_data.prompt_text.strip(),
             "updated_by": current_user["id"],
@@ -244,13 +234,13 @@ async def update_system_prompt(
             updated_by_email=current_user.get("email")
         )
         
-        logger.info(f"✅ Updated system prompt (ID: {result.id}, Version: {result.version})")
+        logger.info(f"Updated system prompt (ID: {result.id}, Version: {result.version})")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error updating system prompt: {e}")
+        logger.error(f"Error updating system prompt: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update system prompt: {str(e)}"
@@ -264,9 +254,8 @@ async def activate_system_prompt(
 ):
     """Activate a specific system prompt (making it the current one)"""
     try:
-        logger.info(f"🔄 Activating system prompt {prompt_id} for admin: {current_user.get('email')}")
+        logger.info(f"Activating system prompt {prompt_id} for admin: {current_user.get('email')}")
         
-        # Check if prompt exists
         existing_response = supabase.table("system_prompts").select("*").eq("id", prompt_id).execute()
         if not existing_response.data:
             raise HTTPException(
@@ -274,7 +263,6 @@ async def activate_system_prompt(
                 detail="System prompt not found"
             )
         
-        # Activate the prompt (trigger will deactivate others)
         update_data = {
             "is_active": True,
             "updated_by": current_user["id"]
@@ -302,13 +290,13 @@ async def activate_system_prompt(
             updated_by_email=current_user.get("email")
         )
         
-        logger.info(f"✅ Activated system prompt (ID: {result.id}, Version: {result.version})")
+        logger.info(f"Activated system prompt (ID: {result.id}, Version: {result.version})")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error activating system prompt: {e}")
+        logger.error(f"Error activating system prompt: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to activate system prompt: {str(e)}"
@@ -321,14 +309,12 @@ async def reset_to_default_system_prompt(
 ):
     """Reset to the original default system prompt"""
     try:
-        logger.info(f"🔄 Resetting to default system prompt for admin: {current_user.get('email')}")
+        logger.info(f"Resetting to default system prompt for admin: {current_user.get('email')}")
         
-        # Import the original default prompt from system_prompts.py
         try:
             from src.ai.config.system_prompts import system_prompts
             original_default_text = system_prompts.MAIN_SYSTEM_PROMPT
         except ImportError:
-            # Fallback to hardcoded default if import fails
             original_default_text = """# SYSTEM PROMPT - Academic Assistant for Afeka College
 
 ## Role and Purpose
@@ -393,15 +379,13 @@ Format every response as follows (in Hebrew):
 
 Remember: Every response reflects the excellence and values of Afeka College. Always communicate in clear, professional Hebrew to serve our Hebrew-speaking community effectively."""
         
-        # Get next version number
         version_response = supabase.table("system_prompts").select("version").order("version", desc=True).limit(1).execute()
         next_version = 1 if not version_response.data else version_response.data[0]["version"] + 1
         
-        # Create new prompt with original default text
         insert_data = {
             "prompt_text": original_default_text,
             "version": next_version,
-            "is_active": True,  # New prompt becomes active
+            "is_active": True,
             "updated_by": current_user["id"],
             "notes": "Reset to original default system prompt from system_prompts.py"
         }
@@ -428,14 +412,14 @@ Remember: Every response reflects the excellence and values of Afeka College. Al
             updated_by_email=current_user.get("email")
         )
         
-        logger.info(f"✅ Reset to default system prompt (ID: {result.id}, Version: {result.version})")
+        logger.info(f"Reset to default system prompt (ID: {result.id}, Version: {result.version})")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error resetting to default system prompt: {e}")
+        logger.error(f"Error resetting to default system prompt: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to reset to default system prompt: {str(e)}"
-        ) 
+        )

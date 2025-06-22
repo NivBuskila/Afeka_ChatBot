@@ -6,22 +6,18 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-# Add the AI services path to sys.path
 ai_services_path = Path(__file__).parent.parent.parent.parent.parent / "ai"
 if str(ai_services_path) not in sys.path:
     sys.path.insert(0, str(ai_services_path))
 
-# Import from Supabase-enabled modules
 try:
     from src.ai.config.current_profile import get_current_profile, set_current_profile
     from src.ai.config.rag_config_profiles import get_profile, save_new_profile, delete_profile
     
-    # Define get_available_profiles as our fresh function
     def get_available_profiles():
         return _get_fresh_available_profiles()
         
 except ImportError:
-    # Try alternative import paths
     import sys
     import os
     ai_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'ai')
@@ -30,12 +26,10 @@ except ImportError:
         from config.current_profile import get_current_profile, set_current_profile
         from config.rag_config_profiles import get_profile, save_new_profile, delete_profile
         
-        # Define get_available_profiles as our fresh function
         def get_available_profiles():
             return _get_fresh_available_profiles()
             
     except ImportError:
-        # Fallback functions if AI modules are not available
         def get_current_profile():
             return "maximum_accuracy"
         def set_current_profile(profile_name):
@@ -55,12 +49,10 @@ def _get_fresh_available_profiles():
     """Get fresh list of available profiles including dynamically created ones"""
     logger.info("_get_fresh_available_profiles called")
     
-    # Force reload of the modules to get fresh data
     try:
         import importlib
         import sys
         
-        # Reload the modules if they're already loaded
         if 'src.ai.config.rag_config_profiles' in sys.modules:
             importlib.reload(sys.modules['src.ai.config.rag_config_profiles'])
             logger.info("Reloaded rag_config_profiles module")
@@ -72,10 +64,9 @@ def _get_fresh_available_profiles():
     except Exception as reload_error:
         logger.warning(f"Could not reload modules: {reload_error}")
     
-    # Try to import the new list_profiles function that filters hidden profiles
     try:
         from src.ai.config.rag_config_profiles import list_profiles
-        available = list_profiles()  # This already filters hidden profiles
+        available = list_profiles()
         logger.info(f"Available profiles (filtered): {list(available.keys())}")
         return available
     except ImportError as e:
@@ -83,11 +74,8 @@ def _get_fresh_available_profiles():
         raise HTTPException(status_code=500, detail="Could not load profile configurations")
 
 def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
-    """
-    קבלת הקונפיגורציה האמיתית של פרופיל
-    """
+    """Get the real configuration of a profile"""
     if get_profile is None:
-        # Fallback אם לא ניתן לייבא
         return {
             "similarityThreshold": 0.4,
             "maxChunks": 20,
@@ -105,7 +93,7 @@ def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
             "maxChunks": actual_config.search.MAX_CHUNKS_RETRIEVED,
             "maxChunksForContext": actual_config.search.MAX_CHUNKS_FOR_CONTEXT,
             "temperature": actual_config.llm.TEMPERATURE,
-            "modelName": "gemini-2.0-flash",  # כרגע קבוע
+            "modelName": "gemini-2.0-flash",
             "chunkSize": actual_config.chunk.DEFAULT_CHUNK_SIZE,
             "chunkOverlap": actual_config.chunk.DEFAULT_CHUNK_OVERLAP,
             "maxContextTokens": actual_config.context.MAX_CONTEXT_TOKENS,
@@ -126,9 +114,7 @@ def get_real_config_for_profile(profile_id: str) -> Dict[str, Any]:
         }
 
 def get_profile_characteristics(profile_id: str, config: Dict[str, Any], language: str = "he") -> Dict[str, Any]:
-    """
-    קבלת מאפיינים וצפי ביצועים מהקונפיגורציה האמיתית
-    """
+    """Get characteristics and expected performance from real configuration"""
     characteristics = {
         "focus": "",
         "expectedSpeed": "",
@@ -137,7 +123,6 @@ def get_profile_characteristics(profile_id: str, config: Dict[str, Any], languag
         "tradeoffs": ""
     }
     
-    # בדיקה אם זה פרופיל דינמי עם מאפיינים שמורים
     try:
         from src.ai.config.rag_config_profiles import load_dynamic_profiles
         dynamic_profiles = load_dynamic_profiles()
@@ -146,20 +131,17 @@ def get_profile_characteristics(profile_id: str, config: Dict[str, Any], languag
             saved_characteristics = dynamic_profiles[profile_id].get('characteristics', {})
             logger.debug(f"Loading saved characteristics for {profile_id}: {saved_characteristics}")
             if saved_characteristics and any(saved_characteristics.values()):
-                # אם יש מאפיינים שמורים, השתמש בהם במקום ליצור חדשים
                 characteristics.update(saved_characteristics)
                 logger.debug(f"Updated characteristics for {profile_id}: {characteristics}")
                 return characteristics
     except Exception as e:
         logger.warning(f"Could not load dynamic profile characteristics for {profile_id}: {e}")
     
-    # ניתוח מאפיינים לפי הקונפיגורציה האמיתית (רק לפרופילים סטטיים)
     similarity_threshold = config.get("similarityThreshold", 0.4)
     max_chunks = config.get("maxChunks", 20)
     temperature = config.get("temperature", 0.1)
     chunk_size = config.get("chunkSize", 2000)
     
-    # Define characteristics for each profile in both languages
     profile_characteristics = {
         "enhanced_testing": {
             "he": {
@@ -291,11 +273,9 @@ def get_profile_characteristics(profile_id: str, config: Dict[str, Any], languag
         }
     }
     
-    # Get characteristics for the profile and language
     if profile_id in profile_characteristics and language in profile_characteristics[profile_id]:
         characteristics.update(profile_characteristics[profile_id][language])
     else:
-        # Fallback to default characteristics
         lang_suffix = "he" if language == "he" else "en"
         if lang_suffix == "he":
             characteristics.update({
@@ -327,18 +307,14 @@ async def get_rag_profiles(language: str = "he"):
         profiles_data = []
         for profile_id, description in available_profiles.items():
             try:
-                # Get real configuration
                 real_config = get_real_config_for_profile(profile_id)
                 
-                # Get characteristics based on language
                 characteristics = get_profile_characteristics(profile_id, real_config, language)
                 
-                # Check if this is a custom (deletable) profile
                 built_in_profiles = {"high_quality", "fast", "balanced", "improved", "debug", 
                                    "enhanced_testing", "optimized_testing", "maximum_accuracy"}
                 is_custom = profile_id not in built_in_profiles
                 
-                # Create profile data
                 profile_data = {
                     "id": profile_id,
                     "name": profile_id.replace('_', ' ').title(),
@@ -376,7 +352,6 @@ async def activate_rag_profile(profile_id: str):
                 detail=f"Profile '{profile_id}' not found. Available profiles: {list(available_profiles.keys())}"
             )
         
-        # Set the new profile
         success = set_current_profile(profile_id)
         
         if not success:
@@ -439,21 +414,16 @@ async def test_rag_query(request: Dict[str, Any]):
         if not query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-        # Import RAGService here to avoid circular imports
         try:
             from src.ai.services.rag_service import RAGService
             
-            # Create RAG service with current profile
             rag_service = RAGService()
             
-            # Run the test query
             result = await rag_service.generate_answer(query, search_method="hybrid")
             
-            # Get chunk text for display
             chunk_text = ""
             chunks_selected = result.get("chunks_selected", [])
             if chunks_selected:
-                # Take the first chunk as the main chunk text
                 first_chunk = chunks_selected[0]
                 chunk_text = first_chunk.get("chunk_text", first_chunk.get("content", ""))
             
@@ -493,12 +463,10 @@ async def create_rag_profile(request: Dict[str, Any]):
         if not profile_id or not profile_name:
             raise HTTPException(status_code=400, detail="Profile ID and name are required")
         
-        # Check if profile already exists
         available_profiles = get_available_profiles()
         if profile_id in available_profiles:
             raise HTTPException(status_code=400, detail=f"Profile '{profile_id}' already exists")
         
-        # Validate configuration values
         required_config_fields = [
             "similarityThreshold", "maxChunks", "temperature", "modelName"
         ]
@@ -509,7 +477,6 @@ async def create_rag_profile(request: Dict[str, Any]):
                     detail=f"Missing required configuration field: {field}"
                 )
         
-        # Create the profile data for saving
         profile_data = {
             "id": profile_id,
             "name": profile_name,
@@ -519,12 +486,10 @@ async def create_rag_profile(request: Dict[str, Any]):
             "isActive": False
         }
         
-        # Save the profile using the new function
         try:
             save_new_profile(profile_id, profile_data)
             logger.info(f"Successfully saved custom profile: {profile_id}")
             
-            # Create full profile object for response
             created_profile = {
                 "id": profile_id,
                 "name": profile_name,
@@ -559,7 +524,6 @@ async def create_rag_profile(request: Dict[str, Any]):
 async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bool = None):
     """Delete custom profiles permanently or hide built-in profiles"""
     try:
-        # Check if profile exists
         available_profiles = get_available_profiles()
         if profile_id not in available_profiles:
             raise HTTPException(
@@ -567,7 +531,6 @@ async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bo
                 detail=f"Profile '{profile_id}' not found"
             )
         
-        # Check if trying to delete current active profile
         current_profile = get_current_profile()
         if profile_id == current_profile:
             raise HTTPException(
@@ -579,7 +542,6 @@ async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bo
         
         manager = get_supabase_profile_manager()
         
-        # Check if it's a built-in profile
         built_in_profiles = [
             'high_quality', 'fast', 'balanced', 'improved', 'debug',
             'enhanced_testing', 'optimized_testing', 'maximum_accuracy'
@@ -588,27 +550,24 @@ async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bo
         is_builtin = profile_id in built_in_profiles
         
         if is_builtin:
-            # Built-in profiles can only be hidden, never permanently deleted
             if permanent is True:
                 raise HTTPException(
                     status_code=400,
                     detail="Built-in profiles cannot be permanently deleted. They can only be hidden."
                 )
             
-            # Require force for built-in profiles
             if not force:
                 raise HTTPException(
                     status_code=400,
                     detail="Built-in profile deletion requires force=true parameter"
                 )
             
-            # Hide the built-in profile
             success = manager.set_profile_hidden(profile_id, True)
             
             if success:
                 logger.info(f"Successfully hidden built-in profile: {profile_id}")
                 return {
-                    "message": f"Successfully deleted מובנה profile: {profile_id}",
+                    "message": f"Successfully deleted built-in profile: {profile_id}",
                     "profile_id": profile_id,
                     "action": "hidden"
                 }
@@ -616,14 +575,11 @@ async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bo
                 raise HTTPException(status_code=500, detail="Failed to hide profile")
         
         else:
-            # Custom profiles: hard delete by default, soft delete only if permanent=false explicitly
             if permanent is False:
-                # Explicitly requested soft delete
                 success = manager.delete_profile(profile_id)
                 action = "soft_deleted"
                 message = f"Successfully soft deleted custom profile: {profile_id}"
             else:
-                # Default behavior (permanent=None or permanent=True): hard delete custom profiles
                 success = manager.hard_delete_profile(profile_id)
                 action = "permanently_deleted"
                 message = f"Successfully permanently deleted custom profile: {profile_id}"
@@ -650,7 +606,6 @@ async def restore_rag_profile(profile_id: str):
         
         manager = get_supabase_profile_manager()
         
-        # Check if profile is hidden
         hidden_profiles = manager.get_hidden_profiles()
         if profile_id not in hidden_profiles:
             raise HTTPException(
@@ -658,7 +613,6 @@ async def restore_rag_profile(profile_id: str):
                 detail=f"Profile '{profile_id}' is not hidden or does not exist"
             )
         
-        # Restore the profile (set it as visible)
         success = manager.set_profile_hidden(profile_id, False)
         
         if success:
@@ -705,14 +659,12 @@ async def get_hidden_profiles():
 async def permanently_delete_profile(profile_id: str, confirm: bool = False):
     """Permanently delete a profile from the database (HARD DELETE)"""
     try:
-        # Safety check - require explicit confirmation
         if not confirm:
             raise HTTPException(
                 status_code=400,
                 detail="Permanent deletion requires confirm=true parameter. This action cannot be undone!"
             )
         
-        # Check if profile exists
         available_profiles = get_available_profiles()
         if profile_id not in available_profiles:
             raise HTTPException(
@@ -720,7 +672,6 @@ async def permanently_delete_profile(profile_id: str, confirm: bool = False):
                 detail=f"Profile '{profile_id}' not found"
             )
         
-        # Check if trying to delete current active profile
         current_profile = get_current_profile()
         if profile_id == current_profile:
             raise HTTPException(
@@ -732,7 +683,6 @@ async def permanently_delete_profile(profile_id: str, confirm: bool = False):
         
         manager = get_supabase_profile_manager()
         
-        # Check if it's a built-in profile
         built_in_profiles = [
             'high_quality', 'fast', 'balanced', 'improved', 'debug',
             'enhanced_testing', 'optimized_testing', 'maximum_accuracy'
@@ -744,11 +694,10 @@ async def permanently_delete_profile(profile_id: str, confirm: bool = False):
                 detail="Built-in profiles cannot be permanently deleted. They can only be hidden."
             )
         
-        # Perform hard delete
         success = manager.hard_delete_profile(profile_id)
         
         if success:
-            logger.warning(f"🔥 PERMANENTLY DELETED profile: {profile_id}")
+            logger.warning(f"PERMANENTLY DELETED profile: {profile_id}")
             return {
                 "message": f"Profile '{profile_id}' has been permanently deleted from the database",
                 "profile_id": profile_id,
@@ -760,4 +709,4 @@ async def permanently_delete_profile(profile_id: str, confirm: bool = False):
         
     except Exception as e:
         logger.error(f"Error permanently deleting profile {profile_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error permanently deleting profile: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error permanently deleting profile: {str(e)}")

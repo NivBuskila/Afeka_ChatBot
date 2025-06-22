@@ -8,6 +8,9 @@
 
 import { supabase } from "../config/supabase";
 
+// Get the backend URL from environment
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 // Types
 export interface SystemPrompt {
   id: string;
@@ -32,14 +35,14 @@ export interface SystemPromptUpdateData {
 }
 
 class SystemPromptService {
-  private readonly baseUrl = '/api/system-prompts';
+  private readonly baseUrl = `${API_BASE_URL}/api/system-prompts`;
 
   /**
    * Get headers for API requests
    */
   private async getHeaders(): Promise<HeadersInit> {
-    const session = await supabase.auth.getSession();
-    const token = session.data.session?.access_token;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
 
     return {
       'Content-Type': 'application/json',

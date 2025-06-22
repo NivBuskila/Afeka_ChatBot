@@ -8,7 +8,6 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Title Generation"])
 
-# הגדרת המודל
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -23,9 +22,7 @@ class TitleGenerationResponse(BaseModel):
 
 @router.post("/api/generate-title", response_model=TitleGenerationResponse)
 async def generate_title(request: TitleGenerationRequest):
-    """
-    יצירת כותרת אוטומטית לשיחה בהתבסס על התוכן
-    """
+    """Generate automatic title for conversation based on content"""
     try:
         if not GEMINI_API_KEY:
             logger.error("GEMINI_API_KEY not configured")
@@ -42,10 +39,8 @@ async def generate_title(request: TitleGenerationRequest):
                 error="Empty prompt provided"
             )
 
-        # הגדרת המודל
         model = genai.GenerativeModel("gemini-1.5-flash")
         
-        # הוספת הנחיות נוספות לבטיחות ואיכות
         enhanced_prompt = f"""
 {request.prompt}
 
@@ -58,7 +53,6 @@ async def generate_title(request: TitleGenerationRequest):
 
 כותרת:"""
 
-        # יצירת התשובה
         response = await model.generate_content_async(enhanced_prompt)
         
         if not response or not response.text:
@@ -69,18 +63,14 @@ async def generate_title(request: TitleGenerationRequest):
                 error="Empty response from AI model"
             )
 
-        # ניקוי התשובה
         title = response.text.strip()
         
-        # הסרת סימני פיסוק מיותרים
         title = title.replace('"', '').replace("'", "").replace(':', '').replace('.', '')
         title = title.strip()
 
-        # ווידוא שהכותרת לא ארוכה מדי
         if len(title) > 60:
             title = title[:57] + "..."
 
-        # ווידוא שיש תוכן
         if not title or title.lower().strip() in ['כותרת', 'title', '']:
             title = "שיחה חדשה"
 
@@ -97,4 +87,4 @@ async def generate_title(request: TitleGenerationRequest):
             title="שיחה חדשה",
             success=False,
             error=str(e)
-        ) 
+        )

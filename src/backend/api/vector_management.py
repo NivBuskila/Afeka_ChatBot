@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
-from typing import List, Dict, Any, Optional
+from typing import Any, Annotated
 import os
 import tempfile
 import logging
@@ -27,16 +27,15 @@ def get_doc_processor():
 @router.post("/upload-document")
 async def upload_document(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    file: Annotated[UploadFile, File(...)],
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    העלאת מסמך חדש ועיבודו לוקטורים
-    """
+    """Upload new document and process it to vectors"""
     try:
         # Validate file type
         allowed_extensions = {'.pdf', '.txt', '.docx', '.doc'}
-        file_extension = Path(file.filename).suffix.lower()
+        filename = file.filename or "unknown_file"
+        file_extension = Path(filename).suffix.lower()
         
         if file_extension not in allowed_extensions:
             raise HTTPException(
@@ -47,13 +46,13 @@ async def upload_document(
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
             content = await file.read()
-            temp_file.write(content)
+            _ = temp_file.write(content)
             temp_file_path = temp_file.name
         
         # Create document record in database
         supabase = get_supabase_client()
         document_data = {
-            "name": file.filename,
+            "name": filename,
             "url": f"temp://{temp_file_path}",
             "type": file.content_type or "application/octet-stream",
             "size": len(content),
@@ -79,7 +78,7 @@ async def upload_document(
             content={
                 "message": "Document uploaded successfully and processing started",
                 "document_id": document_id,
-                "filename": file.filename,
+                "filename": filename,
                 "status": "processing"
             }
         )
@@ -89,7 +88,7 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=str(e))
 
 def process_document_wrapper(document_id: int, file_path: str):
-    """Wrapper לקריאה סינכרונית לפונקציה אסינכרונית"""
+    """Wrapper for synchronous call to asynchronous function"""
     import asyncio
     try:
         # Create new event loop for background task
@@ -103,7 +102,7 @@ def process_document_wrapper(document_id: int, file_path: str):
         return {"success": False, "error": str(e)}
 
 async def process_document_background(document_id: int, file_path: str):
-    """עיבוד מסמך ברקע"""
+    """Background document processing"""
     try:
         logger.info(f"Starting background processing for document {document_id} at path {file_path}")
         result = await get_doc_processor().process_document(document_id, file_path)
@@ -123,7 +122,7 @@ async def process_document_background(document_id: int, file_path: str):
             from src.backend.app.core.database import get_supabase_client
             supabase = get_supabase_client()
             if supabase:
-                supabase.table("documents").update({
+                _ = supabase.table("documents").update({
                     "processing_status": "failed"
                 }).eq("id", document_id).execute()
                 logger.info(f"Updated document {document_id} status to failed")
@@ -140,9 +139,7 @@ async def process_document_background(document_id: int, file_path: str):
 
 @router.get("/document/{document_id}/status")
 async def get_document_status(document_id: int):
-    """
-    קבלת סטטוס עיבוד מסמך
-    """
+    """Get document processing status"""
     try:
         logger.info(f"GET /api/vector/document/{document_id}/status")
         
@@ -167,21 +164,21 @@ async def get_document_status(document_id: int):
         document = doc_result.data[0]
         processing_status = document.get("processing_status", "unknown")
         
-        # Get real chunk count
-        chunks_result = supabase.table("document_chunks").select("id", count="exact").eq("document_id", document_id).execute()
-        chunk_count = chunks_result.count if chunks_result.count is not None else 0
+        # Get real chunk count - removed count="exact" to fix type error
+        chunks_result = supabase.table("document_chunks").select("id").eq("document_id", document_id).execute()
+        chunk_count = len(chunks_result.data) if chunks_result.data else 0
         
         # Get embeddings count (try different approaches based on schema)
         embeddings_count = 0
         try:
-            # First try with document_id field
-            embeddings_result = supabase.table("embeddings").select("id", count="exact").eq("document_id", document_id).execute()
-            embeddings_count = embeddings_result.count if embeddings_result.count is not None else 0
-        except Exception as emb_error:
+            # First try with document_id field - removed count="exact" to fix type error
+            embeddings_result = supabase.table("embeddings").select("id").eq("document_id", document_id).execute()
+            embeddings_count = len(embeddings_result.data) if embeddings_result.data else 0
+        except Exception:
             try:
-                # If that fails, try to count through document_chunks
-                chunk_embeddings = supabase.table("document_chunks").select("embedding_id", count="exact").eq("document_id", document_id).neq("embedding_id", "null").execute()
-                embeddings_count = chunk_embeddings.count if chunk_embeddings.count is not None else 0
+                # If that fails, try to count through document_chunks - removed count="exact" to fix type error
+                chunk_embeddings = supabase.table("document_chunks").select("embedding_id").eq("document_id", document_id).neq("embedding_id", "null").execute()
+                embeddings_count = len(chunk_embeddings.data) if chunk_embeddings.data else 0
             except Exception:
                 # If all fails, use chunk count as embeddings count
                 embeddings_count = chunk_count
@@ -241,11 +238,9 @@ async def get_document_status(document_id: int):
 @router.delete("/document/{document_id}")
 async def delete_document_with_embeddings(
     document_id: int,
-    current_user: dict = Depends(get_current_user)
+    _current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    מחיקת מסמך כולל כל ה-embeddings שלו
-    """
+    """Delete document including all its embeddings"""
     try:
         logger.info(f"Starting document deletion process for document_id: {document_id}")
         supabase = get_supabase_client()
@@ -295,14 +290,16 @@ async def delete_document_with_embeddings(
                     logger.debug(f"Delete response: {delete_response}")
                     
                     # Check for error in response - updated to handle different response formats
+                    error_message = "Unknown error"  # Initialize error_message
                     error_detected = False
-                    if hasattr(delete_response, 'error') and delete_response.error:
+                    error_attr = getattr(delete_response, 'error', None)
+                    if error_attr:
                         error_detected = True
-                        error_message = delete_response.error
+                        error_message = str(error_attr)
                         logger.error(f"Error attribute found in delete_response: {error_message}")
                     elif isinstance(delete_response, dict) and delete_response.get('error'):
                         error_detected = True
-                        error_message = delete_response.get('error')
+                        error_message = str(delete_response.get('error'))
                         logger.error(f"Error key found in delete_response dict: {error_message}")
                     
                     if error_detected:
@@ -310,8 +307,9 @@ async def delete_document_with_embeddings(
                         raise HTTPException(status_code=500, detail=f"Failed to delete document chunks: {error_message}")
                     
                     # Count deleted chunks
-                    if hasattr(delete_response, 'data') and delete_response.data:
-                        batch_deleted = len(delete_response.data)
+                    response_data = getattr(delete_response, 'data', None)
+                    if response_data:
+                        batch_deleted = len(response_data)
                         total_chunks_deleted += batch_deleted
                         logger.info(f"Successfully deleted {batch_deleted} chunks in this batch")
                     
@@ -337,14 +335,16 @@ async def delete_document_with_embeddings(
             logger.debug(f"Document delete response: {doc_delete_response}")
 
             # Check for error in response - updated to handle different response formats
+            error_message = "Unknown error"  # Initialize error_message
             error_detected = False
-            if hasattr(doc_delete_response, 'error') and doc_delete_response.error:
+            error_attr = getattr(doc_delete_response, 'error', None)
+            if error_attr:
                 error_detected = True
-                error_message = doc_delete_response.error
+                error_message = str(error_attr)
                 logger.error(f"Error attribute found in doc_delete_response: {error_message}")
             elif isinstance(doc_delete_response, dict) and doc_delete_response.get('error'):
                 error_detected = True
-                error_message = doc_delete_response.get('error')
+                error_message = str(doc_delete_response.get('error'))
                 logger.error(f"Error key found in doc_delete_response dict: {error_message}")
             
             if error_detected:
@@ -354,8 +354,9 @@ async def delete_document_with_embeddings(
                 raise HTTPException(status_code=500, detail=f"Failed to delete document record: {error_message}")
             
             # Check if document was actually deleted
-            if hasattr(doc_delete_response, 'data') and doc_delete_response.data:
-                deleted_count = len(doc_delete_response.data)
+            response_data = getattr(doc_delete_response, 'data', None)
+            if response_data:
+                deleted_count = len(response_data)
                 logger.info(f"Successfully deleted document record for document_id: {document_id}. Deleted count: {deleted_count}")
             else:
                 logger.warning(f"Document deletion response has no data attribute or empty data for document_id: {document_id}")
@@ -384,18 +385,16 @@ async def delete_document_with_embeddings(
 
 @router.post("/search")
 async def semantic_search(
-    request: dict,
-    current_user: dict = Depends(get_current_user)
+    request: dict[str, Any],
+    _current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    חיפוש סמנטי במסמכים
-    """
+    """Semantic search in documents"""
     try:
         query = request.get("query", "")
         limit = request.get("limit", 10)
         threshold = request.get("threshold", 0.78)
         
-        if not query.strip():
+        if not query or not query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
         results = await get_doc_processor().search_documents(query, limit, threshold)
@@ -412,18 +411,16 @@ async def semantic_search(
 
 @router.post("/search/hybrid")
 async def hybrid_search(
-    request: dict,
-    current_user: dict = Depends(get_current_user)
+    request: dict[str, Any],
+    _current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    חיפוש היברידי (סמנטי + מילות מפתח)
-    """
+    """Hybrid search (semantic + keywords)"""
     try:
         query = request.get("query", "")
         limit = request.get("limit", 10)
         threshold = request.get("threshold", 0.78)
         
-        if not query.strip():
+        if not query or not query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
         results = await get_doc_processor().hybrid_search(query, limit, threshold)
@@ -441,11 +438,9 @@ async def hybrid_search(
 
 @router.get("/documents")
 async def list_documents_with_status(
-    current_user: dict = Depends(get_current_user)
+    _current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    רשימת כל המסמכים עם סטטוס העיבוד
-    """
+    """List all documents with processing status"""
     try:
         supabase = get_supabase_client()
         
@@ -459,10 +454,10 @@ async def list_documents_with_status(
         # Get chunk counts for each document
         for doc in documents:
             chunk_result = supabase.table("document_chunks").select(
-                "id", count="exact"
+                "id"
             ).eq("document_id", doc["id"]).execute()
             
-            doc["chunk_count"] = chunk_result.count if chunk_result.count else 0
+            doc["chunk_count"] = len(chunk_result.data) if chunk_result.data else 0
         
         return {
             "documents": documents,
@@ -476,12 +471,10 @@ async def list_documents_with_status(
 @router.post("/document/{document_id}/reprocess")
 async def reprocess_document(
     document_id: int,
-    background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)
+    _background_tasks: BackgroundTasks,
+    _current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    עיבוד מחדש של מסמך קיים
-    """
+    """Reprocess existing document"""
     try:
         supabase = get_supabase_client()
         
@@ -494,7 +487,7 @@ async def reprocess_document(
         document = result.data[0]
         
         # Delete existing embeddings
-        await get_doc_processor().delete_document_embeddings(document_id)
+        _ = await get_doc_processor().delete_document_embeddings(document_id)
         
         # Check if we have the original file
         if document["url"].startswith("temp://"):
@@ -503,8 +496,6 @@ async def reprocess_document(
                 detail="Original file not available for reprocessing"
             )
         
-        # For now, we'll need the user to re-upload
-        # In a production system, you'd store files permanently
         return {
             "message": "Embeddings cleared. Please re-upload the document for reprocessing.",
             "document_id": document_id
@@ -516,34 +507,32 @@ async def reprocess_document(
 
 @router.get("/stats")
 async def get_vector_stats(
-    current_user: dict = Depends(get_current_user)
+    _current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """
-    סטטיסטיקות על מסד הנתונים הוקטורי
-    """
+    """Vector database statistics"""
     try:
         supabase = get_supabase_client()
         
-        # Count documents by status
-        docs_result = supabase.table("documents").select("processing_status", count="exact").execute()
+        # Get document stats - removed count="exact" to fix type error
+        docs_result = supabase.table("documents").select("processing_status").execute()
         
-        # Count total chunks
-        chunks_result = supabase.table("document_chunks").select("id", count="exact").execute()
+        # Get chunk stats - removed count="exact" to fix type error
+        chunks_result = supabase.table("document_chunks").select("id").execute()
         
-        # Get processing status breakdown
-        status_counts = {}
+        # Count status breakdown
+        status_counts: dict[str, int] = {}
         if docs_result.data:
             for doc in docs_result.data:
                 status = doc.get("processing_status", "unknown")
                 status_counts[status] = status_counts.get(status, 0) + 1
         
         return {
-            "total_documents": docs_result.count if docs_result.count else 0,
-            "total_chunks": chunks_result.count if chunks_result.count else 0,
+            "total_documents": len(docs_result.data) if docs_result.data else 0,
+            "total_chunks": len(chunks_result.data) if chunks_result.data else 0,
             "status_breakdown": status_counts,
             "embedding_model": "gemini-embedding-001"
         }
         
     except Exception as e:
         logger.error(f"Error getting vector stats: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
