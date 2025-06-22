@@ -8,7 +8,7 @@ from pathlib import Path
 
 from src.ai.services.document_processor import DocumentProcessor
 from src.backend.app.core.auth import get_current_user
-from src.backend.app.core.database import get_supabase_client
+from src.backend.app.api.deps import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,14 @@ async def upload_document(
     file: Annotated[UploadFile, File(...)],
     current_user: Annotated[dict[str, Any], Depends(get_current_user)]
 ):
-    """Upload new document and process it to vectors"""
+    """Upload a document for vector processing"""
     try:
-        # Validate file type
-        allowed_extensions = {'.pdf', '.txt', '.docx', '.doc'}
-        filename = file.filename or "unknown_file"
-        file_extension = Path(filename).suffix.lower()
+        logger.info(f"POST /api/vector/upload-document - File: {file.filename}")
+        
+        # Validate file extension
+        filename = file.filename or "unnamed_document"
+        file_extension = os.path.splitext(filename)[1].lower()
+        allowed_extensions = ['.pdf', '.txt', '.doc', '.docx', '.md']
         
         if file_extension not in allowed_extensions:
             raise HTTPException(
@@ -50,7 +52,7 @@ async def upload_document(
             temp_file_path = temp_file.name
         
         # Create document record in database
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client()
         document_data = {
             "name": filename,
             "url": f"temp://{temp_file_path}",
@@ -119,8 +121,9 @@ async def process_document_background(document_id: int, file_path: str):
         
         # Update document status to failed
         try:
-            from src.backend.app.core.database import get_supabase_client
-            supabase = get_supabase_client()
+            from src.backend.app.api.deps import get_supabase_client
+            import asyncio
+            supabase = asyncio.run(get_supabase_client())
             if supabase:
                 _ = supabase.table("documents").update({
                     "processing_status": "failed"
@@ -144,7 +147,7 @@ async def get_document_status(document_id: int):
         logger.info(f"GET /api/vector/document/{document_id}/status")
         
         # Get real data from database
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client()
         if not supabase:
             logger.error("Failed to get Supabase client")
             raise HTTPException(status_code=500, detail="Database connection error")
@@ -243,7 +246,7 @@ async def delete_document_with_embeddings(
     """Delete document including all its embeddings"""
     try:
         logger.info(f"Starting document deletion process for document_id: {document_id}")
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client()
         
         if not supabase:
             logger.error("Failed to get Supabase client")
@@ -442,7 +445,7 @@ async def list_documents_with_status(
 ):
     """List all documents with processing status"""
     try:
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client()
         
         # Get documents with chunk counts
         result = supabase.table("documents").select(
@@ -476,7 +479,7 @@ async def reprocess_document(
 ):
     """Reprocess existing document"""
     try:
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client()
         
         # Get document info
         result = supabase.table("documents").select("*").eq("id", document_id).execute()
@@ -511,7 +514,7 @@ async def get_vector_stats(
 ):
     """Vector database statistics"""
     try:
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client()
         
         # Get document stats - removed count="exact" to fix type error
         docs_result = supabase.table("documents").select("processing_status").execute()

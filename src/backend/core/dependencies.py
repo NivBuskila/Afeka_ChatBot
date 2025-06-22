@@ -5,7 +5,7 @@ from fastapi import HTTPException, Security, Depends
 from fastapi.security import APIKeyHeader
 from supabase import Client, create_client
 
-from src.backend.core import config
+from ..app.config.settings import settings
 from ..app.core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -17,11 +17,11 @@ def get_supabase_client() -> Client:
     """FastAPI dependency that provides a Supabase client instance."""
     global supabase_client
     if supabase_client is None:
-        if not config.SUPABASE_KEY or not config.SUPABASE_URL:
+        if not settings.SUPABASE_KEY or not settings.SUPABASE_URL:
             logger.error("Supabase URL or Key not configured.")
             raise HTTPException(status_code=503, detail="Database connection not configured")
         try:
-            supabase_client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+            supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
             logger.info("Supabase client initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
@@ -36,11 +36,11 @@ def get_supabase_client_sync() -> Optional[Client]:
     """Synchronous version of get_supabase_client for use in non-FastAPI contexts."""
     global supabase_client
     if supabase_client is None:
-        if not config.SUPABASE_KEY or not config.SUPABASE_URL:
+        if not settings.SUPABASE_KEY or not settings.SUPABASE_URL:
             logger.warning("Supabase URL or Key not configured for sync client.")
             return None
         try:
-            supabase_client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+            supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
             logger.info("Supabase sync client initialized successfully.")
         except Exception as e:
             logger.warning(f"Failed to initialize Supabase sync client: {e}")
@@ -49,7 +49,7 @@ def get_supabase_client_sync() -> Optional[Client]:
     return supabase_client
 
 # --- API Key Dependency ---
-api_key_header_scheme = APIKeyHeader(name=config.API_KEY_NAME, auto_error=False)
+api_key_header_scheme = APIKeyHeader(name=settings.API_KEY_NAME, auto_error=False)
 
 def verify_api_key(api_key: str = Security(api_key_header_scheme)):
     """FastAPI dependency that verifies the internal API key."""
@@ -59,7 +59,7 @@ def verify_api_key(api_key: str = Security(api_key_header_scheme)):
             detail="Missing API Key",
             headers={"WWW-Authenticate": "APIKey"}
         )
-    if api_key != config.INTERNAL_API_KEY:
+    if api_key != settings.INTERNAL_API_KEY:
         raise HTTPException(
             status_code=401,
             detail="Invalid API Key",

@@ -1,39 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import List, Dict, Any, Optional
 from ...services.api_key_services import ApiKeyService
-from src.backend.core.dependencies import get_supabase_client
+from ..deps import get_supabase_client
 import logging
 import json
 import time
 
+from ...utils.cache import api_keys_cache
+
 router = APIRouter(prefix="/api/keys", tags=["API Keys"])
 
 logger = logging.getLogger(__name__)
-
-_cache = {
-    "data": None,
-    "timestamp": 0,
-    "ttl": 600
-}
-
-def get_cached_result() -> Optional[Dict[str, Any]]:
-    """Get cached result if still valid"""
-    if _cache["data"] is None:
-        return None
-    
-    age = time.time() - _cache["timestamp"]
-    if age > _cache["ttl"]:
-        _cache["data"] = None
-        return None
-    
-    logger.info(f"[CACHE-HIT] Returning cached data (age: {age:.1f}s)")
-    return _cache["data"]
-
-def set_cached_result(data: Dict[str, Any]):
-    """Cache the result"""
-    _cache["data"] = data
-    _cache["timestamp"] = time.time()
-    logger.info("[CACHE-SET] Data cached for 10 minutes")
 
 @router.get("/")
 async def get_api_keys(
@@ -41,7 +18,7 @@ async def get_api_keys(
 ) -> Dict[str, Any]:
     """Get status of all keys and usage"""
     try:
-        cached_result = get_cached_result()
+        cached_result = api_keys_cache.get("api_keys_status")
         if cached_result:
             return cached_result
         
@@ -147,7 +124,7 @@ async def get_api_keys(
             }
         }
         
-        set_cached_result(response)
+        api_keys_cache.set("api_keys_status", response)
         return response
         
     except Exception as e:
@@ -281,28 +258,7 @@ async def check_key_limits(
         logger.error(f"Error checking limits for key {key_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to check limits: {str(e)}")
 
-_fast_cache = {
-    "keys": None,
-    "timestamp": 0,
-    "ttl": 1800
-}
-
-def get_fast_cached_keys() -> Optional[List[Dict[str, Any]]]:
-    """Get cached keys if still valid"""
-    if _fast_cache["keys"] is None:
-        return None
-    
-    age = time.time() - _fast_cache["timestamp"]
-    if age > _fast_cache["ttl"]:
-        _fast_cache["keys"] = None
-        return None
-    
-    return _fast_cache["keys"]
-
-def set_fast_cached_keys(keys: List[Dict[str, Any]]):
-    """Cache the keys for fast access"""
-    _fast_cache["keys"] = keys
-    _fast_cache["timestamp"] = time.time()
+from ...utils.cache import fast_cache
 
 @router.get("/for-ai-service")
 async def get_keys_for_ai_service(
@@ -310,7 +266,7 @@ async def get_keys_for_ai_service(
 ) -> Dict[str, Any]:
     """Fast: Get API keys for AI service with minimal overhead"""
     try:
-        cached_keys = get_fast_cached_keys()
+        cached_keys = fast_cache.get("ai_service_keys")
         if cached_keys:
             logger.info(f"[FAST-CACHE] Returning {len(cached_keys)} cached keys")
             return {
@@ -329,7 +285,7 @@ async def get_keys_for_ai_service(
         keys = response.data or []
         logger.info(f"[AI-SERVICE] Found {len(keys)} active API keys")
         
-        set_fast_cached_keys(keys)
+        fast_cache.set("ai_service_keys", keys)
         
         return {
             "status": "ok",

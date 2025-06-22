@@ -6,38 +6,9 @@ import time
 
 from .interfaces import IChatSessionRepository
 from ..core.exceptions import RepositoryError
+from ..utils.cache import sessions_cache
 
 logger = logging.getLogger(__name__)
-
-_sessions_cache = {}
-CACHE_TTL = 60
-
-def _get_cache_key(user_id: str) -> str:
-    """Generate cache key for user sessions"""
-    return f"sessions:{user_id}"
-
-def _is_cache_valid(cache_entry: dict[str, Any]) -> bool:
-    """Check if cache entry is still valid"""
-    return (time.time() - cache_entry.get('timestamp', 0)) < CACHE_TTL
-
-def _get_cached_sessions(user_id: str) -> Optional[List[Dict[str, Any]]]:
-    """Get cached sessions if available and valid"""
-    cache_key = _get_cache_key(user_id)
-    if cache_key in _sessions_cache:
-        entry = _sessions_cache[cache_key]
-        if _is_cache_valid(entry):
-            logger.info(f"[CACHE-HIT] Returning cached sessions for user {user_id}")
-            return entry['data']
-    return None
-
-def _cache_sessions(user_id: str, sessions: List[Dict[str, Any]]):
-    """Cache sessions for user"""
-    cache_key = _get_cache_key(user_id)
-    _sessions_cache[cache_key] = {
-        'data': sessions,
-        'timestamp': time.time()
-    }
-    logger.info(f"[CACHE-SET] Cached {len(sessions)} sessions for user {user_id}")
 
 class SupabaseChatSessionRepository(IChatSessionRepository):
     """Supabase implementation of chat session repository."""
@@ -80,10 +51,8 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 except Exception as conv_err:
                     logger.warning(f"Could not create conversation record: {conv_err}")
                 
-                cache_key = _get_cache_key(user_id)
-                if cache_key in _sessions_cache:
-                    del _sessions_cache[cache_key]
-                    logger.info(f"[CACHE-INVALIDATE] Cleared cache for user {user_id}")
+                cache_key = f"sessions:{user_id}"
+                sessions_cache.invalidate(cache_key)
                 
                 return response.data[0]
             else:
@@ -107,7 +76,8 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
     async def get_sessions(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Get chat sessions for a user with caching and pagination."""
         try:
-            cached_sessions = _get_cached_sessions(user_id)
+            cache_key = f"sessions:{user_id}"
+            cached_sessions = sessions_cache.get(cache_key)
             if cached_sessions is not None:
                 return cached_sessions[:limit]
             
@@ -130,11 +100,13 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 sessions = response.data
                 logger.info(f"Found {len(sessions)} chat sessions for user: {user_id}")
                 
-                _cache_sessions(user_id, sessions)
+                cache_key = f"sessions:{user_id}"
+                sessions_cache.set(cache_key, sessions)
                 return sessions
             else:
                 logger.info(f"No chat sessions found for user: {user_id}")
-                _cache_sessions(user_id, [])
+                cache_key = f"sessions:{user_id}"
+                sessions_cache.set(cache_key, [])
                 return []
                 
         except Exception as e:
