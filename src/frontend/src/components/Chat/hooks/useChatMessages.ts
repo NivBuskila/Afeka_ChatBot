@@ -38,6 +38,7 @@ export function useChatMessages({
   const [isLoading, setIsLoading] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [lastMessageTime, setLastMessageTime] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load messages when active session changes
@@ -71,6 +72,12 @@ export function useChatMessages({
 
   const handleSend = async () => {
     if (!input.trim()) return;
+
+    const now = Date.now();
+    if (now - lastMessageTime < 1000) {
+      return;
+    }
+    setLastMessageTime(now);
 
     const user = await chatService.getCurrentUser();
 
@@ -116,11 +123,6 @@ export function useChatMessages({
             });
 
             await processBotResponse(userMessage, sessionId, user.id);
-
-            setTimeout(async () => {
-              const currentMessages = [...messages, userMessage];
-              await updateChatTitle(sessionId, currentMessages);
-            }, 1000);
           } catch (error) {
             console.error("Error saving message:", error);
             setIsLoading(false);
@@ -153,11 +155,6 @@ export function useChatMessages({
         });
 
         await processBotResponse(userMessage, sessionId, user.id);
-
-        setTimeout(async () => {
-          const currentMessages = [...messages, userMessage];
-          await updateChatTitle(sessionId, currentMessages);
-        }, 1000);
       } catch (error) {
         console.error("Error saving message:", error);
         setIsLoading(false);
@@ -179,17 +176,21 @@ export function useChatMessages({
         sessionId: sessionId,
       };
 
-      setMessages((prev) => [...prev, streamingBotReply]);
-
-      const chatHistory = messages.map((msg) => ({
-        type: msg.type === "user" ? "user" : "bot",
-        content: msg.content,
-      }));
+      let currentChatHistory: Array<{ type: string; content: string }> = [];
+      
+      setMessages((prev) => {
+        const updated = [...prev, streamingBotReply];
+        currentChatHistory = updated.slice(0, -1).map((msg) => ({
+          type: msg.type === "user" ? "user" : "bot",
+          content: msg.content,
+        }));
+        return updated;
+      });
 
       await chatService.sendStreamingMessage(
         userMessage.content,
         userId,
-        chatHistory,
+        currentChatHistory,
 
         // onChunk callback
         (_chunk: string, accumulated: string) => {
@@ -232,20 +233,17 @@ export function useChatMessages({
             is_bot: true,
           });
 
-          // Small delay to ensure database transaction completes before reloading
-          setTimeout(async () => {
-            await loadSessionMessages(sessionId);
-          }, 500);
-
-          const updatedMessages = [
-            ...messages,
-            userMessage,
-            {
-              ...streamingBotReply,
-              content: fullResponse,
-            },
-          ];
-          await updateChatTitle(sessionId, updatedMessages);
+          let finalMessages: Message[] = [];
+          setMessages((currentMessages) => {
+            finalMessages = currentMessages.map(msg => 
+              msg.id === streamingBotReply.id 
+                ? { ...msg, content: fullResponse, timestamp: new Date().toLocaleTimeString() }
+                : msg
+            );
+            return finalMessages;
+          });
+          
+          await updateChatTitle(sessionId, finalMessages);
         },
 
         // onError callback
