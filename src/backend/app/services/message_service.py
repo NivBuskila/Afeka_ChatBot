@@ -1,9 +1,11 @@
 import logging
+import uuid
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
 
 from ..core.interfaces import IMessageService
-from ..repositories.interfaces import IMessageRepository
+from ..repositories.interfaces import IMessageRepository, IChatSessionRepository
 from ..core.exceptions import RepositoryError
 
 logger = logging.getLogger(__name__)
@@ -11,83 +13,97 @@ logger = logging.getLogger(__name__)
 class MessageService(IMessageService):
     """Service for message management."""
     
-    def __init__(self, repository: IMessageRepository):
+    def __init__(self, repository: IMessageRepository, chat_session_repository: IChatSessionRepository = None):
         """Initialize with a repository implementation."""
         self.repository = repository
-        logger.info("Initialized MessageService")
+        self.chat_session_repository = chat_session_repository
     
-    async def create_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new message."""
-        try:
-            # Validate required fields
-            if 'conversation_id' not in data:
-                raise HTTPException(status_code=400, detail="conversation_id is required")
-                
-            if 'user_id' not in data:
-                raise HTTPException(status_code=400, detail="user_id is required")
-            
-            logger.info(f"Creating message for conversation: {data.get('conversation_id')}")
-            result = await self.repository.create_message(data)
-            return result
-        except RepositoryError as e:
-            logger.error(f"Repository error in create_message: {e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message)
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error in create_message: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create message: {str(e)}")
+    async def create_message(
+        self, 
+        user_id: str = None, 
+        conversation_id: str = None, 
+        content: str = None, 
+        is_bot: bool = False, 
+        data: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Create a new message - supports both individual parameters and data dict."""
+        
+        if data:
+            message_data = data.copy()
+        else:
+            message_data = {
+                "user_id": user_id,
+                "conversation_id": conversation_id,
+                "content": content or "",
+                "is_bot": is_bot,
+            }
+        
+        logger.info(f"Creating message for conversation: {message_data.get('conversation_id')} - is_bot: {is_bot}")
+        
+        cleaned_data = self._clean_message_data(message_data)
+        
+        result = await self.repository.create_message(cleaned_data)
+        
+        if result and self.chat_session_repository and message_data.get('conversation_id'):
+            try:
+                await self.chat_session_repository.update_session(
+                    message_data['conversation_id'], 
+                    {'updated_at': datetime.utcnow().isoformat() + "Z"}
+                )
+                logger.info(f"Updated chat session {message_data['conversation_id']} timestamp")
+            except Exception as e:
+                logger.warning(f"Failed to update chat session timestamp: {e}")
+        
+        return result
+    
+    def _clean_message_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Clean and standardize message data for the actual messages table structure."""
+        cleaned = {}
+        
+        cleaned["conversation_id"] = data.get("conversation_id", "")
+        cleaned["user_id"] = data.get("user_id", "")
+        cleaned["status"] = "completed"
+        
+        content = data.get("content") or data.get("message_text") or ""
+        is_bot = data.get("is_bot", False)
+        
+        if is_bot:
+            cleaned["response"] = content
+            cleaned["request"] = None
+        else:
+            cleaned["request"] = content
+            cleaned["response"] = None
+        
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        cleaned["created_at"] = now_iso
+        cleaned["status_updated_at"] = now_iso
+        
+        cleaned["error_message"] = None
+        cleaned["request_type"] = "TEXT"
+        cleaned["request_payload"] = None
+        cleaned["response_payload"] = None
+        cleaned["status_code"] = None
+        cleaned["processing_start_time"] = None
+        cleaned["processing_end_time"] = None
+        cleaned["processing_time_ms"] = None
+        cleaned["is_sensitive"] = False
+        cleaned["metadata"] = {}
+        cleaned["chat_session_id"] = data.get("conversation_id")
+        
+        return cleaned
     
     async def get_messages(self, conversation_id: str) -> List[Dict[str, Any]]:
         """Get all messages for a conversation."""
-        try:
-            logger.info(f"Getting messages for conversation: {conversation_id}")
-            result = await self.repository.get_messages(conversation_id)
-            return result
-        except RepositoryError as e:
-            logger.error(f"Repository error in get_messages: {e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message)
-        except Exception as e:
-            logger.error(f"Unexpected error in get_messages: {e}")
-            # Return empty list instead of error
-            return []
+        return await self.repository.get_messages(conversation_id)
     
     async def update_message(self, message_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update a message."""
-        try:
-            logger.info(f"Updating message: {message_id}")
-            result = await self.repository.update_message(message_id, data)
-            return result
-        except RepositoryError as e:
-            logger.error(f"Repository error in update_message: {e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message)
-        except Exception as e:
-            logger.error(f"Unexpected error in update_message: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to update message: {str(e)}")
+        return await self.repository.update_message(message_id, data)
     
-    async def delete_message(self, message_id: str) -> Dict[str, Any]:
+    async def delete_message(self, message_id: str) -> bool:
         """Delete a message."""
-        try:
-            logger.info(f"Deleting message: {message_id}")
-            result = await self.repository.delete_message(message_id)
-            return {"success": result}
-        except RepositoryError as e:
-            logger.error(f"Repository error in delete_message: {e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message)
-        except Exception as e:
-            logger.error(f"Unexpected error in delete_message: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
+        return await self.repository.delete_message(message_id)
     
-    async def get_message_schema(self) -> Dict[str, Any]:
-        """Get message table schema (column names)."""
-        try:
-            logger.info("Getting message schema")
-            columns = await self.repository.get_message_schema()
-            return {"columns": columns}
-        except RepositoryError as e:
-            logger.error(f"Repository error in get_message_schema: {e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message)
-        except Exception as e:
-            logger.error(f"Unexpected error in get_message_schema: {e}")
-            # Return basic schema instead of error
-            return {"columns": ["id", "conversation_id", "user_id", "message", "created_at"]}
+    async def get_schema(self) -> List[str]:
+        """Get the message table schema."""
+        return await self.repository.get_message_schema()

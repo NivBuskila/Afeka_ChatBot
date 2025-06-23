@@ -8,7 +8,6 @@ export interface AuthResult {
 
 export const authService = {
   async login(email: string, password: string): Promise<AuthResult> {
-    console.log('מנסה להתחבר עם הפרטים המסופקים');
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -16,8 +15,6 @@ export const authService = {
       });
       
       if (error) {
-        console.error('שגיאת התחברות:', error);
-        
         if (error.message.includes('Invalid login credentials')) {
           return {
             user: null,
@@ -51,7 +48,7 @@ export const authService = {
             
             isAdmin = !!adminData;
           } catch (adminCheckError) {
-            console.warn('שגיאה בבדיקת הרשאות מנהל:', adminCheckError);
+            // Admin check failed, defaulting to false
           }
         }
         
@@ -61,14 +58,14 @@ export const authService = {
             .update({ last_sign_in: new Date().toISOString() })
             .eq('id', userData.id);
         } catch (updateError) {
-          console.warn('שגיאה בעדכון זמן התחברות אחרון:', updateError);
+          // Failed to update last sign in time
         }
         
         if (isAdmin) {
           try {
             await this.ensureAdminRecord(userData.id);
           } catch (ensureAdminError) {
-            console.warn('שגיאה בוידוא רשומת מנהל:', ensureAdminError);
+            // Failed to ensure admin record
           }
         }
       }
@@ -79,7 +76,6 @@ export const authService = {
         error: null
       };
     } catch (error: any) {
-      console.error('שגיאה לא צפויה בהתחברות:', error);
       return {
         user: null,
         isAdmin: false,
@@ -90,18 +86,7 @@ export const authService = {
   
   async checkIsAdmin(userId: string): Promise<boolean> {
     try {
-      // Try direct access to admins table
-      const { data: adminData, error: adminError } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (!adminError && adminData) {
-        return true;
-      }
-      
-      // If direct access failed, try using RPC
+      // Try using RPC first (more reliable)
       try {
         const { data: isAdminResult, error: isAdminError } = await supabase
           .rpc('is_admin', { user_id: userId });
@@ -110,16 +95,26 @@ export const authService = {
           return true;
         }
       } catch (rpcError) {
-        console.error('Error calling is_admin RPC:', rpcError);
+        // RPC failed, trying direct table access
       }
       
-      // Check user metadata as fallback
+      // Fallback to direct access with specific select
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (!adminError && adminData) {
+        return true;
+      }
+      
+      // Check user metadata as final fallback
       const { data: userData } = await supabase.auth.getUser();
       const isAdminFromMetadata = userData?.user?.user_metadata?.role === 'admin';
       
       return !!isAdminFromMetadata;
     } catch (err) {
-      console.error('Error checking admin status:', err);
       return false;
     }
   },
@@ -133,14 +128,12 @@ export const authService = {
         .maybeSingle();
         
       if (existingRecord) {
-        console.log('רשומת מנהל קיימת - דילוג');
         return;
       }
       
       await supabase.rpc('promote_to_admin', { user_id: userId });
     } catch (error) {
-      console.warn('לא ניתן להשתמש ב-RPC, ננסה ישירות:', error);
-      
+      // RPC failed, trying direct insert
       try {
         const { error: insertError } = await supabase
           .from('admins')
@@ -149,15 +142,11 @@ export const authService = {
             permissions: ['read', 'write']
           });
           
-        if (insertError) {
-          if (insertError.code === '23505') {
-            console.log('המשתמש כבר קיים כמנהל');
-          } else {
-            console.error('שגיאה ביצירת רשומת מנהל:', insertError);
-          }
+        if (insertError && insertError.code !== '23505') {
+          // Handle insert error (23505 = user already exists)
         }
       } catch (directError) {
-        console.error('שגיאה בניסיון ישיר:', directError);
+        // Direct insert also failed
       }
     }
   },
@@ -178,8 +167,13 @@ export const authService = {
     }
   },
   
-  async logout(): Promise<void> {
-    await supabase.auth.signOut();
+  async logout(): Promise<{ error: string | null }> {
+    try {
+      const { error } = await supabase.auth.signOut();
+      return { error: error?.message || null };
+    } catch (err: any) {
+      return { error: err.message || 'Error during logout' };
+    }
   },
 
   async getCurrentUser() {
@@ -205,6 +199,18 @@ export const authService = {
         return true;
       }
       
+      // Try RPC first
+      try {
+        const { data: isAdminResult } = await supabase
+          .rpc('is_admin', { user_id: userData.user.id });
+        
+        if (isAdminResult === true) {
+          return true;
+        }
+      } catch (rpcError) {
+        // RPC failed, using direct table access
+      }
+      
       const { data: adminData } = await supabase
         .from('admins')
         .select('id')
@@ -213,7 +219,6 @@ export const authService = {
         
       return !!adminData;
     } catch (error) {
-      console.error('שגיאה בבדיקת הרשאות מנהל:', error);
       return false;
     }
   }

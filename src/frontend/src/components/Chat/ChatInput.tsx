@@ -1,11 +1,11 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { IoSend } from 'react-icons/io5';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useRTL } from '../../hooks/useRTL';
 
 interface ChatInputProps {
   onSend?: () => void;
   isLoading?: boolean;
-  isInitial?: boolean;
   input?: string;
   setInput?: (value: string) => void;
   onSendMessage?: (message: string) => void;
@@ -13,10 +13,14 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
+/**
+ * ChatInput component with modern floating design
+ * Features centered layout, integrated send button, and smooth animations
+ * Supports RTL for Hebrew language
+ */
 const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   isLoading = false,
-  isInitial = false,
   input,
   setInput,
   onSendMessage,
@@ -27,59 +31,89 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [localMessage, setLocalMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
+  // RTL support
+  const { isRTL, direction, textAlignClass, flipIcon, rightClass } = useRTL();
+
   // Determine if we're using props.input or internal state
   const message = input !== undefined ? input : localMessage;
   const updateMessage = setInput || setLocalMessage;
   const handleSend = onSend || (() => onSendMessage && onSendMessage(message));
   const isDisabled = isLoading || isWaiting;
+
+  // ⚡ Performance: Memoized handlers
+  const optimizedHandleSend = useCallback(() => {
+    if (message.trim() && !isDisabled) {
+      handleSend();
+      updateMessage('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '24px';
+      }
+    }
+  }, [message, isDisabled, handleSend, updateMessage]);
+
+  const optimizedHandleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      optimizedHandleSend();
+    }
+  }, [optimizedHandleSend]);
   
   // Auto-resize textarea based on content
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = '40px'; // Reset height
+      textareaRef.current.style.height = '24px'; // Reset height
       const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(scrollHeight, 150)}px`;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 120)}px`;
     }
   }, [message]);
   
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (message.trim() && !isDisabled) {
-        handleSend();
-      }
-    }
-  };
+  // ⚡ Memoized placeholder for performance
+  const placeholderText = useMemo(() => {
+    return placeholder || (t('chat.inputPlaceholder') as string) || "Type your message here...";
+  }, [placeholder, t]);
 
   return (
-    <div className={`w-full relative ${isInitial ? 'max-w-xl mx-auto' : ''}`}>
-      <div className="relative flex items-center">
-        <textarea
-          ref={textareaRef}
-          className="w-full py-2 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 pr-10 min-h-[40px] max-h-[150px] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600"
-          value={message}
-          onChange={(e) => updateMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder || t('Type your message...')}
-          disabled={isDisabled}
-          rows={1}
-        />
-        <button
-          onClick={() => {
-            if (message.trim() && !isDisabled) {
-              handleSend();
-            }
-          }}
-          disabled={!message.trim() || isDisabled}
-          className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
-            !message.trim() || isDisabled 
-              ? 'text-gray-400 cursor-not-allowed' 
-              : 'text-green-500 hover:text-green-700 focus:outline-none'
-          } transition-colors`}
-          aria-label={t('Send message')}
-        >
-          <IoSend size={20} />
-        </button>
+    <div className="flex justify-center w-full px-6 py-6">
+      <div className="w-full max-w-2xl">
+        <div className="relative group">
+          {/* Main input container with floating design */}
+          <div className="relative flex items-end bg-gray-50 dark:bg-gray-800 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => updateMessage(e.target.value)}
+              onKeyDown={optimizedHandleKeyDown}
+              placeholder={placeholderText}
+              disabled={isDisabled}
+              rows={1}
+              className={`flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-0 outline-none resize-none py-4 px-6 ${
+                isRTL ? 'pl-14' : 'pr-14'
+              } ${textAlignClass} min-h-[24px] max-h-[120px] leading-6 chat-input-textarea`}
+              dir={direction}
+              aria-label={(t('chat.messageInput') as string) || "Message input"}
+              data-testid="chat-input"
+            />
+            
+            {/* Integrated send button with RTL support */}
+            <button
+              type="button"
+              onClick={optimizedHandleSend}
+              disabled={!message.trim() || isDisabled}
+              className={`absolute ${rightClass}3 top-1/2 transform -translate-y-1/2 p-2.5 rounded-xl transition-all duration-200 ease-in-out ${
+                !message.trim() || isDisabled
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
+                  : 'bg-green-500 text-white hover:bg-green-600 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-400 shadow-md hover:shadow-lg'
+              }`}
+              aria-label={(t('chat.sendMessage') as string) || "Send message"}
+              data-testid="send-button"
+            >
+              <Send className={`w-4 h-4 ${flipIcon}`} />
+            </button>
+          </div>
+          
+          {/* Subtle gradient overlay for enhanced depth */}
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        </div>
       </div>
     </div>
   );

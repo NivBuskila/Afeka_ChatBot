@@ -2,9 +2,11 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+import time
 
 from .interfaces import IChatSessionRepository
 from ..core.exceptions import RepositoryError
+from ..utils.cache import sessions_cache
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +33,11 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 "updated_at": current_time
             }
             
-            # Try to execute the query
             response = self.client.table(self.table_name).insert(session_data).execute()
             
-            # Check if the response has data
             if hasattr(response, 'data') and response.data:
                 logger.info(f"Created chat session with ID: {response.data[0].get('id')}")
                 
-                # Try to create a corresponding conversation record if the table exists
                 try:
                     conversation_data = {
                         "conversation_id": response.data[0].get("id"),
@@ -52,16 +51,17 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 except Exception as conv_err:
                     logger.warning(f"Could not create conversation record: {conv_err}")
                 
+                cache_key = f"sessions:{user_id}"
+                sessions_cache.invalidate(cache_key)
+                
                 return response.data[0]
             else:
-                # If no data returned, return the session data we tried to insert
                 logger.warning("No data returned from chat session creation, returning input data")
                 return session_data
                 
         except Exception as e:
             logger.error(f"Error creating chat session: {e}")
             
-            # If table does not exist or another error occurs, return mock data
             session_id = str(uuid.uuid4())
             logger.info(f"Returning mock session with ID: {session_id}")
             
@@ -73,29 +73,40 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 "updated_at": datetime.now().isoformat()
             }
     
-    async def get_sessions(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all chat sessions for a user."""
+    async def get_sessions(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get chat sessions for a user with caching and pagination."""
         try:
-            logger.info(f"Fetching chat sessions for user: {user_id}")
+            cache_key = f"sessions:{user_id}"
+            cached_sessions = sessions_cache.get(cache_key)
+            if cached_sessions is not None:
+                return cached_sessions[:limit]
             
-            # Try to get table info or do a minimal query to check if table exists
+            logger.info(f"[CACHE-MISS] Fetching chat sessions for user: {user_id}")
+            
             try:
-                test_query = self.client.table(self.table_name).select("count").limit(1).execute()
-                logger.info(f"Chat sessions table exists: {test_query}")
+                self.client.table(self.table_name).select("id").limit(0).execute()
             except Exception as table_err:
                 logger.warning(f"Chat sessions table may not exist: {table_err}")
-                logger.info("Returning empty array")
                 return []
             
-            # Execute the query to get all sessions for the user
-            response = self.client.table(self.table_name).select("*").eq("user_id", user_id).order("updated_at", desc=True).execute()
+            response = self.client.table(self.table_name)\
+                .select("id, user_id, title, created_at, updated_at")\
+                .eq("user_id", user_id)\
+                .order("updated_at", desc=True)\
+                .limit(limit)\
+                .execute()
             
-            # Check if the response has data
             if hasattr(response, 'data') and response.data:
-                logger.info(f"Found {len(response.data)} chat sessions for user: {user_id}")
-                return response.data
+                sessions = response.data
+                logger.info(f"Found {len(sessions)} chat sessions for user: {user_id}")
+                
+                cache_key = f"sessions:{user_id}"
+                sessions_cache.set(cache_key, sessions)
+                return sessions
             else:
                 logger.info(f"No chat sessions found for user: {user_id}")
+                cache_key = f"sessions:{user_id}"
+                sessions_cache.set(cache_key, [])
                 return []
                 
         except Exception as e:
@@ -107,34 +118,100 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
         try:
             logger.info(f"Fetching chat session with ID: {session_id}")
             
-            # Check if table exists
             try:
                 test_query = self.client.table(self.table_name).select("count").limit(1).execute()
             except Exception as table_err:
                 logger.warning(f"Chat sessions table may not exist: {table_err}")
-                # Return empty session with messages array
                 return {"id": session_id, "messages": []}
             
-            # Get the session
             session_result = self.client.table(self.table_name).select("*").eq("id", session_id).single().execute()
             
-            # Check if session was found
             if not hasattr(session_result, 'data') or not session_result.data:
                 logger.warning(f"Chat session with ID {session_id} not found")
                 return {"id": session_id, "messages": []}
             
-            # Check if messages table exists and get messages
             try:
+                logger.info(f"Searching for messages with conversation_id: {session_id}")
                 messages_result = self.client.table("messages").select("*").eq("conversation_id", session_id).order("created_at").execute()
-                messages = messages_result.data if hasattr(messages_result, 'data') else []
+                raw_messages = messages_result.data if hasattr(messages_result, 'data') else []
+                
+                logger.info(f"Found {len(raw_messages)} raw messages in database")
+                if len(raw_messages) > 0:
+                    logger.info(f"First message sample: {raw_messages[0]}")
+                
+                formatted_messages = []
+                for i, msg in enumerate(raw_messages):
+                    logger.info(f"Processing message {i+1}: message_id={msg.get('message_id')}, request={bool(msg.get('request'))}, response={bool(msg.get('response'))}")
+                    
+                    if msg.get('request') and not msg.get('response'):
+                        formatted_msg = {
+                            'id': msg.get('message_id', msg.get('id', f'msg-{i}')),
+                            'content': msg.get('request'),
+                            'role': 'user',
+                            'is_bot': False,
+                            'created_at': msg.get('created_at'),
+                            'conversation_id': session_id,
+                            'user_id': msg.get('user_id'),
+                            'message_text': msg.get('request'),
+                            'text': msg.get('request')
+                        }
+                        formatted_messages.append(formatted_msg)
+                        logger.info(f"Added user message: {formatted_msg['id']} - '{formatted_msg['content'][:50]}...'")
+                    
+                    elif msg.get('response') and not msg.get('request'):
+                        formatted_msg = {
+                            'id': msg.get('message_id', msg.get('id', f'msg-{i}')),
+                            'content': msg.get('response'),
+                            'role': 'bot',
+                            'is_bot': True,
+                            'created_at': msg.get('created_at'),
+                            'conversation_id': session_id,
+                            'user_id': msg.get('user_id'),
+                            'message_text': msg.get('response'),
+                            'text': msg.get('response')
+                        }
+                        formatted_messages.append(formatted_msg)
+                        logger.info(f"Added bot message: {formatted_msg['id']} - '{formatted_msg['content'][:50]}...'")
+                    
+                    elif msg.get('request') and msg.get('response'):
+                        user_msg = {
+                            'id': f"{msg.get('message_id', msg.get('id', f'msg-{i}'))}-user",
+                            'content': msg.get('request'),
+                            'role': 'user',
+                            'is_bot': False,
+                            'created_at': msg.get('created_at'),
+                            'conversation_id': session_id,
+                            'user_id': msg.get('user_id'),
+                            'message_text': msg.get('request'),
+                            'text': msg.get('request')
+                        }
+                        formatted_messages.append(user_msg)
+                        
+                        bot_msg = {
+                            'id': f"{msg.get('message_id', msg.get('id', f'msg-{i}'))}-bot",
+                            'content': msg.get('response'),
+                            'role': 'bot',
+                            'is_bot': True,
+                            'created_at': msg.get('created_at'),
+                            'conversation_id': session_id,
+                            'user_id': msg.get('user_id'),
+                            'message_text': msg.get('response'),
+                            'text': msg.get('response')
+                        }
+                        formatted_messages.append(bot_msg)
+                        logger.info(f"Added legacy message pair: user and bot")
+                
+                formatted_messages.sort(key=lambda x: x.get('created_at', ''))
+                
+                logger.info(f"Final formatted messages count: {len(formatted_messages)}")
+                
             except Exception as msg_err:
                 logger.warning(f"Messages table may not exist or error fetching messages: {msg_err}")
-                messages = []
+                formatted_messages = []
                 
-            # Combine session data with messages
             result = {
                 **session_result.data,
-                "messages": messages
+                "messages": formatted_messages
             }
             
             return result
@@ -148,14 +225,11 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
         try:
             logger.info(f"Updating chat session with ID: {session_id}")
             
-            # Ensure updated_at is set
             if 'updated_at' not in data:
                 data['updated_at'] = datetime.now().isoformat()
                 
-            # Update the session
             result = self.client.table(self.table_name).update(data).eq("id", session_id).execute()
             
-            # Also update conversation if it exists
             try:
                 conversation_update = {
                     'updated_at': data.get('updated_at'),
@@ -168,7 +242,6 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
             except Exception as conv_err:
                 logger.warning(f"Error updating conversation: {conv_err}")
             
-            # Check if update was successful
             if hasattr(result, 'data') and result.data:
                 logger.info(f"Successfully updated chat session: {session_id}")
                 return {"success": True, "data": result.data}
@@ -185,21 +258,18 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
         try:
             logger.info(f"Deleting chat session with ID: {session_id}")
             
-            # First delete messages in the session
             try:
                 self.client.table("messages").delete().eq("conversation_id", session_id).execute()
                 logger.info(f"Deleted messages for session: {session_id}")
             except Exception as msg_err:
                 logger.warning(f"Error deleting messages: {msg_err}")
             
-            # Try to delete conversation record
             try:
                 self.client.table("conversations").delete().eq("conversation_id", session_id).execute()
                 logger.info(f"Deleted conversation record for session: {session_id}")
             except Exception as conv_err:
                 logger.warning(f"Error deleting conversation: {conv_err}")
             
-            # Delete the session itself
             result = self.client.table(self.table_name).delete().eq("id", session_id).execute()
             
             logger.info(f"Successfully deleted chat session: {session_id}")
@@ -214,19 +284,15 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
         try:
             logger.info(f"Searching chat sessions for user {user_id} with term: {search_term}")
             
-            # Search for chat sessions with matching titles
             title_result = self.client.table(self.table_name).select("*").eq("user_id", user_id).ilike("title", f"%{search_term}%").execute()
             title_matches = title_result.data if hasattr(title_result, 'data') else []
             
-            # Then search for messages with matching content
             try:
                 message_result = self.client.table("messages").select("conversation_id").eq("user_id", user_id).or_(f"request.ilike.%{search_term}%,response.ilike.%{search_term}%").execute()
                 message_matches = message_result.data if hasattr(message_result, 'data') else []
                 
-                # Get unique session IDs from message matches
                 session_ids = list(set([msg.get("conversation_id") for msg in message_matches if msg.get("conversation_id")]))
                 
-                # Fetch those sessions
                 content_match_sessions = []
                 if session_ids:
                     content_result = self.client.table(self.table_name).select("*").eq("user_id", user_id).in_("id", session_ids).execute()
@@ -235,20 +301,17 @@ class SupabaseChatSessionRepository(IChatSessionRepository):
                 logger.warning(f"Error searching messages: {msg_err}")
                 content_match_sessions = []
             
-            # Combine and deduplicate results
             all_sessions = title_matches + content_match_sessions
             
-            # Remove duplicates by creating a dictionary with session ID as key
             unique_sessions = {}
             for session in all_sessions:
                 if session.get("id") not in unique_sessions:
                     unique_sessions[session.get("id")] = session
             
-            # Convert back to a list and sort by updated_at
             result = list(unique_sessions.values())
             result.sort(key=lambda x: x.get("updated_at", x.get("created_at", "")), reverse=True)
             
-            logger.info(f"Found {len(result)} matching sessions")
+            logger.info(f"Found {len(result)} chat sessions matching '{search_term}' for user {user_id}")
             return result
                 
         except Exception as e:

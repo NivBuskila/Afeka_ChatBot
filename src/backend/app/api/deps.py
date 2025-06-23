@@ -92,5 +92,6 @@ async def get_chat_session_service() -> IChatSessionService:
 async def get_message_service() -> IMessageService:
     """Get message service instance with repository dependency."""
     client = await get_supabase_client()
-    repository = SupabaseMessageRepository(client)
-    return MessageService(repository)
+    message_repository = SupabaseMessageRepository(client)
+    chat_session_repository = SupabaseChatSessionRepository(client)
+    return MessageService(message_repository, chat_session_repository)

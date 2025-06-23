@@ -1,69 +1,172 @@
-import React from 'react';
-import { User, Bot } from 'lucide-react';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useRTL } from "../../hooks/useRTL";
+
+import ThemeButton from "../ui/ThemeButton";
+import AIResponseRenderer from "../common/AIResponseRenderer";
 
 interface Message {
   id: string;
-  type: 'user' | 'bot';
+  type: "user" | "bot";
   content: string;
   timestamp: string;
   sessionId?: string;
+  chunkText?: string;
 }
 
 interface MessageItemProps {
   message: Message;
   searchTerm?: string;
+  showChunkText?: boolean;
+  fontSize?: number;
 }
 
-// Function to highlight search term in text
+// Utility function to highlight search terms - for user messages only
 const highlightText = (text: string, searchTerm: string) => {
   if (!searchTerm.trim()) return text;
-  
-  const parts = text.split(new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
-  
-  return (
-    <>
-      {parts.map((part, i) => 
-        part.toLowerCase() === searchTerm.toLowerCase() ? (
-          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
-            {part}
-          </mark>
-        ) : (
-          part
-        )
-      )}
-    </>
+
+  const regex = new RegExp(
+    `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+    "gi"
+  );
+  const parts = text.split(regex);
+
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <span
+        key={index}
+        className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded"
+      >
+        {part}
+      </span>
+    ) : (
+      part
+    )
   );
 };
 
-const MessageItem: React.FC<MessageItemProps> = ({ message, searchTerm = '' }) => {
-  const isUser = message.type === 'user';
-  
+const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  searchTerm = "",
+  showChunkText = false,
+  fontSize = 16,
+}) => {
+  const { t } = useTranslation();
+  const { direction, textAlignClass } = useRTL();
+
+  const isUser = message.type === "user";
+  const [showFullChunk, setShowFullChunk] = useState(false);
+
   return (
     <div
-      className={`flex items-start gap-3 ${
-        isUser ? 'flex-row-reverse' : ''
-      }`}
+      className={`w-full ${textAlignClass}`}
+      data-testid={isUser ? "user-message" : "bot-message"}
     >
-      <div
-        className={`relative p-3 rounded-lg ${
-          isUser
-            ? 'bg-green-100 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20'
-            : 'bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700'
-        } max-w-2xl`}
-      >
-        <div className="flex items-center gap-2 mb-1">
-          {isUser ? (
-            <User className="w-3 h-3 text-green-600 dark:text-green-400" />
-          ) : (
-            <Bot className="w-3 h-3 text-green-600 dark:text-green-400" />
-          )}
-          <span className="text-xs text-green-700/70 dark:text-green-400/60">
+      {/* Message content */}
+      <div className={`mb-6 ${textAlignClass}`}>
+        {isUser ? (
+          // User message with bubble
+          <div
+            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200 leading-relaxed"
+            dir={direction}
+            style={{
+              fontSize: `${fontSize}px`,
+              fontFamily: "inherit",
+              lineHeight: "1.6",
+              borderRadius: "20px 20px 4px 20px",
+            }}
+          >
+            {searchTerm ? (
+              highlightText(message.content, searchTerm)
+            ) : (
+              message.content
+            )}
+          </div>
+        ) : (
+          // Bot message - completely clean like ChatGPT
+          <div className="w-full max-w-4xl">
+            <div 
+              className="text-gray-800 dark:text-gray-200 leading-relaxed"
+              style={{
+                fontSize: `${fontSize}px`,
+                fontFamily: "inherit",
+                lineHeight: "1.7",
+              }}
+              dir={direction}
+            >
+              <AIResponseRenderer
+                content={message.content}
+                searchTerm={searchTerm}
+                className="ai-response-content"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Timestamp - subtle and small - only show if timestamp exists */}
+        {message.timestamp && (
+          <div className={`mt-2 text-xs text-gray-500 dark:text-gray-500 opacity-60`}>
             {message.timestamp}
-          </span>
-        </div>
-        <p className="text-sm text-gray-700 dark:text-gray-100">
-          {searchTerm ? highlightText(message.content, searchTerm) : message.content}
-        </p>
+          </div>
+        )}
+
+        {/* Show chunk text for bot messages if available and enabled */}
+        {!isUser && message.chunkText && showChunkText && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              {t("rag.chunkSource") || "מקור הטקסט (צ'אנק):"}
+            </p>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div
+                className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
+                dir={direction}
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily: "inherit",
+                }}
+              >
+                {showFullChunk
+                  ? message.chunkText
+                  : `${message.chunkText.substring(0, 200)}${
+                      message.chunkText.length > 200 ? "..." : ""
+                    }`}
+              </div>
+
+              {message.chunkText.length > 200 && (
+                <div className="mt-3">
+                  <ThemeButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFullChunk(!showFullChunk)}
+                    className="text-xs font-medium"
+                    icon={
+                      <svg
+                        className={`w-3 h-3 ${
+                          showFullChunk ? "transform rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    }
+                  >
+                    {showFullChunk
+                      ? t("rag.showLess") || "הצג פחות"
+                      : t("rag.viewMore") || "הצג עוד"}
+                  </ThemeButton>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

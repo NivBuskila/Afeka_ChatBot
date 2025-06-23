@@ -1,0 +1,45 @@
+{
+  "status": "success",
+  "data": {
+    "overview": {
+      "totalUsers": 1250,
+      "totalSessions": 4830,
+      "totalMessages": 18560,
+      "averageResponseTime": 1.8,
+      "userSatisfaction": 4.6
+    },
+    "usage": {
+      "daily": [
+        { "date": "2024-06-15", "users": 45, "sessions": 78, "messages": 312 },
+        { "date": "2024-06-16", "users": 52, "sessions": 89, "messages": 356 },
+        { "date": "2024-06-17", "users": 48, "sessions": 82, "messages": 298 },
+        { "date": "2024-06-18", "users": 61, "sessions": 95, "messages": 402 },
+        { "date": "2024-06-19", "users": 58, "sessions": 91, "messages": 378 },
+        { "date": "2024-06-20", "users": 55, "sessions": 87, "messages": 340 }
+      ]
+    },
+    "topQuestions": [
+      {
+        "question": "When is the registration deadline?",
+        "frequency": 245,
+        "category": "Registration"
+      },
+      {
+        "question": "What are the prerequisites for Computer Science courses?",
+        "frequency": 189,
+        "category": "Academic"
+      },
+      {
+        "question": "How do I access the library?",
+        "frequency": 156,
+        "category": "Facilities"
+      }
+    ],
+    "documents": {
+      "total": 28,
+      "processed": 26,
+      "processing": 1,
+      "failed": 1
+    }
+  }
+} 

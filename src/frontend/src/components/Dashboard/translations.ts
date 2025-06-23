@@ -8,11 +8,11 @@ export interface Translations {
 export const translations: Translations = {
   // Menu Items
   'chatbot.preview': {
-    he: 'תצוגה מקדימה של הצ\'אטבוט',
+    he: 'תצוגה מקדימה',
     en: 'Chatbot Preview'
   },
   'analytics': {
-    he: 'אנליטיקס',
+    he: 'אנליטיקות',
     en: 'Analytics'
   },
   'analytics.overview': {
@@ -43,6 +43,30 @@ export const translations: Translations = {
     he: 'הגדרות',
     en: 'Settings'
   },
+  'rag.management': {
+    he: 'ניהול RAG',
+    en: 'RAG Management'
+  },
+  'rag.overview': {
+    he: 'סקירה כללית',
+    en: 'Overview'
+  },
+  'rag.profiles': {
+    he: 'פרופילים',
+    en: 'Profiles'
+  },
+  'rag.performance': {
+    he: 'ביצועים',
+    en: 'Performance'
+  },
+  'rag.test': {
+    he: 'בדיקות',
+    en: 'Test Center'
+  },
+  'rag.system.prompt': {
+    he: 'הנחיות מערכת',
+    en: 'System Prompt'
+  },
 
   // Analytics
   'analytics.active.users': {
@@ -64,6 +88,74 @@ export const translations: Translations = {
   'analytics.week.change': {
     he: 'מהשבוע שעבר',
     en: 'from last week'
+  },
+  'analytics.token.usage': {
+    he: 'ניתוח שימוש ב-API',
+    en: 'Token Usage'
+  },
+  'analytics.api.keys': {
+    he: 'מפתחות API',
+    en: 'API Keys'
+  },
+  'analytics.available.keys': {
+    he: 'מפתחות זמינים',
+    en: 'Available Keys'
+  },
+  'analytics.blocked.keys': {
+    he: 'מפתחות חסומים',
+    en: 'Blocked Keys'
+  },
+  'analytics.total.requests': {
+    he: 'סך כל הבקשות',
+    en: 'Total Requests'
+  },
+  'analytics.usage.by.key': {
+    he: 'שימוש לפי מפתח',
+    en: 'Usage by Key'
+  },
+  'analytics.requests.timeline': {
+    he: 'בקשות לאורך זמן',
+    en: 'Requests Timeline'
+  },
+  'analytics.key.status.details': {
+    he: 'מצב מפתחות מפורט',
+    en: 'Key Status Details'
+  },
+  'analytics.export.csv': {
+    he: 'ייצא CSV',
+    en: 'Export CSV'
+  },
+  'analytics.refresh': {
+    he: 'רענן',
+    en: 'Refresh'
+  },
+  'analytics.last.updated': {
+    he: 'עדכון אחרון',
+    en: 'Last updated'
+  },
+  'analytics.key.id': {
+    he: 'מזהה מפתח',
+    en: 'Key ID'
+  },
+  'analytics.status': {
+    he: 'סטטוס',
+    en: 'Status'
+  },
+  'analytics.tokens.today': {
+    he: 'טוקנים היום',
+    en: 'Tokens Today'
+  },
+  'analytics.tokens.minute': {
+    he: 'טוקנים/דקה',
+    en: 'Tokens/Min'
+  },
+  'analytics.requests.minute': {
+    he: 'בקשות/דקה',
+    en: 'Requests/Min'
+  },
+  'analytics.next.reset': {
+    he: 'איפוס הבא',
+    en: 'Next Reset'
   },
 
   // Documents
@@ -244,5 +336,117 @@ export const translations: Translations = {
   'chatbot.demo.bot.response': {
     he: 'הספרייה פתוחה בימים א\'-ה\' בין השעות 08:00-20:00, ובימי ו\' בין השעות 08:00-13:00. בתקופת מבחנים יש שעות פתיחה מורחבות.',
     en: 'The library is open Sunday-Thursday from 08:00-20:00, and Friday from 08:00-13:00. During exam periods there are extended opening hours.'
+  },
+
+  // RAG Management
+  'rag.current.profile': {
+    he: 'פרופיל נוכחי',
+    en: 'Current Profile'
+  },
+  'rag.available.profiles': {
+    he: 'פרופילים זמינים',
+    en: 'Available Profiles'
+  },
+  'rag.profile.selector': {
+    he: 'בוחר פרופילים',
+    en: 'Profile Selector'
+  },
+  'rag.performance.monitor': {
+    he: 'מוניטור ביצועים',
+    en: 'Performance Monitor'
+  },
+  'rag.configuration.editor': {
+    he: 'עורך תצורה',
+    en: 'Configuration Editor'
+  },
+  'rag.test.center': {
+    he: 'מרכז בדיקות',
+    en: 'Test Center'
+  },
+  'rag.profile.description': {
+    he: 'תיאור הפרופיל',
+    en: 'Profile Description'
+  },
+  'rag.similarity.threshold': {
+    he: 'סף דמיון',
+    en: 'Similarity Threshold'
+  },
+  'rag.max.chunks': {
+    he: 'מקסימום צ\'אנקים',
+    en: 'Max Chunks'
+  },
+  'rag.temperature': {
+    he: 'טמפרטורה',
+    en: 'Temperature'
+  },
+  'rag.model.name': {
+    he: 'שם המודל',
+    en: 'Model Name'
+  },
+  'rag.response.time': {
+    he: 'זמן תגובה (ms)',
+    en: 'Response Time (ms)'
+  },
+  'rag.accuracy.score': {
+    he: 'ציון דיוק',
+    en: 'Accuracy Score'
+  },
+  'rag.apply.profile': {
+    he: 'החל פרופיל',
+    en: 'Apply Profile'
+  },
+  'rag.test.query': {
+    he: 'שאילתת בדיקה',
+    en: 'Test Query'
+  },
+  'rag.run.test': {
+    he: 'הרץ בדיקה',
+    en: 'Run Test'
+  },
+  'rag.save.configuration': {
+    he: 'שמור הגדרות',
+    en: 'Save Configuration'
+  },
+  'rag.profile.active': {
+    he: 'פעיל',
+    en: 'Active'
+  },
+  'rag.profile.inactive': {
+    he: 'לא פעיל',
+    en: 'Inactive'
+  },
+  'rag.status.inactive': {
+    he: 'לא פעיל',
+    en: 'Inactive'
+  },
+
+  // Additional general translations
+  'Refresh': {
+    he: 'רענן',
+    en: 'Refresh'
+  },
+  'loading': {
+    he: 'טוען...',
+    en: 'Loading...'
+  },
+  'Hebrew': {
+    he: 'עברית',
+    en: 'Hebrew'
+  },
+  'English': {
+    he: 'אנגלית',
+    en: 'English'
+  },
+  'Cancel': {
+    he: 'ביטול',
+    en: 'Cancel'
+  },
+  'Delete': {
+    he: 'מחק',
+    en: 'Delete'
+  },
+  'general.search': {
+    he: 'חיפוש...',
+    en: 'Search...'
   }
 }; 

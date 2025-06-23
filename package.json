@@ -1,0 +1,20 @@
+{
+  "name": "afeka-chatbot",
+  "version": "1.0.0",
+  "description": "APEX Afeka Chatbot Application",
+  "scripts": {
+    "dev": "cd src/frontend && npm run dev",
+    "build": "cd src/frontend && npm run build",
+    "start": "cd src/frontend && npm start",
+    "lint": "cd src/frontend && npm run lint",
+    "test": "cd src/frontend && npm test",
+    "install-frontend": "cd src/frontend && npm install",
+    "install-backend": "cd src/backend && pip install -r requirements.txt"
+  },
+  "keywords": ["chatbot", "ai", "react", "typescript"],
+  "author": "APEX Team",
+  "license": "MIT",
+  "workspaces": [
+    "src/frontend"
+  ]
+} 

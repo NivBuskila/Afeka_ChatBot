@@ -1,30 +1,50 @@
-# fastapi
-# uvicorn
-# pydantic
-# pydantic-settings
-# python-dotenv
-# httpx>=0.26
-# python-multipart>=0.0.9
-# websockets<13,>=11
-# supabase>=2.12.0
-
+# Core FastAPI dependencies
 fastapi>=0.103.0
 uvicorn>=0.23.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
-httpx>=0.24.1
-supabase>=1.0.3  # Ensure the Supabase Python library is recent
 python-multipart>=0.0.6
-websockets>=11.0.0,<13.0.0
+websockets>=13.0.0,<15.0
 
-# Document processing and embeddings
+# HTTP client and networking
+httpx>=0.25.2
+requests>=2.31.0
+
+# Supabase integration (fixed version for compatibility)
+supabase==2.7.4
+
+# AI and LangChain dependencies
 google-generativeai>=0.3.0
 langchain>=0.1.0
 langchain-community>=0.0.10
+langchain-google-genai
+langchain_experimental
 tiktoken>=0.5.0
+
+# Document processing
 pypdf2>=3.0.0
 python-docx>=0.8.11
 unstructured>=0.10.0
 sentence-transformers>=2.2.0
+
+# Authentication
 PyJWT>=2.8.0
+
+
+
+# Database connections
+psycopg2-binary>=2.9.10
+asyncpg>=0.30.0
+langchain-postgres==0.0.12
+redis==5.1.1
+sqlalchemy==2.0.25
+
+# Testing dependencies
+pytest>=7.0.0
+pytest-mock>=3.10.0
+pytest-asyncio==0.21.1
+
+# Additional dependencies found in code
+numpy>=1.21.0
+faker>=18.0.0

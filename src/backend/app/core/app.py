@@ -8,15 +8,18 @@ from ..config.settings import settings
 from ..middleware.timing import add_process_time_header
 from ..middleware.security import add_security_headers
 from ..middleware.rate_limit import rate_limit_middleware
-from ..api.routes import general, chat, documents, proxy
-from ..api import vector_management
+from ..api.routes import general, chat, documents, proxy, vector_management
+from ..api.routes.rag import router as rag_router
+from ..api.routes.title_generation import router as title_router  
+from ..api.routes.api_keys import router as api_keys_router
+from ..api.routes.system_prompts import router as system_prompts_router
 
 logger = logging.getLogger(__name__)
 
 class Application:
     """Application factory class for FastAPI setup."""
     
-    def __init__(self):
+    def __init__(self, lifespan=None):
         """Initialize the FastAPI application with all configurations."""
         self.app = FastAPI(
             title=settings.API_TITLE,
@@ -24,7 +27,8 @@ class Application:
             version=settings.API_VERSION,
             docs_url=settings.DOCS_URL,
             redoc_url=settings.REDOC_URL,
-            openapi_url=settings.OPENAPI_URL
+            openapi_url=settings.OPENAPI_URL,
+            lifespan=lifespan
         )
         self._configure_middleware()
         self._configure_routers()
@@ -34,16 +38,34 @@ class Application:
     
     def _configure_middleware(self):
         """Configure all middleware."""
-        # Add CORS middleware
+        # Add CORS middleware with comprehensive origins
+        allowed_origins = [
+            "http://localhost:5173",
+            "http://localhost:3000", 
+            "http://localhost:80",
+            "http://localhost",
+            "https://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://127.0.0.1:5173"
+        ]
+        
+        # Add any additional origins from settings
+        if hasattr(settings, 'ALLOWED_ORIGINS') and settings.ALLOWED_ORIGINS:
+            if isinstance(settings.ALLOWED_ORIGINS, list):
+                allowed_origins.extend(settings.ALLOWED_ORIGINS)
+            elif settings.ALLOWED_ORIGINS != "*":
+                allowed_origins.append(settings.ALLOWED_ORIGINS)
+        
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=settings.ALLOWED_ORIGINS,
+            allow_origins=allowed_origins,
             allow_credentials=True,
-            allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=["Authorization", "Content-Type", settings.API_KEY_NAME],
+            allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+            allow_headers=["*"],
+            expose_headers=["*"],
             max_age=600
         )
-        logger.info(f"Configured CORS with allowed origins: {settings.ALLOWED_ORIGINS}")
+        logger.info(f"Configured CORS with allowed origins: {allowed_origins}")
         
         # Add custom middleware
         self.app.middleware("http")(add_process_time_header)
@@ -64,6 +86,10 @@ class Application:
         self.app.include_router(documents.router)
         self.app.include_router(proxy.router)
         self.app.include_router(vector_management.router)
+        self.app.include_router(rag_router, prefix="/api/rag")
+        self.app.include_router(title_router)
+        self.app.include_router(api_keys_router)
+        self.app.include_router(system_prompts_router, prefix="/api")
         logger.info("API routers configured")
     
     def _configure_exception_handlers(self):
@@ -90,6 +116,6 @@ class Application:
         return self.app
 
 # Application factory function
-def create_application() -> FastAPI:
+def create_application(lifespan=None) -> FastAPI:
     """Create and return a configured FastAPI application."""
-    return Application().get_app()
+    return Application(lifespan=lifespan).get_app()

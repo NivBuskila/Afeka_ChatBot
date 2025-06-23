@@ -1,0 +1,19 @@
+[tool.pyright]
+# Ignore specific type checking errors for google.generativeai
+reportPrivateImportUsage = false
+reportAttributeAccessIssue = "warning"
+reportUndefinedVariable = "warning"
+
+# Specific ignore patterns
+[tool.pyright.exclude]
+ignore = [
+    "google.generativeai.*"
+]
+
+[tool.pylint]
+# Disable specific warnings
+disable = [
+    "no-name-in-module",
+    "import-error",
+    "no-member"
+] 

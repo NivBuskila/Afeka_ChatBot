@@ -91,8 +91,6 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
 .pyre/
 .pytype/
 
@@ -119,3 +117,45 @@ credentials.json
 
 # AI models
 src/ai/models/
+
+# Temporary and build files
+*.tmp
+*.temp
+*.timestamp-*
+.temp/
+temp/
+schema.sql
+
+# Cache directories
+.cache/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Duplicate virtual environments
+backend_venv/
+*/backend_venv/
+*/venv/
+
+# Test files (avoid accidental commits of temp test files)
+test_*.py
+*_test.py
+test_*.json
+apply_*.py
+cleanup_*.py
+delete_*.py
+fix_*.py
+verify_*.py
+run_*.py
+start_*.py
+
+# Batch scripts with hardcoded keys
+*.bat
+
+# E2E Test artifacts
+src/tests/frontend/e2e/screenshots/
+src/tests/frontend/e2e/videos/
+cypress/screenshots/
+cypress/videos/
+**/screenshots/
+**/videos/

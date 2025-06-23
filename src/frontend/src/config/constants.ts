@@ -5,9 +5,12 @@ export const CHAT_CONFIG = {
     INITIAL_MESSAGE: 'ברוך הבא! איך אפשר לעזור?',
   } as const;
 
+// Get the backend URL from environment
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 export const API_CONFIG = {
-  CHAT_ENDPOINT: '/api/chat',
-  DOCUMENTS_ENDPOINT: '/api/documents',
-  HEALTH_ENDPOINT: '/api/health',
-  DEFAULT_TIMEOUT: 5000,
+  CHAT_ENDPOINT: `${BACKEND_URL}/api/chat`,
+  DOCUMENTS_ENDPOINT: `${BACKEND_URL}/api/documents`,
+  HEALTH_ENDPOINT: `${BACKEND_URL}/api/health`,
+  DEFAULT_TIMEOUT: 30000, // 30 seconds
 } as const;

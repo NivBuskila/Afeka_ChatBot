@@ -1,8 +1,11 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { FileText, Download, Trash2, Edit } from 'lucide-react';
-import type { Document } from '../../config/supabase';
-import ProcessingProgressBar from './ProcessingProgressBar';
+import React from "react";
+import { useTranslation } from "react-i18next";
+import type { Document } from "../../config/supabase";
+import { Pagination } from "../common/Pagination";
+import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
+import DocumentRow from "./components/DocumentRow";
+import { useDocumentTable } from "./hooks/useDocumentTable";
+import { useRTL } from "../../hooks/useRTL";
 
 interface DocumentTableProps {
   documents: Document[];
@@ -17,143 +20,120 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   searchQuery,
   setSearchQuery,
   onDelete,
-  onEdit
+  onEdit,
 }) => {
-  const { t, i18n } = useTranslation();
-
-  const getFileType = (type: string): string => {
-    const mimeMap: Record<string, string> = {
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
-      'application/pdf': 'PDF',
-      'text/plain': 'TXT',
-      'application/msword': 'DOC'
-    };
-    
-    if (mimeMap[type]) {
-      return mimeMap[type];
-    }
-    
-    if (type.includes('/')) {
-      return type.split('/')[1];
-    }
-    
-    return type;
-  };
+  const { t } = useTranslation();
+  const { direction, textAlign } = useRTL();
   
-  const downloadFile = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-    }
-  };
-
-  const filteredDocuments = documents.filter(doc =>
-    doc.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const {
+    itemsPerPage,
+    filteredDocuments,
+    paginatedDocuments,
+    currentPage,
+    setCurrentPage,
+    handleItemsPerPageChange,
+    downloadFile,
+    getFileType,
+  } = useDocumentTable({ documents, searchQuery });
 
   return (
-    <div className="bg-black/30 backdrop-blur-lg border border-green-500/20 rounded-lg">
-      <div className="p-4 border-b border-green-500/20">
-        <input
-          type="text"
-          placeholder={t('documents.search')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2 bg-black/50 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-green-500/50"
-        />
+    <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg border border-gray-300 dark:border-green-500/20 rounded-lg shadow-lg" dir={direction}>
+      {/* Header עם חיפוש ובחירת כמות פריטים */}
+      <div className="p-4 border-b border-gray-200 dark:border-green-500/20">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <input
+            type="text"
+            placeholder={t("documents.search") || "Search documents"}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full sm:flex-1 px-4 py-2 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500 ${textAlign}`}
+          />
+
+          <ItemsPerPageSelector
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            options={[10, 25, 50, 100, 250]}
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-green-500/20">
-          <thead className="bg-black/50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-green-500/20">
+          <thead className="bg-gray-100 dark:bg-black/50">
             <tr>
-              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[30%]`}>
-                {t('documents.name')}
+              <th
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[30%]`}
+              >
+                {t("documents.name")}
               </th>
-              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[20%]`}>
-                {t('documents.type')}
+              <th
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
+              >
+                {t("documents.type")}
               </th>
-              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[15%]`}>
-                {t('documents.size')}
+              <th
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[15%]`}
+              >
+                {t("documents.size")}
               </th>
-              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[20%]`}>
-                {t('documents.date')}
+              <th
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
+              >
+                {t("documents.date")}
               </th>
-              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[20%]`}>
-                {(t('documents.status') as string) || 'Status'}
+              <th
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
+              >
+                {t("table.status") || "Status"}
               </th>
-              <th className={`px-6 py-3 ${i18n.language === 'en' ? 'text-left' : 'text-right'} text-xs font-medium text-green-400/80 uppercase tracking-wider w-[15%]`}>
-                {t('documents.actions')}
+              <th
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[15%]`}
+              >
+                {t("documents.actions")}
               </th>
             </tr>
           </thead>
-          <tbody className="bg-black/20 divide-y divide-green-500/20">
-            {filteredDocuments.map((doc) => (
-              <tr key={doc.id}>
-                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <div className={`flex items-center ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
-                    <FileText className="h-5 w-5 text-green-400/70" />
-                    <div className={i18n.language === 'en' ? 'ml-4' : 'mr-4'}>
-                      <div className="text-sm font-medium text-green-400">{doc.name}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <div className="text-sm text-green-400/80">
-                    {getFileType(doc.type)}
-                  </div>
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <div className="text-sm text-green-400/80">
-                    {(doc.size / 1024 / 1024).toFixed(2)} MB
-                  </div>
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <div className="text-sm text-green-400/80">
-                    {new Date(doc.created_at).toLocaleDateString()}
-                  </div>
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <ProcessingProgressBar documentId={doc.id} />
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>
-                  <div className={`flex items-center ${i18n.language === 'en' ? 'space-x-4' : 'space-x-4 space-x-reverse'}`}>
-                    <button
-                      onClick={() => downloadFile(doc.url, doc.name)}
-                      className="text-green-400/80 hover:text-green-400"
-                    >
-                      <Download className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => onEdit(doc)}
-                      className="text-yellow-400/80 hover:text-yellow-400"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(doc)}
-                      className="text-red-400/80 hover:text-red-400"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
+          <tbody className="bg-white dark:bg-black/20 divide-y divide-gray-100 dark:divide-green-500/20">
+            {paginatedDocuments.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-6 py-4 text-center text-gray-500 dark:text-green-400/70"
+                >
+                  {filteredDocuments.length === 0
+                    ? documents.length === 0
+                      ? t("documents.noDocuments") || "No documents in system"
+                      : t("documents.noMatches") || "No documents found matching search"
+                    : t("documents.noDocumentsOnPage") || "No documents on this page"}
                 </td>
               </tr>
-            ))}
+            ) : (
+              paginatedDocuments.map((doc) => (
+                <DocumentRow
+                  key={doc.id}
+                  document={doc}
+                  getFileType={getFileType}
+                  onDownload={downloadFile}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination בתחתית הטבלה */}
+      {filteredDocuments.length > 0 && (
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-green-500/20">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredDocuments.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
     </div>
   );
-}; 
+};

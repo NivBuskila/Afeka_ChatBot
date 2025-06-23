@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import MatrixBackground from './MatrixBackground';
 import LogoContainer from './LogoContainer';
 import AnimatedText from './AnimatedText';
 import AmbientEffects from './AmbientEffects';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 
 interface APEXSplashScreenProps {
@@ -10,6 +10,7 @@ interface APEXSplashScreenProps {
 }
 
 const APEXSplashScreen: React.FC<APEXSplashScreenProps> = ({ onSplashComplete }) => {
+  const { theme } = useTheme();
   const [showFullName, setShowFullName] = useState(false);
   const [textVisible, setTextVisible] = useState(Array(4).fill(false));
 
@@ -43,15 +44,23 @@ const APEXSplashScreen: React.FC<APEXSplashScreenProps> = ({ onSplashComplete })
 
   return (
     <div
-      className="relative h-screen bg-black text-white overflow-hidden cursor-pointer"
+      className={`relative h-screen overflow-hidden cursor-pointer ${
+        theme === 'dark' 
+          ? 'bg-black text-white' 
+          : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900'
+      }`}
       onClick={onSplashComplete}
     >
-      <MatrixBackground />
-      <div className="relative z-10 h-full flex flex-col items-center justify-center">
-        <LogoContainer />
-        <AnimatedText textVisible={textVisible} showFullName={showFullName} />
+      <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
+        <div className="flex flex-col items-center justify-center flex-1">
+          <LogoContainer />
+          <AnimatedText textVisible={textVisible} showFullName={showFullName} />
+        </div>
+        
         {showFullName && (
-          <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 text-green-400/60 text-sm animate-pulse">
+          <div className={`pb-8 text-sm animate-pulse ${
+            theme === 'dark' ? 'text-green-400/60' : 'text-green-600/70'
+          }`}>
             Click anywhere to continue
           </div>
         )}

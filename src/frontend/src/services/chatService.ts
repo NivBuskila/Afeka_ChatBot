@@ -1,9 +1,45 @@
-import { supabase } from '../../../supabase/config/supabase';
-import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
+import { supabase } from '../config/supabase';
 
 // Get the backend URL from environment
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+// Helper function to replace axios with native fetch
+const apiRequest = async (url: string, options: RequestInit = {}) => {
+  // Get current session
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token && {
+        'Authorization': `Bearer ${session.access_token}`
+      }),
+      ...options.headers,
+    },
+    ...options,
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  // Handle responses with no content (like 204 No Content)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return { success: true };
+  }
+  
+  // Check if response has content to parse
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const text = await response.text();
+    if (text.trim() === '') {
+      return { success: true };
+    }
+    return JSON.parse(text);
+  }
+  
+  return response.json();
+};
 
 /**
  * Types for chat functionality
@@ -43,13 +79,11 @@ const chatService = {
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error || !user) {
-        console.error('Error getting current user:', error);
         return null;
       }
 
       return user;
     } catch (error) {
-      console.error('Exception getting user:', error);
       return null;
     }
   },
@@ -62,28 +96,35 @@ const chatService = {
    */
   createChatSession: async (userId: string, title?: string): Promise<ChatSession | null> => {
     try {
-      console.log('Creating chat session with params:', { userId, title });
-      
       const sessionInput = {
         user_id: userId,
         title: title || null,
         updated_at: new Date().toISOString()
       };
       
-      console.log('Session input data:', sessionInput);
-      
       // Create the chat session through the backend
-      const response = await axios.post(`${BACKEND_URL}/api/proxy/chat_sessions`, sessionInput);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions`, {
+        method: 'POST',
+        body: JSON.stringify(sessionInput)
+      });
       
-      if (!response.data || response.data.length === 0) {
-        console.error('No data returned from chat session creation');
+      if (!response) {
         return null;
       }
 
-      console.log('Chat session created successfully:', response.data[0]);
-      return response.data[0] as ChatSession;
+      // Handle both array and object responses
+      let sessionData;
+      if (Array.isArray(response)) {
+        if (response.length === 0) {
+          return null;
+        }
+        sessionData = response[0];
+      } else {
+        sessionData = response;
+      }
+
+      return sessionData as ChatSession;
     } catch (error) {
-      console.error('Exception in createChatSession:', error);
       return null;
     }
   },
@@ -96,30 +137,19 @@ const chatService = {
   fetchAllChatSessions: async (userId: string): Promise<ChatSession[]> => {
     try {
       // Fetch chat sessions through the backend proxy endpoint
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions`, {
-        params: { user_id: userId }
-      });
+      const url = new URL(`${BACKEND_URL}/api/proxy/chat_sessions`);
+      url.searchParams.append('user_id', userId);
+      
+      const response = await apiRequest(url.toString());
 
-      if (!response.data) {
-        console.error('Error fetching chat sessions');
+      if (!response) {
         return [];
       }
 
-      return response.data as ChatSession[];
+      return response as ChatSession[];
     } catch (error) {
-      console.error('Exception fetching chat sessions:', error);
       return [];
     }
-  },
-
-  /**
-   * Legacy function name - Gets all chat sessions for a user
-   * @param userId The ID of the user
-   * @returns Array of chat sessions
-   */
-  getUserChatSessions: async (userId: string): Promise<ChatSession[]> => {
-    // Call the renamed function to maintain backwards compatibility
-    return chatService.fetchAllChatSessions(userId);
   },
 
   /**
@@ -129,18 +159,14 @@ const chatService = {
    */
   getChatSessionWithMessages: async (sessionId: string): Promise<ChatSession | null> => {
     try {
-      console.log('Fetching chat session with ID:', sessionId);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
       
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
-      
-      if (!response.data) {
-        console.error('No session data found for ID:', sessionId);
+      if (!response) {
         return null;
       }
 
-      return response.data as ChatSession;
+      return response as ChatSession;
     } catch (error) {
-      console.error('Error fetching chat session:', error);
       return null;
     }
   },
@@ -168,24 +194,25 @@ const chatService = {
         created_at: new Date().toISOString()
       };
       
-      const response = await axios.post(`${BACKEND_URL}/api/proxy/messages`, messageObj);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/messages`, {
+        method: 'POST',
+        body: JSON.stringify(messageObj)
+      });
 
-      if (!response.data || response.data.length === 0) {
-        console.error('No data returned from message creation');
+      if (!response || response.length === 0) {
         return null;
       }
 
       // Process to standardize the message object
       return {
-        id: response.data[0].message_id || response.data[0].id,
+        id: response[0].message_id || response[0].id,
         user_id: userId,
           chat_session_id: sessionId,
         content: message,
-        created_at: response.data[0].created_at,
+        created_at: response[0].created_at,
         is_bot: isBot
       };
     } catch (error) {
-      console.error('Error sending message:', error);
       return null;
     }
   },
@@ -197,122 +224,48 @@ const chatService = {
    */
   addMessage: async (message: Omit<Message, 'id' | 'created_at'>): Promise<Message | null> => {
     try {
-      console.log('Adding message to session:', message.chat_session_id);
+      // Get the schema first to understand what columns are available
+      const schemaResponse = await apiRequest(`${BACKEND_URL}/api/proxy/messages_schema`);
+      const columns = schemaResponse.map((col: any) => col.column_name);
+      
+      const messageData: any = {
+        id: crypto.randomUUID(),
+        user_id: message.user_id,
+        conversation_id: message.chat_session_id,
+        content: message.content,
+      };
+      
+      // Add role field based on is_bot flag
+      if (columns.includes('role')) {
+        messageData.role = message.is_bot ? 'bot' : 'user';
+      }
+      
+      // Add bot flag if the schema uses it
+      if (columns.includes('is_bot')) {
+        messageData.is_bot = message.is_bot;
+      }
       
       try {
-        // First update the chat session's and conversation's updated_at timestamp
-        await chatService.updateChatSessionTitle(message.chat_session_id, null);
-      } catch (updateError) {
-        console.error('Failed to update chat session timestamp:', updateError);
-        // Continue anyway - this shouldn't prevent message creation
-      }
-
-      try {
-        // Get messages schema to understand the column structure
-        const response = await axios.get(`${BACKEND_URL}/api/proxy/messages_schema`);
+        const insertResponse = await apiRequest(`${BACKEND_URL}/api/proxy/message`, {
+          method: 'PUT',
+          body: JSON.stringify(messageData)
+        });
         
-        if (!response.data || !response.data.columns) {
-          console.error('Failed to get messages schema');
-        return null;
-      }
-
-        const columns = response.data.columns;
-        console.log('Available columns in messages table:', columns);
-        
-        // Determine which fields to use based on the schema
-        const hasPrimaryKey = columns.includes('message_id');
-        const hasConversationId = columns.includes('conversation_id');
-        const hasRequest = columns.includes('request');
-        const hasResponse = columns.includes('response');
-        
-        // Create message data with the appropriate schema
-        let messageData: any = {};
-        
-        // Set the primary key (use custom ID if needed)
-        if (hasPrimaryKey) {
-          // Generate a timestamp-based numeric ID instead of UUID
-          const numericId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
-          messageData.message_id = numericId;
-        } else {
-          messageData.id = uuidv4();
-        }
-        
-        // Set the user ID
-        messageData.user_id = message.user_id;
-        
-        // Always use conversation_id field (our database schema requires it)
-        messageData.conversation_id = message.chat_session_id;
-        
-        // Set the message content based on bot/user
-        if (message.is_bot) {
-          if (hasResponse) {
-            messageData.response = message.content;
-            messageData.request = ''; // Might be required
-          } else {
-            messageData.content = message.content;
-          }
-        } else {
-          if (hasRequest) {
-            messageData.request = message.content;
-            messageData.response = ''; // Might be required
-          } else {
-            messageData.content = message.content;
-          }
-        }
-        
-        // Add bot flag if the schema uses it
-        if (columns.includes('is_bot')) {
-          messageData.is_bot = message.is_bot;
-        }
-        
-        // Set status if the schema has it
-        if (columns.includes('status')) {
-          messageData.status = 'completed';
-        }
-        
-        console.log('Inserting message with adapted schema:', messageData);
-        
-        try {
-          // Insert the message using the backend proxy endpoint
-          const insertResponse = await axios.put(`${BACKEND_URL}/api/proxy/message`, messageData);
-          
-          console.log('Message inserted successfully:', insertResponse.data);
-          
-          if (!insertResponse.data) {
-            console.error('Error adding message via backend proxy: No data returned');
+        if (!insertResponse) {
           return null;
         }
         
-        // Create a normalized message object to return
         const normalizedMessage: Message = {
-            id: insertResponse.data.message_id?.toString() || insertResponse.data.id,
-            user_id: message.user_id,
-            chat_session_id: message.chat_session_id,
-            content: message.content,
-            created_at: insertResponse.data.created_at || new Date().toISOString(),
-            is_bot: message.is_bot
-          };
-          
-          return normalizedMessage;
-        } catch (insertError: any) {
-          console.error('Error adding message via backend proxy:', insertError.message);
-          if (insertError.response) {
-            console.error('Server response:', insertError.response.data);
-          }
-          
-          // יצירת הודעה מקומית - במקרה של כישלון, עדיין להחזיר אובייקט כדי שהממשק ימשיך לעבוד
-          return {
-            id: `local_${Date.now()}`,
-            user_id: message.user_id,
-            chat_session_id: message.chat_session_id,
-            content: message.content,
-            created_at: new Date().toISOString(),
-            is_bot: message.is_bot
-          };
-        }
-      } catch (schemaError) {
-        console.error('Error fetching message schema:', schemaError);
-        // יצירת הודעה מקומית במקרה של כישלון
+          id: insertResponse.id,
+          user_id: message.user_id,
+          chat_session_id: message.chat_session_id,
+          content: message.content,
+          created_at: insertResponse.created_at || new Date().toISOString(),
+          is_bot: message.is_bot
+        };
+        
+        return normalizedMessage;
+      } catch (insertError: any) {
         return {
           id: `local_${Date.now()}`,
           user_id: message.user_id,
@@ -323,16 +276,7 @@ const chatService = {
         };
       }
     } catch (error) {
-      console.error('Exception adding message:', error);
-      // יצירת הודעה מקומית במקרה של כישלון
-      return {
-        id: `local_${Date.now()}`,
-        user_id: message.user_id,
-        chat_session_id: message.chat_session_id,
-        content: message.content,
-        created_at: new Date().toISOString(),
-        is_bot: message.is_bot
-      };
+      return null;
     }
   },
 
@@ -352,16 +296,17 @@ const chatService = {
       }
       
       // Update the chat session through the backend proxy endpoint
-      const response = await axios.patch(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`, updateData);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updateData)
+      });
       
-      if (!response.data || response.data.success !== true) {
-        console.error('Error updating chat session:', response.data?.error || 'Unknown error');
+      if (!response || response.success !== true) {
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Exception updating chat session:', error);
       return false;
     }
   },
@@ -379,21 +324,18 @@ const chatService = {
       }
 
       // Search chat sessions through the backend proxy endpoint
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/search_chat_sessions`, {
-        params: {
-          user_id: userId,
-          search_term: searchTerm
-        }
-      });
+      const url = new URL(`${BACKEND_URL}/api/proxy/search_chat_sessions`);
+      url.searchParams.append('user_id', userId);
+      url.searchParams.append('search_term', searchTerm);
+      
+      const response = await apiRequest(url.toString());
 
-      if (!response.data) {
-        console.error('Error searching chat sessions');
+      if (!response) {
         return [];
       }
 
-      return response.data as ChatSession[];
+      return response as ChatSession[];
     } catch (error) {
-      console.error('Exception searching chat sessions:', error);
       return [];
     }
   },
@@ -406,19 +348,188 @@ const chatService = {
   deleteChatSession: async (sessionId: string): Promise<boolean> => {
     try {
       // Delete the chat session through the backend proxy endpoint
-      const response = await axios.delete(`${BACKEND_URL}/api/proxy/chat_session/${sessionId}`);
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_session/${sessionId}`, {
+        method: 'DELETE'
+      });
       
-      if (!response.data || response.data.success !== true) {
-        console.error('Error deleting chat session:', response.data?.error || 'Unknown error');
-        return false;
+      // Handle both 204 responses and JSON responses
+      if (response && (response.success === true || response.success === undefined)) {
+        return true;
       }
-
-      return true;
+      
+      return false;
     } catch (error) {
-      console.error('Exception deleting chat session:', error);
       return false;
     }
-  }
+  },
+
+  /**
+   * Sends a streaming chat message and handles real-time responses
+   * @param message The message content
+   * @param userId The user ID
+   * @param history Chat history
+   * @param onChunk Callback for receiving streaming chunks
+   * @param onComplete Callback when streaming completes
+   * @param onError Callback for errors
+   */
+  sendStreamingMessage: async (
+    message: string,
+    userId: string,
+    history: Array<{ type: string; content: string }> = [],
+    onChunk?: (chunk: string, accumulated: string) => void,
+    onComplete?: (fullResponse: string, sources?: any[], chunks?: number) => void,
+    onError?: (error: string) => void
+  ): Promise<void> => {
+    try {
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      // Use fetch with streaming
+      const response = await fetch(`${BACKEND_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          user_id: userId,
+          history
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No reader available for streaming response');
+      }
+
+      let accumulatedContent = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.slice(6); // Remove 'data: ' prefix
+                if (jsonStr.trim() === '') continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                switch (data.type) {
+                  case 'start':
+                    // Stream started
+                    break;
+                    
+                  case 'chunk':
+                    accumulatedContent = data.accumulated || (accumulatedContent + data.content);
+                    if (onChunk) {
+                      onChunk(data.content, accumulatedContent);
+                    }
+                    break;
+                    
+                  case 'complete':
+                    if (onComplete) {
+                      onComplete(data.content, data.sources, data.chunks);
+                    }
+                    return;
+                    
+                  case 'error':
+                    if (onError) {
+                      onError(data.content || 'Streaming error occurred');
+                    }
+                    return;
+                    
+                  case 'end':
+                    // Stream ended
+                    return;
+                }
+              } catch (parseError) {
+                // Silent fail for parse errors in streaming
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      
+    } catch (error) {
+      if (onError) {
+        onError(`Streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  },
+
+  /**
+   * Sends a regular chat message to the backend
+   * @param message The message content
+   * @param userId The user ID
+   * @param history Chat history
+   * @returns The AI response
+   */
+  sendChatMessage: async (
+    message: string,
+    userId: string,
+    history: Array<{ type: string; content: string }> = []
+  ): Promise<{ response: string; sources?: any[]; chunks?: number } | null> => {
+    try {
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          user_id: userId,
+          history
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        response: data.response || data.message || '',
+        sources: data.sources || [],
+        chunks: data.chunks || 0
+      };
+      
+    } catch (error) {
+      return null;
+    }
+  },
+
 };
 
 export default chatService;

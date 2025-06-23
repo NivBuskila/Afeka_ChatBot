@@ -1,4 +1,23 @@
 {
+  "loading": "טוען...",
+  "loadingPermissions": "אנא המתן...",
+  "Cancel": "ביטול",
+  "Delete": "מחק",
+  "Refresh": "רענן",
+  "Save": "שמור",
+  "Edit": "ערוך",
+  "Update": "עדכן",
+  "Close": "סגור",
+  "Add": "הוסף",
+  "Search": "חיפוש",
+  "Apply": "החל",
+  "Create": "צור",
+  "Remove": "הסר",
+  "Submit": "שלח",
+  "Confirm": "אשר",
+  "Back": "חזור",
+  "Next": "הבא",
+  "Previous": "הקודם",
   "settings": {
     "userSettings": "הגדרות משתמש",
     "changeEmail": "שינוי כתובת דואר אלקטרוני",
@@ -39,10 +58,18 @@
     "totalAdmins": "סך הכל מנהלים",
     "totalDocuments": "סך הכל מסמכים",
     "activeDocuments": "מסמכים פעילים",
+    "recentDocuments": "מסמכים אחרונים",
     "activeUsers": "משתמשים פעילים",
     "activeAdmins": "מנהלים פעילים",
     "noUsers": "לא נמצאו משתמשים",
-    "noAdmins": "לא נמצאו מנהלים"
+    "noAdmins": "לא נמצאו מנהלים",
+    "no": {
+      "data": "לא נמצאו נתונים"
+    },
+    "token": {
+      "usage": "שימוש בטוקנים"
+    },
+    "admins": "מנהלים"
   },
   "dashboard": {
     "totalUsers": "סך הכל משתמשים",
@@ -74,13 +101,62 @@
     "delete": "מחק",
     "edit": "ערוך"
   },
+  "user": {
+    "role": "תפקיד"
+  },
+  "chatbot": {
+    "preview": "תצוגה מקדימה של הצ'אטבוט"
+  },
+  "nav": {
+    "apex": {
+      "admin": "מנהל APEX"
+    },
+    "logout": "התנתק"
+  },
   "documents": {
+    "edit": "עריכת מסמך",
     "replaceInstructions": "בחר קובץ חדש כדי להחליף את המסמך הנוכחי:",
     "updateSuccess": "המסמך עודכן בהצלחה",
     "updateError": "אירעה שגיאה בעדכון המסמך",
     "search": "חיפוש מסמכים",
     "add": "הוסף מסמך",
-    "activeDocuments": "מסמכים פעילים"
+    "activeDocuments": "מסמכים פעילים",
+    "name": "שם המסמך",
+    "type": "סוג",
+    "size": "גודל",
+    "date": "תאריך",
+    "actions": "פעולות",
+    "confirmDelete": "אישור מחיקה",
+    "deleteConfirmMessage": "האם אתה בטוח שברצונך למחוק את \"{{documentName}}\"?",
+    "deleteSuccess": "המסמך נמחק בהצלחה",
+    "loadingData": "טוען נתונים...",
+    "processingError": "שגיאה בטעינת נתוני העיבוד",
+    "noDocuments": "אין מסמכים במערכת",
+    "noMatches": "לא נמצאו מסמכים התואמים לחיפוש",
+    "noDocumentsOnPage": "אין מסמכים לעמוד זה",
+    "status": {
+      "pending": "ממתין לעיבוד",
+      "processing": "מעבד...",
+      "completed": "הושלם",
+      "failed": "נכשל",
+      "unknown": "לא ידוע",
+      "automatic": "אוטומטי",
+      "chunks": "חלקים",
+      "vectors": "וקטורים"
+    },
+    "uploadSuccess": "הקובץ הועלה בהצלחה"
+  },
+  "table": {
+    "document": {
+      "name": "שם המסמך"
+    },
+    "category": "קטגוריה",
+    "upload": {
+      "date": "תאריך העלאה"
+    },
+    "size": "גודל",
+    "status": "סטטוס",
+    "actions": "פעולות"
   },
   "chat": {
     "sidebar": {
@@ -121,15 +197,235 @@
     "close": "סגור",
     "noActiveSession": "ברוך הבא לצ'אטבוט אפקה!",
     "startNewChatPrompt": "כאן תוכלו לשאול שאלות לגבי תקנון הלימודים, נהלי הפקולטה, ומידע אחר שקשור ללימודים באפקה. התחילו שיחה חדשה כדי להתחיל!",
-    "showHistory": "הצג היסטוריה"
+    "showHistory": "הצג היסטוריה",
+    "preparingResponse": "מכין תשובה..."
   },
   "admin": {
+    "loading": "טוען לוח בקרה",
+    "loadingPermissions": "מאתחל הרשאות מנהל...",
     "sidebar": {
       "dashboard": "דף הבית",
       "users": "משתמשים",
       "documents": "מסמכים",
       "settings": "הגדרות",
-      "chatbotPreview": "תצוגה מקדימה של הצ'אטבוט"
+      "chatbotPreview": "תצוגה מקדימה של הצ'אטבוט",
+      "analytics": "אנליטיקס",
+      "overview": "סקירה כללית",
+      "administrators": "מנהלים",
+      "knowledgeBase": "בסיס הידע",
+      "uploadDocuments": "העלאת מסמכים",
+      "activeDocuments": "מסמכים פעילים"
+    },
+    "documents": {
+      "deleteSuccess": "המסמך נמחק בהצלחה",
+      "deleteError": "אירעה שגיאה במחיקת המסמך"
     }
-  }
+  },
+  "rag": {
+    "management": "ניהול RAG",
+    "current": {
+      "profile": "פרופיל נוכחי",
+      "performance": "ביצועים נוכחיים"
+    },
+    "available": {
+      "profiles": "פרופילים זמינים"
+    },
+    "profile": {
+      "selector": "בחירת פרופיל",
+      "active": "פעיל",
+      "inactive": "לא פעיל"
+    },
+    "performance": {
+      "monitor": "מוניטור ביצועים"
+    },
+    "performanceMonitor": "מוניטור ביצועים",
+    "configuration": {
+      "editor": "עורך תצורה"
+    },
+    "test": {
+      "center": "מרכז בדיקות",
+      "query": "שאילתת בדיקה",
+      "placeholder": "הכנס שאילתה לבדיקה...",
+      "results": "תוצאות הבדיקה"
+    },
+    "similarity": {
+      "threshold": "סף דמיון"
+    },
+    "source": {
+      "chunk": "מקור הטקסט (צ'אנק)"
+    },
+    "max": {
+      "chunks": "צ'אנקים מקסימליים"
+    },
+    "temperature": "טמפרטורה",
+    "model": {
+      "name": "שם המודל"
+    },
+    "response": {
+      "time": "זמן תגובה",
+      "timeShort": "זמן תגובה"
+    },
+    "accuracy": {
+      "score": "ציון דיוק"
+    },
+    "accuracyScore": "ציון דיוק",
+    "apply": {
+      "profile": "החל פרופיל"
+    },
+    "run": {
+      "test": "הרץ בדיקה"
+    },
+    "save": {
+      "configuration": "שמור הגדרות"
+    },
+    "overview": "סקירה כללית",
+    "main": {
+      "settings": "הגדרות מרכזיות"
+    },
+    "settings": "הגדרות",
+    "performance": "ביצועים",
+    "chunks": "צ'אנקים",
+    "chunkSize": "גודל צ'אנק",
+    "chunkOverlap": "חפיפת צ'אנקים",
+    "maxContext": "טוקנים מקסימליים",
+    "semanticWeight": "משקל סמנטי",
+    "focus": "מיקוד",
+    "accuracy": "דיוק",
+    "switching": "מחליף...",
+    "realtimeMonitor": "מוניטור ביצועים בזמן אמת",
+    "avgResponseTime": "זמן תגובה ממוצע",
+    "profilesComparison": "השוואת פרופילים",
+    "profileName": "שם פרופיל",
+    "status": "סטטוס",
+    "runningTest": "מריץ בדיקה...",
+    "query": "שאילתה",
+    "answer": "תשובה",
+    "sourcesFound": "מקורות נמצאו",
+    "loading": "טוען נתוני RAG...",
+    "loadingShort": "טוען...",
+    "refresh": "רענן",
+    "profileCharacteristics": "מאפיינים",
+    "configuration": "קונפיגורציה מתקדמת",
+    "currentProfileConfig": "קונפיגורציה פרופיל נוכחי",
+    "expectedBehavior": "התנהגות צפויה",
+    "characteristics": "מאפיינים",
+    "expectedSpeed": "מהירות צפויה",
+    "expectedQuality": "איכות צפויה",
+    "bestFor": "מתאים עבור",
+    "tradeoffs": "איזונים",
+    "notAvailable": "לא זמין",
+    "create": {
+      "profile": "צור פרופיל חדש",
+      "new": {
+        "profile": "יצירת פרופיל חדש"
+      }
+    },
+    "profileFormName": "שם הפרופיל",
+    "profileFormDescription": "תיאור",
+    "profileFormNamePlaceholder": "הכנס שם לפרופיל...",
+    "profileFormDescriptionPlaceholder": "תיאור הפרופיל...",
+    "configurationSettings": "הגדרות קונפיגורציה",
+    "focusPlaceholder": "על מה הפרופיל מתמקד...",
+    "bestForPlaceholder": "מתאים ביותר עבור...",
+    "expectedSpeedPlaceholder": "מהיר/בינוני/איטי...",
+    "expectedQualityPlaceholder": "גבוה/בינוני/בסיסי...",
+    "tradeoffsPlaceholder": "מה הפשרות בפרופיל הזה...",
+    "cancel": "ביטול",
+    "creating": "יוצר...",
+    "chunkSource": "מקור הטקסט (צ'אנק):",
+    "viewMore": "הצג עוד",
+    "showLess": "הצג פחות",
+    "confirmDelete": {
+      "title": "אישור מחיקה",
+      "customProfile": "האם אתה בטוח שברצונך למחוק את הפרופיל המותאם אישית \"{{profileName}}\"?",
+      "builtinProfile": "האם אתה בטוח שברצונך להסתיר את הפרופיל המובנה \"{{profileName}}\"?",
+      "builtinNote": "זה יסתיר את הפרופיל מהרשימה. ניתן יהיה לשחזר אותו בעתיד.",
+      "confirmButton": "כן, מחק",
+      "hideButton": "כן, הסתר",
+      "cancelButton": "ביטול"
+    },
+    "confirmRestore": {
+      "title": "אישור שחזור",
+      "message": "האם אתה בטוח שברצונך לשחזר את הפרופיל \"{{profileName}}\"?",
+      "note": "הפרופיל יוצג שוב ברשימת הפרופילים הזמינים.",
+      "confirmButton": "כן, שחזר",
+      "cancelButton": "ביטול"
+    },
+    "delete": "מחק",
+    "hide": "הסתר",
+    "deleting": "מוחק...",
+    "hiding": "מסתיר...",
+    "restore": "שחזר",
+    "restoring": "משחזר...",
+    "activate": "הפעל פרופיל",
+    "activating": "מפעיל...",
+    "active": "פעיל",
+    "inactive": "לא פעיל",
+    "document": "מסמך",
+    "noActiveProfile": "אין פרופיל פעיל",
+    "system": {
+      "prompt": "הנחיות מערכת"
+    },
+    "errors": {
+      "cannotDeleteActiveProfile": "לא ניתן למחוק את הפרופיל הפעיל כרגע. אנא עבור לפרופיל אחר תחילה ולאחר מכן נסה שוב.",
+      "activeProfileTitle": "לא ניתן למחוק פרופיל פעיל",
+      "activeProfileMessage": "לא ניתן למחוק את הפרופיל \"{{profileName}}\" כי הוא הפרופיל הפעיל כרגע.",
+      "howToDelete": "כדי למחוק פרופיל זה:",
+      "step1": "החלף לפרופיל אחר תחילה",
+      "step2": "לאחר מכן נסה למחוק את הפרופיל שוב",
+      "understood": "הבנתי"
+    }
+  },
+  "pagination": {
+    "showing": "מציג",
+    "of": "מתוך",
+    "items": "פריטים",
+    "itemsPerPage": "פריטים לעמוד",
+    "firstPage": "עמוד ראשון",
+    "previousPage": "עמוד קודם",
+    "nextPage": "עמוד הבא",
+    "lastPage": "עמוד אחרון",
+    "morePages": "עמודים נוספים",
+    "goToPage": "עבור לעמוד"
+  },
+  "user": {
+    "role": "תפקיד"
+  },
+  "chatbot": {
+    "preview": "תצוגה מקדימה של הצ'אטבוט"
+  },
+  "nav": {
+    "apex": {
+      "admin": "מנהל APEX"
+    },
+    "logout": "התנתק"
+  },
+  "cancel": "ביטול",
+  "creating": "יוצר...",
+  "maxContext": "טוקנים מקסימליים",
+  "chunkSize": "גודל צ'אנק",
+  "expectedSpeedPlaceholder": "מהיר/בינוני/איטי...",
+  "expectedQualityPlaceholder": "גבוה/בינוני/בסיסי...",
+  "tradeoffsPlaceholder": "מה הפשרות בפרופיל הזה...",
+  "characteristics": "מאפיינים",
+  "focus": "מיקוד",
+  "bestFor": "מתאים עבור",
+  "expectedSpeed": "מהירות צפויה",
+  "expectedQuality": "איכות צפויה",
+  "tradeoffs": "איזונים",
+  "temperature": "טמפרטורה",
+  "model.name": "שם המודל",
+  "max.chunks": "צ'אנקים מקסימליים",
+  "similarity.threshold": "סף דמיון",
+  "selectSpeed": "בחר מהירות...",
+  "selectQuality": "בחר איכות...",
+  "fast": "מהיר",
+  "medium": "בינוני",
+  "slow": "איטי",
+  "high": "גבוה",
+  "basic": "בסיסי",
+  "running.test": "מריץ בדיקה...",
+  "performance.metrics": "מדדי ביצועים",
+  "processing.time": "זמן עיבוד",
+  "chunks.found": "צ'אנקים שנמצאו"
 }

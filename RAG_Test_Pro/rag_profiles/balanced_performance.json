@@ -1,0 +1,40 @@
+{
+  "id": "balanced_performance",
+  "name": "ביצועים מאוזנים",
+  "description": "פרופיל מאוזן בין דיוק למהירות - הגדרת ברירת מחדל מומלצת",
+  "author": "צוות Afeka ChatBot",
+  "created": "2025-06-19",
+  "config": {
+    "id": "balanced_performance",
+    "similarityThreshold": 0.55,
+    "sectionSearchThreshold": 0.3,
+    "maxChunks": 12,
+    "temperature": 0.075,
+    "modelName": "gemini-2.0-flash",
+    "chunkSize": 2000,
+    "chunkOverlap": 200,
+    "maxContextTokens": 6000,
+    "targetTokensPerChunk": 320,
+    "hybridSemanticWeight": 0.7,
+    "hybridKeywordWeight": 0.3,
+    "exactPhraseBonus": 100.0,
+    "topicMatchBonus": 10.0,
+    "directMatchBonus": 5.0,
+    "similarityWeightFactor": 2.0,
+    "positionBonusBase": 3.0,
+    "positionBonusDecay": 0.5
+  },
+  "characteristics": {
+    "focus": "איזון אופטימלי בין דיוק למהירות",
+    "expectedSpeed": "בינוני",
+    "expectedQuality": "גבוהה",
+    "bestFor": "רוב סוגי השאלות",
+    "tradeoffs": "איזון טוב ללא קיצוניות"
+  },
+  "usage_notes": [
+    "הגדרת ברירת מחדל מומלצת",
+    "מתאים לרוב השימושים",
+    "איזון טוב בין משאבים ואיכות",
+    "נקודת התחלה טובה לבדיקות"
+  ]
+} 

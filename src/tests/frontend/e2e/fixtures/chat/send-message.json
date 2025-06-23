@@ -1,0 +1,19 @@
+{
+  "status": "success",
+  "data": {
+    "messageId": "msg_789",
+    "sessionId": "session_456",
+    "text": "Thank you for your question! Registration for the next semester opens on July 1st. You can register through the student portal.",
+    "sender": "assistant",
+    "timestamp": "2024-06-20T10:35:00Z",
+    "isProcessing": false,
+    "confidence": 0.95,
+    "sources": [
+      {
+        "document": "Academic Regulations.pdf",
+        "page": 12,
+        "excerpt": "Registration period begins on July 1st..."
+      }
+    ]
+  }
+} 

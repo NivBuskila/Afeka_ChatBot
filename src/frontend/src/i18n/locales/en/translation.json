@@ -1,4 +1,23 @@
 {
+  "loading": "Loading...",
+  "loadingPermissions": "Please wait...",
+  "Cancel": "Cancel",
+  "Delete": "Delete",
+  "Refresh": "Refresh",
+  "Save": "Save",
+  "Edit": "Edit",
+  "Update": "Update",
+  "Close": "Close",
+  "Add": "Add",
+  "Search": "Search",
+  "Apply": "Apply",
+  "Create": "Create",
+  "Remove": "Remove",
+  "Submit": "Submit",
+  "Confirm": "Confirm",
+  "Back": "Back",
+  "Next": "Next",
+  "Previous": "Previous",
   "settings": {
     "userSettings": "User Settings",
     "changeEmail": "Change Email Address",
@@ -39,10 +58,18 @@
     "totalAdmins": "Total Admins",
     "totalDocuments": "Total Documents",
     "activeDocuments": "Active Documents",
+    "recentDocuments": "Recent Documents",
     "activeUsers": "Active Users",
     "activeAdmins": "Active Admins",
     "noUsers": "No users found",
-    "noAdmins": "No admins found"
+    "noAdmins": "No admins found",
+    "no": {
+      "data": "No data found"
+    },
+    "token": {
+      "usage": "Token Usage"
+    },
+    "admins": "Administrators"
   },
   "dashboard": {
     "totalUsers": "Total Users",
@@ -74,13 +101,62 @@
     "delete": "Delete",
     "edit": "Edit"
   },
+  "user": {
+    "role": "Role"
+  },
+  "chatbot": {
+    "preview": "Chatbot Preview"
+  },
+  "nav": {
+    "apex": {
+      "admin": "APEX Admin"
+    },
+    "logout": "Logout"
+  },
   "documents": {
+    "edit": "Edit Document",
     "replaceInstructions": "Select a new file to replace the current document:",
     "updateSuccess": "Document updated successfully",
     "updateError": "Error updating document",
     "search": "Search documents",
     "add": "Add document",
-    "activeDocuments": "Active Documents"
+    "activeDocuments": "Active Documents",
+    "name": "Document Name",
+    "type": "Type",
+    "size": "Size",
+    "date": "Date",
+    "actions": "Actions",
+    "confirmDelete": "Confirm Delete",
+    "deleteConfirmMessage": "Are you sure you want to delete \"{{documentName}}\"?",
+    "deleteSuccess": "Document deleted successfully",
+    "uploadSuccess": "File uploaded successfully",
+    "loadingData": "Loading data...",
+    "processingError": "Error loading processing data",
+    "noDocuments": "No documents in system",
+    "noMatches": "No documents found matching search",
+    "noDocumentsOnPage": "No documents on this page",
+    "status": {
+      "pending": "Waiting for processing",
+      "processing": "Processing...",
+      "completed": "Completed",
+      "failed": "Failed",
+      "unknown": "Unknown",
+      "automatic": "automatic",
+      "chunks": "chunks",
+      "vectors": "vectors"
+    }
+  },
+  "table": {
+    "document": {
+      "name": "Document Name"
+    },
+    "category": "Category",
+    "upload": {
+      "date": "Upload Date"
+    },
+    "size": "Size",
+    "status": "Status",
+    "actions": "Actions"
   },
   "chat": {
     "sidebar": {
@@ -121,15 +197,223 @@
     "close": "Close",
     "noActiveSession": "Welcome to Afeka Chatbot!",
     "startNewChatPrompt": "Here you can ask questions about academic regulations, faculty procedures, and other information related to your studies at Afeka. Start a new conversation to begin!",
-    "showHistory": "Show history"
+    "showHistory": "Show history",
+    "preparingResponse": "Preparing response..."
   },
   "admin": {
+    "loading": "Loading Dashboard",
+    "loadingPermissions": "Initializing admin permissions...",
     "sidebar": {
       "dashboard": "Dashboard",
       "users": "Users",
       "documents": "Documents",
       "settings": "Settings",
-      "chatbotPreview": "Chatbot Preview"
+      "chatbotPreview": "Chatbot Preview",
+      "analytics": "Analytics",
+      "overview": "Overview",
+      "administrators": "Administrators",
+      "knowledgeBase": "Knowledge Base",
+      "uploadDocuments": "Upload Documents",
+      "activeDocuments": "Active Documents"
+    },
+    "documents": {
+      "deleteSuccess": "Document deleted successfully",
+      "deleteError": "Error deleting document"
     }
-  }
+  },
+  "rag": {
+    "management": "RAG Management",
+    "current": {
+      "profile": "Current Profile",
+      "performance": "Current Performance"
+    },
+    "available": {
+      "profiles": "Available Profiles"
+    },
+    "profile": {
+      "selector": "Profile Selector",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "performance": {
+      "monitor": "Performance Monitor"
+    },
+    "performanceMonitor": "Performance Monitor",
+    "configuration": {
+      "editor": "Configuration Editor"
+    },
+    "test": {
+      "center": "Test Center",
+      "query": "Test Query",
+      "placeholder": "Enter test query...",
+      "results": "Test Results"
+    },
+    "similarity": {
+      "threshold": "Similarity Threshold"
+    },
+    "source": {
+      "chunk": "Source Text (Chunk)"
+    },
+    "max": {
+      "chunks": "Max Chunks"
+    },
+    "temperature": "Temperature",
+    "model": {
+      "name": "Model Name"
+    },
+    "response": {
+      "time": "Response Time",
+      "timeShort": "Response Time"
+    },
+    "accuracy": {
+      "score": "Accuracy Score"
+    },
+    "accuracyScore": "Accuracy Score",
+    "apply": {
+      "profile": "Apply Profile"
+    },
+    "run": {
+      "test": "Run Test"
+    },
+    "save": {
+      "configuration": "Save Configuration"
+    },
+    "overview": "Overview",
+    "main": {
+      "settings": "Main Settings"
+    },
+    "settings": "Settings",
+    "performance": "Performance",
+    "chunks": "Chunks",
+    "chunkSize": "Chunk Size",
+    "chunkOverlap": "Chunk Overlap",
+    "maxContext": "Max Context Tokens",
+    "semanticWeight": "Semantic Weight",
+    "focus": "Focus",
+    "accuracy": "Accuracy",
+    "switching": "Switching...",
+    "realtimeMonitor": "Real-time Performance Monitor",
+    "avgResponseTime": "Average Response Time",
+    "profilesComparison": "Profiles Comparison",
+    "profileName": "Profile Name",
+    "status": "Status",
+    "runningTest": "Running test...",
+    "query": "Query",
+    "answer": "Answer",
+    "sourcesFound": "Sources Found",
+    "loading": "Loading RAG data...",
+    "loadingShort": "Loading...",
+    "refresh": "Refresh",
+    "profileCharacteristics": "Profile Characteristics",
+    "configuration": "Advanced Configuration",
+    "currentProfileConfig": "Current Profile Configuration",
+    "expectedBehavior": "Expected Behavior",
+    "characteristics": "Characteristics",
+    "expectedSpeed": "Expected Speed",
+    "expectedQuality": "Expected Quality",
+    "bestFor": "Best For",
+    "tradeoffs": "Tradeoffs",
+    "notAvailable": "Not Available",
+    "create": {
+      "profile": "Create New Profile",
+      "new": {
+        "profile": "Create New Profile"
+      }
+    },
+    "profileFormName": "Profile Name",
+    "profileFormDescription": "Description",
+    "profileFormNamePlaceholder": "Enter profile name...",
+    "profileFormDescriptionPlaceholder": "Profile description...",
+    "configurationSettings": "Configuration Settings",
+    "focusPlaceholder": "What does this profile focus on...",
+    "bestForPlaceholder": "Best suited for...",
+    "expectedSpeedPlaceholder": "Fast/Medium/Slow...",
+    "expectedQualityPlaceholder": "High/Medium/Basic...",
+    "tradeoffsPlaceholder": "What are the tradeoffs of this profile...",
+    "cancel": "Cancel",
+    "creating": "Creating...",
+    "chunkSource": "Source Text (Chunk):",
+    "viewMore": "VIEW MORE",
+    "showLess": "Show Less",
+    "confirmDelete": {
+      "title": "Confirm Deletion",
+      "customProfile": "Are you sure you want to delete the custom profile \"{{profileName}}\"?",
+      "builtinProfile": "Are you sure you want to hide the built-in profile \"{{profileName}}\"?",
+      "builtinNote": "This will hide the profile from the list. It can be restored in the future.",
+      "confirmButton": "Yes, Delete",
+      "hideButton": "Yes, Hide",
+      "cancelButton": "Cancel"
+    },
+    "confirmRestore": {
+      "title": "Confirm Restore",
+      "message": "Are you sure you want to restore the profile \"{{profileName}}\"?",
+      "note": "The profile will appear again in the available profiles list.",
+      "confirmButton": "Yes, Restore",
+      "cancelButton": "Cancel"
+    },
+    "system": {
+      "prompt": "System Prompt"
+    },
+    "errors": {
+      "cannotDeleteActiveProfile": "Cannot delete the currently active profile. Please switch to another profile first, then try again.",
+      "activeProfileTitle": "Cannot Delete Active Profile",
+      "activeProfileMessage": "Cannot delete profile \"{{profileName}}\" because it is currently the active profile.",
+      "howToDelete": "To delete this profile:",
+      "step1": "Switch to another profile first",
+      "step2": "Then try to delete this profile again",
+      "understood": "Understood"
+    },
+    "delete": "Delete",
+    "hide": "Hide",
+    "deleting": "Deleting...",
+    "hiding": "Hiding...",
+    "restore": "Restore",
+    "restoring": "Restoring...",
+    "activate": "Activate Profile",
+    "activating": "Activating...",
+    "active": "Active",
+    "inactive": "Inactive",
+    "document": "Document",
+    "noActiveProfile": "No Active Profile"
+  },
+  "pagination": {
+    "showing": "Showing",
+    "of": "of",
+    "items": "items",
+    "itemsPerPage": "Items per page",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "morePages": "More pages",
+    "goToPage": "Go to page"
+  },
+  "cancel": "Cancel",
+  "creating": "Creating...",
+  "maxContext": "Max Context Tokens",
+  "chunkSize": "Chunk Size",
+  "expectedSpeedPlaceholder": "Fast/Medium/Slow...",
+  "expectedQualityPlaceholder": "High/Medium/Basic...",
+  "tradeoffsPlaceholder": "What are the tradeoffs of this profile...",
+  "characteristics": "Characteristics",
+  "focus": "Focus",
+  "bestFor": "Best For",
+  "expectedSpeed": "Expected Speed",
+  "expectedQuality": "Expected Quality",
+  "tradeoffs": "Tradeoffs",
+  "temperature": "Temperature",
+  "model.name": "Model Name",
+  "max.chunks": "Max Chunks",
+  "similarity.threshold": "Similarity Threshold",
+  "selectSpeed": "Select speed...",
+  "selectQuality": "Select quality...",
+  "fast": "Fast",
+  "medium": "Medium",
+  "slow": "Slow",
+  "high": "High",
+  "basic": "Basic",
+  "running.test": "Running test...",
+  "performance.metrics": "Performance Metrics",
+  "processing.time": "Processing Time",
+  "chunks.found": "Chunks Found"
 }

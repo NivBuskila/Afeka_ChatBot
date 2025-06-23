@@ -18,7 +18,7 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     
     # Log if request takes too long (optional)
-    if process_time > 1.0:  # Example threshold of 1 second
+    if process_time > 2.0:  # Increased threshold to 2 seconds
         logger.warning(f"Slow request: {request.url.path} took {process_time:.4f}s")
         
     return response

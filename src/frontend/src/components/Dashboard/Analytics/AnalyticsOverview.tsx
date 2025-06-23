@@ -40,7 +40,7 @@ const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({ language }) => {
           language={language}
         />
       </div>
-      <div className="bg-black/30 backdrop-blur-lg rounded-lg border border-green-500/20 p-4">
+      <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg rounded-lg border border-gray-300 dark:border-green-500/20 p-4 shadow-lg">
         <div className="flex items-center justify-center h-[400px] text-green-400/50">
           {t('analytics.overview')}
         </div>

@@ -44,10 +44,9 @@ export const userService = {
       // If user should be admin in metadata, ensure they're also in admins table
       try {
         await supabase.rpc('promote_to_admin', { user_id: user.id });
-        console.log('User promoted to admin based on metadata');
         return 'admin';
       } catch (error) {
-        console.error('Error promoting user from metadata:', error);
+        // Silent fail
       }
     }
     
@@ -64,9 +63,8 @@ export const userService = {
         await supabase.auth.updateUser({
           data: { is_admin: true }
         });
-        console.log('Updated user metadata to reflect admin status');
       } catch (error) {
-        console.error('Error updating user metadata:', error);
+        // Silent fail
       }
     }
       
@@ -78,7 +76,6 @@ export const userService = {
       const role = await this.getCurrentUserRole();
       return role === 'admin';
     } catch (error) {
-      console.error('Error checking admin status:', error);
       return false;
     }
   },
@@ -216,8 +213,6 @@ export const userService = {
   },
 
   async signUp(email: string, password: string, isAdmin: boolean = false) {
-    console.log('Starting registration process...');
-    
     try {
         // 1. Register user in auth service
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -233,16 +228,12 @@ export const userService = {
         });
         
         if (authError) {
-            console.error('Auth error:', authError);
             throw authError;
         }
         
         if (!authData.user) {
-            console.error('No user data returned');
             throw new Error('User registration failed - no user data');
         }
-        
-        console.log('Auth registration successful');
         
         // 2. Check if user already exists in admin list
         const { data: existingUser, error: checkError } = await supabase
@@ -253,8 +244,6 @@ export const userService = {
             
         // If user doesn't exist in table yet, try creating manually
         if (!existingUser && !checkError) {
-            console.log('User not found in users table, inserting manually');
-            
             const { error: insertUserError } = await supabase
                 .from('users')
                 .insert({
@@ -268,16 +257,14 @@ export const userService = {
                 });
             
             if (insertUserError) {
-                console.error('Error inserting user:', insertUserError);
                 // Don't delete user from Auth, rely on trigger to handle it on next login
-                console.warn('Continue despite error, auth user is still created');
             } else {
-                console.log('User inserted into users table manually');
+                // User inserted successfully
             }
         } else if (existingUser) {
-            console.log('User already exists in users table');
+            // User already exists in users table
         } else if (checkError) {
-            console.error('Error checking if user exists:', checkError);
+            // Silent fail
         }
         
         // 3. The code to add a user to the admins table if needed
@@ -295,19 +282,17 @@ export const userService = {
                     .insert({ user_id: authData.user.id });
                 
                 if (adminError) {
-                    console.error('Error setting admin role:', adminError);
                     // Don't throw here, user is still created as regular user
                 } else {
-                    console.log('Admin role set successfully');
+                    // Admin role set successfully
                 }
             } else if (existingAdmin) {
-                console.log('User is already an admin');
+                // User is already an admin
             }
         }
         
         return authData;
     } catch (error) {
-        console.error('Registration error:', error);
         throw error;
     }
   },
@@ -399,38 +384,33 @@ export const userService = {
    */
   async getDashboardUsers() {
     try {
-      console.log("Fetching dashboard users and admins...");
+      // Check if we're in development and should use fallback immediately
+      const isDevelopment = process.env.NODE_ENV === 'development';
       
-      // Try using the new RPC function we created - it returns a single array with role
+      if (isDevelopment) {
+        return await this.fallbackGetDashboardUsers();
+      }
+
+      // Try using the RPC function first
       const { data: usersData, error: rpcError } = await supabase.rpc('get_all_users_and_admins');
       
-      // More detailed checks for the returned result
-      console.log("RPC result:", { data: usersData, error: rpcError });
-      
       if (rpcError) {
-        console.error("RPC error:", rpcError);
         return await this.fallbackGetDashboardUsers();
       }
       
       if (!usersData) {
-        console.error("No data returned from RPC");
         return await this.fallbackGetDashboardUsers();
       }
       
       if (!Array.isArray(usersData)) {
-        console.error("Data returned is not an array:", typeof usersData, usersData);
         
         // If it's not an array but data exists, try converting to array
         const dataArray = usersData ? [usersData] : [];
         
         if (dataArray.length > 0) {
-          console.log("Converted data to array:", dataArray);
-          
           // Separate regular users and admins by is_admin field
           const admins = dataArray.filter((user: any) => user.is_admin === true);
           const regularUsers = dataArray.filter((user: any) => user.is_admin !== true);
-          
-          console.log(`Converted data has ${regularUsers.length} users and ${admins.length} admins`);
           
           return { users: regularUsers, admins };
         }
@@ -442,19 +422,14 @@ export const userService = {
       const admins = usersData.filter((user: any) => user.is_admin === true);
       const regularUsers = usersData.filter((user: any) => user.is_admin !== true);
       
-      console.log(`RPC returned ${regularUsers.length} users and ${admins.length} admins`);
-      
       return { users: regularUsers, admins };
     } catch (error) {
-      console.error("Error in getDashboardUsers:", error);
       return await this.fallbackGetDashboardUsers();
     }
   },
   
   async fallbackGetDashboardUsers() {
     try {
-      console.log("Using fallback method to fetch users and admins...");
-  
       // Attempt to get all users
       const { data: allUsersData, error: allUsersError } = await supabase
         .from('users')
@@ -462,7 +437,6 @@ export const userService = {
         .order('created_at', { ascending: false });
   
       if (allUsersError) {
-        console.error('Error fetching all users:', allUsersError);
         return { users: [], admins: [] };
       }
       
@@ -472,7 +446,6 @@ export const userService = {
         .select('user_id, department');
       
       if (adminsError) {
-        console.error('Error fetching admins:', adminsError);
         // Even if there's an error, continue with the users we already have
       }
       
@@ -504,12 +477,117 @@ export const userService = {
         }
       }
       
-      console.log(`Fallback method found ${regularUsers.length} users and ${admins.length} admins`);
-      
       return { users: regularUsers, admins };
     } catch (error) {
-      console.error('Error in fallbackGetDashboardUsers:', error);
       return { users: [], admins: [] };
     }
   },
+
+  promoteUserFromMetadata: async (userId: string, isAdminValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('user_metadata')
+        .update({ is_admin: isAdminValue })
+        .eq('user_id', userId);
+      
+      return !error;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  updateUserMetadata: async (userId: string, metadata: any) => {
+    try {
+      const { error } = await supabase
+        .from('user_metadata')
+        .upsert({ user_id: userId, ...metadata });
+      
+      return !error;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  checkIsAdmin: async (userId: string): Promise<boolean> => {
+    try {
+      const { data } = await supabase
+        .from('admins')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      return !!data;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  signUpWithAdditionalMetadata: async (email: string, password: string, isAdmin: boolean, displayName?: string, additionalMetadata: any = {}) => {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.toLowerCase().trim(),
+        password,
+        options: {
+          data: {
+            display_name: displayName || email.split('@')[0],
+            ...additionalMetadata
+          }
+        }
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('No user data returned');
+      }
+
+      const userId = authData.user.id;
+      
+      // Check if user already exists in our users table
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // Ignore only if error is "not found"
+        throw checkError;
+      }
+
+      if (!existingUser) {
+        // Create user record
+        const { error: insertUserError } = await supabase
+          .from('users')
+          .insert([{ 
+            id: userId,
+            email: email.toLowerCase().trim(),
+            display_name: displayName || email.split('@')[0]
+          }]);
+          
+        if (insertUserError) {
+          throw insertUserError;
+        }
+      }
+      
+      // Set admin role if needed
+      if (isAdmin) {
+        const { error: adminError } = await supabase
+          .from('admins')
+          .insert([{ user_id: userId }]);
+          
+        if (adminError) {
+          // Log but don't fail registration
+        }
+      }
+
+      return { user: authData.user, error: null };
+    } catch (error: any) {
+      return { user: null, error };
+    }
+  },
+
+
 }; 

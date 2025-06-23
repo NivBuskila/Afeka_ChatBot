@@ -1,70 +1,80 @@
-# Afeka ChatBot
+# Afeka ChatBot - Frontend
 
-מערכת ניהול מסמכים עם תמיכה בצ'אטבוט חכם.
+This document provides specific information about the frontend service of the Afeka ChatBot application.
 
-## התקנה
+For general project setup, installation, and running instructions (including Docker and manual setup for the frontend), please refer to the main [README.md](../../README.md) file in the root of the project.
 
-1. התקן את החבילות הנדרשות:
+For detailed information on environment variables, including those required for the frontend (prefixed with `VITE_`), please consult the [README-env.md](../../README-env.md) file.
 
-```bash
-npm install
-```
+## Project Structure
 
-2. צור קובץ `.env` בהתבסס על `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-3. עדכן את משתני הסביבה בקובץ `.env` עם הפרטים שלך מ-Supabase:
-
-- `REACT_APP_SUPABASE_URL`: כתובת ה-URL של פרויקט Supabase שלך
-- `REACT_APP_SUPABASE_ANON_KEY`: מפתח האנונימי של פרויקט Supabase שלך
-
-## פיתוח
-
-הפעל את השרת המקומי:
-
-```bash
-npm start
-```
-
-האפליקציה תהיה זמינה בכתובת [http://localhost:3000](http://localhost:3000).
-
-## בנייה
-
-בנה את האפליקציה לייצור:
-
-```bash
-npm run build
-```
-
-## מבנה הפרויקט
+The frontend source code (`src/`) is organized as follows:
 
 ```
 src/
-  ├── components/         # קומפוננטות React
-  │   ├── Dashboard/     # קומפוננטות לוח הבקרה
-  │   └── Chat/          # קומפוננטות צ'אט
-  ├── config/            # קבצי תצורה
-  ├── i18n/              # קבצי תרגום
-  ├── services/          # שירותים
-  └── types/             # הגדרות טיפוסים
+  ├── app/               # Main application setup, routing, global state
+  ├── assets/            # Static assets (images, fonts)
+  ├── components/        # Reusable React components
+  │   ├── Chat/          # Components related to the chat interface
+  │   ├── Dashboard/     # Components for the admin dashboard
+  │   ├── Login/         # Login and authentication components
+  │   └── ...            # Other UI components
+  ├── config/            # Configuration files (e.g., Supabase client)
+  ├── contexts/          # React contexts for global state management
+  ├── i18n/              # Internationalization (i18n) files
+  │   └── locales/       # Language-specific translation files (en, he)
+  ├── services/          # Services for API calls and business logic
+  ├── styles/            # Global styles, Tailwind CSS setup
+  ├── types/             # TypeScript type definitions
+  └── utils/             # Utility functions
 ```
 
-## טכנולוגיות
+## Technologies
+
+The frontend is built using the following technologies:
 
 - React
 - TypeScript
-- Tailwind CSS
-- Supabase
-- i18next
-- React Dropzone
+- Vite (build tool and dev server)
+- Tailwind CSS (styling)
+- Supabase (for backend interaction)
+- i18next (for internationalization)
+- React Dropzone (for file uploads)
+- Cypress (for E2E testing)
 
-## תכונות
+## Key Features
 
-- ניהול מסמכים (העלאה, הורדה, מחיקה)
-- סטטיסטיקות שימוש
-- תמיכה בשפות (עברית ואנגלית)
-- ממשק משתמש מודרני ומותאם למובייל
-- אבטחה עם Supabase
+- Document management (upload, download, delete)
+- Usage statistics and analytics
+- Multilingual support (Hebrew and English)
+- Modern, responsive user interface
+- Secure authentication and authorization via Supabase
+
+## Development
+
+To start the frontend development server (after initial project setup as described in the main `README.md`):
+
+```bash
+# Navigate to the frontend directory
+cd src/frontend
+
+# Install dependencies (if not already done)
+npm install
+
+# Start the development server
+npm run dev
+```
+The application will typically be available at `http://localhost:5173`.
+
+## Building for Production
+
+To build the frontend application for production:
+
+```bash
+# Navigate to the frontend directory
+cd src/frontend
+
+# Run the build script
+npm run build
+```
+The production-ready files will be placed in the `dist` directory.

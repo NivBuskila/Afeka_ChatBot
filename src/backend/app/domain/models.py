@@ -1,10 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 
+class ChatMessageHistoryItem(BaseModel):
+    type: str # 'user' or 'bot'
+    content: str
+
 class ChatRequest(BaseModel):
     """Chat request model."""
-    message: str
+    message: str = Field(..., min_length=1, description="Message cannot be empty")
     user_id: str = "anonymous"
+    history: Optional[List[ChatMessageHistoryItem]] = None
 
 class ChatResponse(BaseModel):
     """Chat response model."""

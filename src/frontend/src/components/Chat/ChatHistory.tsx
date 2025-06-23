@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, Edit, Loader } from 'lucide-react';
+import { Trash2, Edit } from 'lucide-react';
 import { ChatSession } from '../../services/chatService';
 
 interface ChatHistoryProps {
   sessions: ChatSession[];
   onSelectSession: (session: ChatSession) => void;
-  onCreateNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
   onEditSessionTitle: (sessionId: string, title: string) => void;
   activeSessionId?: string;
@@ -16,7 +15,6 @@ interface ChatHistoryProps {
 const ChatHistory: React.FC<ChatHistoryProps> = ({
   sessions,
   onSelectSession,
-  onCreateNewSession,
   onDeleteSession,
   onEditSessionTitle,
   activeSessionId,
@@ -26,14 +24,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
-  // Format date to a more readable format
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('he-IL', {
-      month: 'short',
-      day: 'numeric'
-    }).format(date);
-  };
+
 
   // Start editing a session title
   const startEditing = (session: ChatSession, event?: React.MouseEvent) => {
@@ -66,14 +57,14 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" data-testid="chat-history">
       {/* Sessions list */}
       {isLoading ? (
         <div className="flex items-center justify-center py-4">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-700 dark:border-green-500"></div>
         </div>
       ) : sessions.length > 0 ? (
-        <ul className="text-sm">
+        <ul className="text-sm flex-1 overflow-y-auto">
           {sessions.map((session) => (
             <li
               key={session.id}
@@ -108,14 +99,14 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
                     <button
                       onClick={(e) => startEditing(session, e)}
                       className="p-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none"
-                      title={t('chat.history.edit')}
+                      title={t('chat.history.edit') as string}
                     >
                       <Edit className="w-3 h-3" />
                     </button>
                     <button
                       onClick={(e) => deleteSession(session.id, e)}
                       className="p-0.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 focus:outline-none"
-                      title={t('chat.history.delete')}
+                      title={t('chat.history.delete') as string}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

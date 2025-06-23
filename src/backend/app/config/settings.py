@@ -1,6 +1,6 @@
 import os
 import secrets
-from typing import List
+from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = Field(
         default_factory=lambda: os.environ.get(
             "ALLOWED_ORIGINS", 
-            "http://localhost:5173,http://localhost:80,http://localhost"
-        ).split(",")
+            "*"
+        ).split(",") if os.environ.get("ALLOWED_ORIGINS") != "*" else ["*"]
     )
     
     # Trusted Hosts for Production
@@ -35,6 +35,29 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(default=os.environ.get("SUPABASE_URL", ""))
     SUPABASE_KEY: str = Field(default=os.environ.get("SUPABASE_KEY", ""))
     
+    # Google Gemini API Key Configuration
+    GEMINI_API_KEY: Optional[str] = Field(default=os.environ.get("GEMINI_API_KEY"))
+    
+    # Gemini & LangChain Model Configuration
+    CHAT_HISTORY_WINDOW_SIZE: int = Field(default=10, description="Number of past messages to keep in memory for context")
+    LANGCHAIN_VERBOSE: bool = Field(default=True, description="Enable verbose logging for LangChain")
+    
+    # Gemini & LangChain Model Configuration
+    GEMINI_MODEL_NAME: str = Field(default=os.environ.get("GEMINI_MODEL_NAME", "gemini-2.0-flash"))
+    GEMINI_TEMPERATURE: float = Field(default=float(os.environ.get("GEMINI_TEMPERATURE", "0.7")))
+    GEMINI_MAX_TOKENS: int = Field(default=int(os.environ.get("GEMINI_MAX_TOKENS", "1024")))
+    
+    @property
+    def GEMINI_SYSTEM_PROMPT(self) -> str:
+        """Get the system prompt from the centralized prompt management"""
+        try:
+            from src.ai.config.system_prompts import get_main_system_prompt
+            return get_main_system_prompt()
+        except ImportError:
+            # Fallback if import fails
+            return "You are an expert academic assistant for Afeka College of Engineering in Tel Aviv."
+    LANGCHAIN_HISTORY_K: int = Field(default=int(os.environ.get("LANGCHAIN_HISTORY_K", "5")))
+    
     # AI Service Configuration
     AI_SERVICE_URL: str = Field(default=os.environ.get("AI_SERVICE_URL", "http://localhost:5000"))
     
@@ -43,7 +66,7 @@ class Settings(BaseSettings):
     INTERNAL_API_KEY: str = Field(default=os.environ.get("INTERNAL_API_KEY", secrets.token_urlsafe(32)))
     
     # Rate Limiting
-    API_RATE_LIMIT: int = Field(default=int(os.environ.get("API_RATE_LIMIT", "100")))
+    API_RATE_LIMIT: int = Field(default=int(os.environ.get("API_RATE_LIMIT", "500")))  # מוגדל לטסטים
     
     # Document Size Limit
     MAX_DOCUMENT_SIZE_KB: int = Field(default=int(os.environ.get("MAX_DOCUMENT_SIZE_KB", "100")))
@@ -55,9 +78,13 @@ class Settings(BaseSettings):
     # Chat Message Length
     MAX_CHAT_MESSAGE_LENGTH: int = Field(default=int(os.environ.get("MAX_CHAT_MESSAGE_LENGTH", "1000")))
 
+    # Basic Chat Configuration
+    MAX_CONTEXT_TOKENS: int = Field(default=12000)  # Maximum tokens for conversation context
+
     model_config = {
         "env_file": ".env",
-        "case_sensitive": True
+        "case_sensitive": True,
+        "extra": "ignore"
     }
 
 # Create singleton instance

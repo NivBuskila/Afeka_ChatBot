@@ -24,7 +24,6 @@ async function getTableCount(tableName: string): Promise<number> {
       return fallbackGetTableCount(tableName);
     }
     
-    console.log(`Count for ${tableName} using RPC: ${data}`);
     return data || 0;
   } catch (error) {
     console.error(`Error in getTableCount with RPC for ${tableName}:`, error);
@@ -44,7 +43,6 @@ async function fallbackGetTableCount(tableName: string): Promise<number> {
     return 0;
   }
   
-  console.log(`Count for ${tableName} using fallback: ${count}`);
   return count || 0;
 }
 
@@ -60,45 +58,42 @@ export const analyticsService = {
 
   async getDashboardAnalytics() {
     try {
-      console.log("Starting getDashboardAnalytics...");
+      // Load all data in parallel for better performance
+      const [
+        { users: regularUsers, admins: recentAdmins },
+        { data: recentDocuments, error: docsError },
+        totalDocuments
+      ] = await Promise.all([
+        userService.getDashboardUsers(),
+        supabase
+          .from('documents')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5),
+        getTableCount('documents')
+      ]);
       
-      // Use the new function to get users and admins
-      const { users: regularUsers, admins: recentAdmins } = await userService.getDashboardUsers();
-      
-      console.log(`Got users from userService: ${regularUsers?.length || 0} users, ${recentAdmins?.length || 0} admins`);
-      
-      // Get recent documents
-      const { data: recentDocuments, error: docsError } = await supabase
-        .from('documents')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-        
       if (docsError) {
         console.error('Error fetching documents:', docsError);
       }
       
-      console.log(`Got ${recentDocuments?.length || 0} recent documents`);
-      
-      // Count rows in each table (important to sync numbers from service)
-      let totalDocuments = await getTableCount('documents');
-      let totalUsers = regularUsers.length + recentAdmins.length; // Total users
-      let totalAdmins = recentAdmins.length; // Admin count
+      // Calculate totals
+      let finalTotalDocuments = totalDocuments;
+      const totalUsers = regularUsers.length + recentAdmins.length;
+      const totalAdmins = recentAdmins.length;
       
       // If document count failed, try counting from array
-      if (totalDocuments === 0 && recentDocuments) {
-        totalDocuments = recentDocuments.length;
+      if (finalTotalDocuments === 0 && recentDocuments) {
+        finalTotalDocuments = recentDocuments.length;
       }
-      
-      console.log('Final counts:', { totalDocuments, totalUsers, totalAdmins });
 
       return {
-        totalDocuments,
+        totalDocuments: finalTotalDocuments,
         totalUsers,
         totalAdmins,
         recentDocuments: recentDocuments || [],
-        recentUsers: regularUsers || [], // Pass all regular users
-        recentAdmins: recentAdmins || [] // Pass all admins
+        recentUsers: regularUsers || [],
+        recentAdmins: recentAdmins || []
       };
     } catch (error) {
       console.error('Error in getDashboardAnalytics:', error);

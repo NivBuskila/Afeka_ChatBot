@@ -1,11 +1,33 @@
 import { supabase, Database } from '../config/supabase';
 import { cacheService } from './cacheService';
-import axios from 'axios';
 
 // Get the backend URL from environment
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-type Document = Database['public']['Tables']['documents']['Row'];
+// Helper function to replace axios with native fetch
+const apiRequest = async (url: string, options: RequestInit = {}) => {
+  // Get current session
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token && {
+        'Authorization': `Bearer ${session.access_token}`
+      }),
+      ...options.headers,
+    },
+    ...options,
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  const result = await response.json();
+  return result;
+};
+
 type DocumentInsert = Database['public']['Tables']['documents']['Insert'];
 type DocumentUpdate = Database['public']['Tables']['documents']['Update'];
 
@@ -18,27 +40,26 @@ export const documentService = {
     const cacheBuster = isCacheStale ? `?cache=${Date.now()}` : '';
     
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/documents${cacheBuster}`);
-      if (!response.data) {
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents${cacheBuster}`);
+      
+      if (!response) {
         throw new Error('No data returned from documents request');
       }
-      return response.data;
+      return response;
     } catch (error) {
-      console.error('Error fetching documents:', error);
-      throw error;
+      return [];
     }
   },
 
   async getDocumentById(id: number) {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/proxy/documents/${id}`);
-      if (!response.data) {
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents/${id}`);
+      if (!response) {
         throw new Error('No document found');
       }
-      return response.data;
+      return response;
     } catch (error) {
-      console.error('Error fetching document:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -53,12 +74,15 @@ export const documentService = {
         user_id: user?.id
       };
       
-      const response = await axios.post(`${BACKEND_URL}/api/proxy/documents`, documentData);
-      if (!response.data) {
+      const response = await apiRequest(`${BACKEND_URL}/api/proxy/documents`, {
+        method: 'POST',
+        body: JSON.stringify(documentData)
+      });
+      if (!response) {
         throw new Error('Failed to create document');
       }
       
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error creating document:', error);
       throw error;
@@ -81,14 +105,28 @@ export const documentService = {
 
   async deleteDocument(id: number) {
     try {
-      const response = await axios.delete(`${BACKEND_URL}/api/proxy/documents/${id}`);
-      if (!response.data || !response.data.success) {
-        throw new Error('Failed to delete document');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('User not authenticated or session expired');
       }
-      return response.data;
+
+      const response = await fetch(`${BACKEND_URL}/api/vector/document/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || 'Failed to delete document');
+      }
+      
+      const data = await response.json().catch(() => ({ success: true, message: "Document deleted successfully" }));
+      return data;
     } catch (error) {
-      console.error('Error deleting document:', error);
-      throw error;
+      return false;
     }
   },
 
@@ -111,26 +149,49 @@ export const documentService = {
     return data.publicUrl;
   },
 
-  async getProcessingStatus(documentId: number): Promise<any> {
+  async getProcessingStatus(documentId: string): Promise<any> {
     try {
-      const aiServiceUrl = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
-      const response = await fetch(`${aiServiceUrl}/rag/document/${documentId}`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('User not authenticated or session expired');
+      }
+      
+      const response = await fetch(`${BACKEND_URL}/api/vector/document/${documentId}/status`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'שגיאה בקבלת נתוני העיבוד');
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // If parsing JSON fails, use text content
+          errorData = { error: await response.text() || 'שגיאה בקבלת נתוני העיבוד - תגובה לא תקינה' };
+        }
+        throw new Error(errorData.error || errorData.detail || 'שגיאה בקבלת נתוני העיבוד');
       }
 
       const data = await response.json();
+      
+      // Normalize status field for frontend components
+      if (data && !data.status) {
+        if (data.processing_status) {
+          data.status = data.processing_status;
+        } else {
+          // If we have chunk_count but no status, assume it's completed as a fallback
+          if (data.chunk_count > 0) {
+            data.status = 'completed';
+          }
+        }
+      }
+      
       return data;
     } catch (error) {
-      console.error('Error getting document processing status:', error);
-      throw error;
+      return null;
     }
   }
 }; 
