@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useRTL } from '../../hooks/useRTL';
 
 interface ChatInputProps {
   onSend?: () => void;
@@ -26,12 +27,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isWaiting = false,
   placeholder,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [localMessage, setLocalMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-    // RTL support
-  const isRTL = i18n.language === 'he';
+  // RTL support
+  const { isRTL, direction, textAlignClass, flipIcon, rightClass } = useRTL();
 
   // Determine if we're using props.input or internal state
   const message = input !== undefined ? input : localMessage;
@@ -86,9 +87,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
               disabled={isDisabled}
               rows={1}
               className={`flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-0 outline-none resize-none py-4 px-6 ${
-                isRTL ? 'pl-14 text-right' : 'pr-14 text-left'
-              } min-h-[24px] max-h-[120px] leading-6 chat-input-textarea`}
-              dir={isRTL ? 'rtl' : 'ltr'}
+                isRTL ? 'pl-14' : 'pr-14'
+              } ${textAlignClass} min-h-[24px] max-h-[120px] leading-6 chat-input-textarea`}
+              dir={direction}
               aria-label={(t('chat.messageInput') as string) || "Message input"}
               data-testid="chat-input"
             />
@@ -98,9 +99,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               type="button"
               onClick={optimizedHandleSend}
               disabled={!message.trim() || isDisabled}
-              className={`absolute ${
-                isRTL ? 'left-3' : 'right-3'
-              } top-1/2 transform -translate-y-1/2 p-2.5 rounded-xl transition-all duration-200 ease-in-out ${
+              className={`absolute ${rightClass}3 top-1/2 transform -translate-y-1/2 p-2.5 rounded-xl transition-all duration-200 ease-in-out ${
                 !message.trim() || isDisabled
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
                   : 'bg-green-500 text-white hover:bg-green-600 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-400 shadow-md hover:shadow-lg'
@@ -108,7 +107,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               aria-label={(t('chat.sendMessage') as string) || "Send message"}
               data-testid="send-button"
             >
-              <Send className={`w-4 h-4 ${isRTL ? 'transform scale-x-[-1]' : ''}`} />
+              <Send className={`w-4 h-4 ${flipIcon}`} />
             </button>
           </div>
           

@@ -5,6 +5,7 @@ import { Pagination } from "../common/Pagination";
 import { ItemsPerPageSelector } from "../common/ItemsPerPageSelector";
 import DocumentRow from "./components/DocumentRow";
 import { useDocumentTable } from "./hooks/useDocumentTable";
+import { useRTL } from "../../hooks/useRTL";
 
 interface DocumentTableProps {
   documents: Document[];
@@ -21,7 +22,8 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onDelete,
   onEdit,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { direction, textAlign } = useRTL();
   
   const {
     itemsPerPage,
@@ -35,7 +37,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   } = useDocumentTable({ documents, searchQuery });
 
   return (
-    <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg border border-gray-300 dark:border-green-500/20 rounded-lg shadow-lg">
+    <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg border border-gray-300 dark:border-green-500/20 rounded-lg shadow-lg" dir={direction}>
       {/* Header עם חיפוש ובחירת כמות פריטים */}
       <div className="p-4 border-b border-gray-200 dark:border-green-500/20">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -44,7 +46,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             placeholder={t("documents.search") || "Search documents"}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full sm:flex-1 px-4 py-2 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+            className={`w-full sm:flex-1 px-4 py-2 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500 ${textAlign}`}
           />
 
           <ItemsPerPageSelector
@@ -60,44 +62,32 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
           <thead className="bg-gray-100 dark:bg-black/50">
             <tr>
               <th
-                className={`px-6 py-3 ${
-                  i18n.language === "en" ? "text-left" : "text-right"
-                } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[30%]`}
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[30%]`}
               >
                 {t("documents.name")}
               </th>
               <th
-                className={`px-6 py-3 ${
-                  i18n.language === "en" ? "text-left" : "text-right"
-                } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
               >
                 {t("documents.type")}
               </th>
               <th
-                className={`px-6 py-3 ${
-                  i18n.language === "en" ? "text-left" : "text-right"
-                } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[15%]`}
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[15%]`}
               >
                 {t("documents.size")}
               </th>
               <th
-                className={`px-6 py-3 ${
-                  i18n.language === "en" ? "text-left" : "text-right"
-                } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
               >
                 {t("documents.date")}
               </th>
               <th
-                className={`px-6 py-3 ${
-                  i18n.language === "en" ? "text-left" : "text-right"
-                } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[20%]`}
               >
                 {t("table.status") || "Status"}
               </th>
               <th
-                className={`px-6 py-3 ${
-                  i18n.language === "en" ? "text-left" : "text-right"
-                } text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[15%]`}
+                className={`px-6 py-3 ${textAlign} text-xs font-medium text-gray-700 dark:text-green-400/80 uppercase tracking-wider w-[15%]`}
               >
                 {t("documents.actions")}
               </th>

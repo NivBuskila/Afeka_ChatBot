@@ -1,8 +1,8 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { FileText, Download, Edit, Trash2 } from 'lucide-react';
 import type { Document } from '../../../config/supabase';
 import ProcessingProgressBar from '../ProcessingProgressBar';
+import { useRTL } from '../../../hooks/useRTL';
 
 interface DocumentRowProps {
   document: Document;
@@ -19,74 +19,40 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
   onEdit,
   onDelete,
 }) => {
-  const { i18n } = useTranslation();
+  const { textAlign, flexRowReverse, marginLeft, spaceXClass } = useRTL();
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-green-500/5 transition-colors">
-      <td
-        className={`px-6 py-4 whitespace-nowrap ${
-          i18n.language === "en" ? "text-left" : "text-right"
-        }`}
-      >
-        <div
-          className={`flex items-center ${
-            i18n.language === "en" ? "flex-row" : "flex-row-reverse"
-          }`}
-        >
+      <td className={`px-6 py-4 whitespace-nowrap ${textAlign}`}>
+        <div className={`flex items-center ${flexRowReverse}`}>
           <FileText className="h-5 w-5 text-gray-600 dark:text-green-400/70" />
-          <div className={i18n.language === "en" ? "ml-4" : "mr-4"}>
+          <div className={marginLeft}>
             <div className="text-sm font-medium text-gray-800 dark:text-green-400">
               {document.name}
             </div>
           </div>
         </div>
       </td>
-      <td
-        className={`px-6 py-4 whitespace-nowrap ${
-          i18n.language === "en" ? "text-left" : "text-right"
-        }`}
-      >
+      <td className={`px-6 py-4 whitespace-nowrap ${textAlign}`}>
         <div className="text-sm text-gray-700 dark:text-green-400/80">
           {getFileType(document.type)}
         </div>
       </td>
-      <td
-        className={`px-6 py-4 whitespace-nowrap ${
-          i18n.language === "en" ? "text-left" : "text-right"
-        }`}
-      >
+      <td className={`px-6 py-4 whitespace-nowrap ${textAlign}`}>
         <div className="text-sm text-gray-700 dark:text-green-400/80">
           {(document.size / 1024 / 1024).toFixed(2)} MB
         </div>
       </td>
-      <td
-        className={`px-6 py-4 whitespace-nowrap ${
-          i18n.language === "en" ? "text-left" : "text-right"
-        }`}
-      >
+      <td className={`px-6 py-4 whitespace-nowrap ${textAlign}`}>
         <div className="text-sm text-gray-700 dark:text-green-400/80">
           {new Date(document.created_at).toLocaleDateString()}
         </div>
       </td>
-      <td
-        className={`px-6 py-4 whitespace-nowrap ${
-          i18n.language === "en" ? "text-left" : "text-right"
-        }`}
-      >
+      <td className={`px-6 py-4 whitespace-nowrap ${textAlign}`}>
         <ProcessingProgressBar documentId={document.id} />
       </td>
-      <td
-        className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-          i18n.language === "en" ? "text-left" : "text-right"
-        }`}
-      >
-        <div
-          className={`flex items-center ${
-            i18n.language === "en"
-              ? "space-x-4"
-              : "space-x-4 space-x-reverse"
-          }`}
-        >
+      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${textAlign}`}>
+        <div className={`flex items-center ${spaceXClass('space-x-4')}`}>
           <button
             onClick={() => onDownload(document.url, document.name)}
             className="text-gray-600 dark:text-green-400/80 hover:text-gray-800 dark:hover:text-green-400 transition-colors"

@@ -21,7 +21,7 @@ from ..core.gemini_key_manager import get_key_manager, safe_embed_content
 
 
 
-# ייבוא קובץ ההגדרות החדש
+# Import new config file
 from ..config.rag_config import (
     get_embedding_config,
     get_chunk_config,
@@ -53,7 +53,7 @@ class DocumentProcessor:
         self.supabase: Client = create_client(supabase_url, supabase_key)
         logger.debug(f"Supabase client initialized for URL: {supabase_url}")
         
-        # קבלת הגדרות מהconfig החדש
+        # Get settings from new config
         self.embedding_config = get_embedding_config()
         self.chunk_config = get_chunk_config()
         self.db_config = get_database_config()
@@ -330,7 +330,6 @@ class DocumentProcessor:
             elif file_extension in ['.txt', '.md', '.html', '.json']:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     doc_text_content = f.read()
-                logger.debug(f"Read {len(doc_text_content)} characters from text file: {file_path}")
             else:
                 logger.error(f"Unsupported file type: {file_extension} for file {file_path}")
                 raise ValueError(f"Unsupported file type: {file_extension}")
@@ -359,19 +358,16 @@ class DocumentProcessor:
             raise
 
     def _extract_pdf_text(self, file_path: str) -> str:
-        """חילוץ טקסט מקובץ PDF"""
-        logger.debug(f"Starting _extract_pdf_text for: {file_path}")
+        """Extracts text from PDF file"""
         text = ""
         try:
             with open(file_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
                 num_pages = len(pdf_reader.pages)
-                logger.debug(f"PDF has {num_pages} pages.")
                 for i, page in enumerate(pdf_reader.pages):
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
-                    logger.debug(f"Extracted text from page {i+1}/{num_pages}. Length: {len(page_text) if page_text else 0}")
             logger.info(f"Finished extracting text from PDF: {file_path}. Total length: {len(text)}")
         except Exception as e:
             logger.error(f"Error extracting PDF text from {file_path}: {str(e)}", exc_info=True)
@@ -379,15 +375,12 @@ class DocumentProcessor:
         return text
 
     def _extract_docx_text(self, file_path: str) -> str:
-        """חילוץ טקסט מקובץ DOCX"""
-        logger.debug(f"Starting _extract_docx_text for: {file_path}")
+        """Extracts text from DOCX file"""
         try:
             doc = DocxDocument(file_path)
             text = ""
-            logger.debug(f"DOCX file has {len(doc.paragraphs)} paragraphs.")
             for i, paragraph in enumerate(doc.paragraphs):
                 text += paragraph.text + "\n"
-                # Add less verbose logging here, maybe every N paragraphs or by text length
             logger.info(f"Finished extracting text from DOCX: {file_path}. Total length: {len(text)}")
             return text
         except Exception as e:
@@ -395,7 +388,7 @@ class DocumentProcessor:
             raise
 
     async def _generate_embedding(self, text: str, is_query: bool = False) -> Optional[List[float]]:
-        """יצירת embedding לטקסט"""
+        """Creates embedding for text"""
         task_type = "retrieval_query" if is_query else "retrieval_document"
         cleaned_text = text[:50].replace('\n', ' ')
         logger.debug(f"Attempting to generate embedding for text (first 50 chars): '{cleaned_text}' with task_type: {task_type}")
@@ -426,10 +419,10 @@ class DocumentProcessor:
                 logger.error(f"No embedding returned from API for task_type: {task_type}")
                 return None
             
-            # וידוא שה-vector הוא בדיוק 768 dimensions
+            # Verify that the vector is exactly 768 dimensions
             embedding = ensure_768_dimensions(raw_embedding)
             
-            # רישום מידע לdebug אם יש בעיה עם גודל הvector
+            # Log debug info if there's a problem with the vector size
             if len(raw_embedding) != 768:
                 logger.warning(f"Vector dimension adjusted from {len(raw_embedding)} to 768 for task_type: {task_type}")
                 log_vector_info(raw_embedding, f"Original {task_type} embedding")
@@ -443,7 +436,7 @@ class DocumentProcessor:
             return None
 
     async def _update_document_status(self, document_id: int, status: str, note: Optional[str] = None):
-        """עדכון סטטוס המסמך במסד הנתונים"""
+        """Updates document status in database"""
         logger.info(f"Updating status for document ID {document_id} to '{status}'. Note: '{note or ''}'")
         try:
             update_data = {"processing_status": status}
@@ -460,7 +453,7 @@ class DocumentProcessor:
             logger.error(f"Exception updating document status for ID {document_id} to {status}: {e}", exc_info=True)
 
     async def _update_document_content(self, document_id: int, raw_chunks: List[Document]) -> None:
-        """עדכון תוכן המסמך במסד הנתונים"""
+        """Updates document content in database"""
         logger.debug(f"Updating document content for ID: {document_id} with {len(raw_chunks)} chunks")
         try:
             # Create a summary of the document content
@@ -569,10 +562,10 @@ class DocumentProcessor:
             return {"success": False, "message": str(e)}
 
     async def search_documents(self, query: str, limit: int = 10, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
-        """חיפוש סמנטי במסמכים באמצעות המערכת החדשה"""
+        """Semantic search using the new system"""
         logger.info(f"Starting enhanced search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # השתמש בdefault threshold מ-config אם לא סופק
+            # Use default threshold from config if not provided
             if threshold is None:
                 threshold = self.embedding_config.DEFAULT_SIMILARITY_THRESHOLD
             
@@ -614,10 +607,10 @@ class DocumentProcessor:
             return []
 
     async def hybrid_search(self, query: str, limit: int = 10, threshold: Optional[float] = None) -> List[Dict[str, Any]]:
-        """חיפוש היברידי במסמכים באמצעות המערכת החדשה"""
+        """Hybrid search using the new system"""
         logger.info(f"Starting enhanced hybrid search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # השתמש בdefault threshold מ-config אם לא סופק
+            # Use default threshold from config if not provided
             if threshold is None:
                 threshold = self.embedding_config.DEFAULT_HYBRID_THRESHOLD
             

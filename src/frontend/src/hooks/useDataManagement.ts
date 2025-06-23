@@ -121,8 +121,8 @@ export const useDataManagement = ({ state, actions }: UseDataManagementProps) =>
   ]);
 
   const userHandlerService = useMemo(() => 
-    new UserHandlerService(userCallbacks), 
-    [userCallbacks]
+    new UserHandlerService(userCallbacks, { t }), 
+    [userCallbacks, t]
   );
 
   // Wrapper functions to maintain the same interface

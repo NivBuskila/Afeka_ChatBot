@@ -14,6 +14,8 @@ import {
 
 // Services
 import { systemPromptService } from "../../../../services/systemPromptService";
+// Hooks
+import { useRTL } from "../../../../hooks/useRTL";
 
 // Types
 interface SystemPrompt {
@@ -36,6 +38,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
   language,
 }) => {
   const { t } = useTranslation();
+  const { isRTL, direction, textAlignClass } = useRTL();
 
   // State
   const [currentPrompt, setCurrentPrompt] = useState<SystemPrompt | null>(null);
@@ -94,7 +97,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
   const handleSave = async () => {
     if (!currentPrompt || !editedPrompt.trim()) {
       setError(
-        language === "he"
+        isRTL
           ? "הנחיות המערכת לא יכולות להיות ריקות"
           : "System prompt cannot be empty"
       );
@@ -115,7 +118,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
 
       setCurrentPrompt(updatedPrompt);
       setSuccess(
-        language === "he"
+        isRTL
           ? "הנחיות המערכת עודכנו בהצלחה"
           : "System prompt updated successfully"
       );
@@ -129,7 +132,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
     } catch (err: any) {
       setError(
         err.message ||
-          (language === "he"
+          (isRTL
             ? "נכשל בשמירת הנחיות המערכת"
             : "Failed to save system prompt")
       );
@@ -154,7 +157,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
       setEditedPrompt(defaultPrompt.prompt_text);
       setNotes(defaultPrompt.notes || "");
       setSuccess(
-        language === "he"
+        isRTL
           ? "הנחיות המערכת אופסו לברירת המחדל בהצלחה"
           : "System prompt reset to default successfully"
       );
@@ -168,7 +171,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
     } catch (err: any) {
       setError(
         err.message ||
-          (language === "he"
+          (isRTL
             ? "נכשל באיפוס הנחיות המערכת"
             : "Failed to reset system prompt")
       );
@@ -202,7 +205,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString(
-      language === "he" ? "he-IL" : "en-US"
+      isRTL ? "he-IL" : "en-US"
     );
   };
 
@@ -212,7 +215,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
         <div className="text-gray-700 dark:text-green-400">
           <Clock className="w-8 h-8 animate-spin mx-auto mb-2" />
           <p>
-            {language === "he"
+            {isRTL
               ? "טוען הנחיות מערכת..."
               : "Loading system prompt..."}
           </p>
@@ -222,7 +225,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" dir={direction}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -231,14 +234,14 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
           </h3>
           {currentPrompt && (
             <p className="text-sm text-gray-600 dark:text-green-400/70">
-              {language === "he" ? "גרסה נוכחית" : "Current Version"}:{" "}
+              {isRTL ? "גרסה נוכחית" : "Current Version"}:{" "}
               {currentPrompt.version} |{" "}
-              {language === "he" ? "עודכן לאחרונה" : "Last Updated"}:{" "}
+              {isRTL ? "עודכן לאחרונה" : "Last Updated"}:{" "}
               {formatDate(currentPrompt.updated_at)}
               {currentPrompt.updated_by_email && (
                 <span>
                   {" "}
-                  {language === "he" ? "על ידי" : "by"}{" "}
+                  {isRTL ? "על ידי" : "by"}{" "}
                   {currentPrompt.updated_by_email}
                 </span>
               )}
@@ -252,10 +255,10 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
           >
             <History className="w-4 h-4" />
             {showHistory
-              ? language === "he"
+              ? isRTL
                 ? "הסתר היסטוריה"
                 : "Hide History"
-              : language === "he"
+              : isRTL
               ? "הצג היסטוריה"
               : "Show History"}
           </button>
@@ -295,19 +298,20 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-green-400 mb-2">
-              {language === "he" ? "טקסט הנחיות המערכת" : "System Prompt Text"}
+              {isRTL ? "טקסט הנחיות המערכת" : "System Prompt Text"}
               {hasUnsavedChanges && (
                 <span className="text-orange-500 ml-2">
-                  • {language === "he" ? "שינויים לא נשמרו" : "Unsaved changes"}
+                  • {isRTL ? "שינויים לא נשמרו" : "Unsaved changes"}
                 </span>
               )}
             </label>
             <textarea
               value={editedPrompt}
               onChange={(e) => setEditedPrompt(e.target.value)}
-              className="w-full h-96 p-4 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+              dir={direction}
+              className={`w-full h-96 p-4 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 ${textAlignClass}`}
               placeholder={
-                language === "he"
+                isRTL
                   ? "הכנס הנחיות מערכת..."
                   : "Enter system prompt..."
               }
@@ -316,14 +320,15 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-green-400 mb-2">
-              {language === "he" ? "הערות (אופציונלי)" : "Notes (Optional)"}
+              {isRTL ? "הערות (אופציונלי)" : "Notes (Optional)"}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full h-20 p-3 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+              dir={direction}
+              className={`w-full h-20 p-3 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 ${textAlignClass}`}
               placeholder={
-                language === "he"
+                isRTL
                   ? "הוסף הערות על גרסה זו..."
                   : "Add notes about this version..."
               }
@@ -343,10 +348,10 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                 <Save className="w-4 h-4" />
               )}
               {saving
-                ? language === "he"
+                ? isRTL
                   ? "שומר..."
                   : "Saving..."
-                : language === "he"
+                : isRTL
                 ? "שמור שינויים"
                 : "Save Changes"}
             </button>
@@ -361,10 +366,10 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                 <RotateCcw className="w-4 h-4" />
               )}
               {resetting
-                ? language === "he"
+                ? isRTL
                   ? "מאפס..."
                   : "Resetting..."
-                : language === "he"
+                : isRTL
                 ? "אפס לברירת מחדל"
                 : "Reset to Default"}
             </button>
@@ -376,7 +381,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
       {showHistory && (
         <div className="space-y-4">
           <h4 className="text-lg font-semibold text-gray-800 dark:text-green-400">
-            {language === "he" ? "היסטוריית גרסאות" : "Version History"}
+            {isRTL ? "היסטוריית גרסאות" : "Version History"}
           </h4>
           <div className="space-y-3">
             {promptHistory.map((prompt) => (
@@ -392,12 +397,12 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-800 dark:text-green-400">
-                        {language === "he" ? "גרסה" : "Version"}{" "}
+                        {isRTL ? "גרסה" : "Version"}{" "}
                         {prompt.version}
                       </span>
                       {prompt.is_active && (
                         <span className="px-2 py-1 bg-green-500 text-white text-xs rounded">
-                          {language === "he" ? "פעיל" : "Active"}
+                          {isRTL ? "פעיל" : "Active"}
                         </span>
                       )}
                     </div>
@@ -417,17 +422,17 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                       onClick={() => handleActivateVersion(prompt.id)}
                       className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
                     >
-                      {language === "he" ? "הפעל" : "Activate"}
+                      {isRTL ? "הפעל" : "Activate"}
                     </button>
                   )}
                 </div>
                 {prompt.notes && (
                   <div className="text-sm text-gray-600 dark:text-green-400/70 mb-2">
-                    <strong>{language === "he" ? "הערות:" : "Notes:"}</strong>{" "}
+                    <strong>{isRTL ? "הערות:" : "Notes:"}</strong>{" "}
                     {prompt.notes}
                   </div>
                 )}
-                <div className="text-xs text-gray-500 dark:text-green-400/50 font-mono max-h-20 overflow-y-auto">
+                <div className="text-xs text-gray-500 dark:text-green-400/50 font-mono max-h-20 overflow-y-auto" dir={direction}>
                   {prompt.prompt_text.substring(0, 200)}
                   {prompt.prompt_text.length > 200 && "..."}
                 </div>
@@ -446,12 +451,12 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                 <AlertCircle className="w-6 h-6 text-orange-500" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-green-400">
-                {language === "he" ? "אישור איפוס" : "Confirm Reset"}
+                {isRTL ? "אישור איפוס" : "Confirm Reset"}
               </h3>
             </div>
 
             <p className="text-gray-700 dark:text-green-400/70 mb-6">
-              {language === "he"
+              {isRTL
                 ? "האם אתה בטוח שברצונך לאפס להנחיות המערכת הדיפולטיביות? זה יצור גרסה חדשה."
                 : "Are you sure you want to reset to the default system prompt? This will create a new version."}
             </p>
@@ -461,7 +466,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                 onClick={() => setShowResetConfirm(false)}
                 className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
-                {language === "he" ? "ביטול" : "Cancel"}
+                {isRTL ? "ביטול" : "Cancel"}
               </button>
               <button
                 onClick={handleConfirmReset}
@@ -469,7 +474,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center gap-2"
               >
                 {resetting && <Clock className="w-4 h-4 animate-spin" />}
-                {language === "he" ? "אפס" : "Reset"}
+                {isRTL ? "אפס" : "Reset"}
               </button>
             </div>
           </div>

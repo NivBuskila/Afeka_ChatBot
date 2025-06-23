@@ -1,14 +1,14 @@
 """
 Afeka ChatBot - Minimal AI Service (v2.0)
 
-מטרת השירות המופחת:
-1. Health checks ובדיקות בריאות השירות  
-2. Key management status עבור DatabaseKeyManager
-3. תמיכה בארכיטקטורה היברידית עם Backend החדש
+Purpose of the reduced service:
+1. Health checks and service health checks  
+2. Key management status for DatabaseKeyManager
+3. Support for the new hybrid architecture with the new Backend
 
-הערה: רוב הפונקציונליות של RAG ו-Chat עברה לBackend החדש
-שמשתמש ישירות במודולים מ-src/ai/services/ ללא HTTP calls.
-השירות הזה נשמר רק עבור key management ובדיקות בריאות.
+Note: Most of the RAG and Chat functionality has moved to the new Backend
+The user directly uses modules from src/ai/services/ without HTTP calls.
+This service is kept only for key management and health checks.
 """
 
 from flask import Flask, request, jsonify

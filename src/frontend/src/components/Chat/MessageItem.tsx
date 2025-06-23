@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useRTL } from "../../hooks/useRTL";
 
 import ThemeButton from "../ui/ThemeButton";
 import AIResponseRenderer from "../common/AIResponseRenderer";
@@ -51,22 +52,23 @@ const MessageItem: React.FC<MessageItemProps> = ({
   fontSize = 16,
 }) => {
   const { t } = useTranslation();
+  const { direction, textAlignClass } = useRTL();
 
   const isUser = message.type === "user";
   const [showFullChunk, setShowFullChunk] = useState(false);
 
   return (
     <div
-      className={`w-full ${isUser ? "text-right" : "text-right"}`}
+      className={`w-full ${textAlignClass}`}
       data-testid={isUser ? "user-message" : "bot-message"}
     >
       {/* Message content */}
-      <div className={`mb-6 ${isUser ? "text-right" : "text-right"}`}>
+      <div className={`mb-6 ${textAlignClass}`}>
         {isUser ? (
           // User message with bubble
           <div
             className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200 leading-relaxed"
-            dir="rtl"
+            dir={direction}
             style={{
               fontSize: `${fontSize}px`,
               fontFamily: "inherit",
@@ -90,7 +92,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 fontFamily: "inherit",
                 lineHeight: "1.7",
               }}
-              dir="rtl"
+              dir={direction}
             >
               <AIResponseRenderer
                 content={message.content}
@@ -117,7 +119,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div
                 className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
-                dir="rtl"
+                dir={direction}
                 style={{
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",

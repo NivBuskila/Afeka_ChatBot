@@ -51,7 +51,6 @@ class DatabaseKeyManager:
                     logger.info("Keys auto-refreshed successfully")
                 except Exception as e:
                     logger.error(f"Auto-refresh failed: {e}")
-                    # ⚡ OPTIMIZED: Longer retry interval on error to reduce load
                     await asyncio.sleep(300)  # 5 minutes instead of 1 minute
         
         try:
@@ -69,7 +68,6 @@ class DatabaseKeyManager:
             logger.info(f"Key {key_data.get('key_name')} reached session rotation threshold ({usage_count} requests)")
             return True
         
-        # ⚡ OPTIMIZED: Skip expensive database checks for most requests
         # Only check database usage occasionally (every 10th request per key)
         try:
             if not self.use_direct_supabase and usage_count % 10 == 0:
@@ -102,7 +100,7 @@ class DatabaseKeyManager:
         """Notify backend about key rotation for dashboard sync"""
         try:
             if not self.use_direct_supabase:
-                # עדכן את הbackend על המפתח החדש
+                # Update backend about the new key
                 await self.client.post(f"{self.base_url}/api/keys/set-current", json={
                     'current_key_index': new_index,
                     'old_key_index': old_index
@@ -115,13 +113,13 @@ class DatabaseKeyManager:
         """Restore the last active key from backend to avoid always starting from key 0"""
         try:
             if not self.use_direct_supabase:
-                # שאל את הbackend איזה מפתח היה פעיל לאחרונה
+                # Ask backend which key was active recently
                 response = await self.client.get(f"{self.base_url}/api/keys/")
                 if response.status_code == 200:
                     data = response.json()
                     if data.get('status') == 'ok' and 'key_management' in data:
                         backend_current_index = data['key_management'].get('current_key_index', 0)
-                        # וודא שהאינדקס תקף
+                        # Verify that the index is valid
                         if 0 <= backend_current_index < len(self.api_keys):
                             self.current_key_index = backend_current_index
                             logger.info(f"🔄 [KEY-RESTORE] Restored key index from backend: {self.current_key_index}")
@@ -140,14 +138,13 @@ class DatabaseKeyManager:
                 response = self.supabase.table('api_keys').select('*').eq('is_active', True).execute()
                 self.api_keys = response.data or []
             else:
-                # ⚡ OPTIMIZED: Use fast endpoint first, fallback to heavy one only if needed
                 try:
                     # Try fast endpoint first
                     ai_response = await self.client.get(f"{self.base_url}/api/keys/for-ai-service")
                     if ai_response.status_code == 200:
                         ai_keys_data = ai_response.json()
                         self.api_keys = ai_keys_data.get('keys', [])
-                        logger.info(f"🚀 [FAST-REFRESH] Got {len(self.api_keys)} keys from fast endpoint")
+                        logger.info(f"Got {len(self.api_keys)} keys from fast endpoint")
                     else:
                         raise Exception("Fast endpoint failed")
                 except Exception as fast_error:
@@ -173,11 +170,11 @@ class DatabaseKeyManager:
             self.last_refresh = datetime.now()
             logger.info(f"Refreshed {len(self.api_keys)} API keys from database")
             
-            # 🔧 אחרי רענון המפתחות, נסה לשחזר את המפתח האחרון שהיה פעיל
+            # After refreshing keys, try to restore the last active key
             if not self._initial_load_done:
                 await self._restore_last_active_key()
             
-            # וודא שהאינדקס תקף
+            # Verify that the index is valid
             if self.current_key_index >= len(self.api_keys):
                 self.current_key_index = 0
                 logger.warning(f"Key index out of range, reset to 0")
@@ -383,27 +380,27 @@ class DatabaseKeyManager:
         if not self.api_keys:
             return None
         
-        # 🔧 בחירה חכמה יותר של המפתח הבא
+        # Smarter selection of the next key
         old_index = self.current_key_index
         
-        # במקום תמיד לעבור למפתח הבא, תחילה בדוק אם המפתח הנוכחי עדיין זמין
-        # רק אם יש סיבה לסובב (למשל usage threshold) אז סובב
+        # Instead of always moving to the next key, first check if current key is still available
+        # Only rotate if there's a reason (e.g. usage threshold)
         should_rotate = False
         
         if self.api_keys and old_index < len(self.api_keys):
             current_key = self.api_keys[old_index]
             key_id = current_key.get('id')
             
-            # בדוק אם צריך לסובב על בסיס השימוש
+            # Check if rotation is needed based on usage
             usage_count = self.key_usage_stats.get(key_id, {}).get('count', 0)
             if usage_count >= self.rotation_threshold:
                 should_rotate = True
                 logger.info(f"Key {current_key.get('key_name')} reached rotation threshold ({usage_count})")
         else:
-            should_rotate = True  # אין מפתח נוכחי תקין
+            should_rotate = True  # No valid current key
         
         if should_rotate:
-            # 🔧 סיבוב חכם - מחפש מפתח עם שימוש נמוך
+            # Smart rotation - looking for key with low usage
             best_key_index = (old_index + 1) % len(self.api_keys)
             min_usage = float('inf')
             
@@ -413,12 +410,12 @@ class DatabaseKeyManager:
                 key_id = key_data.get('id')
                 usage_count = self.key_usage_stats.get(key_id, {}).get('count', 0)
                 
-                # מעדיף מפתח עם שימוש נמוך יותר
+                # Prefer key with lower usage
                 if usage_count < min_usage:
                     min_usage = usage_count
                     best_key_index = check_index
                 
-                # אם מצא מפתח ללא שימוש, השתמש בו מיד
+                # If found a key without usage, use it immediately
                 if usage_count == 0:
                     break
             
@@ -427,7 +424,7 @@ class DatabaseKeyManager:
         else:
             logger.info(f"♻️ [KEY-REUSE] Continuing with current key {self.current_key_index}")
         
-        # עדכן את הbackend על המפתח החדש (גם אם לא השתנה)
+        # Update backend about the new key (even if not changed)
         await self._notify_backend_key_change(old_index, self.current_key_index)
         
         current_key = self.api_keys[self.current_key_index]

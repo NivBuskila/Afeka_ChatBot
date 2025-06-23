@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useRTL } from '../../hooks/useRTL';
 
 interface PaginationProps {
   currentPage: number;
@@ -18,6 +19,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   className = ''
 }) => {
   const { i18n } = useTranslation();
+  const { isRTL, flexRowReverse, spaceXClass } = useRTL();
   
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startItem = (currentPage - 1) * itemsPerPage + 1;
@@ -67,7 +69,6 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
   
   const visiblePages = getVisiblePages();
-  const isRTL = i18n.language === 'he';
   
   // Format numbers with commas
   const formatNumber = (num: number): string => {
@@ -77,7 +78,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
   
   return (
-    <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''} ${className}`}>
+    <div className={`flex items-center justify-between ${flexRowReverse} ${className}`}>
       {/* Current items info */}
       <div className="text-sm text-gray-700 dark:text-green-400/70">
         {isRTL ? (
@@ -88,7 +89,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       </div>
       
       {/* Navigation buttons */}
-      <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-1' : 'space-x-1'}`}>
+      <div className={`flex items-center ${spaceXClass('space-x-1')}`}>
         {/* First page button - only if more than 10 pages */}
         {totalPages > 10 && (
           <button

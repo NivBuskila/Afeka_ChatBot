@@ -365,6 +365,15 @@
     "noActiveProfile": "אין פרופיל פעיל",
     "system": {
       "prompt": "הנחיות מערכת"
+    },
+    "errors": {
+      "cannotDeleteActiveProfile": "לא ניתן למחוק את הפרופיל הפעיל כרגע. אנא עבור לפרופיל אחר תחילה ולאחר מכן נסה שוב.",
+      "activeProfileTitle": "לא ניתן למחוק פרופיל פעיל",
+      "activeProfileMessage": "לא ניתן למחוק את הפרופיל \"{{profileName}}\" כי הוא הפרופיל הפעיל כרגע.",
+      "howToDelete": "כדי למחוק פרופיל זה:",
+      "step1": "החלף לפרופיל אחר תחילה",
+      "step2": "לאחר מכן נסה למחוק את הפרופיל שוב",
+      "understood": "הבנתי"
     }
   },
   "pagination": {

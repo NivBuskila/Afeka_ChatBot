@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRTL } from '../../hooks/useRTL';
 
 interface ItemsPerPageSelectorProps {
   itemsPerPage: number;
@@ -14,11 +14,10 @@ export const ItemsPerPageSelector: React.FC<ItemsPerPageSelectorProps> = ({
   options = [10, 25, 50, 100, 250, 500],
   className = ''
 }) => {
-  const { i18n } = useTranslation();
-  const isRTL = i18n.language === 'he';
+  const { isRTL, spaceXClass } = useRTL();
   
   return (
-    <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'} ${className}`}>
+    <div className={`flex items-center ${spaceXClass('space-x-2')} ${className}`}>
       <label className="text-sm text-gray-700 dark:text-green-400/70 whitespace-nowrap">
         {isRTL ? 'פריטים לעמוד:' : 'Items per page:'}
       </label>

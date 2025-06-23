@@ -37,7 +37,7 @@ class RAGOrchestrator:
         self.test_mode = test_mode or os.getenv("RAG_TEST_MODE", "").lower() == "true"
         
         if self.test_mode:
-            logger.warning("🧪 RAG Orchestrator running in TEST MODE - some features disabled")
+            logger.warning("RAG Orchestrator running in TEST MODE - some features disabled")
             self.supabase = None
         else:
             # Initialize Supabase connection
@@ -62,7 +62,7 @@ class RAGOrchestrator:
             self.context_builder = None
             self.answer_generator = None
             self.analytics = None
-            logger.info("🧪 Test mode: Services not initialized")
+            logger.info("Test mode: Services not initialized")
         else:
             # Initialize Database Key Manager
             try:
@@ -113,7 +113,7 @@ class RAGOrchestrator:
                 self.db_config = get_database_config()
                 self.performance_config = get_performance_config()
         except Exception as e:
-            logger.error(f"❌ Failed to load configuration: {e}")
+            logger.error(f"Failed to load configuration: {e}")
 
     # Backwards compatibility methods
     
@@ -144,7 +144,7 @@ class RAGOrchestrator:
         # Test mode response
         if self.test_mode:
             return {
-                "answer": f"🧪 Test mode response for: {query}",
+                "answer": f"Test mode response for: {query}",
                 "sources": ["Test source"],
                 "chunks_selected": [],
                 "search_results_count": 1,
@@ -231,7 +231,7 @@ class RAGOrchestrator:
             return result
             
         except Exception as e:
-            logger.error(f"❌ Error generating answer: {e}")
+            logger.error(f"Error generating answer: {e}")
             raise
 
     async def generate_answer_with_context(self, query: str, conversation_context: str = "", search_method: str = 'hybrid', document_id=None):
@@ -241,7 +241,7 @@ class RAGOrchestrator:
         # Test mode response
         if self.test_mode:
             return {
-                "answer": f"🧪 Test mode response for: {query}",
+                "answer": f"Test mode response for: {query}",
                 "sources": ["Test source"],
                 "chunks_selected": [],
                 "search_results_count": 1,
@@ -253,9 +253,9 @@ class RAGOrchestrator:
         
         try:
             # Log the separation
-            logger.info(f"🔍 [SEARCH] Using original query: '{query}'")
+            logger.info(f"Using original query: '{query}'")
             if conversation_context:
-                logger.info(f"🔗 [CONTEXT] Adding conversation context: '{conversation_context[:100]}...'")
+                logger.info(f"Adding conversation context: '{conversation_context[:100]}...'")
             
             # Determine search strategy using ORIGINAL query only
             section_keywords = ['סעיף', 'בסעיף', 'פרק', 'תקנה']
@@ -341,7 +341,7 @@ class RAGOrchestrator:
             return result
             
         except Exception as e:
-            logger.error(f"❌ Error generating answer with context: {e}")
+            logger.error(f"Error generating answer with context: {e}")
             raise
 
     async def get_search_statistics(self, days_back: int = 30):

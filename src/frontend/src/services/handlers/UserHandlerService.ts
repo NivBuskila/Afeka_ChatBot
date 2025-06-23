@@ -9,8 +9,15 @@ export interface UserHandlerCallbacks {
   onAnalyticsRefresh: () => Promise<void>;
 }
 
+export interface UserHandlerOptions {
+  t: (key: string, options?: any) => string;
+}
+
 export class UserHandlerService {
-  constructor(private callbacks: UserHandlerCallbacks) {}
+  constructor(
+    private callbacks: UserHandlerCallbacks,
+    private options: UserHandlerOptions
+  ) {}
 
   /**
    * Initiates user deletion by setting selected user and showing modal
@@ -40,19 +47,28 @@ export class UserHandlerService {
 
       if (error) {
         console.error('Error deleting user:', error);
-        this.callbacks.onError(`שגיאה במחיקת המשתמש: ${error.message}`);
+        this.callbacks.onError(
+          this.options.t('users.deleteError') || 
+          `Error deleting user: ${error.message}`
+        );
         return;
       }
 
       this.callbacks.onModalClose('deleteUser');
       this.callbacks.onSelectedUserChange(null);
-      this.callbacks.onSuccess('המשתמש נמחק בהצלחה');
+      this.callbacks.onSuccess(
+        this.options.t('users.deleteSuccess') || 
+        'User deleted successfully'
+      );
 
       // Refresh analytics to update user lists
       await this.callbacks.onAnalyticsRefresh();
     } catch (error) {
       console.error('Error deleting user:', error);
-      this.callbacks.onError('אירעה שגיאה במחיקת המשתמש');
+      this.callbacks.onError(
+        this.options.t('users.deleteError') || 
+        'An error occurred while deleting the user'
+      );
     } finally {
       this.callbacks.onLoadingChange(false);
     }

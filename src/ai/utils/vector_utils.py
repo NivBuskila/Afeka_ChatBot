@@ -8,39 +8,39 @@ logger = logging.getLogger(__name__)
 
 def truncate_vector_to_768(vector: List[float]) -> List[float]:
     """
-    קיצור vector ל-768 dimensions (Gemini embedding size)
+    Truncate vector to 768 dimensions (Gemini embedding size)
     
     Args:
-        vector: Vector לקיצור
+        vector: Vector to truncate
         
     Returns:
-        Vector עם 768 dimensions
+        Vector with 768 dimensions
     """
     if not vector:
         logger.warning("Empty vector provided for truncation")
         return []
         
     if len(vector) <= 768:
-        # Vector כבר ב-768 dimensions או קטן יותר
+        # Vector already has 768 dimensions or less
         if len(vector) < 768:
             logger.warning(f"Vector has only {len(vector)} dimensions, padding with zeros to 768")
             return vector + [0.0] * (768 - len(vector))
         return vector
     
-    # קיצור ל-768 dimensions
+    # Truncate to 768 dimensions
     logger.info(f"Truncating vector from {len(vector)} to 768 dimensions")
     return vector[:768]
 
 def validate_vector_dimensions(vector: List[float], expected_dims: int = 768) -> bool:
     """
-    בדיקה שה-vector בגודל הנכון
+    Check if the vector has the correct size
     
     Args:
-        vector: Vector לבדיקה
-        expected_dims: מספר הdimensions הצפוי (default: 768)
+        vector: Vector to check
+        expected_dims: Expected number of dimensions (default: 768)
         
     Returns:
-        True אם הVector בגודל הנכון
+        True if the Vector has the correct size
     """
     if not vector:
         logger.error("Empty vector provided for validation")
@@ -54,13 +54,13 @@ def validate_vector_dimensions(vector: List[float], expected_dims: int = 768) ->
 
 def ensure_768_dimensions(vector: List[float]) -> List[float]:
     """
-    וידוא שה-vector הוא בדיוק 768 dimensions
+    Verify that the vector has exactly 768 dimensions
     
     Args:
-        vector: Vector לעיבוד
+        vector: Vector to process
         
     Returns:
-        Vector עם בדיוק 768 dimensions
+        Vector with exactly 768 dimensions
     """
     if not vector:
         logger.error("Cannot process empty vector")
@@ -77,13 +77,13 @@ def ensure_768_dimensions(vector: List[float]) -> List[float]:
 
 def convert_openai_to_gemini_dimensions(openai_vector: List[float]) -> List[float]:
     """
-    המרת vector מOpenAI (1536 dims) לGemini (768 dims)
+    Convert vector from OpenAI (1536 dims) to Gemini (768 dims)
     
     Args:
-        openai_vector: Vector מOpenAI עם 1536 dimensions
+        openai_vector: Vector from OpenAI with 1536 dimensions
         
     Returns:
-        Vector עם 768 dimensions
+        Vector with 768 dimensions
     """
     if not openai_vector:
         logger.error("Empty OpenAI vector provided")
@@ -92,20 +92,20 @@ def convert_openai_to_gemini_dimensions(openai_vector: List[float]) -> List[floa
     if len(openai_vector) != 1536:
         logger.warning(f"Expected 1536 dimensions for OpenAI vector, got {len(openai_vector)}")
         
-    # פשוט קיצור ל-768 dimensions הראשונים
-    # אפשר גם לעשות pooling או averaging של כל 2 elements
+    # Simply truncate to the first 768 dimensions
+    # Alternatively, do pooling or averaging of every 2 elements
     return ensure_768_dimensions(openai_vector)
 
 def average_pooling_conversion(vector: List[float], target_dims: int = 768) -> List[float]:
     """
-    המרת vector באמצעות average pooling
+    Conversion of vector using average pooling
     
     Args:
-        vector: Vector מקורי
-        target_dims: מספר dimensions יעד
+        vector: Original vector
+        target_dims: Target number of dimensions
         
     Returns:
-        Vector עם target_dims dimensions
+        Vector with target_dims dimensions
     """
     if not vector:
         return [0.0] * target_dims
@@ -113,7 +113,7 @@ def average_pooling_conversion(vector: List[float], target_dims: int = 768) -> L
     if len(vector) <= target_dims:
         return ensure_768_dimensions(vector)
         
-    # חישוב גודל החלונות
+    # Calculate window size
     pool_size = len(vector) // target_dims
     remainder = len(vector) % target_dims
     
@@ -121,10 +121,10 @@ def average_pooling_conversion(vector: List[float], target_dims: int = 768) -> L
     idx = 0
     
     for i in range(target_dims):
-        # גודל החלון הנוכחי
+        # Current window size
         window_size = pool_size + (1 if i < remainder else 0)
         
-        # חישוב ממוצע החלון
+        # Calculate average of the window
         window_sum = sum(vector[idx:idx + window_size])
         pooled.append(window_sum / window_size)
         
@@ -134,11 +134,11 @@ def average_pooling_conversion(vector: List[float], target_dims: int = 768) -> L
 
 def log_vector_info(vector: List[float], name: str = "Vector") -> None:
     """
-    רישום מידע על vector לdebug
+    Log information about vector for debugging
     
     Args:
-        vector: Vector לבדיקה
-        name: שם ה-vector
+        vector: Vector to check
+        name: Name of the vector
     """
     if not vector:
         logger.info(f"{name}: Empty vector")
@@ -148,11 +148,11 @@ def log_vector_info(vector: List[float], name: str = "Vector") -> None:
     logger.debug(f"{name} first 5 values: {vector[:5]}")
     logger.debug(f"{name} last 5 values: {vector[-5:]}")
     
-    # בדיקה לערכים לא תקינים
+    # Check for non-numeric values
     if any(not isinstance(x, (int, float)) for x in vector):
         logger.warning(f"{name}: Contains non-numeric values")
         
-    # בדיקה לערכי NaN או infinity
+    # Check for NaN or infinity values
     import math
     nan_count = sum(1 for x in vector if math.isnan(x) if isinstance(x, (int, float)))
     inf_count = sum(1 for x in vector if math.isinf(x) if isinstance(x, (int, float)))

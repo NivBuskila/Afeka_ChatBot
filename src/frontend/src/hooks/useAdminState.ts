@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../contexts/ThemeContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import type { Document } from '../config/supabase'
 import { DashboardAnalytics } from '../services/analyticsService'
 
@@ -95,6 +96,7 @@ export interface AdminStateActions {
 export const useAdminState = (): AdminState & AdminStateActions => {
   const { t, i18n } = useTranslation()
   const { theme, setTheme: setContextTheme } = useTheme()
+  const { language, setLanguage: setGlobalLanguage } = useLanguage()
   
   // UI State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -127,8 +129,8 @@ export const useAdminState = (): AdminState & AdminStateActions => {
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   
-  // Theme & Language
-  const [language, setLanguage] = useState<Language>(i18n.language as Language)
+  // Theme & Language - now using global context
+  // Removed local language state
   
   // Messages
   const [successMessage, setSuccessMessage] = useState<string>('')
@@ -174,8 +176,8 @@ export const useAdminState = (): AdminState & AdminStateActions => {
   }, [])
 
   const handleLanguageChange = useCallback((newLanguage: Language) => {
-    setLanguage(newLanguage)
-  }, [])
+    setGlobalLanguage(newLanguage)
+  }, [setGlobalLanguage])
 
   const handleThemeChange = useCallback((newTheme: 'dark' | 'light') => {
     setContextTheme(newTheme)
@@ -199,12 +201,7 @@ export const useAdminState = (): AdminState & AdminStateActions => {
     }
   }, [analytics.recentAdmins.length, adminsItemsPerPage, adminsCurrentPage])
 
-  // Language and theme effects
-  useEffect(() => {
-    document.documentElement.lang = language
-    document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr'
-    i18n.changeLanguage(language)
-  }, [language, i18n])
+  // Language effects removed - global LanguageContext handles this
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -254,7 +251,7 @@ export const useAdminState = (): AdminState & AdminStateActions => {
     setAnalytics,
     setIsInitialLoading,
     setIsRefreshing,
-    setLanguage,
+    setLanguage: setGlobalLanguage,
     setTheme: handleThemeChange,
     showSuccessMessage,
     showErrorMessage,

@@ -76,14 +76,14 @@ class EmbeddingService:
         
         # Initialize Gemini
         self._init_gemini()
-        logger.info("🧠 EmbeddingService initialized with LRU cache")
+        logger.info("EmbeddingService initialized with LRU cache")
     
     def _init_gemini(self):
         """Initialize Gemini API"""
         fallback_key = os.getenv("GEMINI_API_KEY")
         if fallback_key:
             genai.configure(api_key=fallback_key)
-            logger.info("🔑 Using GEMINI_API_KEY from environment")
+            logger.info("Using GEMINI_API_KEY from environment")
     
     def _generate_cache_key(self, text: str) -> str:
         """Generate cache key for text"""
@@ -104,7 +104,7 @@ class EmbeddingService:
             try:
                 estimated_tokens = len(text) // 4  # Rough estimation
                 await self.key_manager.record_usage(key_id, estimated_tokens, 1)
-                logger.debug(f"🔢 Tracked {estimated_tokens} tokens for embedding")
+                logger.debug(f"Tracked {estimated_tokens} tokens for embedding")
             except Exception as e:
                 logger.warning(f"Failed to track embedding usage: {e}")
     
@@ -118,12 +118,11 @@ class EmbeddingService:
         cache_entry = self._embedding_cache.get(cache_key)
         if cache_entry and self._is_cache_valid(cache_entry):
             self._cache_stats["hits"] += 1
-            logger.debug(f"📝 Cache hit for query: {query[:50]}...")
             return cache_entry['embedding']
         
         # Cache miss - generate new embedding
         self._cache_stats["misses"] += 1
-        logger.debug(f"🧠 Generating embedding for query: {query[:50]}...")
+        logger.debug(f"Generating embedding for query: {query[:50]}...")
         
         try:
             # Get API key if available
@@ -163,13 +162,13 @@ class EmbeddingService:
                 if key_id:
                     await self._track_embedding_usage(query, key_id)
                 
-                logger.debug(f"✅ Generated embedding for query: {query[:50]}...")
+                logger.debug(f"Generated embedding for query: {query[:50]}...")
                 return embedding
             else:
                 raise ValueError("No embedding in response")
                 
         except Exception as e:
-            logger.error(f"❌ Error generating embedding: {e}")
+            logger.error(f"Error generating query embedding: {e}")
             # Return a zero vector as fallback
             return [0.0] * 768
     
@@ -196,7 +195,7 @@ class EmbeddingService:
     def clear_cache(self):
         """Clear embedding cache"""
         self._embedding_cache.clear()
-        logger.info("🗑️ Embedding cache cleared")
+        logger.info("Embedding cache cleared")
     
     def clear_expired_cache(self):
         """Clear expired cache entries"""
@@ -209,7 +208,7 @@ class EmbeddingService:
             self._embedding_cache.cache.pop(key)
         
         if expired_keys:
-            logger.info(f"🗑️ Cleared {len(expired_keys)} expired cache entries")
+            logger.info(f"Cleared {len(expired_keys)} expired cache entries")
     
     def get_cache_info(self) -> Dict[str, Any]:
         """Get detailed cache information"""

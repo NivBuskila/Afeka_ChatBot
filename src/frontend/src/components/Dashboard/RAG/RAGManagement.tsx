@@ -15,6 +15,7 @@ import PerformanceDashboard from "./components/PerformanceDashboard";
 import CreateProfileModal from "./components/CreateProfileModal";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import RestoreConfirmationModal from "./components/RestoreConfirmationModal";
+import ActiveProfileErrorModal from "./components/ActiveProfileErrorModal";
 import { SystemPromptManagement } from "./components/SystemPromptManagement";
 
 type Language = "he" | "en";
@@ -54,7 +55,8 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
     ragModals.closeDeleteModal();
     await ragProfiles.handleDeleteProfile(
       ragModals.modalProfileData.id,
-      !ragModals.modalProfileData.isCustom
+      !ragModals.modalProfileData.isCustom,
+      (profileName: string) => ragModals.openActiveProfileError(profileName)
     );
   };
 
@@ -74,7 +76,7 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
       await ragProfiles.handleCreateProfile(profileData);
       ragModals.closeCreateModal(); // Close modal only after successful creation
     } catch (error) {
-      console.error('Error creating profile:', error);
+      console.error("Error creating profile:", error);
       // Keep modal open on error so user can try again
     }
   };
@@ -218,6 +220,12 @@ export const RAGManagement: React.FC<RAGManagementProps> = ({
         isRestoringProfile={ragProfiles.isRestoringProfile}
         onConfirm={handleConfirmRestore}
         onCancel={ragModals.closeRestoreModal}
+      />
+
+      <ActiveProfileErrorModal
+        isVisible={ragModals.showActiveProfileError}
+        profileName={ragModals.activeProfileErrorData?.profileName || ""}
+        onClose={ragModals.closeActiveProfileError}
       />
     </div>
   );

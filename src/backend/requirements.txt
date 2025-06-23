@@ -15,10 +15,9 @@ requests>=2.31.0
 supabase==2.7.4
 
 # AI and LangChain dependencies
-google-generativeai>=0.3.0
+google-genai>=1.21.0
 langchain>=0.1.0
 langchain-community>=0.0.10
-langchain-google-genai
 langchain_experimental
 tiktoken>=0.5.0
 
