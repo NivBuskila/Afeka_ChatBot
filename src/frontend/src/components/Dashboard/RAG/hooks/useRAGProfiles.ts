@@ -44,8 +44,7 @@ export function useRAGProfiles(language: Language) {
           }
         } catch (error) {
           if (!controller.signal.aborted) {
-            console.error("Error fetching profiles:", error);
-            setError("Failed to fetch profiles");
+            setProfiles([]);
           }
         } finally {
           if (!controller.signal.aborted) {
@@ -68,8 +67,7 @@ export function useRAGProfiles(language: Language) {
       }
     } catch (error) {
       if (!controller.signal.aborted) {
-        console.error("Error fetching profiles:", error);
-        setError("Failed to fetch profiles");
+        setProfiles([]);
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -91,7 +89,6 @@ export function useRAGProfiles(language: Language) {
       }
     } catch (error) {
       if (!controller.signal.aborted) {
-        console.error("Error fetching hidden profiles:", error);
         setHiddenProfiles([]);
       }
     }
@@ -134,7 +131,6 @@ export function useRAGProfiles(language: Language) {
       await ragService.activateProfile(profileId);
       await fetchProfiles();
     } catch (error) {
-      console.error("Error switching profile:", error);
       setError(`Failed to switch to profile: ${profileId}`);
     } finally {
       setLoading(false);
@@ -148,7 +144,6 @@ export function useRAGProfiles(language: Language) {
       await ragService.createProfile(profileData);
       await fetchProfiles();
     } catch (error) {
-      console.error("Error creating profile:", error);
       setError("Failed to create profile");
     } finally {
       setIsCreatingProfile(false);
@@ -164,7 +159,6 @@ export function useRAGProfiles(language: Language) {
       await fetchProfiles();
       await fetchHiddenProfiles();
     } catch (error) {
-      console.error("Error deleting profile:", error);
       setError(
         `Failed to delete profile: ${
           error instanceof Error ? error.message : String(error)
@@ -184,7 +178,6 @@ export function useRAGProfiles(language: Language) {
       await fetchProfiles();
       await fetchHiddenProfiles();
     } catch (error) {
-      console.error("Error restoring profile:", error);
       setError(
         `Failed to restore profile: ${
           error instanceof Error ? error.message : String(error)

@@ -60,10 +60,7 @@ export function useRegistration({ onRegistrationSuccess }: UseRegistrationProps)
       });
       
       if (authError) {
-        console.error('Auth error:', authError);
-        setError(i18n.language === 'he' ? 'שגיאה ברישום: ' + authError.message : 'Registration error: ' + authError.message);
-        setIsLoading(false);
-        return;
+        throw authError;
       }
       
       if (!authData.user) {
@@ -87,7 +84,7 @@ export function useRegistration({ onRegistrationSuccess }: UseRegistrationProps)
           });
         
         if (dbInsertError) {
-          console.warn('Error inserting user record:', dbInsertError);
+          // User registration succeeded but profile creation failed
         }
         
         // If admin user, add to admins table
@@ -101,43 +98,44 @@ export function useRegistration({ onRegistrationSuccess }: UseRegistrationProps)
               });
             
             if (adminError) {
-              console.warn('Error setting admin role:', adminError);
+              // Admin role assignment failed but registration succeeded
+            } else {
+              // Admin role assignment succeeded
             }
           } catch (adminInsertError) {
-            console.warn('Exception setting admin role:', adminInsertError);
+            // Admin table error - registration already succeeded
           }
         }
-      } catch (dbError) {
-        console.warn('Database error:', dbError);
+      } catch (dbError: any) {
+        // Database error after successful auth registration
+        if (dbError?.code === '23505') {
+          // User already exists in users table - this is fine
+        }
       }
       
-      // Automatic login
-      try {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password
-        });
-        
-        if (signInError) {
-          console.warn('Auto sign-in error:', signInError);
-        }
-      } catch (signInError) {
-        console.warn('Exception during auto sign-in:', signInError);
+      // Try auto sign-in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
+
+      if (signInError) {
+        // Auto sign-in failed - user can still login manually
+      } else {
+        // Auto sign-in succeeded
       }
       
       onRegistrationSuccess(role === 'admin');
     } catch (error: any) {
-      console.error('Registration error:', error);
+      setIsLoading(false);
       
-      // Ignore 403 errors related to admins table
-      if (error.message?.includes('admins') && error.message?.includes('403')) {
-        console.warn('Ignoring admin 403 error - registration succeeded');
+      if (error?.status === 403) {
+        // Ignoring admin 403 error - registration succeeded
         onRegistrationSuccess(role === 'admin');
         return;
       }
       
       setError(i18n.language === 'he' ? 'שגיאה ברישום: ' + error.message : 'Registration error: ' + error.message);
-      setIsLoading(false);
     }
   };
 
@@ -161,6 +159,6 @@ export function useRegistration({ onRegistrationSuccess }: UseRegistrationProps)
     acceptTerms,
     setAcceptTerms,
     handleSubmit,
-    openTermsModal,
-  };
-} 
+          openTermsModal,
+    };
+  } 

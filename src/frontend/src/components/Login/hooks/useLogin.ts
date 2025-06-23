@@ -60,7 +60,7 @@ export function useLogin({ onLoginSuccess }: UseLoginProps) {
               return;
             }
           } catch (dbError) {
-            console.error('שגיאת גישה לטבלת מנהלים:', dbError);
+            // Silent fail
           }
           
           try {
@@ -68,25 +68,23 @@ export function useLogin({ onLoginSuccess }: UseLoginProps) {
               .rpc('is_admin', { user_id: data.user.id });
             
             if (isAdminError) {
-              console.error('שגיאה בקריאת is_admin RPC:', isAdminError);
+              // Silent fail
             } else if (isAdminResult === true) {
               onLoginSuccess(true);
               return;
             }
           } catch (rpcError) {
-            console.error('שגיאה בקריאת RPC:', rpcError);
+            // Silent fail
           }
           
           const isAdminFromMetadata = data.user.user_metadata?.role === 'admin';
           onLoginSuccess(isAdminFromMetadata || false);
           
         } catch (err) {
-          console.error('שגיאה בבדיקת מנהל:', err);
           onLoginSuccess(false);
         }
         
       } catch (err) {
-        console.error('Authentication error:', err);
         setError('אירעה שגיאה בהתחברות לשרת');
         setIsLoading(false);
       }

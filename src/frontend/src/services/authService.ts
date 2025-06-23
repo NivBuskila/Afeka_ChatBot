@@ -15,8 +15,6 @@ export const authService = {
       });
       
       if (error) {
-        console.error('שגיאת התחברות:', error);
-        
         if (error.message.includes('Invalid login credentials')) {
           return {
             user: null,
@@ -50,7 +48,7 @@ export const authService = {
             
             isAdmin = !!adminData;
           } catch (adminCheckError) {
-            console.warn('שגיאה בבדיקת הרשאות מנהל:', adminCheckError);
+            // Admin check failed, defaulting to false
           }
         }
         
@@ -60,14 +58,14 @@ export const authService = {
             .update({ last_sign_in: new Date().toISOString() })
             .eq('id', userData.id);
         } catch (updateError) {
-          console.warn('שגיאה בעדכון זמן התחברות אחרון:', updateError);
+          // Failed to update last sign in time
         }
         
         if (isAdmin) {
           try {
             await this.ensureAdminRecord(userData.id);
           } catch (ensureAdminError) {
-            console.warn('שגיאה בוידוא רשומת מנהל:', ensureAdminError);
+            // Failed to ensure admin record
           }
         }
       }
@@ -78,7 +76,6 @@ export const authService = {
         error: null
       };
     } catch (error: any) {
-      console.error('שגיאה לא צפויה בהתחברות:', error);
       return {
         user: null,
         isAdmin: false,
@@ -98,7 +95,7 @@ export const authService = {
           return true;
         }
       } catch (rpcError) {
-        console.warn('RPC is_admin failed, trying direct table access:', rpcError);
+        // RPC failed, trying direct table access
       }
       
       // Fallback to direct access with specific select
@@ -118,7 +115,6 @@ export const authService = {
       
       return !!isAdminFromMetadata;
     } catch (err) {
-      console.error('Error checking admin status:', err);
       return false;
     }
   },
@@ -137,8 +133,7 @@ export const authService = {
       
       await supabase.rpc('promote_to_admin', { user_id: userId });
     } catch (error) {
-      console.warn('לא ניתן להשתמש ב-RPC, ננסה ישירות:', error);
-      
+      // RPC failed, trying direct insert
       try {
         const { error: insertError } = await supabase
           .from('admins')
@@ -147,15 +142,11 @@ export const authService = {
             permissions: ['read', 'write']
           });
           
-        if (insertError) {
-          if (insertError.code === '23505') {
-            // User already exists as admin
-          } else {
-            console.error('שגיאה ביצירת רשומת מנהל:', insertError);
-          }
+        if (insertError && insertError.code !== '23505') {
+          // Handle insert error (23505 = user already exists)
         }
       } catch (directError) {
-        console.error('שגיאה בניסיון ישיר:', directError);
+        // Direct insert also failed
       }
     }
   },
@@ -217,7 +208,7 @@ export const authService = {
           return true;
         }
       } catch (rpcError) {
-        console.warn('RPC failed, using direct table access');
+        // RPC failed, using direct table access
       }
       
       const { data: adminData } = await supabase
@@ -228,7 +219,6 @@ export const authService = {
         
       return !!adminData;
     } catch (error) {
-      console.error('שגיאה בבדיקת הרשאות מנהל:', error);
       return false;
     }
   }

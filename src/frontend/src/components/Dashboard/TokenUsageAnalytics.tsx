@@ -72,13 +72,13 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
     newKey: number;
   } | null>(null);
   
-  // אינדיקטור לcountdown עד הרענון הבא
+  // Countdown indicator for next refresh
   const [nextRefreshIn, setNextRefreshIn] = useState<number>(15);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const autoRefreshEnabledRef = useRef<boolean>(true);
 
-  // פונקציה לניקוי intervals
+  // Clear intervals
   const clearIntervals = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -160,20 +160,20 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
 
         setKeyData(transformedKeys);
 
-        // 🔧 בדיקה משופרת לחלפת מפתח - רק אם באמת השתנה
+        // Check if key switched - only if actually changed
         if (
           prevCurrentKey !== undefined &&
           prevCurrentKey !== keyManagement.current_key_index &&
-          managementStatus !== null // ודא שזה לא הטעינה הראשונה
+          managementStatus !== null
         ) {
-          // Key switched - אינדיקטור משופר
+          // Key switched indicator
           setKeyChangeAlert({
             show: true,
             oldKey: prevCurrentKey,
             newKey: keyManagement.current_key_index,
           });
 
-          // סגירה אוטומטית אחרי 6 שניות במקום 8
+          // Auto-close after 6 seconds
           setTimeout(() => {
             setKeyChangeAlert(null);
           }, 6000);
@@ -183,7 +183,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
       }
 
       setLastUpdate(new Date());
-      // איפוס הcountdown אחרי רענון מוצלח
+      // Reset countdown after successful refresh
       setNextRefreshIn(15);
       autoRefreshEnabledRef.current = true;
       
@@ -193,7 +193,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
         error
       );
       
-      // 🔧 טיפול משופר בשגיאות עם תמיכה בעברית
+      // Enhanced error handling
       if ((error as any)?.name === 'AbortError') {
         setError(
           language === "he" 
@@ -220,7 +220,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
         );
       }
       
-      // אל תעצור את הauto-refresh גם במקרה של שגיאות
+      // Keep auto-refresh active even on errors
       autoRefreshEnabledRef.current = true;
       
     } finally {
@@ -232,11 +232,11 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
     }
   }, [managementStatus?.current_key_index]);
 
-  // auto-refresh משופר עם countdown
+  // Auto-refresh with countdown
   useEffect(() => {
     fetchData(true); // Initial load
 
-    // Auto-refresh מתקדם יותר
+    // Start auto-refresh
     const startAutoRefresh = () => {
       clearIntervals();
       
@@ -245,7 +245,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
         if (autoRefreshEnabledRef.current && !document.hidden) {
           fetchData(false);
         }
-      }, 15000); // כל 15 שניות
+      }, 15000); // Every 15 seconds
 
       // Countdown timer
       countdownRef.current = setInterval(() => {
@@ -255,7 +255,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
           }
           return prev - 1;
         });
-      }, 1000); // כל שנייה
+      }, 1000); // Every second
     };
 
     startAutoRefresh();
@@ -266,7 +266,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
   }, [fetchData, clearIntervals]);
 
   const handleRefresh = () => {
-    // איפוס הcountdown ו-force refresh
+    // Reset countdown and force refresh
     setNextRefreshIn(15);
     fetchData(true);
   };
@@ -394,7 +394,7 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
   const availableKeys = managementStatus.available_keys;
   const blockedKeys = totalKeys - availableKeys;
 
-  // השתמש בנתונים החדשים מהבקאנד
+  // Use the new backend data
   const currentKey = managementStatus.current_key_usage
     ? {
         id: managementStatus.current_key_usage.current_key_index + 1,
@@ -424,9 +424,9 @@ export const TokenUsageAnalytics: React.FC<TokenUsageAnalyticsProps> = React.mem
 
   return (
     <div className="p-6 space-y-6">
-      {/* 🎨 אינדיקטור משופר לחלפת מפתחות */}
+      {/* Key switch indicator */}
       {keyChangeAlert?.show && (
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4 shadow-lg">
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <div className="flex items-center bg-blue-100 dark:bg-blue-900/30 rounded-full p-2 mr-3">

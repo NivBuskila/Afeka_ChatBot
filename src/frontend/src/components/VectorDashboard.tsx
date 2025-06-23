@@ -61,7 +61,7 @@ const VectorDashboard: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // הוספת מערכת הודעות
+  // Message system
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -96,7 +96,7 @@ const VectorDashboard: React.FC = () => {
         setDocuments(data.documents);
       }
     } catch (error) {
-      console.error("Error loading documents:", error);
+      // Silent fail
     }
   };
 
@@ -113,7 +113,7 @@ const VectorDashboard: React.FC = () => {
         setStats(data);
       }
     } catch (error) {
-      console.error("Error loading stats:", error);
+      // Silent fail
     }
   };
 
@@ -144,7 +144,6 @@ const VectorDashboard: React.FC = () => {
         showErrorMessage(`שגיאה בהעלאת המסמך: ${error.detail}`);
       }
     } catch (error) {
-      console.error("Error uploading file:", error);
       showErrorMessage("שגיאה בהעלאת הקובץ");
     } finally {
       setIsUploading(false);
@@ -178,7 +177,7 @@ const VectorDashboard: React.FC = () => {
         setSearchResults(data.results);
       }
     } catch (error) {
-      console.error("Error searching:", error);
+      // Silent fail
     } finally {
       setIsSearching(false);
     }
@@ -206,7 +205,6 @@ const VectorDashboard: React.FC = () => {
         showErrorMessage(`שגיאה במחיקת המסמך: ${error.detail}`);
       }
     } catch (error) {
-      console.error("Error deleting document:", error);
       showErrorMessage("שגיאה במחיקת המסמך");
     }
   };
@@ -239,7 +237,7 @@ const VectorDashboard: React.FC = () => {
     }
   };
 
-  // פונקציות להצגת הודעות
+  // Show message functions
   const showSuccessMessage = (message: string) => {
     setSuccessMessage(message);
     setErrorMessage("");

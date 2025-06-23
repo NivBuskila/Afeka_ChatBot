@@ -29,7 +29,7 @@ const App: React.FC = () => {
   const { i18n } = useTranslation();
   const { currentTheme, pageBackground, textPrimary } = useThemeClasses();
 
-  // בדיקה ראשונית של session קיים כאשר האפליקציה נטענת
+  // Check initial session when app loads
   useEffect(() => {
     const checkInitialAuth = async () => {
       try {
@@ -39,13 +39,12 @@ const App: React.FC = () => {
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Error checking session:", error);
           setIsCheckingAuth(false);
           return;
         }
 
         if (session && session.user) {
-          // בדיקה אם המשתמש הוא admin
+          // Check if user is admin
           const { data: adminData } = await supabase
             .from("admins")
             .select("id")
@@ -55,9 +54,9 @@ const App: React.FC = () => {
           const isAdminUser = !!adminData;
           setIsLoggedIn(true);
           setIsAdmin(isAdminUser);
-          setIsLanding(false); // דילוג על splash screen אם המשתמש כבר מחובר
+          setIsLanding(false); // Skip splash screen if already logged in
 
-          // נווט אוטומטית לנתיב הנכון
+          // Navigate to appropriate route
           if (isAdminUser) {
             navigate("/dashboard");
           } else {
@@ -65,7 +64,7 @@ const App: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error("Error checking initial auth:", error);
+        // Silent fail
       } finally {
         setIsCheckingAuth(false);
       }
@@ -80,7 +79,7 @@ const App: React.FC = () => {
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
 
-  // אם עדיין בודק auth, מציג loading מעוצב יותר
+  // If still checking auth, show loading screen
   if (isCheckingAuth) {
     return (
       <LoadingScreen
@@ -125,7 +124,7 @@ const App: React.FC = () => {
     navigate("/");
   };
 
-  // פונקציה להצגת הודעת הצלחה
+  // Show success message function
   const showSuccessMessage = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(""), 4000);

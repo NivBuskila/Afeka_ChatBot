@@ -79,13 +79,11 @@ const chatService = {
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error || !user) {
-        console.error('Error getting current user:', error);
         return null;
       }
 
       return user;
     } catch (error) {
-      console.error('Exception getting user:', error);
       return null;
     }
   },
@@ -111,7 +109,6 @@ const chatService = {
       });
       
       if (!response) {
-        console.error('No data returned from chat session creation');
         return null;
       }
 
@@ -119,7 +116,6 @@ const chatService = {
       let sessionData;
       if (Array.isArray(response)) {
         if (response.length === 0) {
-          console.error('Empty array returned from chat session creation');
           return null;
         }
         sessionData = response[0];
@@ -129,7 +125,6 @@ const chatService = {
 
       return sessionData as ChatSession;
     } catch (error) {
-      console.error('Exception in createChatSession:', error);
       return null;
     }
   },
@@ -148,18 +143,14 @@ const chatService = {
       const response = await apiRequest(url.toString());
 
       if (!response) {
-        console.error('Error fetching chat sessions');
         return [];
       }
 
       return response as ChatSession[];
     } catch (error) {
-      console.error('Exception fetching chat sessions:', error);
       return [];
     }
   },
-
-
 
   /**
    * Gets a specific chat session with its messages
@@ -171,13 +162,11 @@ const chatService = {
       const response = await apiRequest(`${BACKEND_URL}/api/proxy/chat_sessions/${sessionId}`);
       
       if (!response) {
-        console.error('No session data found for ID:', sessionId);
         return null;
       }
 
       return response as ChatSession;
     } catch (error) {
-      console.error('Error fetching chat session:', error);
       return null;
     }
   },
@@ -211,7 +200,6 @@ const chatService = {
       });
 
       if (!response || response.length === 0) {
-        console.error('No data returned from message creation');
         return null;
       }
 
@@ -225,7 +213,6 @@ const chatService = {
         is_bot: isBot
       };
     } catch (error) {
-      console.error('Error sending message:', error);
       return null;
     }
   },
@@ -265,7 +252,6 @@ const chatService = {
         });
         
         if (!insertResponse) {
-          console.error('Error adding message via backend proxy: No data returned');
           return null;
         }
         
@@ -280,8 +266,6 @@ const chatService = {
         
         return normalizedMessage;
       } catch (insertError: any) {
-        console.error('Error adding message via backend proxy:', insertError.message);
-        
         return {
           id: `local_${Date.now()}`,
           user_id: message.user_id,
@@ -292,7 +276,6 @@ const chatService = {
         };
       }
     } catch (error) {
-      console.error('Exception in addMessage:', error);
       return null;
     }
   },
@@ -319,13 +302,11 @@ const chatService = {
       });
       
       if (!response || response.success !== true) {
-        console.error('Error updating chat session:', response?.error || 'Unknown error');
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Exception updating chat session:', error);
       return false;
     }
   },
@@ -350,13 +331,11 @@ const chatService = {
       const response = await apiRequest(url.toString());
 
       if (!response) {
-        console.error('Error searching chat sessions');
         return [];
       }
 
       return response as ChatSession[];
     } catch (error) {
-      console.error('Exception searching chat sessions:', error);
       return [];
     }
   },
@@ -378,10 +357,8 @@ const chatService = {
         return true;
       }
       
-      console.error('Error deleting chat session:', response?.error || 'Unknown error');
       return false;
     } catch (error) {
-      console.error('Exception deleting chat session:', error);
       return false;
     }
   },
@@ -487,7 +464,7 @@ const chatService = {
                     return;
                 }
               } catch (parseError) {
-                console.warn('Failed to parse streaming data:', parseError);
+                // Silent fail for parse errors in streaming
               }
             }
           }
@@ -497,7 +474,6 @@ const chatService = {
       }
       
     } catch (error) {
-      console.error('Streaming error:', error);
       if (onError) {
         onError(`Streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
@@ -550,11 +526,9 @@ const chatService = {
       };
       
     } catch (error) {
-      console.error('Error sending chat message:', error);
       return null;
     }
   },
-
 
 };
 

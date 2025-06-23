@@ -47,8 +47,7 @@ export const documentService = {
       }
       return response;
     } catch (error) {
-      console.error('🚨 [DocumentService] Error fetching documents:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -60,8 +59,7 @@ export const documentService = {
       }
       return response;
     } catch (error) {
-      console.error('Error fetching document:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -128,8 +126,7 @@ export const documentService = {
       const data = await response.json().catch(() => ({ success: true, message: "Document deleted successfully" }));
       return data;
     } catch (error) {
-      console.error('Error deleting document:', error);
-      throw error;
+      return false;
     }
   },
 
@@ -185,7 +182,6 @@ export const documentService = {
         if (data.processing_status) {
           data.status = data.processing_status;
         } else {
-          console.warn(`Document ${documentId} status field is missing.`, data);
           // If we have chunk_count but no status, assume it's completed as a fallback
           if (data.chunk_count > 0) {
             data.status = 'completed';
@@ -195,8 +191,7 @@ export const documentService = {
       
       return data;
     } catch (error) {
-      console.error('Error getting document processing status:', error);
-      throw error;
+      return null;
     }
   }
 }; 

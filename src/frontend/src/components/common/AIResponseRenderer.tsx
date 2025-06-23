@@ -12,7 +12,7 @@ interface AIResponseRendererProps {
 
 // Reusable markdown components with enhanced styling
 const createMarkdownComponents = () => ({
-  // Headers - כותרות עם דגש מוגבר
+  // Headers with enhanced emphasis
   h1: ({ children }: any) => (
     <h1 
       className="text-xl font-bold text-green-600 dark:text-green-400 my-3 leading-tight"
@@ -52,7 +52,7 @@ const createMarkdownComponents = () => ({
       {children}
     </h3>
   ),
-  // Strong/Bold - טקסט מודגש
+  // Strong/Bold - emphasized text
   strong: ({ children }: any) => (
     <strong 
       className="font-bold text-green-700 dark:text-green-300"
@@ -64,7 +64,7 @@ const createMarkdownComponents = () => ({
       {children}
     </strong>
   ),
-  // Emphasis/Italic - טקסט נטוי
+  // Emphasis/Italic - italic text
   em: ({ children }: any) => (
     <em 
       className="italic text-green-600 dark:text-green-400"
@@ -75,7 +75,7 @@ const createMarkdownComponents = () => ({
       {children}
     </em>
   ),
-  // Lists - רשימות
+  // Lists
   ol: ({ children }: any) => (
     <ol 
       className="list-decimal list-inside my-3 space-y-1 mr-4"
@@ -113,7 +113,7 @@ const createMarkdownComponents = () => ({
       {children}
     </li>
   ),
-  // Paragraphs - פסקאות
+  // Paragraphs
   p: ({ children }: any) => (
     <p 
       className="mb-3 leading-relaxed"
@@ -126,7 +126,7 @@ const createMarkdownComponents = () => ({
       {children}
     </p>
   ),
-  // Code - קוד
+  // Code inline
   code: ({ children }: any) => (
     <code 
       className="bg-green-100 dark:bg-green-800/50 px-1 py-0.5 rounded text-green-800 dark:text-green-200 text-sm"
@@ -141,7 +141,7 @@ const createMarkdownComponents = () => ({
       {children}
     </code>
   ),
-  // Code blocks - בלוקי קוד
+  // Code blocks
   pre: ({ children }: any) => (
     <pre 
       className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg my-3 overflow-x-auto"
@@ -157,7 +157,7 @@ const createMarkdownComponents = () => ({
       {children}
     </pre>
   ),
-  // Links - קישורים
+  // Links
   a: ({ children, href }: any) => (
     <a
       href={href}
@@ -172,7 +172,7 @@ const createMarkdownComponents = () => ({
       {children}
     </a>
   ),
-  // Blockquotes - ציטוטים
+  // Blockquotes
   blockquote: ({ children }: any) => (
     <blockquote 
       className="border-r-4 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/10 pr-4 py-2 my-3 italic"
@@ -188,7 +188,7 @@ const createMarkdownComponents = () => ({
       {children}
     </blockquote>
   ),
-  // Horizontal rule - קו מפריד
+  // Horizontal rule
   hr: () => (
     <hr 
       className="my-4 border-green-300 dark:border-green-600"
@@ -200,7 +200,7 @@ const createMarkdownComponents = () => ({
       }}
     />
   ),
-  // Tables - טבלאות
+  // Tables
   table: ({ children }: any) => (
     <div className="overflow-x-auto my-4">
       <table 

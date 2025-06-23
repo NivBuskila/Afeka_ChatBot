@@ -13,7 +13,7 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ messages }) => {
   const lastMessage = messages[messages.length - 1];
   const isBotStreaming = lastMessage && lastMessage.type === 'bot' && lastMessage.content.length > 0;
   
-  // Only show "מכין תשובה" if no bot message is streaming yet
+  // Only show preparing response if no bot message is streaming yet
   if (isBotStreaming) {
     return null;
   }

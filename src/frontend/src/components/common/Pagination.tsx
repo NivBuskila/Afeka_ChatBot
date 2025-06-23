@@ -23,7 +23,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
   
-  // אם יש פחות מעמוד אחד, לא מציגים pagination
+  // If less than one page, don't show pagination
   if (totalPages <= 1) return null;
   
   const goToFirst = () => onPageChange(1);
@@ -44,7 +44,7 @@ export const Pagination: React.FC<PaginationProps> = ({
     }
   };
   
-  // יצירת מערך של עמודים להצגה - אלגוריתם משופר לכמויות גדולות
+  // Create visible pages array - improved algorithm for large datasets
   const getVisiblePages = () => {
     const pages = [];
     const maxVisiblePages = 7;
@@ -69,7 +69,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   const visiblePages = getVisiblePages();
   const isRTL = i18n.language === 'he';
   
-  // פונקציה לעיצוב מספרים עם פסיקים
+  // Format numbers with commas
   const formatNumber = (num: number): string => {
     return isRTL ? 
       num.toLocaleString('he-IL') : 
@@ -78,7 +78,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   
   return (
     <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''} ${className}`}>
-      {/* מידע על הפריטים הנוכחיים */}
+      {/* Current items info */}
       <div className="text-sm text-gray-700 dark:text-green-400/70">
         {isRTL ? (
           <>מציג {formatNumber(startItem)}-{formatNumber(endItem)} מתוך {formatNumber(totalItems)} פריטים</>
@@ -87,9 +87,9 @@ export const Pagination: React.FC<PaginationProps> = ({
         )}
       </div>
       
-      {/* כפתורי הניווט */}
+      {/* Navigation buttons */}
       <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-1' : 'space-x-1'}`}>
-        {/* כפתור עמוד ראשון - רק אם יש יותר מ-10 עמודים */}
+        {/* First page button - only if more than 10 pages */}
         {totalPages > 10 && (
           <button
             onClick={goToFirst}
@@ -105,7 +105,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           </button>
         )}
         
-        {/* כפתור עמוד קודם */}
+        {/* Previous page button */}
         <button
           onClick={goToPrevious}
           disabled={currentPage === 1}
@@ -119,7 +119,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           {isRTL ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
         
-        {/* מספרי העמודים */}
+        {/* Page numbers */}
         {visiblePages.map((page, index) => (
           page === '...' ? (
             <span
@@ -145,7 +145,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           )
         ))}
         
-        {/* כפתור עמוד הבא */}
+        {/* Next page button */}
         <button
           onClick={goToNext}
           disabled={currentPage === totalPages}
@@ -159,7 +159,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           {isRTL ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
         
-        {/* כפתור עמוד אחרון - רק אם יש יותר מ-10 עמודים */}
+        {/* Last page button - only if more than 10 pages */}
         {totalPages > 10 && (
           <button
             onClick={goToLast}
@@ -179,28 +179,28 @@ export const Pagination: React.FC<PaginationProps> = ({
   );
 };
 
-// Hook לניהול pagination - משופר לכמויות גדולות
+// Pagination management hook - optimized for large datasets
 export const usePagination = (totalItems: number, itemsPerPage: number = 10) => {
   const [currentPage, setCurrentPage] = React.useState(1);
   
-  // חישוב הפריטים לעמוד הנוכחי
+  // Calculate items for current page
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   
-  // פונקציה להחזרת הפריטים של העמוד הנוכחי - מותאמת לכמויות גדולות
+  // Get paginated items - optimized for large datasets
   const getPaginatedItems = React.useCallback((items: any[]) => {
     return items.slice(startIndex, endIndex);
   }, [startIndex, endIndex]);
   
-  // איפוס לעמוד הראשון כאשר מספר הפריטים משתנה
+  // Reset to first page when total items change
   React.useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1);
     }
   }, [totalItems, itemsPerPage, currentPage, totalPages]);
   
-  // פונקציות נוחות לניווט
+  // Navigation helper functions
   const goToFirst = React.useCallback(() => setCurrentPage(1), []);
   const goToLast = React.useCallback(() => setCurrentPage(totalPages), [totalPages]);
   const goToNext = React.useCallback(() => {
@@ -221,12 +221,12 @@ export const usePagination = (totalItems: number, itemsPerPage: number = 10) => 
     totalPages,
     startIndex,
     endIndex,
-    // פונקציות נוחות
+    // Helper functions
     goToFirst,
     goToLast,
     goToNext,
     goToPrevious,
-    // מידע נוסף שימושי
+    // Additional useful info
     hasNextPage: currentPage < totalPages,
     hasPreviousPage: currentPage > 1,
     isFirstPage: currentPage === 1,

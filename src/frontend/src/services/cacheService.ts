@@ -1,12 +1,12 @@
 import { supabase } from '../config/supabase';
 
 /**
- * שירות מטמון לניהול נתונים במערכת
- * מאפשר ניקוי נתונים ספציפיים במערכת לאחר פעולות עדכון/מחיקה
+ * Cache service for managing system data
+ * Allows clearing specific data after update/delete operations
  */
 export const cacheService = {
   /**
-   * נקה את המטמון של המסמכים בסופאבייס
+   * Clear documents cache in Supabase
    */
   async invalidateDocumentsCache(): Promise<void> {
     try {
@@ -17,13 +17,13 @@ export const cacheService = {
       const timestamp = new Date().toISOString();
       localStorage.setItem('documents_cache_invalidated', timestamp);
     } catch (error) {
-      console.error('Failed to invalidate documents cache:', error);
+      // Silent fail
     }
   },
   
   /**
-   * נקה את המטמון של הישות המבוקשת
-   * @param entityType סוג הישות (documents, users, וכו')
+   * Clear cache for requested entity
+   * @param entityType Entity type (documents, users, etc.)
    */
   async invalidateCache(entityType: string): Promise<void> {
     try {
@@ -34,14 +34,14 @@ export const cacheService = {
       const timestamp = new Date().toISOString();
       localStorage.setItem(`${entityType}_cache_invalidated`, timestamp);
     } catch (error) {
-      console.error(`Failed to invalidate ${entityType} cache:`, error);
+      // Silent fail
     }
   },
   
   /**
-   * בדוק אם המטמון נוקה לאחרונה
-   * @param entityType סוג הישות
-   * @param maxAgeMs גיל מקסימלי של המטמון במילישניות
+   * Check if cache was cleared recently
+   * @param entityType Entity type
+   * @param maxAgeMs Maximum cache age in milliseconds
    */
   isCacheStale(entityType: string, maxAgeMs: number = 60000): boolean {
     const lastInvalidated = localStorage.getItem(`${entityType}_cache_invalidated`);

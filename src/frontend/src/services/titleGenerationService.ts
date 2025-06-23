@@ -29,26 +29,26 @@ export interface Message {
 }
 
 /**
- * שירות ליצירת כותרות אוטומטיות לשיחות
+ * Service for automatic chat title generation
  */
 export const titleGenerationService = {
   /**
-   * יוצר כותרת מותאמת לשיחה בהתבסס על ההודעות
-   * @param messages רשימת ההודעות בשיחה
-   * @param maxLength אורך מקסימלי של הכותרת
-   * @returns כותרת מותאמת או null במקרה של שגיאה
+   * Generates a customized title based on chat messages
+   * @param messages List of chat messages
+   * @param maxLength Maximum title length
+   * @returns Generated title or null on error
    */
   generateTitle: async (messages: Message[], maxLength: number = 50): Promise<string | null> => {
     try {
-      // בדיקה שיש מספיק הודעות לתמצית
+      // Check if there are enough messages
       if (!messages || messages.length < 2) {
         return null;
       }
 
-      // הכנת תוכן השיחה לתמצית
+      // Prepare conversation content
       const conversationContent = messages
         .filter(msg => msg.content.trim().length > 0)
-        .slice(0, 10) // לוקח רק 10 ההודעות הראשונות לחיסכון ב-tokens
+        .slice(0, 10) // Take only first 10 messages to save tokens
         .map(msg => `${msg.type === 'user' ? 'משתמש' : 'בוט'}: ${msg.content}`)
         .join('\n');
 
@@ -56,7 +56,7 @@ export const titleGenerationService = {
         return null;
       }
 
-      // יצירת prompt למודל AI
+      // Create AI prompt
       const prompt = `
 אנא צור כותרת קצרה ותמציתית בעברית לשיחה הבאה בין משתמש לבוט תמיכה של מכללת אפקה.
 
@@ -72,7 +72,7 @@ ${conversationContent}
 
 צור כותרת מתאימה:`;
 
-      // שליחת בקשה לשירות AI
+      // Send request to AI service
       const response = await apiRequest(`${BACKEND_URL}/api/generate-title`, {
         method: 'POST',
         body: JSON.stringify({ prompt }),
@@ -80,22 +80,21 @@ ${conversationContent}
 
       if (response && response.title) {
         const title = response.title.trim();
-        // חיתוך הכותרת למצב הנדרש
+        // Trim title if needed
         return title.length > maxLength ? title.substring(0, maxLength - 3) + '...' : title;
       }
 
       return null;
     } catch (error) {
-      console.error('Error generating title:', error);
       return null;
     }
   },
 
   /**
-   * יוצר כותרת פשוטה בהתבסס על ההודעה הראשונה
-   * @param firstUserMessage ההודעה הראשונה של המשתמש
-   * @param maxLength אורך מקסימלי של הכותרת
-   * @returns כותרת פשוטה
+   * Generates a simple title based on the first message
+   * @param firstUserMessage First user message
+   * @param maxLength Maximum title length
+   * @returns Simple title
    */
   generateSimpleTitle: (firstUserMessage: string, maxLength: number = 50): string => {
     if (!firstUserMessage || firstUserMessage.trim().length === 0) {
@@ -104,7 +103,7 @@ ${conversationContent}
 
     const cleanMessage = firstUserMessage.trim();
     
-    // ניקוי המילים המיותרות
+    // Remove unnecessary words
     const wordsToRemove = ['אפשר', 'בבקשה', 'תוכל', 'תוכלי', 'אני רוצה', 'אני צריך', 'איך', 'מה'];
     let title = cleanMessage;
     
@@ -113,10 +112,10 @@ ${conversationContent}
       title = title.replace(regex, '').trim();
     });
 
-    // ניקוי רווחים מיותרים
+    // Clean extra spaces
     title = title.replace(/\s+/g, ' ').trim();
 
-    // חיתוך למצב הנדרש
+    // Trim if needed
     if (title.length > maxLength) {
       title = title.substring(0, maxLength - 3) + '...';
     }
@@ -125,26 +124,26 @@ ${conversationContent}
   },
 
   /**
-   * בודק אם כדאי לעדכן את הכותרת
-   * @param currentTitle הכותרת הנוכחית
-   * @param messageCount מספר ההודעות הנוכחי בשיחה
-   * @returns האם כדאי לעדכן את הכותרת
+   * Checks if title should be updated
+   * @param currentTitle Current title
+   * @param messageCount Number of messages in chat
+   * @returns Whether to update title
    */
   shouldUpdateTitle: (currentTitle: string | null, messageCount: number): boolean => {
-    // עדכון כותרת כל 2-3 הודעות בהתחלה, ואחר כך כל 5-6 הודעות
+    // Update title based on message count intervals
     if (messageCount <= 6) {
-      return messageCount % 2 === 0; // כל 2 הודעות
+      return messageCount % 2 === 0; // Every 2 messages
     } else if (messageCount <= 12) {
-      return messageCount % 3 === 0; // כל 3 הודעות
+      return messageCount % 3 === 0; // Every 3 messages
     } else {
-      return messageCount % 5 === 0; // כל 5 הודעות
+      return messageCount % 5 === 0; // Every 5 messages
     }
   },
 
   /**
-   * בודק אם הכותרת הנוכחית היא כותרת ברירת מחדל
-   * @param title הכותרת לבדיקה
-   * @returns האם זו כותרת ברירת מחדל
+   * Checks if title is a default title
+   * @param title Title to check
+   * @returns Whether it's a default title
    */
   isDefaultTitle: (title: string | null): boolean => {
     if (!title) return true;

@@ -61,11 +61,9 @@ export function useLoginAuth({ onLoginSuccess }: UseLoginAuthProps) {
             if (!adminError && adminData) {
               onLoginSuccess(true);
               return;
-            } else if (adminError) {
-              console.error('Error checking admins table:', adminError);
             }
           } catch (dbError) {
-            console.error('Error accessing admins table:', dbError);
+            // Silent fail
           }
           
           // If direct access failed, try using RPC
@@ -74,13 +72,13 @@ export function useLoginAuth({ onLoginSuccess }: UseLoginAuthProps) {
               .rpc('is_admin', { user_id: data.user.id });
             
             if (isAdminError) {
-              console.error('Error calling is_admin RPC:', isAdminError);
+              // Silent fail
             } else if (isAdminResult === true) {
               onLoginSuccess(true);
               return;
             }
           } catch (rpcError) {
-            console.error('Error calling RPC:', rpcError);
+            // Silent fail
           }
           
           // If we got here, try reading from user metadata
@@ -90,15 +88,11 @@ export function useLoginAuth({ onLoginSuccess }: UseLoginAuthProps) {
           onLoginSuccess(isAdminFromMetadata || false);
           
         } catch (err) {
-          console.error('Error checking admin role:', err);
-          // In case of error, login as regular user
-          onLoginSuccess(false);
+          // Silent fail
         }
         
       } catch (err) {
-        console.error('Authentication error:', err);
-        setError('אירעה שגיאה בהתחברות לשרת');
-        setIsLoading(false);
+        // Silent fail
       }
     }, 500);
   };
