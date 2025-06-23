@@ -24,13 +24,13 @@ def main():
     
     try:
         from src.ai.config.current_profile import (
-            get_current_profile, 
-            set_current_profile, 
-            get_available_profiles,
-            print_current_config
+            get_current_profile_name, 
+            set_current_profile
         )
+        from src.ai.config.rag_config_profiles import list_profiles
         
-        print_current_config()
+        current_profile_name = get_current_profile_name()
+        print(f"Current profile: {current_profile_name}")
         
         print("\nOptions:")
         print("1. View current configuration")
@@ -42,10 +42,10 @@ def main():
         choice = input("\nSelect option (1-5): ").strip()
         
         if choice == "1":
-            print_current_config()
+            print(f"\nCurrent profile: {current_profile_name}")
             
         elif choice == "2":
-            profiles = get_available_profiles()
+            profiles = list_profiles()
             print("\nAvailable profiles:")
             for i, (name, desc) in enumerate(profiles.items(), 1):
                 print(f"{i}. {name}: {desc}")
@@ -60,7 +60,7 @@ def main():
                 print("Invalid selection")
                 
         elif choice == "3":
-            profiles = get_available_profiles()
+            profiles = list_profiles()
             print("\nAll available profiles:")
             for name, desc in profiles.items():
                 print(f"• {name}: {desc}")
@@ -74,9 +74,7 @@ def main():
                 rag = RAGService()
                 print("RAGService created successfully!")
                 
-                print(f"Similarity threshold: {rag.search_config.SIMILARITY_THRESHOLD}")
-                print(f"Max chunks: {rag.search_config.MAX_CHUNKS_RETRIEVED}")
-                print(f"LLM temperature: {rag.llm_config.TEMPERATURE}")
+                print(f"Current profile: {rag.search_config.SIMILARITY_THRESHOLD}")
                 
             except Exception as e:
                 print(f"Error testing configuration: {e}")

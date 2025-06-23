@@ -21,6 +21,9 @@ from .supabase_profile_manager import get_supabase_profile_manager
 
 logger = logging.getLogger(__name__)
 
+# Type alias for Supabase compatibility
+SupabaseCompatibleConfig = RAGConfig
+
 def load_dynamic_profiles() -> Dict[str, Any]:
     """Load all profiles from Supabase database"""
     try:
@@ -212,6 +215,19 @@ def create_profile_from_data(profile_data: Dict[str, Any]) -> RAGConfig:
     return config
 
 dynamic_profiles_data = load_dynamic_profiles()
+
+# Available profiles list (for backward compatibility)
+AVAILABLE_PROFILES = [
+    "maximum_accuracy",
+    "fast_response", 
+    "conversational",
+    "balanced",
+    "high_quality",  # alias
+    "fast"  # alias
+]
+
+# Default profile
+DEFAULT_PROFILE = "balanced"
 
 def get_high_quality_profile() -> RAGConfig:
     """Profile for maximum quality - high accuracy, lower speed"""
@@ -732,3 +748,28 @@ if __name__ == "__main__":
     comparison = compare_profiles("fast", "high_quality")
     for metric, values in comparison.items():
         print(f"   {metric}: {values}")
+
+# Export all important items
+__all__ = [
+    'RAGConfig',
+    'SupabaseCompatibleConfig', 
+    'PROFILES',
+    'AVAILABLE_PROFILES',
+    'DEFAULT_PROFILE',
+    'get_profile',
+    'list_profiles',
+    'compare_profiles',
+    'save_new_profile',
+    'delete_profile',
+    'get_maximum_accuracy_profile',
+    'get_fast_response_profile',
+    'get_conversational_profile',
+    'get_new_balanced_profile',
+    'get_professional_profile',
+    'get_high_quality_profile',
+    'get_fast_profile',
+    'get_balanced_profile',
+    'create_profile_from_data',
+    'load_dynamic_profiles',
+    'save_dynamic_profiles'
+]

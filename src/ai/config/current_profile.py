@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
-from .rag_config_profiles import get_profile, AVAILABLE_PROFILES, DEFAULT_PROFILE, SupabaseCompatibleConfig
+from .rag_config_profiles import get_profile, list_profiles, DEFAULT_PROFILE, SupabaseCompatibleConfig
 from .rag_config_profiles_supabase import (
     get_profile_from_supabase,
     get_profiles_from_supabase,
@@ -139,7 +139,15 @@ def _initialize_profile():
     env_profile = os.environ.get('RAG_PROFILE')
     if env_profile:
         # Validate that profile exists
-        if env_profile in AVAILABLE_PROFILES or (has_supabase_config() and env_profile in get_profiles_from_supabase()):
+        available_profiles = list_profiles()
+        supabase_profiles = []
+        if has_supabase_config():
+            try:
+                supabase_profiles = list(get_profiles_from_supabase().keys())
+            except:
+                pass
+        
+        if env_profile in available_profiles or env_profile in supabase_profiles:
             logger.info(f"Loading profile from environment: {env_profile}")
             set_current_profile(env_profile)
             return
@@ -148,10 +156,19 @@ def _initialize_profile():
     
     # Try to load from file
     saved_profile = _load_profile_from_file()
-    if saved_profile and (saved_profile in AVAILABLE_PROFILES or (has_supabase_config() and saved_profile in get_profiles_from_supabase())):
-        logger.info(f"Loading saved profile: {saved_profile}")
-        set_current_profile(saved_profile)
-        return
+    if saved_profile:
+        available_profiles = list_profiles()
+        supabase_profiles = []
+        if has_supabase_config():
+            try:
+                supabase_profiles = list(get_profiles_from_supabase().keys())
+            except:
+                pass
+        
+        if saved_profile in available_profiles or saved_profile in supabase_profiles:
+            logger.info(f"Loading saved profile: {saved_profile}")
+            set_current_profile(saved_profile)
+            return
     
     # Default to 'balanced' profile
     logger.info(f"Using default profile: {DEFAULT_PROFILE}")
