@@ -330,7 +330,6 @@ class DocumentProcessor:
             elif file_extension in ['.txt', '.md', '.html', '.json']:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     doc_text_content = f.read()
-                logger.debug(f"Read {len(doc_text_content)} characters from text file: {file_path}")
             else:
                 logger.error(f"Unsupported file type: {file_extension} for file {file_path}")
                 raise ValueError(f"Unsupported file type: {file_extension}")
@@ -360,18 +359,15 @@ class DocumentProcessor:
 
     def _extract_pdf_text(self, file_path: str) -> str:
         """Extracts text from PDF file"""
-        logger.debug(f"Starting _extract_pdf_text for: {file_path}")
         text = ""
         try:
             with open(file_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
                 num_pages = len(pdf_reader.pages)
-                logger.debug(f"PDF has {num_pages} pages.")
                 for i, page in enumerate(pdf_reader.pages):
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
-                    logger.debug(f"Extracted text from page {i+1}/{num_pages}. Length: {len(page_text) if page_text else 0}")
             logger.info(f"Finished extracting text from PDF: {file_path}. Total length: {len(text)}")
         except Exception as e:
             logger.error(f"Error extracting PDF text from {file_path}: {str(e)}", exc_info=True)
@@ -380,14 +376,11 @@ class DocumentProcessor:
 
     def _extract_docx_text(self, file_path: str) -> str:
         """Extracts text from DOCX file"""
-        logger.debug(f"Starting _extract_docx_text for: {file_path}")
         try:
             doc = DocxDocument(file_path)
             text = ""
-            logger.debug(f"DOCX file has {len(doc.paragraphs)} paragraphs.")
             for i, paragraph in enumerate(doc.paragraphs):
                 text += paragraph.text + "\n"
-                # Add less verbose logging here, maybe every N paragraphs or by text length
             logger.info(f"Finished extracting text from DOCX: {file_path}. Total length: {len(text)}")
             return text
         except Exception as e:
@@ -572,7 +565,7 @@ class DocumentProcessor:
         """Semantic search using the new system"""
         logger.info(f"Starting enhanced search with query (first 50 chars): '{query[:50]}', limit: {limit}, threshold: {threshold}")
         try:
-            # השתמש בdefault threshold מ-config אם לא סופק
+            # Use default threshold from config if not provided
             if threshold is None:
                 threshold = self.embedding_config.DEFAULT_SIMILARITY_THRESHOLD
             

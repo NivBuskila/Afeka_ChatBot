@@ -118,7 +118,6 @@ class EmbeddingService:
         cache_entry = self._embedding_cache.get(cache_key)
         if cache_entry and self._is_cache_valid(cache_entry):
             self._cache_stats["hits"] += 1
-            logger.debug(f"Cache hit for query: {query[:50]}...")
             return cache_entry['embedding']
         
         # Cache miss - generate new embedding
@@ -169,7 +168,7 @@ class EmbeddingService:
                 raise ValueError("No embedding in response")
                 
         except Exception as e:
-            logger.error(f"Error generating embedding: {e}")
+            logger.error(f"Error generating query embedding: {e}")
             # Return a zero vector as fallback
             return [0.0] * 768
     

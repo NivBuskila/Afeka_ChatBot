@@ -49,9 +49,9 @@ class SmartChunker:
         self.performance_config = get_performance_config()
         # Section and chapter patterns
         self.section_patterns = [
-            r'^\s*(\d+(?:\.\d+)*)\s*[.\-]?\s*(.+?)(?:\n|$)',  # 1.2.3 כותרת
-            r'^\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*(.+?)(?:\n|$)',  # סעיף 1.2.3:
-            r'^\s*פרק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)',  # פרק ראשון:
+            r'^\s*(\d+(?:\.\d+)*)\s*[.\-]?\s*(.+?)(?:\n|$)',  # 1.2.3 title
+            r'^\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*(.+?)(?:\n|$)',  # section 1.2.3:
+            r'^\s*פרק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)',  # chapter first:
         ]
         
         # Cross-reference patterns
@@ -100,11 +100,11 @@ class SmartChunker:
         enhanced_patterns = [
             # Regular pattern: section number with title
             r'^\s*(\d+(?:\.\d+)*)\s*[.\-:]?\s*(.+?)(?:\n|$)',
-            # Explicit section: "סעיף 1.5.1:"
+            # Explicit section: "section 1.5.1:"
             r'^\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*(.+?)(?:\n|$)',
             # Section number at the beginning of a line even without a title
             r'^\s*(\d+(?:\.\d+)*)\s*[.\-:]\s*(.*)$',
-            # Detection within text: "לפי סעיף 1.5.1"
+            # Detection within text: "according to section 1.5.1"
             r'סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*([^\n]*)',
             # Chapter with number
             r'^\s*פרק\s+([א-ת]+|\d+)\s*[:\-]?\s*(.+?)(?:\n|$)',
@@ -342,7 +342,7 @@ class SmartChunker:
             r'(?:^|\n)\s*(\d+\.\d+)\.?\s+([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
             # Sub-sub-sections: 1.1.1, 1.2.3, etc. 
             r'(?:^|\n)\s*(\d+\.\d+\.\d+)\.?\s+([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',
-            # Sections with "סעיף": סעיף 1.5.1
+            # Sections with "section": section 1.5.1
             r'(?:^|\n)\s*סעיף\s+(\d+(?:\.\d+)*)\s*[:\-]?\s*([^\n]*(?:\n(?!\s*(?:סעיף\s+)?\d+\.)[^\n]*)*)',
             # Additional sections that can be in the document
             r'(\d+(?:\.\d+){0,3})\s*[:\-]\s*([^\n]*(?:\n(?!\s*\d+\.)[^\n]*)*)',

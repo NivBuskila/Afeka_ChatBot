@@ -10,38 +10,14 @@ Each profile is tailored for different types of usage or performance.
 Now using Supabase database for storage instead of JSON files.
 """
 
-from dataclasses import dataclass, replace
-from typing import Dict, Any, List
-import sys
-import os
 import logging
+import os
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Dict, Any, List
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, current_dir)
-
-# Import the Supabase profile manager
-try:
-    from supabase_profile_manager import get_supabase_profile_manager
-except ImportError:
-    try:
-        from .supabase_profile_manager import get_supabase_profile_manager
-    except ImportError:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "supabase_profile_manager",
-            os.path.join(os.path.dirname(__file__), "supabase_profile_manager.py")
-        )
-        if spec is None or spec.loader is None:
-            raise ImportError("Could not load supabase_profile_manager module")
-        supabase_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(supabase_module)
-        get_supabase_profile_manager = supabase_module.get_supabase_profile_manager
-
-try:
-    from rag_config import rag_config, RAGConfig
-except ImportError:
-    from .rag_config import rag_config, RAGConfig
+from .rag_config import rag_config, RAGConfig
+from .supabase_profile_manager import get_supabase_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -474,10 +450,10 @@ def get_fast_response_profile() -> RAGConfig:
 
 
 def get_conversational_profile() -> RAGConfig:
-    """Conversational profile עם system instruction עם תבנית"""
+    """Conversational profile with system instruction with template"""
     config = RAGConfig()
     
-    # הגדרות שיחתיות
+    # Conversational settings
     config.search.SIMILARITY_THRESHOLD = 0.25
     config.search.MAX_CHUNKS_RETRIEVED = 12
     config.search.MAX_CHUNKS_FOR_CONTEXT = 8
@@ -495,10 +471,10 @@ def get_conversational_profile() -> RAGConfig:
 
 
 def get_new_balanced_profile() -> RAGConfig:
-    """New Balanced profile - מתווך בין מהירות לדיוק עם System Instructions"""
+    """New Balanced profile - mediator between speed and accuracy with System Instructions"""
     config = RAGConfig()
     
-    # הגדרות מאוזנות
+    # Balanced settings
     config.search.SIMILARITY_THRESHOLD = 0.3
     config.search.MAX_CHUNKS_RETRIEVED = 15
     config.search.MAX_CHUNKS_FOR_CONTEXT = 10
@@ -516,8 +492,8 @@ def get_new_balanced_profile() -> RAGConfig:
 
 def get_professional_profile() -> RAGConfig:
     """
-    פרופיל מקצועי מושלם ללא hard-coded values
     Professional profile with fully configurable parameters
+    Complete profile without hard-coded values
     """
     config = RAGConfig()
     
@@ -605,13 +581,13 @@ def get_professional_profile() -> RAGConfig:
     
     return config
 
-# 🔧 תיקון רשימת הפרופילים
+# Fix profile list
 PROFILES = {
     "maximum_accuracy": get_maximum_accuracy_profile,
     "fast_response": get_fast_response_profile,
     "conversational": get_conversational_profile,
     "balanced": get_new_balanced_profile,
-    # שמירה על תאימות לאחור עם פרופילים ישנים
+    # Maintain backward compatibility with old profiles
     "high_quality": get_maximum_accuracy_profile,  # alias
     "fast": get_fast_response_profile,  # alias
 }
@@ -622,7 +598,7 @@ try:
     for profile_id, profile_data in dynamic_profiles_data.items():
         if profile_id not in PROFILES:
             PROFILES[profile_id] = lambda data=profile_data: create_profile_from_data(data)
-            logger.info(f"📥 Loaded dynamic profile from Supabase: {profile_id}")
+            logger.info(f"Loaded dynamic profile from Supabase: {profile_id}")
 except Exception as e:
     logger.error(f"Error loading dynamic profiles: {e}")
     dynamic_profiles_data = {}
