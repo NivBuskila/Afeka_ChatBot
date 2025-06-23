@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useRTL } from "../../hooks/useRTL";
+import { useRTL, useTextDirection } from "../../hooks";
 
 import ThemeButton from "../ui/ThemeButton";
 import AIResponseRenderer from "../common/AIResponseRenderer";
@@ -52,52 +52,62 @@ const MessageItem: React.FC<MessageItemProps> = ({
   fontSize = 16,
 }) => {
   const { t } = useTranslation();
-  const { direction, textAlignClass } = useRTL();
+
+  // Auto-detect text direction for this specific message
+  const { direction: messageDirection, textAlign: messageTextAlign } =
+    useTextDirection(message.content);
+  const { direction: chunkDirection } = useTextDirection(
+    message.chunkText || ""
+  );
 
   const isUser = message.type === "user";
   const [showFullChunk, setShowFullChunk] = useState(false);
 
   return (
     <div
-      className={`w-full ${textAlignClass}`}
+      className={`w-full ${messageTextAlign}`}
       data-testid={isUser ? "user-message" : "bot-message"}
     >
       {/* Message content */}
-      <div className={`mb-6 ${textAlignClass}`}>
+      <div className={`mb-6 ${isUser ? messageTextAlign : ""}`}>
         {isUser ? (
-          // User message with bubble
+          // User message with bubble - positioned based on text direction
           <div
-            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200 leading-relaxed"
-            dir={direction}
+            className={`bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 inline-block max-w-sm border border-gray-200 dark:border-gray-600 shadow-lg hover:shadow-xl transition-shadow duration-200 leading-relaxed ${
+              messageDirection === "rtl" ? "ml-auto" : "mr-auto"
+            }`}
+            dir={messageDirection}
             style={{
               fontSize: `${fontSize}px`,
               fontFamily: "inherit",
               lineHeight: "1.6",
-              borderRadius: "20px 20px 4px 20px",
+              borderRadius:
+                messageDirection === "rtl"
+                  ? "20px 20px 20px 4px"
+                  : "20px 20px 4px 20px",
             }}
           >
-            {searchTerm ? (
-              highlightText(message.content, searchTerm)
-            ) : (
-              message.content
-            )}
+            {searchTerm
+              ? highlightText(message.content, searchTerm)
+              : message.content}
           </div>
         ) : (
           // Bot message - completely clean like ChatGPT
           <div className="w-full max-w-4xl">
-            <div 
+            <div
               className="text-gray-800 dark:text-gray-200 leading-relaxed"
               style={{
                 fontSize: `${fontSize}px`,
                 fontFamily: "inherit",
                 lineHeight: "1.7",
               }}
-              dir={direction}
+              dir={messageDirection}
             >
               <AIResponseRenderer
                 content={message.content}
                 searchTerm={searchTerm}
                 className="ai-response-content"
+                dir={messageDirection}
               />
             </div>
           </div>
@@ -105,7 +115,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
         {/* Timestamp - subtle and small - only show if timestamp exists */}
         {message.timestamp && (
-          <div className={`mt-2 text-xs text-gray-500 dark:text-gray-500 opacity-60`}>
+          <div
+            className={`mt-2 text-xs text-gray-500 dark:text-gray-500 opacity-60`}
+          >
             {message.timestamp}
           </div>
         )}
@@ -119,7 +131,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div
                 className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
-                dir={direction}
+                dir={chunkDirection}
                 style={{
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",

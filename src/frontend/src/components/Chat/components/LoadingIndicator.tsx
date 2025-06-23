@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useRTL } from "../../../hooks";
+import { useRTL, useTextDirection } from "../../../hooks";
 import { Message } from "../utils/messageFormatter";
 
 interface LoadingIndicatorProps {
