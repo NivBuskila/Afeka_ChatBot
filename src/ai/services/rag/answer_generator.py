@@ -24,14 +24,14 @@ class AnswerGenerator:
         
         self.llm_config = get_llm_config()
         self._init_gemini_model()
-        logger.info("🤖 AnswerGenerator initialized")
+        logger.info("AnswerGenerator initialized")
     
     def _init_gemini_model(self):
-        """יצירת מודל Gemini עם הגדרות מהפרופיל"""
+        """Create Gemini model with profile settings"""
         fallback_key = os.getenv("GEMINI_API_KEY")
         if fallback_key:
             genai.configure(api_key=fallback_key)
-            logger.info("🔑 Using GEMINI_API_KEY from environment for initialization")
+            logger.info("Using GEMINI_API_KEY from environment for initialization")
         
         generation_config = genai.GenerationConfig(
             temperature=getattr(self.llm_config, 'TEMPERATURE', 0.7),
@@ -42,30 +42,30 @@ class AnswerGenerator:
         system_instruction = None
         if getattr(self.llm_config, 'USE_SYSTEM_INSTRUCTION', True):
             system_instruction = self.llm_config.get_system_instruction()
-            logger.info(f"📝 Using system instruction: {len(system_instruction)} chars")
+            logger.info(f"Using system instruction: {len(system_instruction)} chars")
         
         self.model = genai.GenerativeModel(
             model_name=getattr(self.llm_config, 'MODEL_NAME', 'gemini-pro'),
             generation_config=generation_config,
             system_instruction=system_instruction  # Add system instruction!
         )
-        logger.info("✅ Gemini model initialized with system instruction")
+        logger.info("Gemini model initialized with system instruction")
 
     async def _track_generation_usage(self, prompt: str, response: str, key_id: Optional[int] = None):
         """Track token usage for text generation"""
         input_tokens = len(prompt) // 4
         output_tokens = len(response) // 4
         total_tokens = input_tokens + output_tokens
-        logger.info(f"🔢 [GEN-TRACK] Estimated {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
+        logger.info(f"Estimated {total_tokens} tokens ({input_tokens} input + {output_tokens} output)")
         
         try:
             if self.key_manager and key_id:
                 await self.key_manager.record_usage(key_id, total_tokens, 1)
-                logger.info(f"🔢 [GEN-TRACK] Successfully tracked {total_tokens} tokens for key {key_id}")
+                logger.info(f"Successfully tracked {total_tokens} tokens for key {key_id}")
             else:
-                logger.warning("⚠️ [GEN-TRACK] No key_id provided or key_manager not available")
+                logger.warning("No key_id provided or key_manager not available")
         except Exception as e:
-            logger.error(f"❌ [GEN-TRACK] Failed to track usage: {e}")
+            logger.error(f"Failed to track usage: {e}")
 
     async def generate_with_retry(self, prompt: str, max_retries: int = 3) -> str:
         """Generate response with automatic retries and error handling"""
@@ -80,12 +80,12 @@ class AnswerGenerator:
                         if api_key_data and 'key' in api_key_data:
                             genai.configure(api_key=api_key_data['key'])
                             key_id = api_key_data.get('id')
-                            logger.debug(f"🔑 Using API key ID: {key_id} for generation (attempt {attempt + 1})")
+                            logger.debug(f"Using API key ID: {key_id} for generation (attempt {attempt + 1})")
                         else:
                             fallback_key = os.getenv("GEMINI_API_KEY")
                             if fallback_key:
                                 genai.configure(api_key=fallback_key)
-                                logger.debug(f"🔑 Using fallback key for generation (attempt {attempt + 1})")
+                                logger.debug(f"Using fallback key for generation (attempt {attempt + 1})")
                             else:
                                 raise ValueError("No API key available")
                     except Exception as key_error:
@@ -128,7 +128,7 @@ class AnswerGenerator:
                 
                 error_str = str(e).lower()
                 if any(keyword in error_str for keyword in ['quota', 'rate limit', 'resource_exhausted']):
-                    logger.info(f"⚠️ API key quota/rate limit reached: {error_str}")
+                    logger.info(f"API key quota/rate limit reached: {error_str}")
                 
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2 ** attempt)

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import { useRTL } from '../../../hooks/useRTL';
 
 interface MessageSearchBarProps {
   searchQuery: string;
@@ -20,9 +21,10 @@ const MessageSearchBar: React.FC<MessageSearchBarProps> = ({
   onCloseSearch,
 }) => {
   const { t } = useTranslation();
+  const { direction, textAlign, rightClass, marginRight } = useRTL();
 
   return (
-    <div className="p-2 bg-gray-100 dark:bg-black flex items-center flex-shrink-0">
+    <div className="p-2 bg-gray-100 dark:bg-black flex items-center flex-shrink-0" dir={direction}>
       <div className="relative flex-1 max-w-md mx-auto">
         <input
           type="text"
@@ -31,12 +33,12 @@ const MessageSearchBar: React.FC<MessageSearchBarProps> = ({
           placeholder={
             (t("chat.searchMessages") as string) || "Search messages..."
           }
-          className="w-full py-1 px-3 pr-20 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          className={`w-full py-1 px-3 ${rightClass} text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent ${textAlign}`}
           autoFocus
         />
-        <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center">
+        <div className={`absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center`}>
           {searchResults.length > 0 && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
+            <span className={`text-xs text-gray-500 dark:text-gray-400 ${marginRight}`}>
               {currentSearchIndex + 1}/{searchResults.length}
             </span>
           )}

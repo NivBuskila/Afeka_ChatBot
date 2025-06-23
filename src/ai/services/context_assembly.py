@@ -1,6 +1,6 @@
 """
-מודול בניית קונטקסט מתקדם (Advanced Context Assembly) לתקנוני מכללה
-מממש את השלב הרביעי בתוכנית האסטרטגית: Context Assembly מתקדם
+Module for advanced context assembly (Advanced Context Assembly) for university regulations
+Implements the fourth step in the strategic plan: Context Assembly Advanced
 """
 
 import logging
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PromptTemplate:
-    """תבנית prompt מותאמת לסוג השאלה"""
+    """Prompt template tailored for question type"""
     background_info: str
     hierarchical_context: str
     main_content: str
@@ -30,11 +30,11 @@ class PromptTemplate:
     question: str
 
 class ContextBuilder:
-    """בונה קונטקסט חכם ומותאם לתקנוני מכללה"""
+    """Builds smart and tailored context for university regulations"""
     
     def __init__(self):
         self.context_config = get_context_config()
-        # הגדרות זמניות עדכניות (יש לעדכן כל שנה)
+        # Current settings (update annually)
         self.current_academic_year = "2024-2025"
         self.current_semester = "ב'"
         self.current_date = date.today().strftime("%d/%m/%Y")
@@ -44,35 +44,35 @@ class ContextBuilder:
                              query: str,
                              query_type: str = 'general',
                              max_context_length: int = 4000) -> PromptTemplate:
-        """בניית קונטקסט מותאם ומיטבי"""
+        """Builds a smart and tailored context"""
         
-        logger.info(f"בונה קונטקסט מתקדם עבור שאלה מסוג: {query_type}")
+        logger.info(f"Building advanced context for question type: {query_type}")
         
-        # 1. הכנת מידע רקע רלוונטי
+        # 1. Prepare relevant background information
         background_info = self._build_background_info(context_bundle, query_type)
         
-        # 2. בניית הקשר היררכי
+        # 2. Build hierarchical context
         hierarchical_context = self._build_hierarchical_context(context_bundle)
         
-        # 3. הכנת התוכן הראשי
+        # 3. Build main content
         main_content = self._build_main_content(context_bundle)
         
-        # 4. מידע נוסף קשור
+        # 4. Additional relevant information
         additional_info = self._build_additional_info(context_bundle)
         
-        # 5. הפניות צולבות
+        # 5. Cross-references
         cross_references = self._build_cross_references(context_bundle)
         
-        # 6. הוראות למודל
+        # 6. Model instructions
         instructions = self._build_instructions(query_type, query)
         
-        # בדיקת אורך ובקרה
+        # Check length and trim
         total_length = (len(background_info) + len(hierarchical_context) + 
                        len(main_content) + len(additional_info) + 
                        len(cross_references) + len(instructions) + len(query))
         
         if total_length > max_context_length:
-            logger.warning(f"קונטקסט ארוך מדי ({total_length} תווים), מקצץ...")
+            logger.warning(f"Context too long ({total_length} characters), trimming...")
             background_info, main_content, additional_info = self._trim_context(
                 background_info, main_content, additional_info, max_context_length - 1000
             )
@@ -87,22 +87,22 @@ class ContextBuilder:
             question=query
         )
         
-        logger.info(f"קונטקסט נבנה בהצלחה: {total_length} תווים")
+        logger.info(f"Context built successfully: {total_length} characters")
         return prompt_template
 
     def _build_background_info(self, context_bundle: ContextBundle, query_type: str) -> str:
-        """בניית מידע רקע רלוונטי"""
+        """Builds relevant background information"""
         background_parts = []
         
-        # הוספת הגדרות רלוונטיות
+        # Add relevant settings
         if context_bundle.definition_context:
-            background_parts.append("הגדרות רלוונטיות:")
+            background_parts.append("Relevant definitions:")
             for def_result in context_bundle.definition_context[:3]:
                 background_parts.append(f"• {def_result.chunk_text[:200]}...")
         
-        # הוספת מידע זמני עדכני לשאלות טמפורליות
+        # Add temporal information for temporal questions
         if query_type == 'temporal':
-            background_parts.append(f"מידע זמני עדכני:")
+            background_parts.append(f"Relevant temporal information:")
             background_parts.append(f"• שנת לימודים נוכחית: {self.current_academic_year}")
             background_parts.append(f"• סמסטר נוכחי: {self.current_semester}")
             background_parts.append(f"• תאריך נוכחי: {self.current_date}")
@@ -110,42 +110,42 @@ class ContextBuilder:
         return "\n".join(background_parts) if background_parts else ""
 
     def _build_hierarchical_context(self, context_bundle: ContextBundle) -> str:
-        """בניית הקשר היררכי"""
+        """Builds hierarchical context"""
         if not context_bundle.main_result.hierarchical_path:
             return ""
         
         hierarchy_parts = []
-        hierarchy_parts.append("הקשר היררכי:")
+        hierarchy_parts.append("Hierarchical context:")
         
-        # פירוק הנתיב ההיררכי
+        # Parse hierarchical path
         path = context_bundle.main_result.hierarchical_path
         hierarchy_parts.append(f"מיקום: {path}")
         
-        # הוספת הקשר מפרק עליון אם קיים
+        # Add higher section context if exists
         if context_bundle.hierarchical_context:
-            hierarchy_parts.append("\nהקשר מפרק עליון:")
+            hierarchy_parts.append("\nHigher section context:")
             for ctx_result in context_bundle.hierarchical_context[:2]:
                 hierarchy_parts.append(f"- {ctx_result.section_number}: {ctx_result.section_title}")
         
         return "\n".join(hierarchy_parts)
 
     def _build_main_content(self, context_bundle: ContextBundle) -> str:
-        """בניית התוכן הראשי"""
+        """Builds main content"""
         main_parts = []
         main_result = context_bundle.main_result
         
-        main_parts.append("התוכן הרלוונטי:")
+        main_parts.append("Relevant content:")
         
-        # הוספת כותרת סעיף אם קיימת
+        # Add section title if exists
         if main_result.section_number and main_result.section_title:
             main_parts.append(f"סעיף {main_result.section_number}: {main_result.section_title}")
         
-        # התוכן הראשי
+        # Main content
         main_parts.append(main_result.chunk_text)
         
-        # הוספת תתי-סעיפים קשורים
+        # Add related subsections
         if context_bundle.related_subsections:
-            main_parts.append("\nתתי-סעיפים קשורים:")
+            main_parts.append("\nRelated subsections:")
             for sub_result in context_bundle.related_subsections[:3]:
                 if sub_result.section_number:
                     main_parts.append(f"\nסעיף {sub_result.section_number}:")
@@ -154,12 +154,12 @@ class ContextBuilder:
         return "\n".join(main_parts)
 
     def _build_additional_info(self, context_bundle: ContextBundle) -> str:
-        """בניית מידע נוסף קשור"""
+        """Builds additional relevant information"""
         if not context_bundle.cross_referenced_content:
             return ""
         
         additional_parts = []
-        additional_parts.append("מידע נוסף קשור:")
+        additional_parts.append("Additional relevant information:")
         
         for ref_result in context_bundle.cross_referenced_content[:3]:
             if ref_result.section_number:
@@ -169,13 +169,13 @@ class ContextBuilder:
         return "\n".join(additional_parts)
 
     def _build_cross_references(self, context_bundle: ContextBundle) -> str:
-        """בניית הפניות צולבות"""
+        """Builds cross-references"""
         cross_refs = context_bundle.main_result.cross_references
         if not cross_refs:
             return ""
         
         ref_parts = []
-        ref_parts.append("הפניות צולבות:")
+        ref_parts.append("Cross-references:")
         
         for ref in cross_refs[:5]:
             ref_parts.append(f"• ראה גם סעיף {ref}")
@@ -183,7 +183,7 @@ class ContextBuilder:
         return "\n".join(ref_parts)
 
     def _build_instructions(self, query_type: str, query: str) -> str:
-        """בניית הוראות מותאמות למודל"""
+        """Builds instructions tailored for the model"""
         base_instructions = [
             "הוראות למענה:",
             "1. ענה בהתבסס על התקנון בלבד - אל תוסיף מידע חיצוני",
@@ -193,7 +193,7 @@ class ContextBuilder:
             "5. השתמש בשפה ברורה ומקצועית"
         ]
         
-        # הוראות ספציפיות לפי סוג השאלה
+        # Specific instructions for question type
         if query_type == 'temporal':
             base_instructions.extend([
                 "6. לשאלות זמניות: ציין בבירור מועדים ותאריכים",
@@ -218,9 +218,9 @@ class ContextBuilder:
         return "\n".join(base_instructions)
 
     def _trim_context(self, background: str, main: str, additional: str, max_length: int) -> Tuple[str, str, str]:
-        """קיצוץ קונטקסט כשהוא ארוך מדי"""
+        """Trims context if it's too long"""
         
-        # עדיפויות: main_content > background > additional
+        # Priority: main_content > background > additional
         if len(main) > max_length * self.context_config.MAIN_CONTENT_RATIO:
             main = main[:int(max_length * self.context_config.MAIN_CONTENT_RATIO)] + "..."
         
@@ -237,7 +237,7 @@ class ContextBuilder:
         return background, main, additional
 
     def format_final_prompt(self, template: PromptTemplate) -> str:
-        """עיצוב ה-prompt הסופי"""
+        """Formats the final prompt"""
         prompt_parts = []
         
         if template.background_info:
@@ -261,6 +261,6 @@ class ContextBuilder:
         
         prompt_parts.append(template.instructions)
         prompt_parts.append("")
-        prompt_parts.append(f"שאלת המשתמש: {template.question}")
+        prompt_parts.append(f"User question: {template.question}")
         
         return "\n".join(prompt_parts) 

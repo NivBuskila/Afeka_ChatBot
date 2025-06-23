@@ -87,40 +87,40 @@ Remember: Every response reflects the excellence and values of Afeka College. Al
 על בסיס ההוראות הראשיות שלך, ענה בחמימות ובאופן טבעי לשאלה."""
 
     # RAG-specific prompt template for document-based responses
-    RAG_PROMPT_TEMPLATE: str = """⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+    RAG_PROMPT_TEMPLATE: str = """CRITICAL INSTRUCTION - MUST CITE SOURCES!
 EVERY RESPONSE MUST END WITH: [מקורות: שם המסמך, שם המסמך אחר]
 NO EXCEPTIONS! This format is MANDATORY!
 
 {system_prompt}
 
-📚 מידע מהתקנונים:
+מידע מהתקנונים:
 {context}
 
-❓ שאלה: {query}
+שאלה: {query}
 
 INSTRUCTIONS:
 1. Read all information above carefully
 2. If this is a contextual question (contains "בהקשר של"), focus on the specific follow-up question
 3. Answer in Hebrew based ONLY on the information provided in the sources above
 4. Use specific details from the sources
-5. ⚠️ MANDATORY: End with [מקורות: שם המסמך] citing the exact document names you used ⚠️
+5. MANDATORY: End with [מקורות: שם המסמך] citing the exact document names you used
 
 EXAMPLES OF CORRECT FORMAT:
 "הטווח לרמה מתקדמים ב' הוא 120-133. ציון 125 נופל בטווח הזה. [מקורות: תקנון לימודים תואר ראשון]"
 "עבירה שנייה בחנייה עולה 250 ש"ח בהתאם לתקנון המשמעת. [מקורות: תקנון משמעת סטודנטים]"
 
-⚠️ If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: תקנון לימודים תואר ראשון] ⚠️
+If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: תקנון לימודים תואר ראשון]
 
 תשובה:"""
 
     # RAG prompt template with conversation context
-    RAG_CONVERSATION_PROMPT_TEMPLATE: str = """⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+    RAG_CONVERSATION_PROMPT_TEMPLATE: str = """CRITICAL INSTRUCTION - MUST CITE SOURCES!
 EVERY RESPONSE MUST END WITH: [מקורות: שם המסמך, שם המסמך אחר]
 NO EXCEPTIONS! This format is MANDATORY!
 
 {system_prompt}
 
-🔗 CONVERSATION CONTEXT PROVIDED!
+CONVERSATION CONTEXT PROVIDED!
 - Previous conversation context is provided below
 - This current question refers back to the previous topic
 - Answer the current question using the sources while considering the previous context
@@ -129,10 +129,10 @@ NO EXCEPTIONS! This format is MANDATORY!
 
 {conversation_context}
 
-📚 מידע מהתקנונים:
+מידע מהתקנונים:
 {context}
 
-❓ השאלה הנוכחית: {query}
+השאלה הנוכחית: {query}
 
 INSTRUCTIONS:
 1. Read the conversation context above to understand what was discussed previously
@@ -140,13 +140,13 @@ INSTRUCTIONS:
 3. Answer the current question based ONLY on the information provided in the sources above
 4. If this relates to previous discussion, acknowledge it and give consistent information
 5. Use specific details from the sources
-6. ⚠️ MANDATORY: End with [מקורות: שם המסמך] citing the exact document names you used ⚠️
+6. MANDATORY: End with [מקורות: שם המסמך] citing the exact document names you used
 
 EXAMPLES OF CORRECT FORMAT:
 "כפי שציינתי קודם, הטווח לרמה מתקדמים ב' הוא 120-133. לגבי השאלה החדשה... [מקורות: תקנון לימודים תואר ראשון]"
 "בהמשך לשאלה הקודמת על חנייה אסורה, עבירה שנייה עולה 250 ש"ח. [מקורות: תקנון משמעת סטודנטים]"
 
-⚠️ If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: תקנון לימודים תואר ראשון] ⚠️
+If you cannot find relevant information in the sources above, say so clearly BUT STILL cite the sources you checked: [מקורות: תקנון לימודים תואר ראשון]
 
 תשובה:"""
 
@@ -179,7 +179,7 @@ def get_main_system_prompt() -> str:
         
     except Exception as e:
         # Log the error but don't fail - use fallback
-        print(f"⚠️ Warning: Could not load system prompt from Supabase: {e}")
+        print(f"Warning: Could not load system prompt from Supabase: {e}")
     
     # Fallback to static prompt if Supabase is not available or fails
     return system_prompts.MAIN_SYSTEM_PROMPT

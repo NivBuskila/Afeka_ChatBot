@@ -72,6 +72,7 @@ class ContextBuilder:
             chunk_content = result.get('chunk_text', result.get('content', ''))
             document_name = result.get('document_name', f'מסמך {i+1}')
             
+            # Estimate tokens
             estimated_tokens = len(chunk_content.split()) * getattr(self.performance_config, 'TOKEN_ESTIMATION_MULTIPLIER', 1.3)
             
             max_context_tokens = getattr(self.context_config, 'MAX_CONTEXT_TOKENS', 4000)
@@ -79,6 +80,7 @@ class ContextBuilder:
                 logger.info(f"Context token limit reached at chunk {i}")
                 break
             
+            # Add similarity score if available
             similarity_info = ""
             if 'similarity_score' in result:
                 similarity_info = f" (דומיות: {result['similarity_score']:.3f})"
@@ -97,7 +99,7 @@ class ContextBuilder:
         return context, citations, included_chunks
 
     def create_rag_prompt(self, query: str, context: str) -> str:
-        """Create RAG prompt - now using centralized prompts"""
+        """Create tailored prompt for RAG - now using centralized prompts"""
         try:
             from ...config.system_prompts import get_rag_prompt
             return get_rag_prompt(query, context)
@@ -106,22 +108,23 @@ class ContextBuilder:
                 from src.ai.config.system_prompts import get_rag_prompt
                 return get_rag_prompt(query, context)
             except ImportError:
-                base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+                # Fallback if import fails - keep the old prompt structure
+                base_prompt = f"""CRITICAL INSTRUCTION - MUST CITE SOURCES!
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
 
 אתה עוזר אקדמי של מכללת אפקה.
 
-📚 מידע מהתקנונים:
+מידע מהתקנונים:
 {context}
 
-❓ שאלה: {query}
+שאלה: {query}
 
 INSTRUCTIONS:
 1. Read all information above carefully
 2. Answer in Hebrew based ONLY on the information provided in the sources above
 3. Use specific details from the sources
-4. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
+4. MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used
 
 תשובה:"""
                 return base_prompt
@@ -136,7 +139,8 @@ INSTRUCTIONS:
                 from src.ai.config.system_prompts import get_rag_prompt
                 return get_rag_prompt(query, context, conversation_context)
             except ImportError:
-                base_prompt = f"""⚠️ CRITICAL INSTRUCTION - MUST CITE SOURCES! ⚠️
+                # Fallback if import fails - keep the old prompt structure
+                base_prompt = f"""CRITICAL INSTRUCTION - MUST CITE SOURCES!
 EVERY RESPONSE MUST END WITH: [מקורות: מקור X, מקור Y]
 NO EXCEPTIONS! This format is MANDATORY!
 
@@ -144,15 +148,15 @@ NO EXCEPTIONS! This format is MANDATORY!
 
 {conversation_context}
 
-📚 מידע מהתקנונים:
+מידע מהתקנונים:
 {context}
 
-❓ השאלה הנוכחית: {query}
+השאלה הנוכחית: {query}
 
 INSTRUCTIONS:
 1. Read all information from the sources carefully
 2. Answer the current question based ONLY on the information provided in the sources above
-3. ⚠️ MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used ⚠️
+3. MANDATORY: End with [מקורות: מקור 1, מקור 2] citing which sources you used
 
 תשובה:"""
                 return base_prompt
@@ -174,11 +178,11 @@ INSTRUCTIONS:
             match = re.search(pattern, answer, re.IGNORECASE)
             if match:
                 sources_text = match.group(1)
-                logger.info(f"Sources found with pattern #{i+1}: {sources_text}")
+                logger.info(f"Found sources with pattern #{i+1}: {sources_text}")
                 break
         
         if not sources_text:
-            logger.error("No cited sources found in answer!")
+            logger.error("No sources found in the answer!")
             return []
         
         cited_sources = []
@@ -202,14 +206,14 @@ INSTRUCTIONS:
         if not cited_sources:
             logger.error(f"No valid sources found in text: {sources_text}")
         else:
-            logger.info(f"Sources cited successfully: {cited_sources}")
+            logger.info(f"Successfully cited sources: {cited_sources}")
         
         return cited_sources
 
     def get_cited_chunks(self, included_chunks: List[Dict[str, Any]], cited_source_names: List[str], available_citations: List[str]) -> List[Dict[str, Any]]:
-        """Return chunks that were actually cited by the model"""
+        """Return the chunks that were actually cited by the model"""
         if not cited_source_names:
-            logger.warning("No citations found from model - returning first chunk")
+            logger.warning("No sources found in the model - returning first chunk")
             return included_chunks[:1] if included_chunks else []
         
         cited_chunks = []
@@ -237,7 +241,7 @@ INSTRUCTIONS:
         return cited_chunks
     
     def _calculate_citation_similarity(self, cited_name: str, available_citation: str) -> float:
-        """Calculate similarity between cited source name and available source"""
+        """Calculate similarity between cited source name and available citation"""
         cited_words = set(cited_name.lower().split())
         available_words = set(available_citation.lower().split())
         

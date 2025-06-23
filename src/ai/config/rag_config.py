@@ -54,7 +54,7 @@ class LLMConfig:
     TEMPERATURE: float = 0.1  # Will be overridden by profiles
     MAX_OUTPUT_TOKENS: int = 2048  # Will be overridden by profiles
     
-    # 🆕 System Instructions Support - Now using centralized prompts
+    # System Instructions Support - Now using centralized prompts
     USE_SYSTEM_INSTRUCTION: bool = True
     
     SAFETY_SETTINGS: Dict[str, str] = field(default_factory=lambda: {
@@ -80,7 +80,7 @@ class LLMConfig:
             
             return get_main_system_prompt()
         except Exception as e:
-            print(f"⚠️ Failed to import centralized system prompt: {e}")
+            print(f"Failed to import centralized system prompt: {e}")
             # Import error - return fallback
             return "You are an expert academic assistant for Afeka College of Engineering in Tel Aviv."
 
@@ -297,13 +297,13 @@ def get_optimization_config() -> OptimizationConfig:
 
 
 if __name__ == "__main__":
-    print("🔧 RAG System Configuration:")
+    print("RAG System Configuration:")
     print("=" * 50)
     
     config_dict = rag_config.get_config_dict()
     for section, settings in config_dict.items():
-        print(f"\n📋 {section.upper()}:")
+        print(f"\n{section.upper()}:")
         for key, value in settings.items():
             print(f"  {key}: {value}")
     
-    print(f"\n✅ Configuration valid: {len(rag_config.validate_config()) == 0}")
+    print(f"\nConfiguration valid: {len(rag_config.validate_config()) == 0}")

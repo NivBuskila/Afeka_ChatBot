@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, Shield, Globe } from 'lucide-react';
+import { Shield, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../../i18n/config';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -46,7 +45,7 @@ const TermsAndConditions: React.FC = () => {
           ? 'bg-black/50 border-green-500/20' 
           : 'bg-white/80 border-gray-200'
       }`}>
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto flex items-center justify-center">
           <div className="flex items-center">
             <Shield className={`w-5 h-5 mr-2 ${
               theme === 'dark' ? 'text-green-400' : 'text-green-600'
@@ -57,14 +56,6 @@ const TermsAndConditions: React.FC = () => {
               {i18n.language === 'he' ? 'תנאי שימוש ומדיניות פרטיות' : 'Terms of Use and Privacy Policy'}
             </h1>
           </div>
-          <Link to="/" className={`flex items-center transition-colors ${
-            theme === 'dark' 
-              ? 'text-green-400 hover:text-green-300' 
-              : 'text-green-600 hover:text-green-700'
-          }`}>
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            <span>{i18n.language === 'he' ? 'חזרה' : 'Back'}</span>
-          </Link>
         </div>
       </header>
       

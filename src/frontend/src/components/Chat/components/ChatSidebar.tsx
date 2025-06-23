@@ -5,6 +5,7 @@ import ChatHistory from '../ChatHistory';
 import ThemeButton from '../../ui/ThemeButton';
 import { ChatSession } from '../../../services/chatService';
 import { useThemeClasses } from '../../../hooks/useThemeClasses';
+import { useRTL } from '../../../hooks/useRTL';
 
 interface ChatSidebarProps {
   filteredChatSessions: ChatSession[];
@@ -35,9 +36,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { classes, chatSidebar } = useThemeClasses();
+  const { direction, textAlign, rightClass, leftClass } = useRTL();
 
   return (
-    <div className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`}>
+    <div className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`} dir={direction}>
       {/* Sidebar header with logo and main actions */}
       <div className={`p-3 border-b ${classes.border.primary} flex items-center justify-between`}>
         <div className={`${classes.text.success} font-bold text-lg tracking-wider`}>
@@ -67,19 +69,19 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           <input
             type="text"
             placeholder={(t("chat.history.search") as string) || "Search..."}
-            className="w-full px-2 py-1.5 pr-7 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+            className={`w-full px-2 py-1.5 ${rightClass} text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500 ${textAlign}`}
             value={chatSearchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
           {chatSearchQuery ? (
             <button
               onClick={() => onSearchChange("")}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className={`absolute ${leftClass} top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300`}
             >
               <X className="w-3 h-3" />
             </button>
           ) : (
-            <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
+            <Search className={`absolute ${leftClass} top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400`} />
           )}
         </div>
       </div>
@@ -89,7 +91,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <ChatHistory
           sessions={filteredChatSessions}
           onSelectSession={(session) => onSelectSession(session.id)}
-
           onDeleteSession={onDeleteSession}
           onEditSessionTitle={onEditSessionTitle}
           activeSessionId={activeSessionId}

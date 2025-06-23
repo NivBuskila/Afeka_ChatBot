@@ -26,7 +26,7 @@ class SearchAnalytics:
         self.db_config = get_database_config()
         self.performance_config = get_performance_config()
         self.get_current_profile = get_current_profile
-        logger.info("📊 SearchAnalytics initialized")
+        logger.info("SearchAnalytics initialized")
     
     async def log_search_analytics(
         self, 
@@ -37,11 +37,11 @@ class SearchAnalytics:
         response_time_ms: int,
         document_id: Optional[int] = None
     ):
-        """רושם נתוני חיפוש לטבלת analytics"""
+        """Log search analytics to analytics table"""
         try:
             # Check if analytics is enabled
             if not getattr(self.performance_config, 'LOG_SEARCH_ANALYTICS', True):
-                logger.debug("🔇 Search analytics logging is disabled")
+                logger.debug("Search analytics logging is disabled")
                 return
             
             analytics_data = {
@@ -63,18 +63,18 @@ class SearchAnalytics:
             
             # Check for errors in the response
             if hasattr(response, 'data') and response.data is None:
-                logger.warning(f"⚠️ Failed to log search analytics: No data returned")
+                logger.warning(f"Failed to log search analytics: No data returned")
             elif isinstance(response, dict) and response.get('error'):
-                logger.warning(f"⚠️ Failed to log search analytics: {response.get('error')}")
+                logger.warning(f"Failed to log search analytics: {response.get('error')}")
             else:
-                logger.debug(f"✅ Successfully logged search analytics for query: {query[:50]}...")
+                logger.debug(f"Successfully logged search analytics for query: {query[:50]}...")
 
         except Exception as e:
             # Handle cases where `response` might not be a standard object
             if "postgrest.exceptions.APIError" in str(type(e)):
-                logger.warning(f"⚠️ Failed to log search analytics: {str(e)}")
+                logger.warning(f"Failed to log search analytics: {str(e)}")
             else:
-                logger.warning(f"⚠️ Failed to log search analytics: {e}")
+                logger.warning(f"Failed to log search analytics: {e}")
     
     def _get_current_profile_safe(self) -> str:
         """Safely get current profile with fallback"""
@@ -85,9 +85,9 @@ class SearchAnalytics:
             return 'default'
     
     async def get_search_statistics(self, days_back: int = 30) -> Dict[str, Any]:
-        """מחזיר סטטיסטיקות חיפוש"""
+        """Get search statistics"""
         try:
-            # בדיקה אם analytics מופעל
+            # Check if analytics is enabled
             if not getattr(self.performance_config, 'LOG_SEARCH_ANALYTICS', True):
                 return {"error": "Analytics disabled in configuration"}
                 
@@ -97,14 +97,14 @@ class SearchAnalytics:
             
             if response.data:
                 stats = response.data[0] if isinstance(response.data, list) else response.data
-                logger.info(f"📊 Retrieved search statistics for {days_back} days")
+                logger.info(f"Retrieved search statistics for {days_back} days")
                 return stats
             else:
-                logger.warning("⚠️ No search statistics data returned")
+                logger.warning("No search statistics data returned")
                 return {}
             
         except Exception as e:
-            logger.error(f"❌ Error getting search statistics: {e}")
+            logger.error(f"Error getting search statistics: {e}")
             return {"error": str(e)}
     
     async def get_analytics_summary(self, hours_back: int = 24) -> Dict[str, Any]:
@@ -116,14 +116,14 @@ class SearchAnalytics:
             
             if response.data:
                 summary = response.data[0] if isinstance(response.data, list) else response.data
-                logger.info(f"📊 Retrieved analytics summary for {hours_back} hours")
+                logger.info(f"Retrieved analytics summary for {hours_back} hours")
                 return summary
             else:
-                logger.warning("⚠️ No analytics summary data returned")
+                logger.warning("No analytics summary data returned")
                 return {}
                 
         except Exception as e:
-            logger.error(f"❌ Error getting analytics summary: {e}")
+            logger.error(f"Error getting analytics summary: {e}")
             return {"error": str(e)}
     
     async def get_top_queries(self, limit: int = 10, days_back: int = 7) -> list:
@@ -135,14 +135,14 @@ class SearchAnalytics:
             }).execute()
             
             if response.data:
-                logger.info(f"📊 Retrieved top {limit} queries for {days_back} days")
+                logger.info(f"Retrieved top {limit} queries for {days_back} days")
                 return response.data
             else:
-                logger.warning("⚠️ No top queries data returned")
+                logger.warning("No top queries data returned")
                 return []
                 
         except Exception as e:
-            logger.error(f"❌ Error getting top queries: {e}")
+            logger.error(f"Error getting top queries: {e}")
             return []
     
     async def get_performance_metrics(self, days_back: int = 7) -> Dict[str, Any]:
@@ -154,14 +154,14 @@ class SearchAnalytics:
             
             if response.data:
                 metrics = response.data[0] if isinstance(response.data, list) else response.data
-                logger.info(f"📊 Retrieved performance metrics for {days_back} days")
+                logger.info(f"Retrieved performance metrics for {days_back} days")
                 return metrics
             else:
-                logger.warning("⚠️ No performance metrics data returned")
+                logger.warning("No performance metrics data returned")
                 return {}
                 
         except Exception as e:
-            logger.error(f"❌ Error getting performance metrics: {e}")
+            logger.error(f"Error getting performance metrics: {e}")
             return {"error": str(e)}
     
     def is_analytics_enabled(self) -> bool:

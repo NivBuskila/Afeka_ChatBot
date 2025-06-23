@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 import os
 
-# הוספת הנתיב לתיקיית backend
+# Add backend path to the directory
 backend_path = Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
@@ -33,7 +33,7 @@ from ..utils.vector_utils import ensure_768_dimensions, log_vector_info
 logger = logging.getLogger(__name__)
 
 class EnhancedDocumentProcessor:
-    """מעבד מסמכים משודרג עם יכולות RAG מתקדמות"""
+    """Enhanced document processor with advanced RAG capabilities"""
     
     def __init__(self):
         self.supabase = get_supabase_client() if has_supabase else None
@@ -54,21 +54,21 @@ class EnhancedDocumentProcessor:
                                        document_name: str,
                                        document_version: str = "",
                                        document_id: Optional[int] = None) -> Dict[str, Any]:
-        """עיבוד ושמירה מתקדמת של מסמך"""
+        """Advanced processing and storage of document"""
         
-        logger.info(f"מתחיל עיבוד מתקדם של מסמך: {document_name}")
+        logger.info(f"Starting advanced processing of document: {document_name}")
         
         try:
-            # שלב 1: חלוקה חכמה לחלקים
+            # Step 1: Smart chunking
             processed_chunks = self.smart_chunker.process_document(
                 document_text=document_text,
                 document_name=document_name,
                 document_version=document_version
             )
             
-            logger.info(f"נוצרו {len(processed_chunks)} chunks מעובדים")
+            logger.info(f"Created {len(processed_chunks)} processed chunks")
             
-            # שלב 2: יצירת embeddings ושמירה במסד הנתונים
+            # Step 2: Create embeddings and store in database
             stored_chunks = []
             failed_chunks = []
             
@@ -86,13 +86,13 @@ class EnhancedDocumentProcessor:
                         failed_chunks.append(chunk.metadata.section_number or 'unknown')
                         
                 except Exception as e:
-                    logger.error(f"שגיאה בשמירת chunk: {e}")
+                    logger.error(f"Error storing chunk: {e}")
                     failed_chunks.append(chunk.metadata.section_number or 'unknown')
             
-            # שלב 3: עיבוד הפניות צולבות
+            # Step 3: Process cross
             await self._process_cross_references(stored_chunks)
             
-            # שלב 4: עדכון statistics
+            # Step 4: Update statistics
             await self._update_document_statistics(document_id, len(stored_chunks))
             
             result = {
@@ -104,11 +104,11 @@ class EnhancedDocumentProcessor:
                 'failed_sections': failed_chunks
             }
             
-            logger.info(f"סיים עיבוד מסמך {document_name}: {len(stored_chunks)} chunks נשמרו")
+            logger.info(f"Finished processing document {document_name}: {len(stored_chunks)} chunks stored")
             return result
             
         except Exception as e:
-            logger.error(f"שגיאה בעיבוד מסמך {document_name}: {e}")
+            logger.error(f"Error processing document {document_name}: {e}")
             return {
                 'status': 'error',
                 'error': str(e),
@@ -117,16 +117,16 @@ class EnhancedDocumentProcessor:
             }
 
     async def _store_advanced_chunk(self, chunk: ProcessedChunk, document_id: Optional[int]) -> Optional[int]:
-        """שמירת chunk מתקדם במסד הנתונים"""
+        """Store advanced chunk in database"""
         
         if not self.supabase:
             return None
         
         try:
-            # יצירת embedding באמצעות Gemini
+            # Create embedding using Gemini
             embedding = await self._generate_embedding(chunk.text)
             
-            # הכנת הנתונים לשמירה
+            # Prepare data for storage
             chunk_data = {
                 'document_id': document_id,
                 'chunk_text': chunk.text,
@@ -148,7 +148,7 @@ class EnhancedDocumentProcessor:
                 'token_count': chunk.token_count
             }
             
-            # שמירה במסד הנתונים
+            # Store in database
             response = self.supabase.table('advanced_document_chunks')\
                 .insert(chunk_data)\
                 .execute()
@@ -159,11 +159,11 @@ class EnhancedDocumentProcessor:
             return None
             
         except Exception as e:
-            logger.error(f"שגיאה בשמירת chunk: {e}")
+            logger.error(f"Error storing chunk: {e}")
             return None
 
     async def _generate_embedding(self, text: str) -> Optional[List[float]]:
-        """יצירת embedding לטקסט"""
+        """Create embedding for text"""
         if not text or not text.strip():
             return None
         
@@ -179,10 +179,10 @@ class EnhancedDocumentProcessor:
                 logger.error("No embedding returned from API")
                 return None
             
-            # וידוא שה-vector הוא בדיוק 768 dimensions
+            # Verify that the vector is exactly 768 dimensions
             embedding = ensure_768_dimensions(raw_embedding)
             
-            # רישום מידע לdebug אם יש בעיה עם גודל הvector
+            # Log debug information if there's a problem with the vector size
             if len(raw_embedding) != 768:
                 logger.warning(f"Enhanced processor embedding dimension adjusted from {len(raw_embedding)} to 768")
                 log_vector_info(raw_embedding, "Original enhanced embedding")
@@ -195,7 +195,7 @@ class EnhancedDocumentProcessor:
             return None
 
     async def _process_cross_references(self, stored_chunks: List[Dict]) -> None:
-        """עיבוד והכנסת הפניות צולבות"""
+        """Process and store cross-references"""
         
         if not self.supabase:
             return
@@ -204,7 +204,7 @@ class EnhancedDocumentProcessor:
             for chunk_info in stored_chunks:
                 chunk_id = chunk_info['chunk_id']
                 
-                # קבלת הפניות צולבות מהמסד הנתונים
+                # Get cross-references from database
                 response = self.supabase.table('advanced_document_chunks')\
                     .select('cross_references')\
                     .eq('id', chunk_id)\
@@ -214,7 +214,7 @@ class EnhancedDocumentProcessor:
                 if response.data and response.data['cross_references']:
                     cross_refs = response.data['cross_references']
                     
-                    # הכנסת כל הפניה צולבת לטבלה נפרדת
+                    # Store each cross-reference in a separate table
                     for cross_ref in cross_refs:
                         cross_ref_data = {
                             'from_chunk_id': chunk_id,
@@ -228,10 +228,10 @@ class EnhancedDocumentProcessor:
                             .execute()
                             
         except Exception as e:
-            logger.error(f"שגיאה בעיבוד הפניות צולבות: {e}")
+            logger.error(f"Error processing cross-references: {e}")
 
     async def _update_document_statistics(self, document_id: Optional[int], chunks_count: int) -> None:
-        """עדכון סטטיסטיקות המסמך"""
+        """Update document statistics"""
         
         if not self.supabase or not document_id:
             return
@@ -248,18 +248,18 @@ class EnhancedDocumentProcessor:
                 .execute()
                 
         except Exception as e:
-            logger.error(f"שגיאה בעדכון סטטיסטיקות: {e}")
+            logger.error(f"Error updating document statistics: {e}")
 
     async def enhanced_search_and_answer(self, 
                                        query: str,
                                        max_results: int = 10,
                                        include_context: bool = True) -> Dict[str, Any]:
-        """חיפוש ומענה משודרג"""
+        """Advanced search and answer"""
         
-        logger.info(f"מתחיל חיפוש משודרג עבור: '{query}'")
+        logger.info(f"Starting advanced search for: '{query}'")
         
         try:
-            # שלב 1: חיפוש רב-שלבי
+            # Step 1: Multi-stage search
             search_results = await self.retriever.multi_stage_search(
                 query=query,
                 max_results=max_results,
@@ -273,18 +273,18 @@ class EnhancedDocumentProcessor:
                     'results': []
                 }
             
-            # שלב 2: בניית קונטקסט מתקדם (אם נדרש)
+            # Step 2: Build advanced context (if needed)
             context_bundle = None
             formatted_prompt = None
             
             if include_context and search_results:
-                # זיהוי סוג השאלה
+                # Identify query type
                 query_type = self.retriever._classify_query_type(query)
                 
-                # בניית חבילת קונטקסט לתוצאה הטובה ביותר
+                # Build best result context bundle
                 context_bundle = await self._build_context_for_result(search_results[0], query)
                 
-                # בניית prompt מתקדם
+                # Build advanced context
                 prompt_template = self.context_builder.build_advanced_context(
                     context_bundle=context_bundle,
                     query=query,
@@ -293,9 +293,9 @@ class EnhancedDocumentProcessor:
                 
                 formatted_prompt = self.context_builder.format_final_prompt(prompt_template)
             
-            # הכנת התוצאות למענה
+            # Prepare results for answer
             formatted_results = []
-            for result in search_results[:5]:  # רק 5 התוצאות הטובות ביותר
+            for result in search_results[:5]:  # Only best 5 results
                 formatted_results.append({
                     'chunk_id': result.chunk_id,
                     'section_number': result.section_number,
@@ -320,7 +320,7 @@ class EnhancedDocumentProcessor:
                 }
             }
             
-            # הוספת קונטקסט אם נבנה
+            # Add context if built
             if formatted_prompt:
                 result['formatted_prompt'] = formatted_prompt
                 result['context_info'] = {
@@ -330,14 +330,14 @@ class EnhancedDocumentProcessor:
                     'cross_references_count': len(context_bundle.cross_referenced_content)
                 }
             
-            # שמירת סטטיסטיקות חיפוש
+            # Save search statistics
             await self._save_search_analytics(query, len(search_results), search_results[0].final_score)
             
-            logger.info(f"חיפוש הושלם: {len(search_results)} תוצאות")
+            logger.info(f"Search completed: {len(search_results)} results")
             return result
             
         except Exception as e:
-            logger.error(f"שגיאה בחיפוש משודרג: {e}")
+            logger.error(f"Error in advanced search: {e}")
             return {
                 'status': 'error',
                 'error': str(e),
@@ -345,9 +345,9 @@ class EnhancedDocumentProcessor:
             }
 
     async def _build_context_for_result(self, main_result: SearchResult, query: str) -> ContextBundle:
-        """בניית חבילת קונטקסט עבור תוצאה מסוימת"""
+        """Builds context bundle for a specific result"""
         
-        # פשוט יצירת context bundle בסיסי
+        # Simply create a basic context bundle
         return ContextBundle(
             main_result=main_result,
             hierarchical_context=[],
@@ -358,7 +358,7 @@ class EnhancedDocumentProcessor:
         )
 
     async def _save_search_analytics(self, query: str, results_count: int, top_score: float) -> None:
-        """שמירת סטטיסטיקות חיפוש"""
+        """Save search statistics"""
         
         if not self.supabase:
             return
@@ -369,7 +369,7 @@ class EnhancedDocumentProcessor:
                 'search_type': 'enhanced',
                 'results_found': results_count,
                 'top_result_score': top_score,
-                'response_time_ms': 0  # יחושב במקום אחר
+                'response_time_ms': 0  # Will be calculated elsewhere
             }
             
             self.supabase.table('search_analytics')\
@@ -377,23 +377,23 @@ class EnhancedDocumentProcessor:
                 .execute()
                 
         except Exception as e:
-            logger.error(f"שגיאה בשמירת אנליטיקס: {e}")
+            logger.error(f"Error saving search analytics: {e}")
 
     async def get_enhanced_stats(self) -> Dict[str, Any]:
-        """סטטיסטיקות מתקדמות של המערכת"""
+        """Advanced system statistics"""
         
         if not self.supabase:
             return {'error': 'Database not available'}
         
         try:
-            # ספירת chunks מתקדמים
+            # Count advanced chunks
             chunks_response = self.supabase.table('advanced_document_chunks')\
                 .select('*', count='exact')\
                 .execute()
             
             total_advanced_chunks = chunks_response.count if hasattr(chunks_response, 'count') else 0
             
-            # ספירת לפי סוג תוכן
+            # Count by content type
             content_type_stats = {}
             for content_type in ['rule', 'procedure', 'definition', 'penalty', 'temporal']:
                 type_response = self.supabase.table('advanced_document_chunks')\
@@ -402,14 +402,14 @@ class EnhancedDocumentProcessor:
                     .execute()
                 content_type_stats[content_type] = type_response.count if hasattr(type_response, 'count') else 0
             
-            # ספירת הפניות צולבות
+            # Count cross-references
             cross_refs_response = self.supabase.table('cross_references')\
                 .select('*', count='exact')\
                 .execute()
             
             total_cross_refs = cross_refs_response.count if hasattr(cross_refs_response, 'count') else 0
             
-            # סטטיסטיקות חיפוש אחרונות
+            # Recent search statistics
             recent_searches = self.supabase.table('search_analytics')\
                 .select('*')\
                 .order('created_at', desc=True)\
@@ -426,7 +426,7 @@ class EnhancedDocumentProcessor:
             }
             
         except Exception as e:
-            logger.error(f"שגיאה בקבלת סטטיסטיקות: {e}")
+            logger.error(f"Error getting statistics: {e}")
             return {
                 'status': 'error',
                 'error': str(e)

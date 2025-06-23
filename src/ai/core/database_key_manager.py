@@ -51,7 +51,6 @@ class DatabaseKeyManager:
                     logger.info("Keys auto-refreshed successfully")
                 except Exception as e:
                     logger.error(f"Auto-refresh failed: {e}")
-                    # ⚡ OPTIMIZED: Longer retry interval on error to reduce load
                     await asyncio.sleep(300)  # 5 minutes instead of 1 minute
         
         try:
@@ -69,7 +68,6 @@ class DatabaseKeyManager:
             logger.info(f"Key {key_data.get('key_name')} reached session rotation threshold ({usage_count} requests)")
             return True
         
-        # ⚡ OPTIMIZED: Skip expensive database checks for most requests
         # Only check database usage occasionally (every 10th request per key)
         try:
             if not self.use_direct_supabase and usage_count % 10 == 0:
@@ -140,14 +138,13 @@ class DatabaseKeyManager:
                 response = self.supabase.table('api_keys').select('*').eq('is_active', True).execute()
                 self.api_keys = response.data or []
             else:
-                # ⚡ OPTIMIZED: Use fast endpoint first, fallback to heavy one only if needed
                 try:
                     # Try fast endpoint first
                     ai_response = await self.client.get(f"{self.base_url}/api/keys/for-ai-service")
                     if ai_response.status_code == 200:
                         ai_keys_data = ai_response.json()
                         self.api_keys = ai_keys_data.get('keys', [])
-                        logger.info(f"🚀 [FAST-REFRESH] Got {len(self.api_keys)} keys from fast endpoint")
+                        logger.info(f"Got {len(self.api_keys)} keys from fast endpoint")
                     else:
                         raise Exception("Fast endpoint failed")
                 except Exception as fast_error:

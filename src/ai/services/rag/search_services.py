@@ -92,7 +92,7 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"❌ RPC execution error in '{function_name}': {e}", exc_info=True
+                f"RPC execution error in '{function_name}': {e}", exc_info=True
             )
             return []
     
@@ -104,7 +104,7 @@ class SearchService:
     ) -> list[SearchResult]:
         """Performs a semantic search using embeddings."""
         try:
-            logger.info(f"🔍 Starting semantic search for: {query[:50]}...")
+            logger.info(f"Starting semantic search for: {query[:50]}...")
             
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
@@ -126,14 +126,14 @@ class SearchService:
             results = self._execute_rpc(function_name, search_params)
             
             if results:
-                logger.info(f"✅ Found {len(results)} semantic matches")
+                logger.info(f"Found {len(results)} semantic matches")
             else:
-                logger.warning("⚠️ No semantic search results found")
+                logger.warning("No semantic search results found")
                 
             return results
                 
         except Exception as e:
-            logger.error(f"❌ Error in semantic search: {e}", exc_info=True)
+            logger.error(f"Error in semantic search: {e}", exc_info=True)
             return []
     
     async def hybrid_search(
@@ -145,7 +145,7 @@ class SearchService:
     ) -> list[SearchResult]:
         """Performs a hybrid search combining semantic and keyword search."""
         try:
-            logger.info(f"🔍 Starting hybrid search for: {query[:50]}...")
+            logger.info(f"Starting hybrid search for: {query[:50]}...")
             
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
@@ -171,14 +171,14 @@ class SearchService:
             results = self._execute_rpc(function_name, search_params)
             
             if results:
-                logger.info(f"✅ Found {len(results)} hybrid matches")
+                logger.info(f"Found {len(results)} hybrid matches")
             else:
-                logger.warning("⚠️ No hybrid search results found")
+                logger.warning("No hybrid search results found")
                 
             return results
                 
         except Exception as e:
-            logger.error(f"❌ Error in hybrid search: {e}", exc_info=True)
+            logger.error(f"Error in hybrid search: {e}", exc_info=True)
             return []
     
     async def contextual_search(
@@ -189,7 +189,7 @@ class SearchService:
     ) -> list[SearchResult]:
         """Performs a contextual search with filtering."""
         try:
-            logger.info(f"🔍 Starting contextual search for: {query[:50]}...")
+            logger.info(f"Starting contextual search for: {query[:50]}...")
             
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
@@ -213,14 +213,14 @@ class SearchService:
             results = self._execute_rpc(function_name, search_params)
             
             if results:
-                logger.info(f"✅ Found {len(results)} contextual matches")
+                logger.info(f"Found {len(results)} contextual matches")
             else:
-                logger.warning("⚠️ No contextual search results found")
+                logger.warning("No contextual search results found")
                 
             return results
                 
         except Exception as e:
-            logger.error(f"❌ Error in contextual search: {e}", exc_info=True)
+            logger.error(f"Error in contextual search: {e}", exc_info=True)
             return []
 
     async def section_specific_search(
@@ -230,14 +230,14 @@ class SearchService:
     ) -> list[SearchResult]:
         """Performs a search targeted at a specific section."""
         try:
-            logger.info(f"🔍 Starting section-specific search for: {query[:50]}...")
+            logger.info(f"Starting section-specific search for: {query[:50]}...")
             
             if not target_section:
                 section_pattern = r"סעיף\s*(\d+(?:\.\d+)*)"
                 match = re.search(section_pattern, query)
                 if match:
                     target_section = match.group(1)
-                    logger.info(f"🎯 Detected section: {target_section}")
+                    logger.info(f"Detected section: {target_section}")
             
             query_embedding = await self.embedding_service.generate_query_embedding(query)
             
@@ -258,15 +258,15 @@ class SearchService:
             results = self._execute_rpc(function_name, search_params)
             
             if results:
-                logger.info(f"✅ Found {len(results)} section-specific matches")
+                logger.info(f"Found {len(results)} section-specific matches")
             else:
-                logger.warning("⚠️ No section-specific search results found")
+                logger.warning("No section-specific search results found")
                 
             return results
                 
         except Exception as e:
             logger.error(
-                f"❌ Error in section-specific search: {e}", exc_info=True
+                f"Error in section-specific search: {e}", exc_info=True
             )
             return []
     

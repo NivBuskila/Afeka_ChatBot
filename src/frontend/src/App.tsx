@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { CheckCircle } from "lucide-react";
 import "./i18n/config";
 import { useThemeClasses } from './hooks/useThemeClasses';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 import APEXSplashScreen from "./components/SplashScreen/components/APEXSplashScreen";
 import APEXStaticLogin from "./components/Login/APEXStaticLogin";
@@ -74,11 +75,7 @@ const App: React.FC = () => {
     checkInitialAuth();
   }, [navigate]);
 
-  useEffect(() => {
-    // Set initial language direction
-    document.documentElement.dir = i18n.language === "he" ? "rtl" : "ltr";
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language]);
+
 
   // אם עדיין בודק auth, מציג loading מעוצב יותר
   if (isCheckingAuth) {
@@ -158,8 +155,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <SessionContextProvider supabaseClient={supabase}>
-      <div className={`h-screen w-screen font-sans overflow-auto ${pageBackground} ${textPrimary} ${currentTheme === 'dark' ? 'dark' : ''}`}>
+    <LanguageProvider>
+      <SessionContextProvider supabaseClient={supabase}>
+        <div className={`h-screen w-screen font-sans overflow-auto ${pageBackground} ${textPrimary} ${currentTheme === 'dark' ? 'dark' : ''}`}>
         {/* Success message */}
         {successMessage && (
           <div className="fixed top-4 right-4 z-50 bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-md max-w-md animate-fadeIn">
@@ -194,8 +192,9 @@ const App: React.FC = () => {
           />
           <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
-      </div>
-    </SessionContextProvider>
+        </div>
+      </SessionContextProvider>
+    </LanguageProvider>
   );
 };
 

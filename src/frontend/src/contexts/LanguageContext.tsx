@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 
 type Language = 'he' | 'en';
@@ -8,12 +7,16 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
+  isRTL: boolean;
+  direction: 'rtl' | 'ltr';
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   language: 'en',
   setLanguage: () => {},
   toggleLanguage: () => {},
+  isRTL: false,
+  direction: 'ltr',
 });
 
 export const useLanguage = () => useContext(LanguageContext);
@@ -21,14 +24,10 @@ export const useLanguage = () => useContext(LanguageContext);
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Get saved language or default to English
   const getSavedLanguage = (): Language => {
-    // For now, always default to English to fix splash screen issue
-    return 'en';
-    
-    // Original code:
-    // const savedLanguage = localStorage.getItem('language');
-    // return (savedLanguage === 'he' || savedLanguage === 'en') 
-    //   ? savedLanguage as Language
-    //   : 'en';
+    const savedLanguage = localStorage.getItem('language');
+    return (savedLanguage === 'he' || savedLanguage === 'en') 
+      ? savedLanguage as Language
+      : 'en';
   };
 
   const [language, setLanguageState] = useState<Language>(getSavedLanguage());
@@ -58,10 +57,16 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
-  const contextValue = {
+  // RTL support
+  const isRTL = language === 'he';
+  const direction: 'rtl' | 'ltr' = isRTL ? 'rtl' : 'ltr';
+
+  const contextValue: LanguageContextType = {
     language,
     setLanguage,
-    toggleLanguage
+    toggleLanguage,
+    isRTL,
+    direction
   };
 
   return (
