@@ -181,7 +181,6 @@ export function useRAGProfiles(language: Language) {
           }`
         );
       }
-    }
     } finally {
       setIsDeletingProfile(null);
     }
