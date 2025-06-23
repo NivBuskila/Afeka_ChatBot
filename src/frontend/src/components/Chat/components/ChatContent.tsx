@@ -1,9 +1,10 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import MessageList from '../MessageList';
-import ChatInput from '../ChatInput';
-import LoadingIndicator from './LoadingIndicator';
-import { Message } from '../utils/messageFormatter';
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { useRTL } from "../../../hooks";
+import MessageList from "../MessageList";
+import ChatInput from "../ChatInput";
+import LoadingIndicator from "./LoadingIndicator";
+import { Message } from "../utils/messageFormatter";
 
 interface ChatContentProps {
   messages: Message[];
@@ -31,13 +32,17 @@ const ChatContent: React.FC<ChatContentProps> = ({
   onSend,
 }) => {
   const { t } = useTranslation();
+  const { direction, textAlignClass } = useRTL();
 
   return (
     <>
       <div className="flex-1 overflow-y-auto">
         {!hasStarted ? (
           <div className="h-full flex flex-col items-center justify-center">
-            <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-white">
+            <h1
+              className={`text-4xl font-bold mb-8 text-gray-800 dark:text-white ${textAlignClass}`}
+              dir={direction}
+            >
               {(t("chat.startPrompt") as string) || "Start chatting..."}
             </h1>
             {/* Input in the center for new chat */}
@@ -80,4 +85,4 @@ const ChatContent: React.FC<ChatContentProps> = ({
   );
 };
 
-export default ChatContent; 
+export default ChatContent;

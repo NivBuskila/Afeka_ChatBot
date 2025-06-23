@@ -16,6 +16,7 @@ import {
 import { systemPromptService } from "../../../../services/systemPromptService";
 // Hooks
 import { useRTL } from "../../../../hooks/useRTL";
+import { useTextDirection } from "../../../../hooks";
 
 // Types
 interface SystemPrompt {
@@ -38,13 +39,19 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
   language,
 }) => {
   const { t } = useTranslation();
-  const { isRTL, direction, textAlignClass } = useRTL();
+  const { isRTL, direction } = useRTL();
 
   // State
   const [currentPrompt, setCurrentPrompt] = useState<SystemPrompt | null>(null);
   const [promptHistory, setPromptHistory] = useState<SystemPrompt[]>([]);
   const [editedPrompt, setEditedPrompt] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+
+  // Dynamic text direction based on content
+  const { direction: promptDirection, textAlign: promptTextAlign } =
+    useTextDirection(editedPrompt);
+  const { direction: notesDirection, textAlign: notesTextAlign } =
+    useTextDirection(notes);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -132,9 +139,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
     } catch (err: any) {
       setError(
         err.message ||
-          (isRTL
-            ? "נכשל בשמירת הנחיות המערכת"
-            : "Failed to save system prompt")
+          (isRTL ? "נכשל בשמירת הנחיות המערכת" : "Failed to save system prompt")
       );
     } finally {
       setSaving(false);
@@ -204,9 +209,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString(
-      isRTL ? "he-IL" : "en-US"
-    );
+    return new Date(dateString).toLocaleString(isRTL ? "he-IL" : "en-US");
   };
 
   if (loading) {
@@ -214,11 +217,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
       <div className="p-6 flex items-center justify-center">
         <div className="text-gray-700 dark:text-green-400">
           <Clock className="w-8 h-8 animate-spin mx-auto mb-2" />
-          <p>
-            {isRTL
-              ? "טוען הנחיות מערכת..."
-              : "Loading system prompt..."}
-          </p>
+          <p>{isRTL ? "טוען הנחיות מערכת..." : "Loading system prompt..."}</p>
         </div>
       </div>
     );
@@ -241,8 +240,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
               {currentPrompt.updated_by_email && (
                 <span>
                   {" "}
-                  {isRTL ? "על ידי" : "by"}{" "}
-                  {currentPrompt.updated_by_email}
+                  {isRTL ? "על ידי" : "by"} {currentPrompt.updated_by_email}
                 </span>
               )}
             </p>
@@ -308,12 +306,10 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
             <textarea
               value={editedPrompt}
               onChange={(e) => setEditedPrompt(e.target.value)}
-              dir={direction}
-              className={`w-full h-96 p-4 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 ${textAlignClass}`}
+              dir={promptDirection}
+              className={`w-full h-96 p-4 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 ${promptTextAlign}`}
               placeholder={
-                isRTL
-                  ? "הכנס הנחיות מערכת..."
-                  : "Enter system prompt..."
+                isRTL ? "הכנס הנחיות מערכת..." : "Enter system prompt..."
               }
             />
           </div>
@@ -325,8 +321,8 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              dir={direction}
-              className={`w-full h-20 p-3 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 ${textAlignClass}`}
+              dir={notesDirection}
+              className={`w-full h-20 p-3 border border-gray-300 dark:border-green-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-green-400 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 ${notesTextAlign}`}
               placeholder={
                 isRTL
                   ? "הוסף הערות על גרסה זו..."
@@ -397,8 +393,7 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-800 dark:text-green-400">
-                        {isRTL ? "גרסה" : "Version"}{" "}
-                        {prompt.version}
+                        {isRTL ? "גרסה" : "Version"} {prompt.version}
                       </span>
                       {prompt.is_active && (
                         <span className="px-2 py-1 bg-green-500 text-white text-xs rounded">
@@ -432,7 +427,10 @@ export const SystemPromptManagement: React.FC<SystemPromptManagementProps> = ({
                     {prompt.notes}
                   </div>
                 )}
-                <div className="text-xs text-gray-500 dark:text-green-400/50 font-mono max-h-20 overflow-y-auto" dir={direction}>
+                <div
+                  className="text-xs text-gray-500 dark:text-green-400/50 font-mono max-h-20 overflow-y-auto"
+                  dir={direction}
+                >
                   {prompt.prompt_text.substring(0, 200)}
                   {prompt.prompt_text.length > 200 && "..."}
                 </div>

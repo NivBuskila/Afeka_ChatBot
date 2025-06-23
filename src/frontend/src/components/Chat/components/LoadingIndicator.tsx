@@ -1,6 +1,7 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { Message } from '../utils/messageFormatter';
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { useRTL } from "../../../hooks";
+import { Message } from "../utils/messageFormatter";
 
 interface LoadingIndicatorProps {
   messages: Message[];
@@ -8,11 +9,13 @@ interface LoadingIndicatorProps {
 
 const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ messages }) => {
   const { t } = useTranslation();
-  
+  const { direction, textAlignClass, marginLeft } = useRTL();
+
   // Check if the last message is a bot message with content (streaming has started)
   const lastMessage = messages[messages.length - 1];
-  const isBotStreaming = lastMessage && lastMessage.type === 'bot' && lastMessage.content.length > 0;
-  
+  const isBotStreaming =
+    lastMessage && lastMessage.type === "bot" && lastMessage.content.length > 0;
+
   // Only show preparing response if no bot message is streaming yet
   if (isBotStreaming) {
     return null;
@@ -22,10 +25,11 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ messages }) => {
     <div
       className="max-w-3xl mx-auto px-8 py-4"
       data-testid="typing-indicator"
+      dir={direction}
     >
       <div className="w-full">
         <div className="mb-6">
-          <div className="flex items-center gap-2 ml-auto w-fit">
+          <div className={`flex items-center gap-2 ${marginLeft}-auto w-fit`}>
             <div className="flex gap-1">
               {[...Array(3)].map((_, i) => (
                 <div
@@ -35,7 +39,9 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ messages }) => {
                 />
               ))}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500 opacity-60">
+            <div
+              className={`text-xs text-gray-500 dark:text-gray-500 opacity-60 ${textAlignClass}`}
+            >
               {(t("chat.preparingResponse") as string) || "מכין תשובה..."}
             </div>
           </div>
@@ -45,4 +51,4 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ messages }) => {
   );
 };
 
-export default LoadingIndicator; 
+export default LoadingIndicator;

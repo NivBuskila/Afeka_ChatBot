@@ -1,6 +1,7 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import ChatInput from '../ChatInput';
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { useRTL } from "../../../hooks";
+import ChatInput from "../ChatInput";
 
 interface WelcomeScreenProps {
   input: string;
@@ -16,14 +17,21 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
+  const { direction, textAlignClass } = useRTL();
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center">
-        <h1 className="text-5xl font-light mb-8 text-gray-800 dark:text-white">
+        <h1
+          className={`text-5xl font-light mb-8 text-gray-800 dark:text-white ${textAlignClass}`}
+          dir={direction}
+        >
           {t("chat.noActiveSession", "ברוך הבא לצ'אטבוט אפקה!")}
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-12 text-lg text-center mx-auto max-w-2xl leading-relaxed">
+        <p
+          className={`text-gray-500 dark:text-gray-400 mb-12 text-lg text-center mx-auto max-w-2xl leading-relaxed ${textAlignClass}`}
+          dir={direction}
+        >
           {t(
             "chat.startNewChatPrompt",
             "כאן תוכלו לשאול שאלות לגבי תקנון הלימודים, נהלי הפקולטה, ומידע אחר שקשור ללימודים באפקה. התחילו שיחה חדשה כדי להתחיל!"
@@ -44,4 +52,4 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   );
 };
 
-export default WelcomeScreen; 
+export default WelcomeScreen;

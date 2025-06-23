@@ -1,11 +1,12 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { Settings, LogOut, Plus, Search, X } from 'lucide-react';
-import ChatHistory from '../ChatHistory';
-import ThemeButton from '../../ui/ThemeButton';
-import { ChatSession } from '../../../services/chatService';
-import { useThemeClasses } from '../../../hooks/useThemeClasses';
-import { useRTL } from '../../../hooks/useRTL';
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Settings, LogOut, Plus, Search, X } from "lucide-react";
+import ChatHistory from "../ChatHistory";
+import ThemeButton from "../../ui/ThemeButton";
+import { ChatSession } from "../../../services/chatService";
+import { useThemeClasses } from "../../../hooks/useThemeClasses";
+import { useRTL } from "../../../hooks/useRTL";
+import { useTextDirection } from "../../../hooks";
 
 interface ChatSidebarProps {
   filteredChatSessions: ChatSession[];
@@ -36,13 +37,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { classes, chatSidebar } = useThemeClasses();
-  const { direction, textAlign, rightClass, leftClass } = useRTL();
+  const { rightClass, leftClass } = useRTL();
+  const { direction, textAlign } = useTextDirection(chatSearchQuery);
 
   return (
-    <div className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`} dir={direction}>
+    <div
+      className={`h-full flex flex-col ${chatSidebar} w-60 overflow-hidden flex-shrink-0`}
+      dir={direction}
+    >
       {/* Sidebar header with logo and main actions */}
-      <div className={`p-3 border-b ${classes.border.primary} flex items-center justify-between`}>
-        <div className={`${classes.text.success} font-bold text-lg tracking-wider`}>
+      <div
+        className={`p-3 border-b ${classes.border.primary} flex items-center justify-between`}
+      >
+        <div
+          className={`${classes.text.success} font-bold text-lg tracking-wider`}
+        >
           APEX
         </div>
         <div className="flex items-center space-x-2">
@@ -81,7 +90,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <X className="w-3 h-3" />
             </button>
           ) : (
-            <Search className={`absolute ${leftClass} top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400`} />
+            <Search
+              className={`absolute ${leftClass} top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400`}
+            />
           )}
         </div>
       </div>
@@ -115,4 +126,4 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   );
 };
 
-export default ChatSidebar; 
+export default ChatSidebar;

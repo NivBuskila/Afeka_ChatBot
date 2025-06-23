@@ -1,8 +1,9 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
-import { RAGTestResult } from '../RAGService';
-import AIResponseRenderer from '../../../common/AIResponseRenderer';
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Search } from "lucide-react";
+import { useTextDirection } from "../../../../hooks";
+import { RAGTestResult } from "../RAGService";
+import AIResponseRenderer from "../../../common/AIResponseRenderer";
 
 type Language = "he" | "en";
 
@@ -29,6 +30,16 @@ const TestCenter: React.FC<TestCenterProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // Always call hooks in the same order - never conditionally
+  const { direction: queryDirection, textAlign: queryTextAlign } =
+    useTextDirection(testQuery);
+  const { direction: answerDirection } = useTextDirection(
+    testResult?.answer || ""
+  );
+  const { direction: chunkDirection } = useTextDirection(
+    testResult?.chunkText || ""
+  );
+
   return (
     <div className="space-y-6">
       {/* Test Interface */}
@@ -36,7 +47,7 @@ const TestCenter: React.FC<TestCenterProps> = ({
         <h3 className="text-xl font-semibold text-gray-800 dark:text-green-400 mb-4">
           {t("rag.test.center") || "מרכז בדיקות RAG"}
         </h3>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-600 dark:text-green-400/70 mb-2">
@@ -46,13 +57,13 @@ const TestCenter: React.FC<TestCenterProps> = ({
               <textarea
                 value={testQuery}
                 onChange={(e) => setTestQuery(e.target.value)}
-                className="w-full h-24 px-4 py-3 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-green-300 focus:border-green-500 dark:focus:border-green-500/50 focus:outline-none resize-none"
+                className={`w-full h-24 px-4 py-3 bg-white dark:bg-black/50 border border-gray-300 dark:border-green-500/30 rounded-lg text-gray-800 dark:text-green-300 focus:border-green-500 dark:focus:border-green-500/50 focus:outline-none resize-none ${queryTextAlign}`}
                 placeholder={
                   language === "he"
                     ? "הכנס שאילתה לבדיקת המערכת..."
                     : "Enter a query to test the system..."
                 }
-                dir={language === "he" ? "rtl" : "ltr"}
+                dir={queryDirection}
               />
             </div>
           </div>
@@ -83,16 +94,16 @@ const TestCenter: React.FC<TestCenterProps> = ({
           <h4 className="text-lg font-semibold text-gray-800 dark:text-green-400 mb-4">
             {t("rag.test.results") || "תוצאות הבדיקה"}
           </h4>
-          
+
           <div className="space-y-4">
             {/* Query */}
             <div>
               <p className="text-sm text-gray-600 dark:text-green-400/70 mb-2">
                 {t("rag.query") || "שאילתה"}:
               </p>
-              <div 
-                className="text-gray-800 dark:text-green-300 bg-white dark:bg-black/30 p-3 rounded border border-gray-200 dark:border-green-500/10" 
-                dir={language === "he" ? "rtl" : "ltr"}
+              <div
+                className="text-gray-800 dark:text-green-300 bg-white dark:bg-black/30 p-3 rounded border border-gray-200 dark:border-green-500/10"
+                dir={queryDirection}
               >
                 {testResult.query}
               </div>
@@ -103,8 +114,11 @@ const TestCenter: React.FC<TestCenterProps> = ({
               <p className="text-sm text-gray-600 dark:text-green-400/70 mb-2">
                 {t("rag.answer") || "תשובה"}:
               </p>
-              <div className="bg-white dark:bg-black/30 p-4 rounded border border-gray-200 dark:border-green-500/10">
-                <AIResponseRenderer 
+              <div
+                className="bg-white dark:bg-black/30 p-4 rounded border border-gray-200 dark:border-green-500/10"
+                dir={answerDirection}
+              >
+                <AIResponseRenderer
                   content={testResult.answer}
                   className="text-gray-800 dark:text-green-300"
                 />
@@ -121,30 +135,31 @@ const TestCenter: React.FC<TestCenterProps> = ({
                   <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-green-400/50">
                     {testResult.similarity && (
                       <span>
-                        {t("rag.similarity") || "דמיון"}: {(testResult.similarity * 100).toFixed(1)}%
+                        {t("rag.similarity") || "דמיון"}:{" "}
+                        {(testResult.similarity * 100).toFixed(1)}%
                       </span>
                     )}
                     {testResult.documentTitle && (
                       <span>
-                        {t("rag.document") || "מסמך"}: {testResult.documentTitle}
+                        {t("rag.document") || "מסמך"}:{" "}
+                        {testResult.documentTitle}
                       </span>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="bg-blue-50 dark:bg-blue-500/10 p-4 rounded border border-blue-200 dark:border-blue-500/20">
-                  <div 
-                    className="text-gray-800 dark:text-blue-300" 
-                    dir={language === "he" ? "rtl" : "ltr"}
+                  <div
+                    className="text-gray-800 dark:text-blue-300"
+                    dir={chunkDirection}
                   >
-                    {showFullChunk 
-                      ? testResult.chunkText 
-                      : testResult.chunkText.length > 200 
-                        ? testResult.chunkText.substring(0, 200) + "..."
-                        : testResult.chunkText
-                    }
+                    {showFullChunk
+                      ? testResult.chunkText
+                      : testResult.chunkText.length > 200
+                      ? testResult.chunkText.substring(0, 200) + "..."
+                      : testResult.chunkText}
                   </div>
-                  
+
                   {testResult.chunkText.length > 200 && (
                     <button
                       onClick={onToggleChunk}
@@ -228,4 +243,4 @@ const TestCenter: React.FC<TestCenterProps> = ({
   );
 };
 
-export default TestCenter; 
+export default TestCenter;
