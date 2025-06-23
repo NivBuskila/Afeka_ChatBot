@@ -11,7 +11,7 @@ if str(ai_services_path) not in sys.path:
     sys.path.insert(0, str(ai_services_path))
 
 try:
-    from src.ai.config.current_profile import get_current_profile, set_current_profile
+    from src.ai.config.current_profile import get_current_profile_name, set_current_profile
     from src.ai.config.rag_config_profiles import get_profile, save_new_profile, delete_profile
     
     def get_available_profiles():
@@ -23,14 +23,14 @@ except ImportError:
     ai_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'ai')
     sys.path.insert(0, ai_path)
     try:
-        from config.current_profile import get_current_profile, set_current_profile
+        from config.current_profile import get_current_profile_name, set_current_profile
         from config.rag_config_profiles import get_profile, save_new_profile, delete_profile
         
         def get_available_profiles():
             return _get_fresh_available_profiles()
             
     except ImportError:
-        def get_current_profile():
+        def get_current_profile_name():
             return "maximum_accuracy"
         def set_current_profile(profile_name):
             pass
@@ -300,9 +300,11 @@ def get_profile_characteristics(profile_id: str, config: Dict[str, Any], languag
 async def get_rag_profiles(language: str = "he"):
     """Get all available RAG profiles with their configurations"""
     try:
-        current_profile_id = get_current_profile()
+        current_profile_name = get_current_profile_name()
+        logger.info(f"Current profile name from get_current_profile_name(): '{current_profile_name}'")
+        
         available_profiles = get_available_profiles()
-        logger.debug(f"Available profiles from get_available_profiles(): {list(available_profiles.keys())}")
+        logger.info(f"Available profiles from get_available_profiles(): {list(available_profiles.keys())}")
         
         profiles_data = []
         for profile_id, description in available_profiles.items():
@@ -315,11 +317,14 @@ async def get_rag_profiles(language: str = "he"):
                                    "enhanced_testing", "optimized_testing", "maximum_accuracy"}
                 is_custom = profile_id not in built_in_profiles
                 
+                is_active = profile_id == current_profile_name
+                logger.debug(f"Profile {profile_id}: isActive = {is_active} (profile_id == '{current_profile_name}')")
+                
                 profile_data = {
                     "id": profile_id,
                     "name": profile_id.replace('_', ' ').title(),
                     "description": description,
-                    "isActive": profile_id == current_profile_id,
+                    "isActive": is_active,
                     "isCustom": is_custom,
                     "config": real_config,
                     "characteristics": characteristics
@@ -331,8 +336,12 @@ async def get_rag_profiles(language: str = "he"):
                 logger.error(f"Error loading profile {profile_id}: {e}")
                 continue
         
+        logger.info(f"Returning {len(profiles_data)} profiles, current profile: '{current_profile_name}'")
+        active_profiles = [p for p in profiles_data if p["isActive"]]
+        logger.info(f"Active profiles found: {[p['id'] for p in active_profiles]}")
+        
         return JSONResponse(content={
-            "currentProfile": current_profile_id,
+            "currentProfile": current_profile_name,
             "profiles": profiles_data
         })
         
@@ -380,7 +389,7 @@ async def activate_rag_profile(profile_id: str):
 async def get_current_rag_profile():
     """Get the currently active RAG profile"""
     try:
-        current_profile_name = get_current_profile()
+        current_profile_name = get_current_profile_name()
         available_profiles = get_available_profiles()
         
         if current_profile_name not in available_profiles:
@@ -531,8 +540,8 @@ async def delete_rag_profile(profile_id: str, force: bool = False, permanent: bo
                 detail=f"Profile '{profile_id}' not found"
             )
         
-        current_profile = get_current_profile()
-        if profile_id == current_profile:
+        current_profile_name = get_current_profile_name()
+        if profile_id == current_profile_name:
             raise HTTPException(
                 status_code=400, 
                 detail="Cannot delete the currently active profile. Please switch to another profile first."
@@ -672,8 +681,8 @@ async def permanently_delete_profile(profile_id: str, confirm: bool = False):
                 detail=f"Profile '{profile_id}' not found"
             )
         
-        current_profile = get_current_profile()
-        if profile_id == current_profile:
+        current_profile_name = get_current_profile_name()
+        if profile_id == current_profile_name:
             raise HTTPException(
                 status_code=400, 
                 detail="Cannot permanently delete the currently active profile. Please switch to another profile first."

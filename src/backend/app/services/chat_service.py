@@ -148,18 +148,14 @@ class ChatService(IChatService):
             current_profile = None
             
             try:
-                from ....ai.config.current_profile import get_current_profile
-                current_profile = get_current_profile()
-                logger.debug(f"Current profile from Supabase: '{current_profile}'")
+                from ....ai.config.current_profile import get_current_profile_name
+                current_profile = get_current_profile_name()
+            except ImportError:
+                current_profile = None
                 
-                if self.rag_service is None or self.current_profile_cache != current_profile:
-                    profile_changed = True
-                    logger.info(f"Profile update detected: '{self.current_profile_cache}' → '{current_profile}'")
-            except Exception as e:
-                logger.warning(f"Could not get current profile from Supabase: {e}")
-                if self.rag_service is None:
-                    profile_changed = True
-                    logger.debug("No profile found - using default RAG service")
+            if current_profile != self.current_profile_cache:
+                profile_changed = True
+                logger.info(f"Profile update detected: '{self.current_profile_cache}' → '{current_profile}'")
             
             if self.rag_service is None or profile_changed:
                 logger.debug("Creating new RAG service...")
@@ -169,17 +165,22 @@ class ChatService(IChatService):
                         if current_profile:
                             self.current_profile_cache = current_profile
                         else:
-                            from ....ai.config.current_profile import get_current_profile
-                            current_profile = get_current_profile()
+                            from ....ai.config.current_profile import get_current_profile_name
+                            current_profile = get_current_profile_name()
                             self.current_profile_cache = current_profile
                         
                         logger.info(f"Creating RAG service with profile: {current_profile}")
                         self.rag_service = RAGService(config_profile=current_profile)
                         logger.debug(f"RAG service ready with profile: {current_profile}")
                         
-                        logger.debug(f"   Actual similarity threshold: {self.rag_service.search_config.SIMILARITY_THRESHOLD}")
-                        logger.debug(f"   Actual max chunks: {self.rag_service.search_config.MAX_CHUNKS_RETRIEVED}")
-                        logger.debug(f"   Actual temperature: {self.rag_service.llm_config.TEMPERATURE}")
+                        # Check if search_config exists before accessing it
+                        if hasattr(self.rag_service, 'search_config') and self.rag_service.search_config:
+                            logger.debug(f"   Actual similarity threshold: {self.rag_service.search_config.SIMILARITY_THRESHOLD}")
+                            logger.debug(f"   Actual max chunks: {self.rag_service.search_config.MAX_CHUNKS_RETRIEVED}")
+                        
+                        # Check if llm_config exists before accessing it
+                        if hasattr(self.rag_service, 'llm_config') and self.rag_service.llm_config:
+                            logger.debug(f"   Actual temperature: {self.rag_service.llm_config.TEMPERATURE}")
                         
                     else:
                         logger.warning("RAG service not available - imports failed")

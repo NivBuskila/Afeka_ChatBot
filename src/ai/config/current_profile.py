@@ -30,6 +30,8 @@ _current_profile_config: Optional[SupabaseCompatibleConfig] = None
 
 def get_current_profile_name() -> str:
     """Return the current profile name"""
+    global _current_profile_name
+    logger.info(f"get_current_profile_name() called, returning: '{_current_profile_name}'")
     return _current_profile_name
 
 def get_current_profile() -> SupabaseCompatibleConfig:
@@ -124,6 +126,8 @@ def _initialize_profile():
     """Initialize profile on module load"""
     global _current_profile_name, _current_profile_config
     
+    logger.info("_initialize_profile() called - initializing RAG profile")
+    
     # First, try to get default from Supabase
     if has_supabase_config():
         try:
@@ -131,9 +135,12 @@ def _initialize_profile():
             if default_profile:
                 logger.info(f"Loading default profile from Supabase: {default_profile}")
                 if set_current_profile(default_profile):
+                    logger.info(f"Successfully loaded profile from Supabase: {default_profile}")
                     return
         except Exception as e:
             logger.warning(f"Failed to load default from Supabase: {e}")
+    else:
+        logger.info("Supabase config not available, skipping Supabase profile loading")
     
     # Then try environment variable
     env_profile = os.environ.get('RAG_PROFILE')
@@ -149,10 +156,13 @@ def _initialize_profile():
         
         if env_profile in available_profiles or env_profile in supabase_profiles:
             logger.info(f"Loading profile from environment: {env_profile}")
-            set_current_profile(env_profile)
-            return
+            if set_current_profile(env_profile):
+                logger.info(f"Successfully loaded profile from environment: {env_profile}")
+                return
         else:
             logger.warning(f"Profile '{env_profile}' from environment not found")
+    else:
+        logger.info(f"No RAG_PROFILE environment variable set")
     
     # Try to load from file
     saved_profile = _load_profile_from_file()
@@ -166,16 +176,30 @@ def _initialize_profile():
                 pass
         
         if saved_profile in available_profiles or saved_profile in supabase_profiles:
-            logger.info(f"Loading saved profile: {saved_profile}")
-            set_current_profile(saved_profile)
-            return
+            logger.info(f"Loading saved profile from file: {saved_profile}")
+            if set_current_profile(saved_profile):
+                logger.info(f"Successfully loaded profile from file: {saved_profile}")
+                return
+        else:
+            logger.warning(f"Saved profile '{saved_profile}' not found in available profiles")
+    else:
+        logger.info("No saved profile file found")
     
     # Default to 'balanced' profile
     logger.info(f"Using default profile: {DEFAULT_PROFILE}")
-    set_current_profile(DEFAULT_PROFILE)
+    if set_current_profile(DEFAULT_PROFILE):
+        logger.info(f"Successfully set default profile: {DEFAULT_PROFILE}")
+    else:
+        logger.error(f"Failed to set default profile: {DEFAULT_PROFILE}")
+        # Fallback to hardcoded values
+        _current_profile_name = DEFAULT_PROFILE
+        _current_profile_config = None
+        logger.warning(f"Using hardcoded fallback profile: {_current_profile_name}")
 
 # Initialize profile when module loads
+logger.info("Module loading - about to call _initialize_profile()")
 _initialize_profile()
+logger.info(f"Module loaded - current profile set to: '{_current_profile_name}'")
 
 # Export convenience functions
 def get_search_config():

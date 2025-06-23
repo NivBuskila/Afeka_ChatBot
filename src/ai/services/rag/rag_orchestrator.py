@@ -84,41 +84,119 @@ class RAGOrchestrator:
     def _load_configuration(self):
         """Load configuration for the specified profile"""
         try:
-            from ...config.rag_config_profiles import get_profile, PROFILES
-            from ...config.rag_config import (
-                get_search_config, get_embedding_config, get_context_config,
-                get_llm_config, get_database_config, get_performance_config
-            )
-        except ImportError:
-            from src.ai.config.rag_config_profiles import get_profile, PROFILES
-            from src.ai.config.rag_config import (
-                get_search_config, get_embedding_config, get_context_config,
-                get_llm_config, get_database_config, get_performance_config
-            )
-        
-        try:
-            if self.profile_name and self.profile_name in PROFILES:
-                profile_config = get_profile(self.profile_name)
-                self.search_config = profile_config.search
-                self.embedding_config = profile_config.embedding
-                self.context_config = profile_config.context
-                self.llm_config = profile_config.llm
-                self.db_config = profile_config.database
-                self.performance_config = profile_config.performance
+            # Try to import from relative path first
+            try:
+                from ...config.rag_config_profiles import get_profile, PROFILES
+                from ...config.rag_config import (
+                    get_search_config, get_embedding_config, get_context_config,
+                    get_llm_config, get_database_config, get_performance_config
+                )
+                logger.debug("Successfully imported from relative path")
+            except ImportError:
+                # Fallback to absolute path import
+                from src.ai.config.rag_config_profiles import get_profile, PROFILES
+                from src.ai.config.rag_config import (
+                    get_search_config, get_embedding_config, get_context_config,
+                    get_llm_config, get_database_config, get_performance_config
+                )
+                logger.debug("Successfully imported from absolute path")
+            
+            # Ensure profile_name is a string
+            if isinstance(self.profile_name, dict):
+                # If someone passed a dict instead of string, extract the id
+                if 'id' in self.profile_name:
+                    self.profile_name = str(self.profile_name.get('id', 'balanced'))
+                else:
+                    logger.warning(f"Invalid profile object: {self.profile_name}, using 'balanced' as fallback")
+                    self.profile_name = "balanced"
+            
+            # Load configuration based on profile
+            if self.profile_name and isinstance(self.profile_name, str) and self.profile_name in PROFILES:
+                try:
+                    profile_config = get_profile(self.profile_name)
+                    self.search_config = profile_config.search
+                    self.embedding_config = profile_config.embedding
+                    self.context_config = profile_config.context
+                    self.llm_config = profile_config.llm
+                    self.db_config = profile_config.database
+                    self.performance_config = profile_config.performance
+                    logger.info(f"Loaded configuration for profile: {self.profile_name}")
+                except Exception as profile_error:
+                    logger.warning(f"Failed to load profile '{self.profile_name}': {profile_error}")
+                    raise profile_error
             else:
+                # Use default configuration
+                logger.info(f"Profile '{self.profile_name}' not found in PROFILES, using default configuration")
                 self.search_config = get_search_config()
                 self.embedding_config = get_embedding_config()
                 self.context_config = get_context_config()
                 self.llm_config = get_llm_config()
                 self.db_config = get_database_config()
                 self.performance_config = get_performance_config()
+                
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
+            # Create minimal fallback configuration
+            self._create_fallback_configuration()
+
+    def _create_fallback_configuration(self):
+        """Create minimal fallback configuration when normal loading fails"""
+        try:
+            from dataclasses import dataclass
+            
+            @dataclass
+            class FallbackSearchConfig:
+                SIMILARITY_THRESHOLD: float = 0.4
+                MAX_CHUNKS_RETRIEVED: int = 15
+                HYBRID_SEMANTIC_WEIGHT: float = 0.6
+                HYBRID_KEYWORD_WEIGHT: float = 0.4
+                
+            @dataclass  
+            class FallbackLLMConfig:
+                TEMPERATURE: float = 0.2
+                MODEL_NAME: str = "gemini-2.0-flash"
+                
+            @dataclass
+            class FallbackContextConfig:
+                MAX_CONTEXT_TOKENS: int = 6000
+                
+            @dataclass
+            class FallbackEmbeddingConfig:
+                DEFAULT_SIMILARITY_THRESHOLD: float = 0.4
+                
+            @dataclass
+            class FallbackDatabaseConfig:
+                pass
+                
+            @dataclass
+            class FallbackPerformanceConfig:
+                TOKEN_ESTIMATION_MULTIPLIER: float = 1.3
+            
+            self.search_config = FallbackSearchConfig()
+            self.llm_config = FallbackLLMConfig()
+            self.context_config = FallbackContextConfig()
+            self.embedding_config = FallbackEmbeddingConfig()
+            self.db_config = FallbackDatabaseConfig()
+            self.performance_config = FallbackPerformanceConfig()
+            
+            logger.info("Created fallback configuration successfully")
+            
+        except Exception as fallback_error:
+            logger.error(f"Failed to create fallback configuration: {fallback_error}")
+            # If even fallback fails, set None values that will be checked later
+            self.search_config = None
+            self.llm_config = None
+            self.context_config = None
+            self.embedding_config = None
+            self.db_config = None
+            self.performance_config = None
 
     # Backwards compatibility methods
     
     async def generate_query_embedding(self, query: str) -> List[float]:
         """Generate embedding for query"""
+        if self.embedding_service is None:
+            raise RuntimeError("Embedding service not initialized")
         return await self.embedding_service.generate_query_embedding(query)
     
     async def semantic_search(self, query: str, document_id=None, max_results=None):
