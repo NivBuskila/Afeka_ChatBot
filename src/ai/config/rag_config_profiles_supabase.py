@@ -234,6 +234,109 @@ def validate_profile_integrity() -> Dict[str, Any]:
         logger.error(f"Error validating profile integrity: {e}")
         return {"error": str(e), "status": "failed"}
 
+# === Functions required by current_profile.py ===
+
+def get_profile_from_supabase(profile_name: str) -> Optional[Dict[str, Any]]:
+    """Get a specific profile from Supabase (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        profile = manager.get_profile_by_key(profile_name)
+        
+        if profile:
+            logger.info(f"Retrieved profile '{profile_name}' from Supabase")
+            return profile
+        else:
+            logger.warning(f"Profile '{profile_name}' not found in Supabase")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error getting profile '{profile_name}' from Supabase: {e}")
+        return None
+
+def get_profiles_from_supabase() -> Dict[str, Any]:
+    """Get all profiles from Supabase (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        profiles = manager.get_all_profiles()
+        logger.info(f"Retrieved {len(profiles)} profiles from Supabase")
+        return profiles
+    except Exception as e:
+        logger.error(f"Error getting profiles from Supabase: {e}")
+        return {}
+
+def get_default_profile_from_supabase() -> Optional[str]:
+    """Get the default profile name from Supabase (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        default_profile = manager.get_current_profile()
+        logger.info(f"Retrieved default profile '{default_profile}' from Supabase")
+        return default_profile
+    except Exception as e:
+        logger.error(f"Error getting default profile from Supabase: {e}")
+        return None
+
+def save_profile_to_supabase(profile_key: str, profile_data: Dict[str, Any]) -> bool:
+    """Save a profile to Supabase (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        success = manager.save_profile(profile_key, profile_data)
+        
+        if success:
+            logger.info(f"Saved profile '{profile_key}' to Supabase")
+            return True
+        else:
+            logger.error(f"Failed to save profile '{profile_key}' to Supabase")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error saving profile '{profile_key}' to Supabase: {e}")
+        return False
+
+def delete_profile_from_supabase(profile_key: str) -> bool:
+    """Delete a profile from Supabase (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        success = manager.delete_profile(profile_key)
+        
+        if success:
+            logger.info(f"Deleted profile '{profile_key}' from Supabase")
+            return True
+        else:
+            logger.error(f"Failed to delete profile '{profile_key}' from Supabase")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error deleting profile '{profile_key}' from Supabase: {e}")
+        return False
+
+def save_default_profile(profile_name: str) -> bool:
+    """Save the default profile name to Supabase (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        success = manager.set_current_profile(profile_name)
+        
+        if success:
+            logger.info(f"Set default profile to '{profile_name}' in Supabase")
+            return True
+        else:
+            logger.error(f"Failed to set default profile to '{profile_name}' in Supabase")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error setting default profile '{profile_name}' in Supabase: {e}")
+        return False
+
+def has_supabase_config() -> bool:
+    """Check if Supabase configuration is available (for compatibility with current_profile.py)"""
+    try:
+        manager = get_supabase_profile_manager()
+        # Try to perform a simple operation to check if Supabase is available
+        manager.get_all_profiles()
+        return True
+    except Exception as e:
+        logger.warning(f"Supabase configuration not available: {e}")
+        return False
+
 if __name__ == "__main__":
     print("Supabase RAG Config Profiles Management")
     print("=" * 60)
