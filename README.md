@@ -1,462 +1,158 @@
-# APEX Afeka ChatBot 🤖
+# APEX Afeka ChatBot 
 
-> **מערכת צ'אט-בוט חכמה מבוססת בינה מלאכותית שמיועדת לסייע לסטודנטים במכללת אפקה לקבל מידע מהיר ומדויק על תקנון אקדמי ונהלים.**
+A smart, AI-powered chatbot system designed to assist students at Afeka College of Engineering in obtaining quick and accurate information regarding academic regulations, procedures, and relevant institutional data.
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0.2-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-2.39.7-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
-[![Docker](https://img.shields.io/badge/Docker-24.0.6-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
+## Features
 
-## 📖 תוכן עניינים
+The APEX Afeka ChatBot is a comprehensive solution built on a modern microservices architecture, offering the following key features:
 
-- [תיאור הפרויקט](#תיאור-הפרויקט)
-- [אדריכלות המערכת](#אדריכלות-המערכת)
-- [התקנה והפעלה מהירה](#התקנה-והפעלה-מהירה)
-- [מבנה הפרויקט](#מבנה-הפרויקט)
-- [טכנולוגיות](#טכנולוגיות)
-- [פיתוח מקומי](#פיתוח-מקומי)
-- [בדיקות](#בדיקות)
-- [פריסה](#פריסה)
-- [צוות הפיתוח](#צוות-הפיתוח)
-- [תרומה לפרויקט](#תרומה-לפרויקט)
+*   **Intelligent Chatbot:** Provides tailored and accurate responses using **Retrieval-Augmented Generation (RAG)** techniques.
+*   **Document Management:** Allows for the upload, management, and processing of academic documents to serve as the knowledge base.
+*   **Admin Dashboard:** An advanced interface for system administrators with built-in analytics and system control.
+*   **Multilingual Support:** Full support for both **Hebrew and English** languages.
+*   **Advanced Security:** User authentication and access control managed via **Supabase**.
+*   **Responsive Design:** User interface optimized for all device types.
+*   **High Performance:** Microservices architecture designed for high load and scalability.
 
-## 🎯 תיאור הפרויקט
+## System Architecture
 
-APEX Afeka ChatBot הוא מערכת חכמה מבוססת בינה מלאכותית שמטרתה לסייע לסטודנטים במכללת אפקה לקבל מידע מהיר ומדויק על תקנון אקדמי, נהלים ומידע רלוונטי נוסף. המערכת מספקת חוויית משתמש מתקדמת עם תמיכה רב-לשונית (עברית ואנגלית) וממשק ניהול מתקדם למנהלי המערכת.
+The system employs a microservices architecture with a clear separation of concerns across layers:
 
-### ✨ תכונות עיקריות
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | `React`, `TypeScript`, `Vite`, `Tailwind CSS` | The user interface, providing the chat experience and the admin dashboard. |
+| **Backend (API Gateway)** | `FastAPI` (Python), `Pydantic`, `AsyncIO` | The main API layer, handling business logic, data validation, and orchestrating the AI/RAG processes. |
+| **AI Processing** | `LangChain`, `Google Generative AI` (Gemini) | Core AI logic for RAG, document embedding, and chat response generation. Integrated within the FastAPI backend. |
+| **Database & Storage** | `Supabase` (`PostgreSQL`, `Auth`, `Storage`) | Provides the relational database, user authentication, file storage for documents, and Row Level Security (RLS). |
+| **Vector Store** | `Postgres` with `pgvector` (via Supabase) | Used for storing document embeddings and facilitating efficient vector search for the RAG process. |
+| **Infrastructure** | `Docker` & `Docker Compose`, `Nginx` | Containerization for easy deployment and a reverse proxy for serving the application. |
 
-- 🤖 **צ'אט בוט חכם** - תגובות מותאמות ומדויקות באמצעות RAG (Retrieval Augmented Generation)
-- 📚 **ניהול מסמכים** - העלאה, ניהול ועיבוד מסמכים אקדמיים
-- 📊 **דשבורד ניהול** - ממשק מתקדם למנהלי המערכת עם אנליטיקה
-- 🌐 **רב-לשוני** - תמיכה מלאה בעברית ואנגלית
-- 🔐 **אבטחה מתקדמת** - אימות משתמשים ובקרת גישה דרך Supabase
-- 📱 **Responsive Design** - ממשק מתאים לכל סוגי המכשירים
-- ⚡ **ביצועים גבוהים** - אדריכלות microservices מותאמת לעומסים גבוהים
+## Technologies Used
 
-## 🏗️ אדריכלות המערכת
+### Frontend (`src/frontend`)
 
-```mermaid
-graph TB
-    U[משתמש] --> F[Frontend - React/TypeScript]
-    F --> B[Backend API - FastAPI]
-    B --> AI[AI Service - Python/Flask]
-    B --> DB[(Supabase Database)]
-    B --> S3[Supabase Storage]
-    AI --> RAG[RAG System]
-    RAG --> VDB[(Vector Database)]
-```
+*   **Framework:** React 18.3.1
+*   **Language:** TypeScript 5.7.3
+*   **Build Tool:** Vite
+*   **Styling:** Tailwind CSS
+*   **State/Routing:** React Router, React Context
+*   **Internationalization:** `i18next`, `react-i18next`
+*   **Data Visualization:** `recharts`
+*   **API Client:** `@supabase/supabase-js`
 
-המערכת בנויה באדריכלות microservices עם הפרדה ברורה בין שכבות:
+### Backend (`src/backend`)
 
-- **Frontend Layer**: ממשק משתמש מבוסס React עם TypeScript
-- **API Gateway**: FastAPI עם documentation אוטומטית
-- **AI Processing**: שירות נפרד לעיבוד AI ו-RAG
-- **Data Layer**: Supabase למסד נתונים ואחסון
-- **Vector Store**: מסד נתונים וקטורי לRAG
+*   **Framework:** FastAPI 0.103.0+
+*   **Language:** Python 3.11+
+*   **Data Validation:** Pydantic 2.0.0+
+*   **AI/RAG:** LangChain, Google Generative AI (Gemini), `tiktoken`
+*   **Database Drivers:** `psycopg2-binary`, `asyncpg`, `langchain-postgres`
+*   **Document Processing:** `pypdf2`, `python-docx`, `unstructured`
+*   **Caching/Messaging:** `redis`
 
-## 🚀 התקנה והפעלה מהירה
+### AI Service (`src/ai`)
 
-### דרישות מוקדמות
+*   **Framework:** Flask
+*   **Purpose:** Minimal service retained primarily for health checks and API key management status. **Note:** The main RAG/Chat logic has been migrated to the `src/backend` service.
 
-- **Docker & Docker Compose** - [הורדה](https://www.docker.com/products/docker-desktop/)
-- **Git** - [הורדה](https://git-scm.com/downloads)
-- **מפתח Supabase** - לצורך התחברות למסד הנתונים
+##  Quick Start
 
-### הפעלה עם Docker (מומלץ)
+The recommended way to run the project is using Docker Compose.
+
+### Prerequisites
+
+*   **Docker & Docker Compose**
+*   **Git**
+*   **Supabase Project:** You will need a Supabase project URL and a service role key.
+
+### 1. Clone the Repository
 
 ```bash
-# שכפול הפרויקט
-git clone https://github.com/your-organization/afeka-chatbot.git
-cd afeka-chatbot
+git clone https://github.com/NivBuskila/Afeka_ChatBot.git
+cd Afeka_ChatBot
+```
 
-# הגדרת משתני סביבה
-export SUPABASE_KEY=your_supabase_key_here  # Linux/Mac
-$env:SUPABASE_KEY="your_supabase_key_here"  # Windows PowerShell
+### 2. Configure Environment Variables
 
-# הפעלת המערכת
+Create a `.env` file in the root directory based on the provided `.env.example`.
+
+```bash
+# .env file example
+# --- Supabase Configuration ---
+SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"
+SUPABASE_SERVICE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY"
+SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
+
+# --- AI Configuration ---
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+# ... other AI-related variables
+```
+
+### 3. Run with Docker Compose
+
+Use the production configuration for a standard deployment:
+
+```bash
 docker-compose up -d
+```
 
-# לפיתוח עם hot reloading
+For development with hot-reloading for the frontend and backend services:
+
+```bash
 docker-compose -f docker-compose.dev.yml up -d
 ```
 
-### גישה למערכת
+### Access the Application
 
-- **Frontend**: http://localhost:80 (ייצור) או http://localhost:5173 (פיתוח)
-- **Backend API**: http://localhost:8000
-- **AI Service**: http://localhost:5000
-- **API Documentation**: http://localhost:8000/docs
+| Service | Production URL | Development URL | Notes |
+| :--- | :--- | :--- | :--- |
+| **Frontend** | `http://localhost:80` | `http://localhost:5173` | The main application interface. |
+| **Backend API** | `http://localhost:8000` | `http://localhost:8000` | FastAPI service. Documentation available at `/docs`. |
+| **AI Service** | `http://localhost:5000` | `http://localhost:5000` | Minimal Flask service for health checks. |
 
-## 📁 מבנה הפרויקט
+## Project Structure
 
 ```
-afeka-chatbot/
-├── src/                           # קוד המקור הראשי
-│   ├── frontend/                  # ממשק המשתמש (React/TypeScript)
+Afeka_ChatBot/
+├── src/
+│   ├── frontend/                  # React/TypeScript UI (Vite)
 │   │   ├── src/
-│   │   │   ├── components/        # רכיבי React
-│   │   │   │   ├── Chat/         # רכיבי הצ'אט
-│   │   │   │   ├── Dashboard/    # דשבורד ניהול
-│   │   │   │   ├── Login/        # מערכת התחברות
-│   │   │   │   └── ui/           # רכיבי UI בסיסיים
-│   │   │   ├── contexts/         # React Contexts
-│   │   │   ├── hooks/            # Custom Hooks
-│   │   │   ├── services/         # שירותי API
-│   │   │   ├── types/            # TypeScript Types
-│   │   │   └── utils/            # פונקציות עזר
-│   │   ├── public/               # קבצים סטטיים
+│   │   ├── public/
 │   │   └── package.json
-│   ├── backend/                   # שרת API (FastAPI)
+│   ├── backend/                   # FastAPI Server (Python)
 │   │   ├── app/
-│   │   │   ├── api/              # נקודות קצה API
-│   │   │   ├── core/             # לוגיקה מרכזית
-│   │   │   ├── models/           # מודלי נתונים
-│   │   │   ├── services/         # שירותי עסק
-│   │   │   └── repositories/     # גישה לנתונים
-│   │   ├── main.py               # נקודת כניסה
+│   │   ├── main.py
 │   │   └── requirements.txt
-│   ├── ai/                       # שירות AI (Python/Flask)
-│   │   ├── services/             # שירותי AI ו-RAG
-│   │   ├── core/                 # מנועי AI
-│   │   ├── utils/                # כלי עזר
+│   ├── ai/                        # Minimal Flask AI Service
+│   │   ├── services/
 │   │   └── app.py
-│   └── tests/                    # בדיקות אוטומטיות
-│       ├── backend/              # בדיקות Backend
-│       └── frontend/             # בדיקות Frontend
-├── supabase/                     # תצורת מסד נתונים
-│   ├── migrations/               # סקריפטי migration
-│   └── config/                   # תצורת Supabase
-├── RAG_Test_Pro/                 # מערכת בדיקות RAG
-├── docker-compose.yml            # תצורת Docker לייצור
-├── docker-compose.dev.yml        # תצורת Docker לפיתוח
-└── README.md
+│   └── tests/                     # Automated tests (Backend/Frontend)
+├── supabase/                      # Supabase configuration and migrations
+├── RAG_Test_Pro/                  # Dedicated RAG testing environment
+├── docker-compose.yml             # Production Docker configuration
+├── docker-compose.dev.yml         # Development Docker configuration
+├── .env.example                   # Template for environment variables
+└── README.md                      # This file
 ```
 
-## 🛠️ טכנולוגיות
+## Contributing
 
-### Frontend
-- **React 18.2.0** - ספריית UI עם Hooks ו-Context API
-- **TypeScript 5.0.2** - טיפוסים סטטיים ל-JavaScript
-- **Vite** - כלי build מהיר ומודרני
-- **Tailwind CSS** - framework CSS utility-first
-- **i18n** - בינאום (עברית/אנגלית)
-- **React Router** - ניהול ניווט
+We welcome contributions! Please follow these steps:
 
-### Backend
-- **FastAPI 0.104.1** - framework Python מודרני לAPI
-- **Python 3.11+** - שפת תכנות
-- **Pydantic** - validation של נתונים
-- **AsyncIO** - תכנות אסינכרוני
-- **httpx** - HTTP client אסינכרוני
+1.  Fork the repository.
+2.  Create a new branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
-### AI & Machine Learning
-- **Python Flask** - מיקרו-framework לשירות AI
-- **Transformers** - מודלי שפה מ-Hugging Face
-- **LangChain** - framework לפיתוח אפליקציות LLM
-- **Vector Databases** - אחסון embeddings
-- **RAG (Retrieval Augmented Generation)** - שיטת תגובה מבוססת מסמכים
+## Development Team
 
-### Database & Storage
-- **Supabase** - מסד נתונים ואימות
-- **PostgreSQL** - מסד נתונים יחסי
-- **Supabase Storage** - אחסון קבצים
-- **Row Level Security (RLS)** - אבטחה ברמת שורות
+The project was developed by:
 
-### Infrastructure
-- **Docker & Docker Compose** - containerization
-- **Nginx** - reverse proxy ו-load balancer
-- **Git** - בקרת גרסאות
+*   [Niv Buskila](https://github.com/NivBuskila)
+*   [Amitay Manor](https://github.com/AmitayManor)
+*   [Omri Roter](https://github.com/OmriRoter)
 
-## 💻 פיתוח מקומי
+## License
 
-### התקנה ידנית (ללא Docker)
-
-#### Frontend
-
-```bash
-cd src/frontend
-npm install
-npm run dev
-```
-
-#### Backend
-
-```bash
-cd src/backend
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-#### AI Service
-
-```bash
-cd src/ai
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-python app.py
-```
-
-### משתני סביבה
-
-צור קובץ `.env` בשורש הפרויקט:
-
-```env
-# Supabase Configuration
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# AI Configuration
-GEMINI_API_KEY=your_gemini_api_key
-AI_SERVICE_URL=http://localhost:5000
-
-# Backend Configuration
-BACKEND_URL=http://localhost:8000
-DEBUG=true
-
-# Frontend Configuration
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_BACKEND_URL=http://localhost:8000
-```
-
-## 🧪 בדיקות
-
-### בדיקות Frontend
-
-```bash
-cd src/frontend
-npm test                    # הרצת בדיקות יחידה
-npm run test:e2e           # בדיקות end-to-end
-npm run test:coverage      # כיסוי בדיקות
-```
-
-### בדיקות Backend
-
-```bash
-cd src/backend
-pytest                     # כל הבדיקות
-pytest tests/unit/         # בדיקות יחידה
-pytest tests/integration/  # בדיקות אינטגרציה
-pytest --cov=app          # כיסוי בדיקות
-```
-
-### בדיקות RAG
-
-```bash
-cd RAG_Test_Pro
-python main.py             # הרצת מערכת בדיקות RAG
-```
-
-המערכת כוללת מערכת בדיקות מתקדמת לRAG עם:
-- **בדיקות דיוק** - מדידת איכות התגובות
-- **בדיקות ביצועים** - זמני תגובה ותפוקה
-- **בדיקות חוזק** - התנהגות בתרחישים קיצוניים
-
-## 🚀 פריסה
-
-### סביבת ייצור
-
-```bash
-# בניית images לייצור
-docker-compose -f docker-compose.prod.yml build
-
-# הפעלה בסביבת ייצור
-docker-compose -f docker-compose.prod.yml up -d
-
-# עדכון מערכת
-docker-compose -f docker-compose.prod.yml pull
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### CI/CD Pipeline
-
-המערכת כוללת pipeline אוטומטי עם:
-
-1. **בדיקות אוטומטיות** - רצות על כל commit
-2. **בדיקות איכות קוד** - linting ו-type checking
-3. **בניית Docker images** - לכל סביבה
-4. **פריסה אוטומטית** - ל-staging ו-production
-
-## 🔧 פתרון בעיות נפוצות
-
-### שגיאות התחברות Supabase
-
-```bash
-# בדיקת מפתחות
-echo $SUPABASE_KEY
-echo $SUPABASE_URL
-
-# בדיקת חיבור
-curl -H "Authorization: Bearer $SUPABASE_KEY" "$SUPABASE_URL/rest/v1/"
-```
-
-### בעיות תקשורת בין שירותים
-
-```bash
-# בדיקת מצב containers
-docker-compose ps
-
-# בדיקת logs
-docker-compose logs backend
-docker-compose logs ai-service
-docker-compose logs frontend
-
-# restart שירות ספציפי
-docker-compose restart backend
-```
-
-### שגיאות TypeScript
-
-```bash
-# דילוג על שגיאות TypeScript (זמני)
-export VITE_SKIP_TS_CHECK=true
-
-# תיקון שגיאות
-cd src/frontend
-npm run type-check
-```
-
-## 📊 ניטור וביצועים
-
-### מטריקות זמינות
-
-- **זמני תגובה API** - ממוצע < 500ms
-- **זמני תגובה AI** - ממוצע < 2s
-- **זמינות מערכת** - 99.9%
-- **דיוק RAG** - > 90% על מדד BLEU
-
-### לוגים וניטור
-
-```bash
-# צפייה בלוגים בזמן אמת
-docker-compose logs -f
-
-# לוגים של שירות ספציפי
-docker-compose logs -f backend
-
-# ניקוי לוגים
-docker-compose logs --no-log-prefix > system.log
-```
-
-## 🏃‍♂️ מדריך למפתחים חדשים
-
-### 1. הקמת סביבת פיתוח
-
-```bash
-# שכפול הפרויקט
-git clone https://github.com/your-org/afeka-chatbot.git
-cd afeka-chatbot
-
-# הפעלה עם Docker
-docker-compose -f docker-compose.dev.yml up -d
-
-# בדיקה שהכל עובד
-curl http://localhost:8000/health
-```
-
-### 2. הבנת הקוד
-
-1. **התחל מהFrontend** - רכיב `Chat/ChatInterface.tsx`
-2. **עבור לBackend** - endpoint `/api/chat` ב`routes/chat.py`
-3. **למד על RAG** - תיקיית `ai/services/rag/`
-
-### 3. יצירת feature חדש
-
-```bash
-# יצירת branch חדש
-git checkout -b feature/new-chat-feature
-
-# פיתוח...
-# בדיקות...
-
-# commit ו-push
-git add .
-git commit -m "feat: add new chat feature"
-git push origin feature/new-chat-feature
-```
-
-## 👥 צוות הפיתוח
-
-- **Niv Buskila** - Full Stack Developer
-- **Omri Roter** - Backend & AI Developer  
-- **Amitay Manor** - Frontend Developer
-
-### תפקידים ואחריות
-
-- **Backend Team**: API development, database design, performance optimization
-- **Frontend Team**: UI/UX, responsive design, user experience
-- **AI Team**: RAG implementation, model optimization, accuracy improvement
-- **DevOps**: Docker, CI/CD, deployment, monitoring
-
-## 🤝 תרומה לפרויקט
-
-### תהליך תרומה
-
-1. **Fork** את הפרויקט
-2. **צור branch** חדש (`git checkout -b feature/AmazingFeature`)
-3. **Commit** השינויים (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** לbranch (`git push origin feature/AmazingFeature`)
-5. **פתח Pull Request**
-
-### קוד guidelines
-
-- **TypeScript** - שימוש בטיפוסים חזקים
-- **Python** - מעקב אחר PEP 8
-- **Tests** - כיסוי מינימלי 80%
-- **Documentation** - תיעוד לכל function ציבורית
-- **Git Commits** - שימוש ב[Conventional Commits](https://www.conventionalcommits.org/)
-
-### Code Review Process
-
-1. **בדיקות אוטומטיות** עוברות ✅
-2. **Review** מ-2 מפתחים מהצוות
-3. **בדיקת performance** אם רלוונטי
-4. **עדכון documentation** אם נדרש
-
-## 📚 משאבי למידה
-
-### טכנולוגיות מרכזיות
-
-- [React Documentation](https://react.dev) - תיעוד רשמי של React
-- [FastAPI Tutorial](https://fastapi.tiangolo.com/tutorial/) - מדריך FastAPI
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/) - מדריך TypeScript
-- [Supabase Docs](https://supabase.com/docs) - תיעוד Supabase
-
-### AI & Machine Learning
-
-- [LangChain Documentation](https://python.langchain.com/) - מדריך LangChain
-- [Hugging Face Transformers](https://huggingface.co/docs/transformers/) - מודלי שפה
-- [RAG Papers](https://arxiv.org/abs/2005.11401) - מאמר מחקר על RAG
-
-### DevOps & Deployment
-
-- [Docker Documentation](https://docs.docker.com/) - מדריך Docker
-- [Git Best Practices](https://www.atlassian.com/git/tutorials/comparing-workflows) - שיטות עבודה עם Git
-
-## 📄 רישיון
-
-פרויקט זה מופץ תחת רישיון MIT. ראה את קובץ `LICENSE` לפרטים נוספים.
-
-## 📞 יצירת קשר
-
-- **Issues**: [GitHub Issues](https://github.com/your-org/afeka-chatbot/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/afeka-chatbot/discussions)
-- **Email**: team@afeka-chatbot.com
-
----
-
-<div align="center">
-
-**🚀 נבנה עם ❤️ על ידי צוות APEX**
-
-[🌟 Star](https://github.com/your-org/afeka-chatbot) • [🍴 Fork](https://github.com/your-org/afeka-chatbot/fork) • [🐛 Report Bug](https://github.com/your-org/afeka-chatbot/issues) • [💡 Request Feature](https://github.com/your-org/afeka-chatbot/issues)
-
-</div>
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
