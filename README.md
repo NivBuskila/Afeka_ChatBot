@@ -142,7 +142,6 @@ The project was developed by:
 *   [Niv Buskila](https://github.com/NivBuskila)
 *   [Amitay Manor](https://github.com/AmitayManor)
 *   [Omri Roter](https://github.com/OmriRoter)
-*   *and others*
 
 ## License
 
