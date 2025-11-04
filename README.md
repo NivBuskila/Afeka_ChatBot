@@ -48,13 +48,14 @@ The system employs a microservices architecture with a clear separation of conce
 *   **AI/RAG:** LangChain, Google Generative AI (Gemini), `tiktoken`
 *   **Database Drivers:** `psycopg2-binary`, `asyncpg`, `langchain-postgres`
 *   **Document Processing:** `pypdf2`, `python-docx`, `unstructured`
+*   **Caching/Messaging:** `redis`
 
 ### AI Service (`src/ai`)
 
 *   **Framework:** Flask
 *   **Purpose:** Minimal service retained primarily for health checks and API key management status. **Note:** The main RAG/Chat logic has been migrated to the `src/backend` service.
 
-##  Quick Start
+## Quick Start
 
 The recommended way to run the project is using Docker Compose.
 
@@ -134,16 +135,6 @@ Afeka_ChatBot/
 └── README.md                      # This file
 ```
 
-## Contributing
-
-We welcome contributions! Please follow these steps:
-
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
-
 ## Development Team
 
 The project was developed by:
@@ -151,6 +142,7 @@ The project was developed by:
 *   [Niv Buskila](https://github.com/NivBuskila)
 *   [Amitay Manor](https://github.com/AmitayManor)
 *   [Omri Roter](https://github.com/OmriRoter)
+*   *and others*
 
 ## License
 
