@@ -48,7 +48,6 @@ The system employs a microservices architecture with a clear separation of conce
 *   **AI/RAG:** LangChain, Google Generative AI (Gemini), `tiktoken`
 *   **Database Drivers:** `psycopg2-binary`, `asyncpg`, `langchain-postgres`
 *   **Document Processing:** `pypdf2`, `python-docx`, `unstructured`
-*   **Caching/Messaging:** `redis`
 
 ### AI Service (`src/ai`)
 
